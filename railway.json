@@ -7,7 +7,7 @@
   },
   "deploy": {
     "startCommand": "pnpm start",
-    "preDeployCommand": ["pnpm db:migrate"],
+    "preDeployCommand": ["pnpm db:migrate", "pnpm db:seed"],
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",

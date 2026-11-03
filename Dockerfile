@@ -4,8 +4,9 @@
 #   worker: pnpm worker
 
 FROM node:22-bookworm-slim AS base
-ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1 COREPACK_HOME=/corepack COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+# pnpm zur Build-Zeit fest einbetten – kein Download beim Containerstart
+RUN corepack enable && corepack prepare pnpm@10.28.0 --activate && chmod -R a+rX /corepack && apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 FROM base AS deps
