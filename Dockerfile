@@ -1,6 +1,6 @@
 # WERKRAUM – ein Image für `web` und `worker` (PRD §25.8 Containerisierung)
 # Railway baut dieses Dockerfile automatisch. Start-Befehl je Service:
-#   web:    pnpm start          (Pre-Deploy: pnpm db:migrate)
+#   web:    pnpm start          (Pre-Deploy: pnpm db:migrate && pnpm db:seed)
 #   worker: pnpm worker
 
 FROM node:22-bookworm-slim AS base
