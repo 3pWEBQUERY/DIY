@@ -15,7 +15,7 @@ COPY apps/web/package.json apps/web/
 COPY apps/web/prisma apps/web/prisma
 COPY apps/web/prisma.config.ts apps/web/
 COPY packages/shared/package.json packages/shared/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY . .
