@@ -107,7 +107,9 @@ export function Cover({
   sizes,
   priority,
   label,
+  plateNumber,
 }: {
+  plateNumber?: boolean;
   url?: string | null;
   variants?: Variants | null;
   alt: string;
@@ -124,7 +126,7 @@ export function Cover({
       {url || variants?.md ? (
         <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className="absolute inset-0" />
       ) : (
-        <Plate seed={seed} category={category} label={label} />
+        <Plate seed={seed} category={category} label={label} number={plateNumber} />
       )}
     </div>
   );

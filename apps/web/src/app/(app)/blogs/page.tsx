@@ -169,9 +169,9 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
           {idx.authors.length > 0 && (
             <section aria-labelledby="autoren" className="mt-16">
               <SectionTitle n={String(idx.byCategory.length + 3).padStart(2, "0")} title={<span id="autoren">Stimmen aus der Community</span>} />
-              <ul className="mt-6 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {idx.authors.map((a) => (
-                  <li key={a.userId} className="bg-paper">
+                  <li key={a.userId} className="border border-line bg-paper">
                     <Link href={`/u/${a.handle}/blog`} className="group flex h-full gap-4 p-5 hover:bg-card">
                       <Avatar src={a.avatarUrl} name={a.displayName} size={48} />
                       <span className="min-w-0">

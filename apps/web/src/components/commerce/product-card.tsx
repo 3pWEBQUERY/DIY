@@ -46,7 +46,7 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
   return (
     <article className={cn("group relative", className)}>
       <div className="relative border border-line bg-card transition-colors group-hover:border-ink">
-        <Cover
+        <Cover plateNumber={false}
           url={p.cover.url}
           variants={p.cover.variants}
           alt={p.cover.alt}
