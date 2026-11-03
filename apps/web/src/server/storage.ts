@@ -74,7 +74,7 @@ const s3Driver: Driver = {
   },
 };
 
-const ROOT = path.resolve(process.env.LOCAL_STORAGE_DIR ?? ".data/storage");
+const ROOT = path.resolve(/*turbopackIgnore: true*/ process.env.LOCAL_STORAGE_DIR ?? ".data/storage");
 const safe = (key: string) => {
   const p = path.resolve(ROOT, key);
   if (!p.startsWith(ROOT + path.sep)) throw new Error("Ungültiger Schlüssel");
@@ -95,25 +95,25 @@ const localDriver: Driver = {
   },
   async put(key, body) {
     const p = safe(key);
-    await mkdir(path.dirname(p), { recursive: true });
-    await writeFile(p, body);
+    await mkdir(/*turbopackIgnore: true*/ path.dirname(p), { recursive: true });
+    await writeFile(/*turbopackIgnore: true*/ p, body);
   },
   async get(key) {
     try {
-      return { body: await readFile(safe(key)) };
+      return { body: await readFile(/*turbopackIgnore: true*/ safe(key)) };
     } catch {
       return null;
     }
   },
   async head(key) {
     try {
-      return { bytes: (await stat(safe(key))).size };
+      return { bytes: (await stat(/*turbopackIgnore: true*/ safe(key))).size };
     } catch {
       return null;
     }
   },
   async del(key) {
-    await unlink(safe(key)).catch(() => {});
+    await unlink(/*turbopackIgnore: true*/ safe(key)).catch(() => {});
   },
 };
 
