@@ -101,7 +101,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             aria-current={cat?.slug === c.slug ? "page" : undefined}
             className={cn("flex h-9 shrink-0 items-center gap-2 border px-3 text-sm", cat?.slug === c.slug ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}
           >
-            <Glyph name={c.glyph} size={16} strokeWidth={3} />
+            <Glyph name={c.glyph} size={16} strokeWidth={1.5} />
             {c.short}
             <span className="font-mono text-[10px] opacity-60">{counts.get(c.slug) ?? 0}</span>
           </Link>
@@ -181,7 +181,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               {communities.map((c) => (
                 <li key={c.id}>
                   <Link href={`/c/${c.slug}`} className="flex h-full flex-col justify-between bg-paper p-5 hover:bg-card">
-                    <Glyph name={categoryBySlug(c.category)?.glyph ?? "spark"} size={28} strokeWidth={2.6} />
+                    <Glyph name={categoryBySlug(c.category)?.glyph ?? "spark"} size={28} strokeWidth={1.6} />
                     <span className="mt-6 block font-semibold">{c.name}</span>
                     <span className="spec mt-1">{c.memberCount} Mitglieder · {categoryBySlug(c.category)?.short}</span>
                   </Link>

@@ -42,7 +42,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
               <li key={o.key}>
                 <Link href={o.href} className="group grid grid-cols-[2rem_2.25rem_1fr_auto] items-center gap-3 py-4 hover:bg-card sm:px-2">
                   <span className="font-mono text-xs text-muted">{pad(i + 1)}</span>
-                  <Glyph name={o.glyph} size={26} strokeWidth={2.6} />
+                  <Glyph name={o.glyph} size={26} strokeWidth={1.6} />
                   <span>
                     <span className="block font-semibold">{o.title}</span>
                     <span className="block text-sm text-muted">{o.body}</span>

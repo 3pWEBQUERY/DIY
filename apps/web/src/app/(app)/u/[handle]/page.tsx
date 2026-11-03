@@ -120,10 +120,10 @@ export default async function ProfilePage({ params, searchParams }: Params) {
       </div>
 
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-10">
-        <header className="relative -mt-12 grid gap-6 border-b border-line pb-8 sm:-mt-16 lg:grid-cols-[1fr_auto] lg:items-end">
+        <header className="relative grid gap-6 border-b border-line pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="border border-ink" />
-            <div className="min-w-0 pb-1">
+            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 border border-ink sm:-mt-16" />
+            <div className="min-w-0 pb-1 sm:pt-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="display text-4xl sm:text-5xl">{profile.displayName}</h1>
                 {profile.user.role !== "MEMBER" && <Badge tone="moss">Team</Badge>}
@@ -244,7 +244,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                       return cat ? (
                         <li key={c}>
                           <Link href={`/entdecken?kategorie=${c}`} className="inline-flex h-8 items-center gap-1.5 border border-line px-2.5 text-[13px] hover:border-ink">
-                            <Glyph name={cat.glyph} size={14} strokeWidth={3} />{cat.short}
+                            <Glyph name={cat.glyph} size={14} strokeWidth={1.5} />{cat.short}
                           </Link>
                         </li>
                       ) : null;

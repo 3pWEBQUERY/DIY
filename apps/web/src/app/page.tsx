@@ -240,7 +240,7 @@ export default async function Landing() {
                 <li key={c.slug}>
                   <Link href={`/entdecken?kategorie=${c.slug}`} className="group grid grid-cols-[2.5rem_2rem_1fr_auto] items-center gap-3 border-b border-line py-3.5 transition-colors hover:bg-paper sm:px-3">
                     <span className="font-mono text-xs text-muted">{pad(i + 1)}</span>
-                    <Glyph name={c.glyph} size={24} className="text-ink transition-transform group-hover:rotate-[-8deg]" strokeWidth={2.6} />
+                    <Glyph name={c.glyph} size={24} className="text-ink transition-transform group-hover:rotate-[-8deg]" strokeWidth={1.6} />
                     <span className="text-[17px] font-medium">
                       {c.name}
                       {c.focus && <span className="ml-3 align-middle font-mono text-[10px] uppercase tracking-[0.12em] text-clay">Startschwerpunkt</span>}

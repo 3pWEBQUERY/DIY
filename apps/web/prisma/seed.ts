@@ -567,6 +567,11 @@ async function demo(adminId: string) {
     }
   }
 
+  for (const id of users.values()) {
+    const [followers, following] = await Promise.all([db.follow.count({ where: { followeeId: id } }), db.follow.count({ where: { followerId: id } })]);
+    await db.userProfile.update({ where: { userId: id }, data: { followerCount: followers, followingCount: following } });
+  }
+
   // Projekte
   const projectIds = new Map<string, string>();
   for (const [i, p] of PROJECTS.entries()) {

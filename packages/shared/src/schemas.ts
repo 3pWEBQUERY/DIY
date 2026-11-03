@@ -170,3 +170,187 @@ export type PostCreateInput = z.infer<typeof postCreateSchema>;
 export type ProjectUpsertInput = z.infer<typeof projectUpsertSchema>;
 export type TutorialUpsertInput = z.infer<typeof tutorialUpsertSchema>;
 export type ProductUpsertInput = z.infer<typeof productUpsertSchema>;
+
+// ───────── Projekte, Anleitungen, Materialien, Sammlungen (Erweiterungen) ─────────
+
+export const tutorialStepInputSchema = tutorialStepSchema.extend({
+  /** Bleibt beim Bearbeiten gleich, damit der Lesefortschritt über Versionen erhalten bleibt. */
+  stableKey: z.string().trim().min(1).max(64).optional(),
+});
+
+export const tutorialSaveSchema = tutorialUpsertSchema.extend({
+  steps: z.array(tutorialStepInputSchema).min(1, "Mindestens ein Schritt").max(80),
+  isMajor: z.boolean().default(false),
+  shareToFeed: z.boolean().default(false),
+});
+
+export const projectStatusChangeSchema = z.object({ status: z.enum(PROJECT_STATUS) });
+
+export const shoppingListCreateSchema = z.object({
+  title: z.string().trim().min(1, "Bitte gib einen Titel an").max(80),
+});
+
+export const shoppingListItemSchema = z.object({
+  name: z.string().trim().min(1, "Bezeichnung fehlt").max(120),
+  quantity: z.string().trim().max(40).default(""),
+  materialId: z.string().optional(),
+});
+
+export const shoppingListItemPatchSchema = z.object({
+  quantity: z.string().trim().max(40).optional(),
+  haveIt: z.boolean().optional(),
+  purchased: z.boolean().optional(),
+});
+
+export const collectionUpsertSchema = z.object({
+  title: z.string().trim().min(1, "Bitte gib einen Titel an").max(80),
+  description: z.string().trim().max(500).default(""),
+  visibility: visibilitySchema.default("PRIVATE"),
+});
+
+export type TutorialSaveInput = z.infer<typeof tutorialSaveSchema>;
+export type TutorialStepInput = z.infer<typeof tutorialStepInputSchema>;
+
+// ───────────────────────────── Blog (PRD §14) ─────────────────────────────
+// Blockbasierter Inhalt. Absätze erlauben minimale Inline-Auszeichnung:
+// **fett**, *kursiv*, [Linktext](https://…). Es wird nie rohes HTML gespeichert oder gerendert.
+
+const blockId = z.string().trim().min(1).max(40);
+const blockText = (max: number) => z.string().max(max).default("");
+const articleMediaSchema = z.object({
+  mediaId: z.string().min(1),
+  url: z.string().max(2000).default(""),
+  alt: z.string().trim().max(500).default(""),
+  caption: z.string().trim().max(500).default(""),
+});
+
+export const ARTICLE_BLOCK_TYPES = [
+  "heading", "paragraph", "list", "quote", "image", "gallery", "video", "table", "callout", "projectCard", "tutorialCard", "productCard", "divider",
+] as const;
+export type ArticleBlockType = (typeof ARTICLE_BLOCK_TYPES)[number];
+export const CALLOUT_TONES = ["info", "tip", "warning"] as const;
+
+export const articleBlockSchema = z.discriminatedUnion("type", [
+  z.object({ id: blockId, type: z.literal("heading"), level: z.union([z.literal(2), z.literal(3)]).default(2), text: blockText(200) }),
+  z.object({ id: blockId, type: z.literal("paragraph"), text: blockText(12_000) }),
+  z.object({ id: blockId, type: z.literal("list"), ordered: z.boolean().default(false), items: z.array(z.string().max(2000)).max(100).default([]) }),
+  z.object({ id: blockId, type: z.literal("quote"), text: blockText(3000), cite: blockText(200) }),
+  z.object({ id: blockId, type: z.literal("image"), ...articleMediaSchema.shape }),
+  z.object({ id: blockId, type: z.literal("gallery"), images: z.array(articleMediaSchema).min(1, "Galerie ohne Bilder").max(24) }),
+  z.object({ id: blockId, type: z.literal("video"), mediaId: z.string().min(1), url: z.string().max(2000).default(""), caption: blockText(500) }),
+  z.object({ id: blockId, type: z.literal("table"), rows: z.array(z.array(z.string().max(500)).min(1).max(8)).min(1).max(60) }),
+  z.object({ id: blockId, type: z.literal("callout"), tone: z.enum(CALLOUT_TONES).default("info"), text: blockText(3000) }),
+  z.object({ id: blockId, type: z.literal("projectCard"), projectId: z.string().min(1), title: z.string().max(200).optional() }),
+  z.object({ id: blockId, type: z.literal("tutorialCard"), tutorialId: z.string().min(1), title: z.string().max(200).optional() }),
+  z.object({ id: blockId, type: z.literal("productCard"), productId: z.string().min(1), title: z.string().max(200).optional() }),
+  z.object({ id: blockId, type: z.literal("divider") }),
+]);
+
+export const articleBlocksSchema = z.array(articleBlockSchema).max(400, "Zu viele Blöcke");
+
+export const articleSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(2, "Mindestens 2 Zeichen")
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Nur Kleinbuchstaben, Ziffern und Bindestriche");
+
+export const articleUpsertSchema = z.object({
+  title: z.string().trim().min(3, "Titel ist zu kurz").max(160),
+  slug: z.union([articleSlugSchema, z.literal("")]).optional(),
+  dek: z.string().trim().max(400).default(""),
+  /** undefined = unverändert, null = entfernen, string = neues Titelbild */
+  coverMediaId: z.string().min(1).nullish(),
+  blocks: articleBlocksSchema.default([]),
+  categoryId: z.string().min(1).nullish(),
+  tags: z.array(z.string().trim().toLowerCase().min(1).max(30)).max(10, "Höchstens 10 Schlagwörter").default([]),
+  seoTitle: z.string().trim().max(70, "SEO-Titel: höchstens 70 Zeichen").default(""),
+  seoDescription: z.string().trim().max(170, "SEO-Beschreibung: höchstens 170 Zeichen").default(""),
+  commentsEnabled: z.boolean().default(true),
+  projectIds: z.array(z.string().min(1)).max(12).default([]),
+});
+
+export const articlePublishSchema = z.object({
+  /** ISO-Zeitpunkt in der Zukunft → geplant; leer → sofort */
+  publishAt: z.iso.datetime({ offset: true }).optional(),
+  shareToFeed: z.boolean().default(true),
+});
+
+export type ArticleBlock = z.infer<typeof articleBlockSchema>;
+export type ArticleUpsertInput = z.infer<typeof articleUpsertSchema>;
+
+// ───────────────────────────── Communities (PRD §15) ─────────────────────────────
+
+export const COMMUNITY_VISIBILITY = ["PUBLIC", "REQUEST", "PRIVATE"] as const;
+export const COMMUNITY_VISIBILITY_LABEL: Record<(typeof COMMUNITY_VISIBILITY)[number], string> = {
+  PUBLIC: "Öffentlich",
+  REQUEST: "Beitritt auf Anfrage",
+  PRIVATE: "Privat",
+};
+export const COMMUNITY_ROLES = ["OWNER", "ADMIN", "MODERATOR", "MEMBER"] as const;
+export const COMMUNITY_ROLE_LABEL: Record<(typeof COMMUNITY_ROLES)[number], string> = {
+  OWNER: "Gründer:in",
+  ADMIN: "Admin",
+  MODERATOR: "Moderation",
+  MEMBER: "Mitglied",
+};
+
+export const communityRuleSchema = z.object({
+  title: z.string().trim().min(2, "Regel braucht einen Titel").max(120),
+  body: z.string().trim().max(1000).default(""),
+});
+
+export const communityUpsertSchema = z.object({
+  name: z.string().trim().min(3, "Name ist zu kurz").max(80),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, "Mindestens 3 Zeichen")
+    .max(48)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Nur Kleinbuchstaben, Ziffern und Bindestriche")
+    .optional(),
+  description: z.string().trim().max(4000).default(""),
+  category: categorySchema,
+  visibility: z.enum(COMMUNITY_VISIBILITY).default("PUBLIC"),
+  region: z.string().trim().max(80).optional(),
+  coverMediaId: z.string().min(1).nullish(),
+  rules: z.array(communityRuleSchema).max(20).default([]),
+});
+
+export const communityPostSchema = z.object({
+  body: z.string().trim().max(5000).default(""),
+  media: z.array(mediaRefSchema).max(10).default([]),
+  isAnnouncement: z.boolean().default(false),
+});
+
+export const communityChallengeSchema = z
+  .object({
+    title: z.string().trim().min(3).max(120),
+    description: z.string().trim().max(2000).default(""),
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
+  })
+  .refine((c) => c.endsAt > c.startsAt, { message: "Das Ende muss nach dem Start liegen", path: ["endsAt"] });
+
+export type CommunityUpsertInput = z.infer<typeof communityUpsertSchema>;
+
+// ───────────────────────────── Nachrichten (PRD §16) ─────────────────────────────
+
+export const messageSendSchema = z
+  .object({
+    body: z.string().trim().max(5000, "Nachricht ist zu lang").default(""),
+    media: z.array(mediaRefSchema).max(6, "Höchstens 6 Bilder").default([]),
+  })
+  .refine((m) => m.body.length > 0 || m.media.length > 0, { message: "Die Nachricht ist leer" });
+
+export const conversationStartSchema = z.object({
+  recipientHandle: handleSchema,
+  orderId: z.string().min(1).optional(),
+  productId: z.string().min(1).optional(),
+  body: z.string().trim().max(5000).default(""),
+  media: z.array(mediaRefSchema).max(6).default([]),
+});
+
+export type MessageSendInput = z.infer<typeof messageSendSchema>;

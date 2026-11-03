@@ -93,7 +93,7 @@ export async function signIn(input: unknown) {
       { cta: { label: "Sitzungen prüfen", url: `${env().APP_URL}/einstellungen/sicherheit` } },
     ).catch(() => {});
   }
-  return { userId: user.id };
+  return { userId: user.id, token: s.rawToken };
 }
 
 export async function verifyEmail(raw: string) {

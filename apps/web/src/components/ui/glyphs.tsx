@@ -20,7 +20,7 @@ export const GLYPHS: Record<string, string> = {
   spark: "M50 12v24M50 64v24M12 50h24M64 50h24M24 24l14 14M62 62l14 14M76 24 62 38M38 62 24 76",
 };
 
-export function Glyph({ name, size = 24, className, strokeWidth = 2.2 }: { name: string; size?: number; className?: string; strokeWidth?: number }) {
+export function Glyph({ name, size = 24, className, strokeWidth = 1.6 }: { name: string; size?: number; className?: string; strokeWidth?: number }) {
   return (
     <svg aria-hidden width={size} height={size} viewBox="0 0 100 100" className={className}>
       <path d={GLYPHS[name] ?? GLYPHS.spark} fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />

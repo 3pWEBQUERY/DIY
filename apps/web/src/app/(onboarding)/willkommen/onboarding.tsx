@@ -138,7 +138,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                       onClick={() => toggleInterest(c.slug)}
                       className={cn("relative flex h-full min-h-28 w-full flex-col justify-between p-4 text-left transition-colors", on ? "bg-ink text-paper" : "bg-paper hover:bg-card")}
                     >
-                      <Glyph name={c.glyph} size={28} strokeWidth={2.6} className={on ? "text-paper" : "text-ink"} />
+                      <Glyph name={c.glyph} size={28} strokeWidth={1.6} className={on ? "text-paper" : "text-ink"} />
                       <span className="mt-4 text-sm font-semibold leading-tight">{c.name}</span>
                       {on && <Check size={14} className="absolute right-3 top-3" />}
                       {c.focus && !on && <span className="absolute right-3 top-3 font-mono text-[9px] uppercase tracking-[0.12em] text-clay">Start</span>}
