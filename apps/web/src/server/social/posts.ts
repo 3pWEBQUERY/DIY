@@ -258,13 +258,31 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
   return post;
 }
 
-export async function updatePost(user: SessionUser, postId: string, input: { body: string; category?: string; visibility?: string; media?: { id: string; alt: string }[] }) {
-  const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true } });
-  if (!post) throw fail.notFound();
+export async function updatePost(
+  user: SessionUser,
+  postId: string,
+  input: { body: string; category?: string; visibility?: string; media?: { id: string; alt: string }[]; projectId?: string | null },
+) {
+  const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, repostOfId: true, communityId: true } });
+  if (!post || post.state === "REMOVED") throw fail.notFound();
   if (post.authorId !== user.id) throw fail.forbidden();
-  const data = postCreateSchema.parse({ ...input, media: input.media ?? [] });
+  const data = postCreateSchema.parse({ ...input, media: input.media ?? [], repostOfId: post.repostOfId ?? undefined, projectId: input.projectId ?? undefined });
+  if (input.projectId) {
+    const pr = await db.project.findUnique({ where: { id: input.projectId }, select: { ownerId: true } });
+    if (!pr || pr.ownerId !== user.id) throw fail.forbidden("Du kannst nur eigene Projekte verknüpfen.");
+  }
   await db.$transaction(async (tx) => {
-    await tx.post.update({ where: { id: postId }, data: { body: data.body, category: data.category ?? null, visibility: data.visibility, editedAt: new Date() } });
+    await tx.post.update({
+      where: { id: postId },
+      data: {
+        body: data.body,
+        category: data.category ?? null,
+        // Community-Beiträge bleiben öffentlich innerhalb der Community
+        visibility: post.communityId ? "PUBLIC" : data.visibility,
+        ...(input.projectId !== undefined ? { projectId: input.projectId || null } : {}),
+        editedAt: new Date(),
+      },
+    });
     if (input.media) {
       await attachMedia(tx, user.id, data.media.map((m) => m.id));
       await tx.postMedia.deleteMany({ where: { postId } });
@@ -272,6 +290,38 @@ export async function updatePost(user: SessionUser, postId: string, input: { bod
     }
   });
 }
+
+/** Beitrag für die Bearbeitung im Studio – nur für die Autorin / den Autor. */
+export async function getPostForEdit(user: SessionUser, postId: string) {
+  const p = await db.post.findUnique({
+    where: { id: postId },
+    include: {
+      media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, kind: true, state: true } } } },
+      project: { select: { id: true, title: true } },
+      community: { select: { name: true, slug: true } },
+      repostOf: { select: { id: true, body: true } },
+    },
+  });
+  if (!p || p.state === "REMOVED") throw fail.notFound();
+  if (p.authorId !== user.id) throw fail.notFound();
+  return {
+    id: p.id,
+    kind: p.kind,
+    body: p.body,
+    category: p.category,
+    visibility: p.visibility,
+    state: p.state,
+    projectId: p.projectId,
+    project: p.project,
+    community: p.community,
+    repostOf: p.repostOf,
+    publishedAt: p.publishedAt.toISOString(),
+    editedAt: p.editedAt?.toISOString() ?? null,
+    counts: { likes: p.likeCount, comments: p.commentCount, saves: p.saveCount, reposts: p.repostCount },
+    media: p.media.map((m) => ({ id: m.mediaId, alt: m.alt, kind: m.media.kind, preview: ((m.media.variants ?? {}) as Record<string, string>).sm ?? ((m.media.variants ?? {}) as Record<string, string>).video ?? "" })),
+  };
+}
+export type PostEditData = Awaited<ReturnType<typeof getPostForEdit>>;
 
 export async function deletePost(user: SessionUser, postId: string) {
   const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true } });

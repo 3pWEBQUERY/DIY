@@ -201,25 +201,25 @@ export async function listOwnContent(userId: string, handle: string, opts: { typ
       })(),
       updatedAt: p.updatedAt,
       href: p.state === "REMOVED" ? null : `/beitrag/${p.id}`,
-      manageHref: `/beitrag/${p.id}`,
+      manageHref: `/studio/inhalte/beitrag/${p.id}`,
       meta: `${p.likeCount} Gefällt-mir · ${p.commentCount} Kommentare`,
     })),
     ...projects.map((p) => {
       const s = p.status === "ARCHIVED" && p.state === "PUBLISHED" ? { state: "archived" as const, label: "Archiviert" } : contentState(p.state);
-      return { type: "project" as const, id: p.id, title: p.title, state: s.state, stateLabel: s.label, updatedAt: p.updatedAt, href: p.state === "REMOVED" ? null : `/u/${handle}/${p.slug}`, manageHref: "/studio/projekte", meta: `${p._count.updates} Journal-Einträge` };
+      return { type: "project" as const, id: p.id, title: p.title, state: s.state, stateLabel: s.label, updatedAt: p.updatedAt, href: p.state === "REMOVED" ? null : `/u/${handle}/${p.slug}`, manageHref: p.state === "REMOVED" ? "/studio/projekte" : `/u/${handle}/${p.slug}/bearbeiten`, meta: `${p._count.updates} Journal-Einträge` };
     }),
     ...tutorials.map((t) => {
       const s = contentState(t.state);
-      return { type: "tutorial" as const, id: t.id, title: t.title, state: s.state, stateLabel: s.label, updatedAt: t.updatedAt, href: t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : null, manageHref: "/studio/anleitungen", meta: t.currentVersion ? `Version ${t.currentVersion.version}` : "unveröffentlicht" };
+      return { type: "tutorial" as const, id: t.id, title: t.title, state: s.state, stateLabel: s.label, updatedAt: t.updatedAt, href: t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : null, manageHref: `/studio/anleitungen/${t.id}`, meta: t.currentVersion ? `Version ${t.currentVersion.version}` : "unveröffentlicht" };
     }),
     ...articles.map((a) => {
       const s = a.state === "PUBLISHED" ? { state: "published" as const, label: "Veröffentlicht" } : a.state === "HIDDEN" ? { state: "archived" as const, label: "Verborgen" } : { state: "draft" as const, label: a.state === "SCHEDULED" ? "Geplant" : "Entwurf" };
-      return { type: "article" as const, id: a.id, title: a.title, state: s.state, stateLabel: s.label, updatedAt: a.updatedAt, href: a.state === "PUBLISHED" ? `/u/${handle}/blog/${a.slug}` : null, manageHref: "/studio/blog", meta: `${a.readingMinutes} Min. Lesezeit` };
+      return { type: "article" as const, id: a.id, title: a.title, state: s.state, stateLabel: s.label, updatedAt: a.updatedAt, href: a.state === "PUBLISHED" ? `/u/${handle}/blog/${a.slug}` : null, manageHref: `/studio/blog/${a.id}`, meta: `${a.readingMinutes} Min. Lesezeit` };
     }),
     ...products.map((p) => {
       const s =
         p.status === "ACTIVE" ? { state: "published" as const, label: "Aktiv" } : p.status === "SOLD_OUT" ? { state: "published" as const, label: "Ausverkauft" } : p.status === "DRAFT" ? { state: "draft" as const, label: "Entwurf" } : { state: "archived" as const, label: p.status === "DISABLED" ? "Deaktiviert" : "Pausiert" };
-      return { type: "product" as const, id: p.id, title: p.title, state: s.state, stateLabel: s.label, updatedAt: p.updatedAt, href: s.state === "published" && shop ? `/markt/${shop.slug}/${p.slug}` : null, manageHref: "/studio/produkte", meta: `${(p.priceMinor / 100).toFixed(2)} ${p.currency}` };
+      return { type: "product" as const, id: p.id, title: p.title, state: s.state, stateLabel: s.label, updatedAt: p.updatedAt, href: s.state === "published" && shop ? `/markt/${shop.slug}/${p.slug}` : null, manageHref: `/studio/produkte/${p.id}`, meta: `${(p.priceMinor / 100).toFixed(2)} ${p.currency}` };
     }),
   ];
   rows.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());

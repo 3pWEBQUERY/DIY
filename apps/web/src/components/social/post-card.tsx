@@ -137,7 +137,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
   if (gone) return null;
 
   const own: MenuItem[] = [
-    { label: "Bearbeiten", icon: <Pencil size={15} />, onSelect: () => setEditOpen(true) },
+    { label: "Bearbeiten", icon: <Pencil size={15} />, onSelect: () => router.push(`/studio/inhalte/beitrag/${post.id}`) },
     {
       label: "Löschen",
       icon: <Trash2 size={15} />,
