@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+onlyBuiltDependencies:
+  - sharp
+  - prisma
+  - "@prisma/engines"
+  - esbuild

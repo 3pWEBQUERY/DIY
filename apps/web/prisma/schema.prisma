@@ -1,0 +1,1689 @@
+// WERKRAUM – Fachliches Datenmodell (PRD §26)
+// Konventionen (§26.3): cuid-IDs, createdAt/updatedAt, explizite FKs, Indizes auf Filterfelder.
+// Geldbeträge: Integer in Minor Units (Rappen/Cent).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum PlatformRole {
+  MEMBER
+  PLATFORM_MODERATOR
+  ADMIN
+  SUPERADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum Visibility {
+  PUBLIC
+  FOLLOWERS
+  PRIVATE
+}
+
+enum ContentState {
+  PUBLISHED
+  DRAFT
+  HIDDEN
+  REMOVED
+}
+
+enum ProjectStatus {
+  IDEA
+  PLANNING
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+enum MediaState {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum PostKind {
+  TEXT
+  MEDIA
+  PROJECT_UPDATE
+  PROJECT_SHOWCASE
+  TUTORIAL
+  ARTICLE
+  PRODUCT
+  REPOST
+}
+
+enum ReactionKind {
+  LIKE
+}
+
+enum TargetType {
+  POST
+  COMMENT
+  PROJECT
+  TUTORIAL
+  TUTORIAL_STEP
+  PRODUCT
+  USER
+  MESSAGE
+  ARTICLE
+  COMMUNITY
+  REVIEW
+}
+
+enum ProjectRelationKind {
+  REMIX
+  INSPIRED_BY
+  SEQUEL
+}
+
+enum CommunityVisibility {
+  PUBLIC
+  REQUEST
+  PRIVATE
+}
+
+enum CommunityRoleKind {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum MembershipState {
+  ACTIVE
+  PENDING
+  INVITED
+  BANNED
+}
+
+enum ShopStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  ACTIVE
+  PAUSED
+  SUSPENDED
+}
+
+enum SellerType {
+  PRIVATE
+  BUSINESS
+}
+
+enum VerificationState {
+  NOT_STARTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ProductKind {
+  UNIQUE
+  SMALL_BATCH
+  MADE_TO_ORDER
+  KIT
+  DIGITAL
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  SOLD_OUT
+  DISABLED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  NEW
+  IN_PROGRESS
+  READY_TO_SHIP
+  SHIPPED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  PROBLEM
+}
+
+enum PaymentStatus {
+  REQUIRES_PAYMENT
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  DISPUTED
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum ModerationCaseStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  APPEALED
+  CLOSED
+}
+
+enum ModerationActionKind {
+  NONE
+  WARN
+  LIMIT_REACH
+  HIDE
+  REMOVE
+  DISABLE_LISTING
+  RESTRICT_MESSAGING
+  SUSPEND
+  BAN
+}
+
+enum AppealStatus {
+  OPEN
+  UPHELD
+  OVERTURNED
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  EMAIL_CHANGE
+}
+
+enum ArticleState {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  HIDDEN
+}
+
+// ───────────────────────────── Identität ─────────────────────────────
+
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  emailVerifiedAt DateTime?
+  passwordHash    String?
+  role            PlatformRole  @default(MEMBER)
+  status          AccountStatus @default(ACTIVE)
+  suspendedUntil  DateTime?
+  messagingRestrictedUntil DateTime?
+  adultConfirmedAt DateTime?
+  termsAcceptedAt DateTime?
+  onboardedAt     DateTime?
+  locale          String        @default("de-CH")
+  lastSeenAt      DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  profile         UserProfile?
+  sessions        Session[]
+  authAccounts    AuthAccount[]
+  preference      UserPreference?
+  roleAssignments RoleAssignment[]
+  tokens          VerificationToken[]
+
+  posts           Post[]
+  comments        Comment[]
+  reactions       Reaction[]
+  following       Follow[]      @relation("follower")
+  followers       Follow[]      @relation("followee")
+  bookmarks       Bookmark[]
+  collections     Collection[]
+  notifications   Notification[] @relation("recipient")
+  actedNotifications Notification[] @relation("actor")
+  blocking        UserBlock[]   @relation("blocker")
+  blockedBy       UserBlock[]   @relation("blocked")
+  mutes           UserMute[]    @relation("muter")
+  mutedBy         UserMute[]    @relation("muted")
+  reports         Report[]
+
+  projects        Project[]
+  projectUpdates  ProjectUpdate[]
+  contributions   ProjectContributor[]
+  tutorials       Tutorial[]
+  tutorialProgress TutorialProgress[]
+  articles        BlogArticle[]
+  communityMemberships CommunityMember[]
+  communitiesOwned Community[]
+  shop            Shop?
+  carts           Cart[]
+  orders          Order[]       @relation("buyer")
+  reviews         Review[]
+  entitlements    DigitalEntitlement[]
+  shoppingLists   ShoppingList[]
+  media           Media[]
+  conversationMemberships ConversationMember[]
+  messages        Message[]
+  moderationAssigned ModerationCase[] @relation("assignee")
+  moderationSubject ModerationCase[] @relation("subjectUser")
+  moderationActions ModerationAction[] @relation("moderator")
+  appeals         Appeal[]
+  auditEvents     AuditEvent[]
+  analyticsEvents AnalyticsEvent[]
+  supportTickets  SupportTicket[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserProfile {
+  userId       String   @id
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle       String   @unique
+  displayName  String
+  bio          String   @default("")
+  avatarUrl    String?
+  coverUrl     String?
+  region       String?
+  country      String?  @default("CH")
+  website      String?
+  links        Json     @default("[]")
+  categories   String[] @default([])
+  pronouns     String?
+  isCreatorPro Boolean  @default(false)
+  followerCount  Int    @default(0)
+  followingCount Int    @default(0)
+  postCount      Int    @default(0)
+  projectCount   Int    @default(0)
+  dmPolicy     String   @default("FOLLOWING") // EVERYONE | FOLLOWING | NOBODY
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  handleHistory HandleRedirect[]
+
+  @@index([displayName])
+}
+
+model HandleRedirect {
+  oldHandle String      @id
+  userId    String
+  profile   UserProfile @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+}
+
+model Session {
+  id          String   @id // SHA-256 des Tokens, nie der Klartext
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent   String?
+  ipHash      String?
+  deviceLabel String?
+  expiresAt   DateTime
+  lastUsedAt  DateTime @default(now())
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuthAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          String
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model VerificationToken {
+  id        String       @id // SHA-256 Hash
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   TokenPurpose
+  payload   String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  @@index([userId, purpose])
+}
+
+model UserPreference {
+  userId            String   @id
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interests         String[] @default([])
+  materials         String[] @default([])
+  notificationPrefs Json     @default("{}")
+  emailDigest       String   @default("DAILY") // OFF | INSTANT | DAILY | WEEKLY
+  feedDefault       String   @default("FOR_YOU")
+  reduceMotion      Boolean  @default(false)
+  hiddenCategories  String[] @default([])
+  updatedAt         DateTime @updatedAt
+}
+
+model RoleAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // z.B. VERIFIED_SELLER, COMMUNITY_MODERATOR
+  scopeType String?
+  scopeId   String?
+  grantedBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, role, scopeType, scopeId])
+}
+
+// ───────────────────────────── Medien ─────────────────────────────
+
+model Media {
+  id         String     @id @default(cuid())
+  ownerId    String
+  owner      User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind       MediaKind
+  state      MediaState @default(PENDING)
+  storageKey String     @unique
+  mime       String
+  bytes      Int
+  width      Int?
+  height     Int?
+  durationMs Int?
+  blurhash   String?
+  dominant   String?
+  variants   Json       @default("{}")
+  isPrivate  Boolean    @default(false)
+  alt        String     @default("")
+  attachedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  postMedia     PostMedia[]
+  projectMedia  ProjectMedia[]
+  productMedia  ProductMedia[]
+  tutorialMedia TutorialMedia[]
+
+  @@index([ownerId, createdAt])
+  @@index([state, createdAt])
+}
+
+// ───────────────────────────── Social ─────────────────────────────
+
+model Post {
+  id            String       @id @default(cuid())
+  authorId      String
+  author        User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  kind          PostKind     @default(TEXT)
+  body          String       @default("")
+  category      String?
+  visibility    Visibility   @default(PUBLIC)
+  state         ContentState @default(PUBLISHED)
+  isCommercial  Boolean      @default(false)
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectUpdateId String?    @unique
+  projectUpdate ProjectUpdate? @relation(fields: [projectUpdateId], references: [id], onDelete: SetNull)
+  tutorialId    String?
+  tutorial      Tutorial?    @relation(fields: [tutorialId], references: [id], onDelete: SetNull)
+  articleId     String?
+  article       BlogArticle? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  productId     String?
+  product       Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  communityId   String?
+  community     Community?   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  isPinned      Boolean      @default(false)
+  isAnnouncement Boolean     @default(false)
+  repostOfId    String?
+  repostOf      Post?        @relation("reposts", fields: [repostOfId], references: [id], onDelete: SetNull)
+  reposts       Post[]       @relation("reposts")
+  likeCount     Int          @default(0)
+  commentCount  Int          @default(0)
+  saveCount     Int          @default(0)
+  repostCount   Int          @default(0)
+  qualityScore  Float        @default(0.5)
+  reachLimited  Boolean      @default(false)
+  editedAt      DateTime?
+  publishedAt   DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  media         PostMedia[]
+  comments      Comment[]
+
+  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  @@index([authorId, publishedAt])
+  @@index([state, visibility, publishedAt])
+  @@index([category, publishedAt])
+  @@index([communityId, isPinned, publishedAt])
+  @@index([projectId])
+}
+
+model PostMedia {
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaId  String
+  media    Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  position Int
+  alt      String @default("")
+
+  @@id([postId, mediaId])
+  @@index([postId, position])
+}
+
+model Comment {
+  id         String       @id @default(cuid())
+  authorId   String
+  author     User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  targetType TargetType
+  targetId   String
+  postId     String?
+  post       Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     Comment?     @relation("replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[]    @relation("replies")
+  body       String
+  isQuestion Boolean      @default(false)
+  isAnswer   Boolean      @default(false)
+  state      ContentState @default(PUBLISHED)
+  likeCount  Int          @default(0)
+  editedAt   DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([targetType, targetId, createdAt])
+  @@index([parentId])
+  @@index([authorId])
+}
+
+model Reaction {
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType TargetType
+  targetId   String
+  kind       ReactionKind @default(LIKE)
+  createdAt  DateTime     @default(now())
+
+  @@id([userId, targetType, targetId, kind])
+  @@index([targetType, targetId])
+}
+
+model Follow {
+  followerId String
+  follower   User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followeeId String
+  followee   User     @relation("followee", fields: [followeeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([followerId, followeeId])
+  @@index([followeeId])
+}
+
+model ProjectFollow {
+  userId    String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, projectId])
+  @@index([projectId])
+}
+
+model Bookmark {
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType   TargetType
+  targetId     String
+  collectionId String?
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+
+  @@id([userId, targetType, targetId])
+  @@index([collectionId])
+}
+
+model Collection {
+  id          String     @id @default(cuid())
+  ownerId     String
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  slug        String
+  description String     @default("")
+  visibility  Visibility @default(PRIVATE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  items       Bookmark[]
+
+  @@unique([ownerId, slug])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  recipient   User     @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?    @relation("actor", fields: [actorId], references: [id], onDelete: SetNull)
+  type        String
+  targetType  TargetType?
+  targetId    String?
+  groupKey    String?  // Bündelung: gleiche Ereignisse eines Ziels
+  count       Int      @default(1)
+  data        Json     @default("{}")
+  readAt      DateTime?
+  emailedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([recipientId, readAt, updatedAt])
+  @@index([recipientId, groupKey])
+}
+
+model UserBlock {
+  blockerId String
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model UserMute {
+  muterId   String
+  muter     User     @relation("muter", fields: [muterId], references: [id], onDelete: Cascade)
+  mutedId   String
+  muted     User     @relation("muted", fields: [mutedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([muterId, mutedId])
+}
+
+model HiddenContent {
+  userId     String
+  targetType TargetType
+  targetId   String
+  createdAt  DateTime   @default(now())
+
+  @@id([userId, targetType, targetId])
+}
+
+model Report {
+  id         String          @id @default(cuid())
+  reporterId String
+  reporter   User            @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType TargetType
+  targetId   String
+  reason     String
+  details    String          @default("")
+  caseId     String?
+  case       ModerationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  createdAt  DateTime        @default(now())
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+// ───────────────────────────── Projekte ─────────────────────────────
+
+model Project {
+  id               String        @id @default(cuid())
+  ownerId          String
+  owner            User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  slug             String
+  title            String
+  description      String        @default("")
+  category         String
+  subcategories    String[]      @default([])
+  tags             String[]      @default([])
+  coverUrl         String?
+  coverMediaId     String?
+  difficulty       Int           @default(2)
+  estimatedMinutes Int?
+  actualMinutes    Int?
+  budgetMinor      Int?
+  currency         String        @default("CHF")
+  status           ProjectStatus @default(IN_PROGRESS)
+  visibility       Visibility    @default(PUBLIC)
+  state            ContentState  @default(PUBLISHED)
+  remixNote        String?
+  viewCount        Int           @default(0)
+  likeCount        Int           @default(0)
+  saveCount        Int           @default(0)
+  remixCount       Int           @default(0)
+  commentCount     Int           @default(0)
+  qualityScore     Float         @default(0.5)
+  isFeatured       Boolean       @default(false)
+  publishedAt      DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  media            ProjectMedia[]
+  updates          ProjectUpdate[]
+  materials        ProjectMaterial[]
+  tools            ProjectTool[]
+  outgoing         ProjectRelation[] @relation("from")
+  incoming         ProjectRelation[] @relation("to")
+  contributors     ProjectContributor[]
+  posts            Post[]
+  tutorials        Tutorial[]
+  products         Product[]
+  articles         ArticleProject[]
+  followers        ProjectFollow[]
+  communityProjects CommunityProject[]
+
+  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  @@unique([ownerId, slug])
+  @@index([state, visibility, publishedAt])
+  @@index([category, status])
+  @@index([isFeatured])
+}
+
+model ProjectMedia {
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  position  Int
+  alt       String  @default("")
+  caption   String  @default("")
+
+  @@id([projectId, mediaId])
+}
+
+model ProjectUpdate {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  milestone String?
+  problem   String?
+  solution  String?
+  minutes   Int?
+  media     Json     @default("[]") // [{mediaId,url,alt}]
+  happenedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post      Post?
+
+  @@index([projectId, happenedAt])
+}
+
+model ProjectMaterial {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  materialId String?
+  material   Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  name       String
+  quantity   String    @default("")
+  note       String    @default("")
+  position   Int       @default(0)
+
+  @@index([projectId])
+  @@index([materialId])
+}
+
+model ProjectTool {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  toolId    String?
+  tool      Tool?   @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  name      String
+  note      String  @default("")
+  position  Int     @default(0)
+
+  @@index([projectId])
+}
+
+model ProjectRelation {
+  id         String              @id @default(cuid())
+  fromId     String
+  from       Project             @relation("from", fields: [fromId], references: [id], onDelete: Cascade)
+  toId       String
+  to         Project             @relation("to", fields: [toId], references: [id], onDelete: Cascade)
+  kind       ProjectRelationKind @default(REMIX)
+  deviations String              @default("")
+  createdAt  DateTime            @default(now())
+
+  @@unique([fromId, toId, kind])
+  @@index([toId])
+}
+
+model ProjectContributor {
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("CONTRIBUTOR")
+  createdAt DateTime @default(now())
+
+  @@id([projectId, userId])
+}
+
+// ───────────────────────────── Tutorials ─────────────────────────────
+
+model Tutorial {
+  id              String       @id @default(cuid())
+  authorId        String
+  author          User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  slug            String       @unique
+  title           String
+  summary         String       @default("")
+  category        String
+  difficulty      Int          @default(2)
+  minutes         Int?
+  coverUrl        String?
+  language        String       @default("de-CH")
+  isPaid          Boolean      @default(false)
+  priceMinor      Int?
+  projectId       String?
+  project         Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  state           ContentState @default(DRAFT)
+  currentVersionId String?     @unique
+  currentVersion  TutorialVersion? @relation("current", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  safetyKinds     String[]     @default([])
+  viewCount       Int          @default(0)
+  saveCount       Int          @default(0)
+  completionCount Int          @default(0)
+  likeCount       Int          @default(0)
+  qualityScore    Float        @default(0.5)
+  isFeatured      Boolean      @default(false)
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  versions        TutorialVersion[] @relation("versions")
+  progress        TutorialProgress[]
+  media           TutorialMedia[]
+  assets          TutorialAsset[]
+  posts           Post[]
+  products        Product[]
+
+  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  @@index([state, publishedAt])
+  @@index([category, difficulty])
+}
+
+model TutorialVersion {
+  id          String   @id @default(cuid())
+  tutorialId  String
+  tutorial    Tutorial @relation("versions", fields: [tutorialId], references: [id], onDelete: Cascade)
+  version     Int
+  changeNote  String   @default("")
+  isMajor     Boolean  @default(false)
+  materials   Json     @default("[]")
+  tools       Json     @default("[]")
+  publishedAt DateTime @default(now())
+
+  steps       TutorialStep[]
+  current     Tutorial? @relation("current")
+
+  @@unique([tutorialId, version])
+}
+
+model TutorialStep {
+  id          String          @id @default(cuid())
+  versionId   String
+  version     TutorialVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  stableKey   String          // bleibt über Versionen gleich → Fortschritt bleibt erhalten
+  position    Int
+  title       String
+  body        String          @default("")
+  minutes     Int?
+  tip         String?
+  safety      String?
+  safetyKinds String[]        @default([])
+  media       Json            @default("[]")
+  materials   String[]        @default([])
+  tools       String[]        @default([])
+
+  @@unique([versionId, position])
+  @@index([stableKey])
+}
+
+model TutorialProgress {
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutorialId    String
+  tutorial      Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  completedKeys String[] @default([])
+  versionSeen   Int      @default(1)
+  completedAt   DateTime?
+  startedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@id([userId, tutorialId])
+}
+
+model TutorialMedia {
+  tutorialId String
+  tutorial   Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  mediaId    String
+  media      Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  position   Int
+
+  @@id([tutorialId, mediaId])
+}
+
+model TutorialAsset {
+  id         String   @id @default(cuid())
+  tutorialId String
+  tutorial   Tutorial @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  name       String
+  storageKey String
+  bytes      Int
+  mime       String
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+}
+
+// ───────────────────────────── Blogs ─────────────────────────────
+
+model BlogArticle {
+  id             String       @id @default(cuid())
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  slug           String
+  title          String
+  dek            String       @default("")
+  coverUrl       String?
+  blocks         Json         @default("[]")
+  plainText      String       @default("")
+  readingMinutes Int          @default(1)
+  categoryId     String?
+  category       ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags           String[]     @default([])
+  seoTitle       String?
+  seoDescription String?
+  state          ArticleState @default(DRAFT)
+  commentsEnabled Boolean     @default(true)
+  viewCount      Int          @default(0)
+  likeCount      Int          @default(0)
+  isFeatured     Boolean      @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  revisions      ArticleRevision[]
+  projects       ArticleProject[]
+  posts          Post[]
+  slugHistory    ArticleSlugRedirect[]
+
+  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  @@unique([authorId, slug])
+  @@index([state, publishedAt])
+}
+
+model ArticleSlugRedirect {
+  id        String      @id @default(cuid())
+  articleId String
+  article   BlogArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  authorId  String
+  oldSlug   String
+  createdAt DateTime    @default(now())
+
+  @@unique([authorId, oldSlug])
+}
+
+model ArticleRevision {
+  id        String      @id @default(cuid())
+  articleId String
+  article   BlogArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  title     String
+  blocks    Json
+  createdAt DateTime    @default(now())
+
+  @@index([articleId, createdAt])
+}
+
+model ArticleCategory {
+  id       String        @id @default(cuid())
+  slug     String        @unique
+  name     String
+  articles BlogArticle[]
+}
+
+model ArticleTag {
+  slug String @id
+  name String
+}
+
+model ArticleProject {
+  articleId String
+  article   BlogArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, projectId])
+}
+
+// ───────────────────────────── Communities ─────────────────────────────
+
+model Community {
+  id          String              @id @default(cuid())
+  slug        String              @unique
+  name        String
+  description String              @default("")
+  category    String
+  coverUrl    String?
+  visibility  CommunityVisibility @default(PUBLIC)
+  ownerId     String
+  owner       User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  memberCount Int                 @default(1)
+  region      String?
+  isFeatured  Boolean             @default(false)
+  state       ContentState        @default(PUBLISHED)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  members     CommunityMember[]
+  rules       CommunityRule[]
+  posts       Post[]
+  roles       CommunityRole[]
+  moderation  CommunityModerationAction[]
+  projects    CommunityProject[]
+  challenges  CommunityChallenge[]
+
+  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  @@index([category])
+}
+
+model CommunityMember {
+  communityId String
+  community   Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        CommunityRoleKind @default(MEMBER)
+  state       MembershipState   @default(ACTIVE)
+  mutedUntil  DateTime?
+  joinedAt    DateTime          @default(now())
+
+  @@id([communityId, userId])
+  @@index([userId])
+}
+
+model CommunityRole {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  name        String
+  permissions String[]  @default([])
+}
+
+model CommunityRule {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  position    Int
+  title       String
+  body        String    @default("")
+}
+
+model CommunityModerationAction {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  moderatorId String
+  targetType  TargetType
+  targetId    String
+  action      String
+  reason      String    @default("")
+  createdAt   DateTime  @default(now())
+
+  @@index([communityId, createdAt])
+}
+
+model CommunityProject {
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  addedAt     DateTime  @default(now())
+
+  @@id([communityId, projectId])
+}
+
+model CommunityChallenge {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  title       String
+  description String    @default("")
+  startsAt    DateTime
+  endsAt      DateTime
+  createdAt   DateTime  @default(now())
+}
+
+// ───────────────────────────── Nachrichten ─────────────────────────────
+
+model Conversation {
+  id           String   @id @default(cuid())
+  kind         String   @default("DIRECT") // DIRECT | ORDER
+  orderId      String?
+  productId    String?
+  lastMessageAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  members      ConversationMember[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationMember {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+  archivedAt     DateTime?
+  isRequest      Boolean      @default(false)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body           String
+  media          Json         @default("[]")
+  flags          String[]     @default([]) // SUSPICIOUS_PAYMENT_LINK, …
+  state          ContentState @default(PUBLISHED)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// ───────────────────────────── Handel ─────────────────────────────
+
+model Shop {
+  id               String            @id @default(cuid())
+  ownerId          String            @unique
+  owner            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  slug             String            @unique
+  name             String
+  tagline          String            @default("")
+  description      String            @default("")
+  status           ShopStatus        @default(DRAFT)
+  sellerType       SellerType        @default(PRIVATE)
+  country          String            @default("CH")
+  currency         String            @default("CHF")
+  shippingPolicy   String            @default("")
+  returnPolicy     String            @default("")
+  processingDays   Int               @default(3)
+  stripeAccountId  String?           @unique
+  payoutsEnabled   Boolean           @default(false)
+  chargesEnabled   Boolean           @default(false)
+  ratingAvg        Float             @default(0)
+  ratingCount      Int               @default(0)
+  salesCount       Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  verification     SellerVerification?
+  products         Product[]
+  orders           Order[]
+  payouts          PayoutRecord[]
+}
+
+model SellerVerification {
+  shopId        String            @id
+  shop          Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  state         VerificationState @default(NOT_STARTED)
+  legalName     String?
+  businessName  String?
+  vatId         String?
+  addressLine   String?
+  postalCode    String?
+  city          String?
+  country       String?
+  providerRef   String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  notes         String            @default("")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model Product {
+  id             String        @id @default(cuid())
+  shopId         String
+  shop           Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  slug           String
+  title          String
+  description    String        @default("")
+  kind           ProductKind   @default(UNIQUE)
+  category       String
+  priceMinor     Int
+  currency       String        @default("CHF")
+  status         ProductStatus @default(DRAFT)
+  materials      String        @default("")
+  dimensions     String        @default("")
+  productionDays Int           @default(3)
+  shippingMinor  Int           @default(900)
+  shipsFrom      String        @default("CH")
+  safetyInfo     String        @default("")
+  returnPolicy   String        @default("")
+  coverUrl       String?
+  projectId      String?
+  project        Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tutorialId     String?
+  tutorial       Tutorial?     @relation(fields: [tutorialId], references: [id], onDelete: SetNull)
+  digitalKey     String?
+  ratingAvg      Float         @default(0)
+  ratingCount    Int           @default(0)
+  saveCount      Int           @default(0)
+  viewCount      Int           @default(0)
+  isFeatured     Boolean       @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  variants       ProductVariant[]
+  media          ProductMedia[]
+  inventory      InventoryItem[]
+  orderItems     OrderItem[]
+  cartItems      CartItem[]
+  reviews        Review[]
+  posts          Post[]
+  entitlements   DigitalEntitlement[]
+
+  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  @@unique([shopId, slug])
+  @@index([status, category, publishedAt])
+  @@index([priceMinor])
+}
+
+model ProductVariant {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name            String
+  priceDeltaMinor Int      @default(0)
+  position        Int      @default(0)
+
+  inventory       InventoryItem?
+  orderItems      OrderItem[]
+  cartItems       CartItem[]
+}
+
+model ProductMedia {
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  position  Int
+  alt       String  @default("")
+
+  @@id([productId, mediaId])
+}
+
+/// Bestand je Produkt (ohne Variante) bzw. je Variante. `reserved` = in offenen Checkouts gebunden.
+model InventoryItem {
+  id        String          @id @default(cuid())
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?         @unique
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  onHand    Int             @default(0)
+  reserved  Int             @default(0)
+  updatedAt DateTime        @updatedAt
+
+  @@index([productId])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  items     CartItem[]
+
+  @@unique([userId])
+}
+
+model CartItem {
+  id        String          @id @default(cuid())
+  cartId    String
+  cart      Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity  Int             @default(1)
+  createdAt DateTime        @default(now())
+
+  @@unique([cartId, productId, variantId])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  number          String      @unique // menschenlesbar, z.B. WR-24-8F3K2
+  buyerId         String
+  buyer           User        @relation("buyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  shopId          String
+  shop            Shop        @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  status          OrderStatus @default(PENDING_PAYMENT)
+  currency        String      @default("CHF")
+  subtotalMinor   Int
+  shippingMinor   Int
+  totalMinor      Int
+  platformFeeMinor Int
+  feeBps          Int
+  shippingAddress Json
+  buyerNote       String      @default("")
+  checkoutSessionId String?   @unique
+  reservationExpiresAt DateTime?
+  paidAt          DateTime?
+  shippedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+  payments        Payment[]
+  refunds         Refund[]
+  shipments       Shipment[]
+  events          OrderEvent[]
+  reviews         Review[]
+
+  @@index([buyerId, createdAt])
+  @@index([shopId, status, createdAt])
+  @@index([status, reservationExpiresAt])
+}
+
+model OrderItem {
+  id          String          @id @default(cuid())
+  orderId     String
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  title       String
+  variantName String?
+  unitMinor   Int
+  quantity    Int
+  isDigital   Boolean         @default(false)
+
+  review      Review?
+}
+
+model OrderEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorId   String?
+  from      OrderStatus?
+  to        OrderStatus
+  note      String      @default("")
+  createdAt DateTime    @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  orderId          String
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  provider         String        @default("stripe")
+  providerRef      String?       @unique
+  status           PaymentStatus @default(REQUIRES_PAYMENT)
+  amountMinor      Int
+  currency         String
+  applicationFeeMinor Int        @default(0)
+  failureReason    String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([orderId])
+}
+
+model Refund {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  providerRef String?      @unique
+  amountMinor Int
+  reason      String       @default("")
+  status      RefundStatus @default(PENDING)
+  requestedBy String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Shipment {
+  id          String    @id @default(cuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  carrier     String    @default("")
+  trackingNo  String    @default("")
+  trackingUrl String?
+  shippedAt   DateTime  @default(now())
+  deliveredAt DateTime?
+}
+
+model Review {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId String       @unique // Schutz vor Doppelbewertung
+  orderItem   OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  productRating Int
+  sellerRating  Int?
+  body        String       @default("")
+  sellerReply String?
+  state       ContentState @default(PUBLISHED)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([productId, createdAt])
+}
+
+model DigitalEntitlement {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderItemId   String?  @unique
+  licenseText   String   @default("Persönliche, nicht übertragbare Nutzung.")
+  version       Int      @default(1)
+  downloadCount Int      @default(0)
+  downloadLimit Int?     @default(20)
+  revokedAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model PayoutRecord {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  providerRef String?  @unique
+  amountMinor Int
+  currency    String
+  status      String
+  arrivalAt   DateTime?
+  createdAt   DateTime @default(now())
+}
+
+/// Eingehende Provider-Webhooks – Idempotenz über eindeutige Event-ID (§13.6).
+model WebhookEvent {
+  id          String    @id // Provider-Event-ID
+  provider    String
+  type        String
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now())
+}
+
+model IdempotencyKey {
+  key        String   @id
+  userId     String
+  scope      String
+  response   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ───────────────────────────── Materialien ─────────────────────────────
+
+model MaterialCategory {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  materials Material[]
+}
+
+model Material {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  name        String
+  type        String
+  categoryId  String
+  category    MaterialCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  properties  Json             @default("{}")
+  unit        String           @default("Stk")
+  brand       String?
+  productRef  String?
+  notes       String           @default("")
+  safetyInfo  String           @default("")
+  createdAt   DateTime         @default(now())
+
+  projectMaterials ProjectMaterial[]
+  listItems   ShoppingListItem[]
+
+  @@index([name])
+}
+
+model Tool {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  name      String
+  notes     String        @default("")
+  safetyInfo String       @default("")
+  projectTools ProjectTool[]
+}
+
+model ShoppingList {
+  id         String             @id @default(cuid())
+  ownerId    String
+  owner      User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title      String
+  shareToken String?            @unique
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  items      ShoppingListItem[]
+}
+
+model ShoppingListItem {
+  id           String       @id @default(cuid())
+  listId       String
+  list         ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  materialId   String?
+  material     Material?    @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  name         String
+  quantity     String       @default("")
+  sourceType   String?      // PROJECT | TUTORIAL
+  sourceId     String?
+  sourceTitle  String?
+  haveIt       Boolean      @default(false)
+  purchased    Boolean      @default(false)
+  position     Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  @@index([listId])
+}
+
+// ───────────────────────────── Administration ─────────────────────────────
+
+model ModerationCase {
+  id            String               @id @default(cuid())
+  number        Int                  @unique @default(autoincrement())
+  targetType    TargetType
+  targetId      String
+  subjectUserId String?
+  subjectUser   User?                @relation("subjectUser", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  status        ModerationCaseStatus @default(OPEN)
+  riskScore     Int                  @default(0)
+  primaryReason String
+  reportCount   Int                  @default(1)
+  assigneeId    String?
+  assignee      User?                @relation("assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  snapshot      Json                 @default("{}")
+  resolvedAt    DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  reports       Report[]
+  actions       ModerationAction[]
+  appeals       Appeal[]
+
+  @@index([targetType, targetId, status])
+  @@index([status, riskScore])
+}
+
+model ModerationAction {
+  id          String               @id @default(cuid())
+  caseId      String
+  case        ModerationCase       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  moderatorId String
+  moderator   User                 @relation("moderator", fields: [moderatorId], references: [id], onDelete: Restrict)
+  action      ModerationActionKind
+  reason      String
+  publicNote  String               @default("")
+  until       DateTime?
+  createdAt   DateTime             @default(now())
+}
+
+model Appeal {
+  id         String         @id @default(cuid())
+  caseId     String
+  case       ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statement  String
+  status     AppealStatus   @default(OPEN)
+  decidedBy  String?
+  decision   String?
+  createdAt  DateTime       @default(now())
+  decidedAt  DateTime?
+}
+
+/// Append-only. `hash` = SHA-256(prevHash + Inhalt) → Manipulation erkennbar (§24.3).
+model AuditEvent {
+  id         String   @id @default(cuid())
+  seq        Int      @unique @default(autoincrement())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?
+  targetId   String?
+  meta       Json     @default("{}")
+  prevHash   String?
+  hash       String
+  createdAt  DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  description String   @default("")
+  rollout     Int      @default(100)
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model EditorialCollection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  kicker      String   @default("")
+  description String   @default("")
+  items       Json     @default("[]") // [{type, id}]
+  position    Int      @default(0)
+  isActive    Boolean  @default(true)
+  season      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email     String
+  subject   String
+  body      String
+  topic     String   @default("GENERAL")
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Outbox für Domänenereignisse (§27.3) – transaktional geschrieben, vom Worker verteilt.
+model OutboxEvent {
+  id          String    @id @default(cuid())
+  type        String
+  payload     Json
+  publishedAt DateTime?
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([publishedAt, createdAt])
+}
+
+/// Aggregierte, pseudonyme Nutzungsereignisse (§30). Keine Klartext-PII.
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name       String
+  targetType String?
+  targetId   String?
+  ownerId    String?
+  meaningful Boolean  @default(false)
+  props      Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([ownerId, name, createdAt])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+}
