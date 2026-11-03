@@ -20,21 +20,28 @@ function smooth(t: number) {
 export function knaeuel(): Float32Array {
   const out = new Float32Array(N * 3);
   const ballEnd = 0.93;
-  const tail: V3 = [2.05, -1.25, 0.35];
+  const tail: V3 = [1.45, -1.3, 0.3];
   let last: V3 = [0, 0, 0];
   const tilt = 0.42;
   for (let i = 0; i < N; i++) {
     const t = i / (N - 1);
     let p: V3;
     if (t <= ballEnd) {
+      // Garnwicklung: Grosskreise um eine langsam wandernde Achse – wie beim Aufwickeln von Hand
       const u = t / ballEnd;
-      const a = u * Math.PI * 2 * 3.15;
-      const b = Math.sin(u * Math.PI * 2 * 41) * (Math.PI / 2) * 0.94;
-      const r = 1 + 0.025 * Math.sin(u * Math.PI * 2 * 113);
-      const x = Math.cos(a) * Math.cos(b) * r;
-      const y = Math.sin(b) * r;
-      const z = Math.sin(a) * Math.cos(b) * r;
-      // leicht gekippt, damit Wicklungen in mehreren Richtungen sichtbar sind
+      const th = 1.2 + 0.6 * Math.sin(u * Math.PI * 2 * 2.3);
+      const ph = u * Math.PI * 2 * 1.7;
+      const ax: V3 = [Math.cos(ph) * Math.sin(th), Math.cos(th), Math.sin(ph) * Math.sin(th)];
+      // v = normalize(ax × (0,-1,0)), w = ax × v  (ax.y bleibt > -0.25 → nie degeneriert)
+      let v0: V3 = [ax[2], 0, -ax[0]];
+      const vl = Math.hypot(v0[0], v0[2]) || 1;
+      v0 = [v0[0] / vl, 0, v0[2] / vl];
+      const w0: V3 = [ax[1] * v0[2] - ax[2] * v0[1], ax[2] * v0[0] - ax[0] * v0[2], ax[0] * v0[1] - ax[1] * v0[0]];
+      const a = u * Math.PI * 2 * 30;
+      const r = 1 + 0.03 * Math.sin(u * Math.PI * 2 * 97);
+      const x = (Math.cos(a) * v0[0] + Math.sin(a) * w0[0]) * r;
+      const y = (Math.cos(a) * v0[1] + Math.sin(a) * w0[1]) * r;
+      const z = (Math.cos(a) * v0[2] + Math.sin(a) * w0[2]) * r;
       p = [x, y * Math.cos(tilt) - z * Math.sin(tilt), y * Math.sin(tilt) + z * Math.cos(tilt)];
       last = p;
     } else {
