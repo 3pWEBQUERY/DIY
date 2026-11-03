@@ -14,6 +14,7 @@ import { TutorialCard } from "@/components/tutorials/tutorial-card";
 import { PostCard } from "@/components/social/post-card";
 import { FollowButton, ShareButton } from "@/components/social/actions";
 import { ProfileSafetyMenu } from "./profile-menu";
+import { TrackView } from "@/components/analytics/track-view";
 import { Avatar, Badge, Empty } from "@/components/ui/misc";
 import { Cover } from "@/components/ui/media";
 import { Glyph } from "@/components/ui/glyphs";
@@ -105,6 +106,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
 
   return (
     <div>
+      {!isSelf && !blocked && <TrackView targetType="USER" targetId={userId} />}
       {/* Titelbild: Foto oder Rasterpapier mit den Werkstatt-Glyphen */}
       <div className="relative h-44 overflow-hidden border-b border-ink bg-sunken sm:h-64">
         {profile.coverUrl ? (

@@ -144,7 +144,7 @@ export async function listOwnContent(userId: string, handle: string, opts: { typ
   const [posts, projects, tutorials, articles, products] = await Promise.all([
     want("post")
       ? db.post.findMany({
-          where: { authorId: userId, projectUpdateId: null, ...(st === "draft" ? { state: "DRAFT" } : st === "published" ? { state: "PUBLISHED" } : st === "archived" ? { state: { in: ["HIDDEN", "REMOVED"] } } : {}) },
+          where: { authorId: userId, projectUpdateId: null, NOT: { state: "DRAFT", articleId: { not: null } }, ...(st === "draft" ? { state: "DRAFT" } : st === "published" ? { state: "PUBLISHED" } : st === "archived" ? { state: { in: ["HIDDEN", "REMOVED"] } } : {}) },
           orderBy: { updatedAt: "desc" },
           take,
           select: { id: true, body: true, kind: true, state: true, updatedAt: true, likeCount: true, commentCount: true },

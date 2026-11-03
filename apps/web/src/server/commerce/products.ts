@@ -1,4 +1,5 @@
 import "server-only";
+import { track } from "@/server/analytics/service";
 import { z } from "zod";
 import { productUpsertSchema, SHIP_COUNTRIES, PRODUCT_KIND, CATEGORY_SLUGS, type ProductKind } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
@@ -483,7 +484,8 @@ export type ProductPage = NonNullable<Awaited<ReturnType<typeof getProductPage>>
 
 /** Aufrufzähler – unkritisch, deshalb ohne Transaktion und Fehler werden geschluckt. */
 export async function countProductView(productId: string) {
-  await db.product.update({ where: { id: productId }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+  const r = await db.product.update({ where: { id: productId }, data: { viewCount: { increment: 1 } }, select: { shop: { select: { ownerId: true } } } }).catch(() => null);
+  if (r) await track("view", { targetType: "PRODUCT", targetId: productId, ownerId: r.shop.ownerId });
 }
 
 /** Weitere Produkte desselben Shops (ruhige Querverweise statt aggressiver Empfehlungen). */

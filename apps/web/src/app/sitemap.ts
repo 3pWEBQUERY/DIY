@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { CATEGORIES } from "@werkraum/shared";
 import { db } from "@/server/db";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 /** Sitemap öffentlicher, indexierbarer Inhalte (§14.5). */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

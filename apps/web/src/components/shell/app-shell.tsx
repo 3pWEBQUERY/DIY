@@ -35,9 +35,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       }
     : null;
   const c = user ? await counts(user.id) : { notifications: 0, messages: 0, cart: 0 };
+  // Nutzereinstellung „Bewegung reduzieren“ (§29.4) zusätzlich zu prefers-reduced-motion
+  const reduceMotion = user ? ((await db.userPreference.findUnique({ where: { userId: user.id }, select: { reduceMotion: true } }))?.reduceMotion ?? false) : false;
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-dvh" data-reduce-motion={reduceMotion ? "" : undefined}>
       <SideNav user={shellUser} counts={c} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile Kopfzeile */}

@@ -1,4 +1,5 @@
 import "server-only";
+import { track } from "@/server/analytics/service";
 import { cache } from "react";
 import { articlePublishSchema, articleUpsertSchema, type ArticleBlock } from "@werkraum/shared";
 import { db, Prisma, type ArticleState } from "@/server/db";
@@ -694,7 +695,8 @@ export async function resolveEmbeds(blocks: ArticleBlock[], viewerId: string | n
 export type ResolvedEmbeds = Awaited<ReturnType<typeof resolveEmbeds>>;
 
 export async function recordArticleView(articleId: string) {
-  await db.blogArticle.update({ where: { id: articleId }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+  const r = await db.blogArticle.update({ where: { id: articleId }, data: { viewCount: { increment: 1 } }, select: { authorId: true } }).catch(() => null);
+  if (r) await track("view", { targetType: "ARTICLE", targetId: articleId, ownerId: r.authorId });
 }
 
 // ───────────────────────── Studio ─────────────────────────

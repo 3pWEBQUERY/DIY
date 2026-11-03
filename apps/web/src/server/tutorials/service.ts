@@ -1,4 +1,5 @@
 import "server-only";
+import { track } from "@/server/analytics/service";
 import { cache } from "react";
 import { tutorialSaveSchema, SAFETY_KINDS, type SafetyKind } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
@@ -277,7 +278,10 @@ export async function completeTutorial(user: SessionUser, tutorialId: string) {
       create: { userId: user.id, tutorialId, completedKeys: [...t.keys], versionSeen: t.version, completedAt: new Date() },
       update: { completedKeys: [...t.keys], completedAt: p?.completedAt ?? new Date(), versionSeen: t.version },
     });
-    if (!p?.completedAt && t.authorId !== user.id) await tx.tutorial.update({ where: { id: tutorialId }, data: { completionCount: { increment: 1 } } });
+    if (!p?.completedAt && t.authorId !== user.id) {
+      await tx.tutorial.update({ where: { id: tutorialId }, data: { completionCount: { increment: 1 } } });
+      await track("tutorial_completed", { userId: user.id, ownerId: t.authorId, targetType: "TUTORIAL", targetId: tutorialId }, tx);
+    }
   });
   return { completed: true };
 }
@@ -294,7 +298,8 @@ export async function markTutorialVersionSeen(user: SessionUser, tutorialId: str
 }
 
 export async function recordTutorialView(tutorialId: string) {
-  await db.tutorial.update({ where: { id: tutorialId }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+  const r = await db.tutorial.update({ where: { id: tutorialId }, data: { viewCount: { increment: 1 } }, select: { authorId: true } }).catch(() => null);
+  if (r) await track("view", { targetType: "TUTORIAL", targetId: tutorialId, ownerId: r.authorId });
 }
 
 // ───────────────────────── Karten & Listen ─────────────────────────

@@ -1,4 +1,5 @@
 import "server-only";
+import { track } from "@/server/analytics/service";
 import { cache } from "react";
 import { projectUpsertSchema, projectUpdateEntrySchema, projectStatusChangeSchema, type ProjectStatus } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
@@ -349,7 +350,8 @@ export async function deleteProjectUpdate(user: SessionUser, updateId: string) {
 }
 
 export async function recordProjectView(projectId: string) {
-  await db.project.update({ where: { id: projectId }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+  const r = await db.project.update({ where: { id: projectId }, data: { viewCount: { increment: 1 } }, select: { ownerId: true } }).catch(() => null);
+  if (r) await track("view", { targetType: "PROJECT", targetId: projectId, ownerId: r.ownerId });
 }
 
 // ───────────────────────── Karten & Listen ─────────────────────────

@@ -15,6 +15,7 @@ import { processMedia } from "@/server/media/process";
 import { notify } from "@/server/notifications";
 import { sendMail } from "@/server/mail";
 import { storage } from "@/server/storage";
+import { track, isQualifiedComment } from "@/server/analytics/service";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
 
 const log = (msg: string, extra: Record<string, unknown> = {}) => console.log(JSON.stringify({ level: "info", svc: "worker", msg, ...extra }));
@@ -43,11 +44,26 @@ async function dispatchOutbox(boss: PgBoss) {
         case "PostPublished":
           await boss.send(Q.fanout, { postId: p.postId, authorId: p.authorId });
           break;
+        // North Star (§30.1): nur sinnvolle kreative Interaktionen zählen
         case "ProjectUpdated":
-        case "TutorialPublished":
+          if (p.updateId) await track("project_update", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId });
+          else {
+            const pr = await db.project.findUnique({ where: { id: p.projectId }, select: { createdAt: true, state: true, visibility: true } });
+            // Erstveröffentlichung = Ereignis in den ersten Sekunden nach Anlage
+            if (pr && pr.state === "PUBLISHED" && Date.now() - pr.createdAt.getTime() < 60_000) await track("project_published", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId });
+          }
+          break;
         case "ProjectRemixed":
+          await track("remix_shared", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId, props: { originalId: p.originalId } });
+          break;
+        case "CommentCreated": {
+          const c = await db.comment.findUnique({ where: { id: p.commentId }, select: { body: true, targetType: true, targetId: true } });
+          if (c && isQualifiedComment(c.body)) await track("qualified_comment", { userId: p.authorId, targetType: c.targetType, targetId: c.targetId });
+          break;
+        }
+        case "TutorialPublished":
         case "ArticlePublished":
-          await db.analyticsEvent.create({ data: { name: e.type, userId: p.ownerId ?? p.authorId ?? null, targetId: p.projectId ?? p.tutorialId ?? p.articleId, meaningful: true } });
+          await track(e.type === "TutorialPublished" ? "tutorial_published" : "article_published", { userId: p.authorId, ownerId: p.authorId, targetType: e.type === "TutorialPublished" ? "TUTORIAL" : "ARTICLE", targetId: p.tutorialId ?? p.articleId });
           break;
         default:
           break;
