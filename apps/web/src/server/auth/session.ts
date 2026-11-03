@@ -113,3 +113,16 @@ export async function requireUser(opts: { allowSuspended?: boolean } = {}) {
   if (!u.profile) throw fail.forbidden("Bitte schliesse zuerst die Profileinrichtung ab.");
   return u as SessionUser & { profile: NonNullable<SessionUser["profile"]> };
 }
+
+/**
+ * Für Seiten (Server Components): Wie requireUser, leitet aber nicht angemeldete
+ * Besucher:innen zur Anmeldung weiter statt einen Fehler zu werfen.
+ */
+export async function requirePageUser(returnTo?: string) {
+  const s = await getSession();
+  if (!s?.user.profile) {
+    const { redirect } = await import("next/navigation");
+    redirect(`/anmelden${returnTo ? `?weiter=${encodeURIComponent(returnTo)}` : ""}`);
+  }
+  return requireUser();
+}

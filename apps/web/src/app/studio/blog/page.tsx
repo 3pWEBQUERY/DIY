@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { listMyArticles } from "@/server/blog/service";
 import { PageHeader, TabLinks } from "@/components/shell/page";
 import { LinkButton } from "@/components/ui/button";
@@ -27,7 +27,7 @@ const STATE = {
 } as const;
 
 export default async function StudioBlogPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const user = await requireUser().catch(() => null);
+  const user = await requirePageUser("/studio/blog").catch(() => null);
   if (!user) redirect("/anmelden?weiter=/studio/blog");
   const sp = await searchParams;
   const all = await listMyArticles(user.id);

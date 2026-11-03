@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { getFeedSettings } from "@/server/account/service";
 import { FeedForm } from "@/components/settings/feed-form";
 import { SettingsSection } from "@/components/settings/section";
@@ -11,7 +11,7 @@ import { pluralize } from "@/lib/utils";
 export const metadata: Metadata = { title: "Feed & Interessen" };
 
 export default async function FeedSettingsPage() {
-  const user = await requireUser();
+  const user = await requirePageUser("/einstellungen/feed");
   const s = await getFeedSettings(user.id);
   return (
     <div>

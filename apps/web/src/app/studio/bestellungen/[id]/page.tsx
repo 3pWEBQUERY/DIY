@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
-import { currentUser, requireUser } from "@/server/auth/session";
+import { currentUser, requirePageUser } from "@/server/auth/session";
 import { getSellerOrder } from "@/server/commerce/orders";
 import { canSellerCancel, formatBps, netPlatformFee, refundableAmount } from "@/server/commerce/rules";
 import { AddressBlock, FeeSummary, OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from "@/components/commerce/order-parts";
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Bestellung" };
 export default async function StudioOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, viewer] = await Promise.all([params, currentUser()]);
   if (!viewer?.profile) redirect(`/anmelden?weiter=/studio/bestellungen/${id}`);
-  const user = await requireUser();
+  const user = await requirePageUser("/studio/bestellungen");
   const o = await getSellerOrder(user, id);
   if (!o) notFound();
 

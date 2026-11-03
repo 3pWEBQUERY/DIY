@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { getPostForEdit } from "@/server/social/posts";
 import { listOwnProjectOptions } from "@/server/projects/service";
 import { AppError } from "@/server/errors";
@@ -14,7 +14,7 @@ export const metadata = { title: "Beitrag bearbeiten" };
 /** Studio: einen Beitrag verwalten – bearbeiten, verknüpfen, löschen (§20.2). */
 export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireUser();
+  const user = await requirePageUser("/studio/inhalte");
   let post;
   try {
     post = await getPostForEdit(user, id);

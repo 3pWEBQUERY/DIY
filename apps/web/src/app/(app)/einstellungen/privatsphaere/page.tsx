@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { getPrivacySettings } from "@/server/account/service";
 import { PrivacyForm } from "@/components/settings/privacy-form";
 import { SettingsSection } from "@/components/settings/section";
@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/utils";
 export const metadata: Metadata = { title: "Privatsphäre" };
 
 export default async function PrivacySettingsPage() {
-  const user = await requireUser();
+  const user = await requirePageUser("/einstellungen/privatsphaere");
   const s = await getPrivacySettings(user.id);
   return (
     <div>
