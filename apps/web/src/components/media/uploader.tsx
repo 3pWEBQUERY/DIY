@@ -15,16 +15,25 @@ export async function uploadFile(file: File, purpose: "public" | "private" = "pu
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error?.message ?? "Upload nicht möglich");
-  const { mediaId, uploadUrl, headers } = json.data as { mediaId: string; uploadUrl: string; headers: Record<string, string> };
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
-    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
-    xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error("Upload fehlgeschlagen")));
-    xhr.onerror = () => reject(new Error("Netzwerkfehler beim Upload"));
-    xhr.send(file);
-  });
+  const { mediaId, uploadUrl, fallbackUrl, headers } = json.data as { mediaId: string; uploadUrl: string; fallbackUrl?: string; headers: Record<string, string> };
+  const put = (url: string) =>
+    new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", url);
+      Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
+      xhr.onload = () => (xhr.status < 300 ? resolve() : reject(Object.assign(new Error("Upload fehlgeschlagen"), { status: xhr.status })));
+      xhr.onerror = () => reject(Object.assign(new Error("Netzwerkfehler beim Upload"), { status: 0 }));
+      xhr.send(file);
+    });
+  try {
+    await put(uploadUrl);
+  } catch (err) {
+    // Direkt-Upload in den Bucket gescheitert (Netzwerk/CORS/Proxy) → über den eigenen Server
+    if (!fallbackUrl || fallbackUrl === uploadUrl) throw err;
+    onProgress?.(0);
+    await put(fallbackUrl);
+  }
   const done = await fetch(`/api/v1/media/${mediaId}/complete`, { method: "POST" });
   const dj = await done.json();
   if (!done.ok) throw new Error(dj.error?.message ?? "Verarbeitung fehlgeschlagen");

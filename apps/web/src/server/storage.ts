@@ -1,7 +1,7 @@
 import "server-only";
 import { mkdir, readFile, writeFile, unlink, stat } from "node:fs/promises";
 import path from "node:path";
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env, features } from "@/server/env";
 import { hmac } from "@/server/crypto";
@@ -118,6 +118,36 @@ const localDriver: Driver = {
 };
 
 export const storage = (): Driver => (features.storage() ? s3Driver : localDriver);
+
+/**
+ * CORS-Regel am Bucket, damit Browser direkt per Presigned URL hochladen dürfen.
+ * Nur die eigene App-Domain ist erlaubt. Läuft einmal pro Prozess und ist idempotent.
+ */
+let corsPromise: Promise<boolean> | null = null;
+export function ensureBucketCors() {
+  if (!features.storage()) return Promise.resolve(true);
+  corsPromise ??= (async () => {
+    const e = env();
+    const origins = [...new Set([new URL(e.APP_URL).origin, ...(process.env.EXTRA_UPLOAD_ORIGINS?.split(",").map((o) => o.trim()).filter(Boolean) ?? [])])];
+    try {
+      await s3().send(
+        new PutBucketCorsCommand({
+          Bucket: e.S3_BUCKET,
+          CORSConfiguration: {
+            CORSRules: [{ AllowedOrigins: origins, AllowedMethods: ["PUT", "GET", "HEAD"], AllowedHeaders: ["*"], ExposeHeaders: ["ETag"], MaxAgeSeconds: 3600 }],
+          },
+        }),
+      );
+      console.info(JSON.stringify({ level: "info", msg: "bucket_cors_set", origins }));
+      return true;
+    } catch (err) {
+      console.warn(JSON.stringify({ level: "warn", msg: "bucket_cors_failed", err: err instanceof Error ? err.message : String(err) }));
+      corsPromise = null; // beim nächsten Upload erneut versuchen
+      return false;
+    }
+  })();
+  return corsPromise;
+}
 export const isLocalStorage = () => !features.storage();
 
 export function publicMediaUrl(key: string) {

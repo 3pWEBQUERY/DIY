@@ -2,7 +2,7 @@ import "server-only";
 import { db, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { limit } from "@/server/ratelimit";
-import { storage } from "@/server/storage";
+import { storage, ensureBucketCors } from "@/server/storage";
 import { getSetting } from "@/server/settings";
 import type { SessionUser } from "@/server/auth/session";
 
@@ -49,8 +49,31 @@ export async function requestUpload(user: SessionUser, input: { mime: string; by
       storageKey: `raw/${user.id}/${crypto.randomUUID()}.${EXT[mime]}`,
     },
   });
+  await ensureBucketCors();
   const uploadUrl = await storage().presignPut(media.storageKey, mime, Math.round(input.bytes));
-  return { mediaId: media.id, uploadUrl, headers: { "Content-Type": mime } };
+  // Fallback über den eigenen Server, falls der Direkt-Upload (z. B. wegen Netzwerk/CORS) scheitert
+  return { mediaId: media.id, uploadUrl, fallbackUrl: `/api/v1/media/${media.id}/upload`, headers: { "Content-Type": mime } };
+}
+
+/** Upload über den Server in den Bucket – nur Eigentümer:in, nur angemeldete Grösse, nur einmal. */
+export async function uploadViaServer(user: SessionUser, mediaId: string, body: ReadableStream<Uint8Array> | null, contentLength: number) {
+  const m = await db.media.findUnique({ where: { id: mediaId } });
+  if (!m || m.ownerId !== user.id) throw fail.notFound();
+  if (m.state !== "PENDING") throw fail.conflict("Dieses Medium wurde bereits hochgeladen.");
+  if (!body) throw fail.invalid("Keine Datei erhalten.");
+  if (contentLength && Math.abs(contentLength - m.bytes) > 1024) throw fail.invalid("Die Datei weicht von der Anmeldung ab.");
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > m.bytes + 1024) throw fail.invalid("Die Datei ist grösser als angemeldet.");
+    chunks.push(value);
+  }
+  await storage().put(m.storageKey, Buffer.concat(chunks), m.mime, "private, no-store");
+  return { ok: true };
 }
 
 /** Upload abgeschlossen → Verarbeitung asynchron im Worker (§25.6 Nr. 4). */
