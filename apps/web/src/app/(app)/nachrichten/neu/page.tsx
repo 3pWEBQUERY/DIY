@@ -78,7 +78,7 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
       self: { title: "Das bist du", body: "Du kannst dir nicht selbst schreiben." },
       unavailable: { title: "Nicht möglich", body: "Du kannst dieser Person keine Nachrichten senden." },
       bad_context: { title: "Kontext passt nicht", body: "Diese Bestellung bzw. dieses Produkt gehört nicht zu euch beiden." },
-      closed: { title: "Keine Direktnachrichten", body: `${"recipient" in prep ? prep.recipient.displayName : "Diese Person"} nimmt keine Direktnachrichten an. Bei Fragen zu einer Bestellung kannst du über die Bestellung schreiben.` },
+      closed: { title: "Keine Direktnachrichten", body: `${("recipient" in prep && prep.recipient?.displayName) || "Diese Person"} nimmt keine Direktnachrichten an. Bei Fragen zu einer Bestellung kannst du über die Bestellung schreiben.` },
       restricted: { title: "Nachrichten eingeschränkt", body: `Deine Nachrichtenfunktion ist${"until" in prep && prep.until ? ` bis ${formatDate(prep.until, { day: "numeric", month: "long" })}` : ""} eingeschränkt.` },
     }[prep.kind];
     main = (
