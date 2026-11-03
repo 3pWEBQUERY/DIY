@@ -23,7 +23,7 @@ export function Badge({ tone = "neutral", className, ...p }: ComponentProps<"spa
 }
 
 /* ───────── Avatar: Foto oder Monogramm (kein generisches Icon) ───────── */
-const monoPalette = ["#3D604C", "#B46C4D", "#252822", "#6B7F5E", "#8F5239", "#4F5A4A"];
+const monoPalette = ["#B64B3A", "#B64B3A", "#262427", "#C97A68", "#973B2C", "#5B4F52"];
 export function Avatar({
   src,
   name,
@@ -48,7 +48,7 @@ export function Avatar({
   return (
     <span
       className={cn("relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full", ring && "outline outline-2 outline-paper", className)}
-      style={{ width: size, height: size, background: src ? "#F2F0EA" : color }}
+      style={{ width: size, height: size, background: src ? "#F3EFEB" : color }}
     >
       {src ? (
         <Image src={src} alt="" fill sizes={`${size}px`} className="object-cover" />

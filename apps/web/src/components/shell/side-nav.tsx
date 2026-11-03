@@ -63,8 +63,8 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
                 <Link
                   href={item.href}
                   className={cn(
-                    "group flex h-11 items-center justify-center gap-3 bg-ink px-3 text-paper transition-colors hover:bg-moss xl:justify-start",
-                    active && "bg-moss",
+                    "group flex h-11 items-center justify-center gap-3 rounded-sm bg-moss px-3 text-paper transition-colors hover:bg-moss-ink xl:justify-start",
+                    active && "bg-moss-ink",
                   )}
                 >
                   <Icon size={18} strokeWidth={1.8} />
@@ -172,7 +172,7 @@ export function BottomNav({ user, counts }: { user: ShellUser; counts: { message
                 className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[10px] text-muted", active && "text-ink font-semibold")}
               >
                 {isCreate ? (
-                  <span className="grid size-9 place-items-center bg-ink text-paper">
+                  <span className="grid size-9 place-items-center rounded-sm bg-moss text-paper">
                     <Icon size={18} />
                   </span>
                 ) : (

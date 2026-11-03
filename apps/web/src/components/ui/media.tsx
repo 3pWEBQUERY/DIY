@@ -52,10 +52,10 @@ function hash(s: string) {
 }
 
 const PLATE_TONES = [
-  { bg: "#F2F0EA", ink: "#252822", accent: "#B46C4D" },
-  { bg: "#E5ECE5", ink: "#2F4C3B", accent: "#B46C4D" },
-  { bg: "#F3E6DF", ink: "#8F5239", accent: "#3D604C" },
-  { bg: "#FFFFFF", ink: "#252822", accent: "#3D604C" },
+  { bg: "#F3EFEB", ink: "#262427", accent: "#B64B3A" },
+  { bg: "#F6E5E0", ink: "#973B2C", accent: "#B64B3A" },
+  { bg: "#F6E5E0", ink: "#973B2C", accent: "#B64B3A" },
+  { bg: "#FFFFFF", ink: "#262427", accent: "#B64B3A" },
 ];
 
 /**

@@ -66,7 +66,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
       // Faden (Line2 = echte Linienstärke in Pixeln)
       const geometry = new LineGeometry();
       geometry.setPositions(current);
-      const material = new LineMaterial({ color: 0x252822, linewidth: 1.35, worldUnits: false, transparent: true });
+      const material = new LineMaterial({ color: 0x262427, linewidth: 1.35, worldUnits: false, transparent: true });
       const line = new Line2(geometry, material);
       line.frustumCulled = false;
       group.add(line);
@@ -79,14 +79,14 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
       const stitchGeo = new THREE.BufferGeometry();
       const stitchPos = new Float32Array(stitchCount * 3);
       stitchGeo.setAttribute("position", new THREE.BufferAttribute(stitchPos, 3));
-      const stitches = new THREE.Points(stitchGeo, new THREE.PointsMaterial({ color: 0xb46c4d, size: 4.2, sizeAttenuation: false, transparent: true }));
+      const stitches = new THREE.Points(stitchGeo, new THREE.PointsMaterial({ color: 0xb64b3a, size: 4.2, sizeAttenuation: false, transparent: true }));
       stitches.frustumCulled = false;
       group.add(stitches);
 
       // Knoten des Projektfadens (Moos)
       const nodeGeo = new THREE.BufferGeometry();
       nodeGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(faden.nodes.flat()), 3));
-      const nodeMat = new THREE.PointsMaterial({ color: 0x3d604c, size: 11, sizeAttenuation: false, transparent: true, opacity: 0 });
+      const nodeMat = new THREE.PointsMaterial({ color: 0xb64b3a, size: 11, sizeAttenuation: false, transparent: true, opacity: 0 });
       const nodes = new THREE.Points(nodeGeo, nodeMat);
       nodes.frustumCulled = false;
       group.add(nodes);

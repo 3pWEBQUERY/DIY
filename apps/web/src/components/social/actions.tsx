@@ -178,7 +178,7 @@ export function ReportDialog({ open, onClose, targetType, targetId }: { open: bo
             <div className="grid gap-1.5 sm:grid-cols-2">
               {REPORT_REASONS.map((r) => (
                 <label key={r} className={cn("flex cursor-pointer items-center gap-2 border px-3 py-2.5 text-sm", reason === r ? "border-ink bg-sunken" : "border-line hover:border-line-strong")}>
-                  <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} className="accent-[#3D604C]" />
+                  <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} className="accent-[#B64B3A]" />
                   {REPORT_REASON_LABEL[r]}
                 </label>
               ))}

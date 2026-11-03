@@ -100,7 +100,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               <input name="preis_max" type="number" min={0} defaultValue={sp.preis_max} className="h-9 w-24 border border-line-strong bg-card px-2" />
             </label>
             <label className="flex h-9 items-center gap-2">
-              <input type="checkbox" name="kostenlos" value="1" defaultChecked={sp.kostenlos === "1"} className="accent-[#3D604C]" /> Nur kostenlose Anleitungen
+              <input type="checkbox" name="kostenlos" value="1" defaultChecked={sp.kostenlos === "1"} className="accent-[#B64B3A]" /> Nur kostenlose Anleitungen
             </label>
             <button className={buttonClass("outline", "sm")}>Filter anwenden</button>
           </form>

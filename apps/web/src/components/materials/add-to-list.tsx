@@ -84,7 +84,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
                   {lists.map((l) => (
                     <li key={l.id}>
                       <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm", target === l.id ? "border-ink bg-sunken" : "border-line hover:border-line-strong")}>
-                        <input type="radio" name="target" value={l.id} checked={target === l.id} onChange={() => setTarget(l.id)} className="accent-[#3D604C]" />
+                        <input type="radio" name="target" value={l.id} checked={target === l.id} onChange={() => setTarget(l.id)} className="accent-[#B64B3A]" />
                         <span className="min-w-0 flex-1 truncate font-medium">{l.title}</span>
                         <span className="spec shrink-0">{l.total} Pos.</span>
                       </label>
@@ -92,7 +92,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
                   ))}
                   <li>
                     <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm", target === "new" ? "border-ink bg-sunken" : "border-line hover:border-line-strong")}>
-                      <input type="radio" name="target" value="new" checked={target === "new"} onChange={() => setTarget("new")} className="accent-[#3D604C]" />
+                      <input type="radio" name="target" value="new" checked={target === "new"} onChange={() => setTarget("new")} className="accent-[#B64B3A]" />
                       <span className="font-medium">Neue Liste anlegen</span>
                     </label>
                   </li>

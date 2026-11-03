@@ -170,7 +170,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
               {SELLER_TYPE.map((t) => (
                 <label key={t} className={cn("flex cursor-pointer flex-col gap-1 border px-4 py-3", v.sellerType === t ? "border-ink bg-sunken" : "border-line bg-card hover:border-line-strong")}>
                   <span className="flex items-center gap-2 text-[14px] font-semibold">
-                    <input type="radio" name="sellerType" checked={v.sellerType === t} onChange={() => set("sellerType", t)} className="accent-[#3D604C]" />
+                    <input type="radio" name="sellerType" checked={v.sellerType === t} onChange={() => set("sellerType", t)} className="accent-[#B64B3A]" />
                     {SELLER_TYPE_LABEL[t]}
                   </span>
                   <span className="pl-5 text-[12.5px] text-muted">{t === "PRIVATE" ? "Gelegentliche Verkäufe eigener Arbeiten." : "Einzelfirma, GmbH, Verein o.ä. mit regelmässigem Verkauf."}</span>

@@ -574,12 +574,12 @@ function PublishDialog({
       <fieldset className="space-y-2">
         <legend className="sr-only">Zeitpunkt</legend>
         <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3", mode === "now" ? "border-ink bg-sunken" : "border-line")}>
-          <input type="radio" name="when" checked={mode === "now"} onChange={() => setMode("now")} className="mt-1 accent-[#3D604C]" />
+          <input type="radio" name="when" checked={mode === "now"} onChange={() => setMode("now")} className="mt-1 accent-[#B64B3A]" />
           <span><span className="block font-semibold">Jetzt veröffentlichen</span><span className="text-sm text-muted">Sofort sichtbar.</span></span>
         </label>
         {canSchedule && (
           <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3", mode === "later" ? "border-ink bg-sunken" : "border-line")}>
-            <input type="radio" name="when" checked={mode === "later"} onChange={() => setMode("later")} className="mt-1 accent-[#3D604C]" />
+            <input type="radio" name="when" checked={mode === "later"} onChange={() => setMode("later")} className="mt-1 accent-[#B64B3A]" />
             <span className="flex-1">
               <span className="flex items-center gap-1.5 font-semibold"><CalendarClock size={15} /> Planen</span>
               <span className="text-sm text-muted">Automatisch zum gewählten Zeitpunkt.</span>

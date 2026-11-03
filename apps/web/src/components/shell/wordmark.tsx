@@ -11,7 +11,7 @@ export function Signet({ size = 28, className }: { size?: number; className?: st
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-      <circle cx="26.6" cy="24" r="1.7" fill="#B46C4D" />
+      <circle cx="26.6" cy="24" r="1.7" fill="#B64B3A" />
     </svg>
   );
 }

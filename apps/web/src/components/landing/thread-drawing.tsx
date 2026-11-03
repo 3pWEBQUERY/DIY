@@ -22,8 +22,8 @@ export function ThreadDrawing({ className }: { className?: string }) {
         style={{ strokeDasharray: 1800, ["--len" as string]: 1800 }}
         className="animate-draw [animation-duration:3.2s]"
       />
-      <path d={d} fill="none" stroke="#B46C4D" strokeWidth="1.6" strokeDasharray="1 22" strokeLinecap="round" className="animate-fade [animation-delay:2.4s]" />
-      <circle cx="600" cy="300" r="5" fill="#3D604C" className="animate-fade [animation-delay:3s]" />
+      <path d={d} fill="none" stroke="#B64B3A" strokeWidth="1.6" strokeDasharray="1 22" strokeLinecap="round" className="animate-fade [animation-delay:2.4s]" />
+      <circle cx="600" cy="300" r="5" fill="#B64B3A" className="animate-fade [animation-delay:3s]" />
       <circle cx="20" cy="300" r="3.5" fill="none" stroke="currentColor" />
     </svg>
   );

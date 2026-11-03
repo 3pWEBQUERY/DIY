@@ -9,22 +9,23 @@
  * Flach. Keine Verläufe, keine Schatten, kein Glas. Haarlinien, Papier, Tinte.
  */
 @theme {
-  --color-paper: #faf9f6;
-  --color-card: #ffffff;
-  --color-sunken: #f2f0ea;
-  --color-ink: #252822;
-  --color-ink-2: #3a3d36;
-  --color-muted: #73766e;
-  --color-moss: #3d604c;
-  --color-moss-ink: #2f4c3b;
-  --color-moss-soft: #e5ece5;
-  --color-clay: #b46c4d;
-  --color-clay-ink: #8f5239;
-  --color-clay-soft: #f3e6df;
-  --color-line: #e3e4de;
-  --color-line-strong: #cfd0c8;
-  --color-danger: #a23b2a;
-  --color-danger-soft: #f6e4e0;
+  /* Palette „Coral Studio“ – warm, kreativ, selbstbewusst */
+  --color-paper: #faf8f5;      /* Hintergrund */
+  --color-card: #ffffff;       /* Karten */
+  --color-sunken: #f3efeb;     /* abgesetzte Flächen */
+  --color-ink: #262427;        /* Text */
+  --color-ink-2: #3d393c;
+  --color-muted: #77706d;      /* Sekundärtext (AA auf Hintergrund) */
+  --color-moss: #b64b3a;       /* Primärfarbe (Coral) */
+  --color-moss-ink: #973b2c;   /* Primär, gedrückt/Hover */
+  --color-moss-soft: #f6e5e0;  /* Akzentfläche */
+  --color-clay: #b64b3a;       /* Akzent = Primärfarbe */
+  --color-clay-ink: #973b2c;
+  --color-clay-soft: #f6e5e0;
+  --color-line: #e7e2de;       /* Trennlinien */
+  --color-line-strong: #d8d0cb;
+  --color-danger: #9b2335;
+  --color-danger-soft: #f7e3e4;
   --color-warn: #8a6a1f;
   --color-warn-soft: #f4ecd6;
 
@@ -170,10 +171,10 @@
   /* Rasterpapier ohne Verläufe: SVG-Kachel */
   .grid-paper {
     background-color: var(--color-paper);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M24 0H0v24' fill='none' stroke='%23E3E4DE' stroke-width='0.6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cpath d='M24 0H0v24' fill='none' stroke='%23E7E2DE' stroke-width='0.6'/%3E%3C/svg%3E");
   }
   .dot-paper {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Ccircle cx='1' cy='1' r='0.8' fill='%23CFD0C8'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Ccircle cx='1' cy='1' r='0.8' fill='%23D8D0CB'/%3E%3C/svg%3E");
   }
 
   /* Unterstreichung, die sich wie ein Stift zieht */

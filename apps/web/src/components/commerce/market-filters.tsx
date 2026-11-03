@@ -45,12 +45,12 @@ export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw:
         <legend className="mb-2 text-[13px] font-semibold">Art</legend>
         <div className="space-y-1.5 text-[14px]">
           <label className="flex cursor-pointer items-center gap-2">
-            <input type="radio" name="art" value="" defaultChecked={!raw.art} className="accent-[#3D604C]" />
+            <input type="radio" name="art" value="" defaultChecked={!raw.art} className="accent-[#B64B3A]" />
             Alle
           </label>
           {PRODUCT_KIND.map((k) => (
             <label key={k} className="flex cursor-pointer items-center gap-2">
-              <input type="radio" name="art" value={k} defaultChecked={raw.art === k} className="accent-[#3D604C]" />
+              <input type="radio" name="art" value={k} defaultChecked={raw.art === k} className="accent-[#B64B3A]" />
               {PRODUCT_KIND_LABEL[k]}
             </label>
           ))}
@@ -58,7 +58,7 @@ export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw:
       </fieldset>
 
       <label className="flex cursor-pointer items-start gap-2.5 border-y border-line py-3 text-[14px]">
-        <input type="checkbox" name="unikat" value="1" defaultChecked={raw.unikat === "1"} className="mt-0.5 size-4 accent-[#3D604C]" />
+        <input type="checkbox" name="unikat" value="1" defaultChecked={raw.unikat === "1"} className="mt-0.5 size-4 accent-[#B64B3A]" />
         <span>
           <span className="font-semibold">Nur Einzelstücke</span>
           <span className="block text-[12.5px] text-muted">Jedes Stück gibt es genau einmal.</span>

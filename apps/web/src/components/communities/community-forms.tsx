@@ -180,7 +180,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
             {VIS.map((v) => (
               <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4", visibility === v.key ? "border-ink bg-card" : "border-line hover:border-line-strong")}>
                 <span className="flex items-center gap-2 font-semibold">
-                  <input type="radio" name="visibility" value={v.key} checked={visibility === v.key} onChange={() => setVisibility(v.key)} className="accent-[#3D604C]" />
+                  <input type="radio" name="visibility" value={v.key} checked={visibility === v.key} onChange={() => setVisibility(v.key)} className="accent-[#B64B3A]" />
                   {v.icon} {v.label}
                 </span>
                 <span className="text-[13px] leading-snug text-muted">{v.body}</span>

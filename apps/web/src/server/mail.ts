@@ -29,13 +29,13 @@ function renderMail(subject: string, text: string, cta?: { label: string; url: s
     .map((p) => `<p style="margin:0 0 16px;line-height:1.6">${esc(p).replace(/\n/g, "<br>")}</p>`)
     .join("");
   const button = cta
-    ? `<p style="margin:24px 0"><a href="${esc(cta.url)}" style="display:inline-block;background:#3D604C;color:#fff;padding:12px 20px;text-decoration:none;font-weight:600">${esc(cta.label)}</a></p>`
+    ? `<p style="margin:24px 0"><a href="${esc(cta.url)}" style="display:inline-block;background:#B64B3A;color:#fff;padding:12px 20px;text-decoration:none;font-weight:600">${esc(cta.label)}</a></p>`
     : "";
-  return `<!doctype html><html lang="de"><body style="margin:0;background:#FAF9F6;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#252822">
+  return `<!doctype html><html lang="de"><body style="margin:0;background:#FAF8F5;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#262427">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #E3E4DE">
-<tr><td style="padding:20px 28px;border-bottom:1px solid #E3E4DE;font-weight:700;letter-spacing:.18em;font-size:12px">${BRAND.name}</td></tr>
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #E7E2DE">
+<tr><td style="padding:20px 28px;border-bottom:1px solid #E7E2DE;font-weight:700;letter-spacing:.18em;font-size:12px">${BRAND.name}</td></tr>
 <tr><td style="padding:28px"><h1 style="font-family:Georgia,serif;font-weight:500;font-size:24px;margin:0 0 16px">${esc(subject)}</h1>${paragraphs}${button}</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #E3E4DE;font-size:12px;color:#73766E">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Benachrichtigungen kannst du in den Einstellungen anpassen.</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #E7E2DE;font-size:12px;color:#77706D">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Benachrichtigungen kannst du in den Einstellungen anpassen.</td></tr>
 </table></td></tr></table></body></html>`;
 }

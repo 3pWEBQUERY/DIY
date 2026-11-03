@@ -196,7 +196,7 @@ export function ProductEditor({
               {PRODUCT_KIND.filter((k) => k !== "DIGITAL" || digitalEnabled || v.kind === "DIGITAL").map((k) => (
                 <label key={k} className={cn("flex cursor-pointer flex-col gap-0.5 border px-3.5 py-3 transition-colors", v.kind === k ? "border-ink bg-sunken" : "border-line bg-card hover:border-line-strong")}>
                   <span className="flex items-center gap-2 text-[14px] font-semibold">
-                    <input type="radio" name="kind" value={k} checked={v.kind === k} onChange={() => set("kind", k)} className="accent-[#3D604C]" />
+                    <input type="radio" name="kind" value={k} checked={v.kind === k} onChange={() => set("kind", k)} className="accent-[#B64B3A]" />
                     {PRODUCT_KIND_LABEL[k]}
                   </span>
                   <span className="pl-5 text-[12.5px] text-muted">{KIND_HINT[k]}</span>
