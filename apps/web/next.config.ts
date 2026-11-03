@@ -11,7 +11,6 @@ const securityHeaders = [
 ];
 
 const config: NextConfig = {
-  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ["@werkraum/shared"],

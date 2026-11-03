@@ -18,7 +18,7 @@ Beide App-Services nutzen dasselbe `Dockerfile`. Unterschied ist nur der Start-B
 
 | Service | Config | Start | Pre-Deploy |
 |---|---|---|---|
-| `web` | `.railway/railway.ts` | `pnpm start` | `pnpm db:migrate && pnpm db:seed` |
+| `web` | `.railway/railway.ts` | `pnpm start` | `pnpm predeploy` (Migration + Seed) |
 | `worker` | `.railway/railway.ts` | `pnpm worker` | – |
 
 ## Umgebungsvariablen

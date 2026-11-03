@@ -25,7 +25,7 @@ export default defineRailway((ctx) => {
   const web = service("web", {
     source,
     start: "pnpm start",
-    preDeploy: "pnpm db:migrate && pnpm db:seed",
+    preDeploy: "pnpm predeploy",
     healthcheck: "/api/health",
     healthcheckTimeout: 120,
     env: {
