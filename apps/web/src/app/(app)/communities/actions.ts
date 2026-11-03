@@ -9,7 +9,8 @@ import * as cs from "@/server/communities/service";
 /** Server Actions für Communities (§15). Rechte prüft der Service in jeder Funktion. */
 
 const refresh = () => {
-  revalidatePath("/c/[slug]", "layout");
+  revalidatePath("/c/[slug]", "page");
+  revalidatePath("/c/[slug]/verwalten", "page");
   revalidatePath("/communities");
 };
 
