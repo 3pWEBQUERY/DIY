@@ -3,7 +3,7 @@ import { Bell } from "lucide-react";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
 import { hasRole } from "@/server/authz";
-import { SideNav, BottomNav, type ShellUser } from "./side-nav";
+import { SideNav, BottomNav, MobileMoreMenu, type ShellUser } from "./side-nav";
 import { CommandPalette } from "./command-palette";
 import { Wordmark } from "./wordmark";
 import { MobileSearchButton } from "./mobile-search";
@@ -49,6 +49,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex items-center gap-1">
             <MobileSearchButton />
+            {shellUser && <MobileMoreMenu user={shellUser} cart={c.cart} />}
             {user ? (
               <Link href="/benachrichtigungen" className="relative grid size-10 place-items-center" aria-label={`Benachrichtigungen${c.notifications ? `, ${c.notifications} ungelesen` : ""}`}>
                 <Bell size={20} strokeWidth={1.6} />

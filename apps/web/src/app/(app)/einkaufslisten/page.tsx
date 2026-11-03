@@ -19,7 +19,17 @@ export default async function ShoppingListsPage() {
 
   return (
     <Page width="feed">
-      <PageHeader kicker="Werkbank" title="Einkaufslisten" description="Übernimm Materiallisten aus Projekten und Anleitungen, fasse sie zusammen und hake ab, was du schon hast." />
+      <PageHeader
+        kicker="Werkbank"
+        title="Einkaufslisten"
+        description="Übernimm Materiallisten aus Projekten und Anleitungen, fasse sie zusammen und hake ab, was du schon hast."
+        actions={
+          <>
+            <LinkButton href="/gespeichert?typ=projekte" variant="outline">Aus gespeicherten Projekten</LinkButton>
+            <LinkButton href="/gespeichert?typ=anleitungen" variant="outline">Aus gespeicherten Anleitungen</LinkButton>
+          </>
+        }
+      />
       <CreateShoppingList />
       {lists.length ? (
         <ol className="mt-8 border-t border-ink">

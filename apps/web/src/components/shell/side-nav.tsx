@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, Package } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, Package, ListChecks, Menu, MessageSquare } from "lucide-react";
+import { Dialog } from "@/components/ui/dialog";
 import { cn, pad } from "@/lib/utils";
 import { MAIN_NAV, MOBILE_NAV } from "./nav-config";
 import { Wordmark } from "./wordmark";
@@ -107,13 +109,10 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
       <div className="border-t border-line px-3 py-3 xl:px-4">
         {user ? (
           <>
-            <div className="mb-2 hidden grid-cols-2 gap-px xl:grid">
-              <MiniLink href="/gespeichert" icon={<Bookmark size={14} />} label="Gespeichert" />
-              <MiniLink href="/bestellungen" icon={<Package size={14} />} label="Bestellungen" />
-              <MiniLink href="/warenkorb" icon={<ShoppingBag size={14} />} label={counts.cart ? `Korb · ${counts.cart}` : "Warenkorb"} />
-              <MiniLink href="/studio" icon={<LayoutDashboard size={14} />} label="Studio" />
-              {user.isStaff && <MiniLink href="/admin" icon={<ShieldCheck size={14} />} label="Admin" />}
-              <MiniLink href="/einstellungen" icon={<Settings size={14} />} label="Einstellungen" />
+            <div className="mb-2 grid grid-cols-1 gap-px xl:grid-cols-2">
+              {secondaryLinks(user, counts.cart).map((l) => (
+                <MiniLink key={l.href} {...l} />
+              ))}
             </div>
             <Link href={`/u/${user.handle}`} className="flex items-center gap-3 p-1.5 hover:bg-sunken">
               <Avatar src={user.avatarUrl} name={user.displayName} size={34} />
@@ -139,16 +138,60 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
   );
 }
 
+/** Sekundäre Bereiche (§6.2 „Weitere Funktionen“) – gleiche Liste für Rail, Tablet und Mobil. */
+export function secondaryLinks(user: NonNullable<ShellUser>, cart: number) {
+  return [
+    { href: "/gespeichert", icon: <Bookmark size={14} />, label: "Gespeichert" },
+    { href: "/einkaufslisten", icon: <ListChecks size={14} />, label: "Einkaufslisten" },
+    { href: "/warenkorb", icon: <ShoppingBag size={14} />, label: cart ? `Korb · ${cart}` : "Warenkorb" },
+    { href: "/bestellungen", icon: <Package size={14} />, label: "Bestellungen" },
+    { href: "/studio", icon: <LayoutDashboard size={14} />, label: "Studio" },
+    ...(user.isStaff ? [{ href: "/admin", icon: <ShieldCheck size={14} />, label: "Admin" }] : []),
+    { href: "/einstellungen", icon: <Settings size={14} />, label: "Einstellungen" },
+  ];
+}
+
 function MiniLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   const pathname = usePathname();
   return (
     <Link
       href={href}
-      className={cn("flex h-8 items-center gap-2 px-2 text-[12px] text-muted hover:bg-sunken hover:text-ink", pathname.startsWith(href) && "text-ink font-semibold")}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "flex h-8 items-center justify-center gap-2 px-2 text-[12px] text-muted hover:bg-sunken hover:text-ink xl:justify-start",
+        pathname.startsWith(href) && "text-ink font-semibold",
+      )}
     >
       {icon}
-      <span className="truncate">{label}</span>
+      <span className="hidden truncate xl:inline">{label}</span>
     </Link>
+  );
+}
+
+/** iPhone/Mobil: Menü „Mehr“ in der Kopfzeile mit allen sekundären Bereichen. */
+export function MobileMoreMenu({ user, cart }: { user: NonNullable<ShellUser>; cart: number }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  useEffect(() => setOpen(false), [pathname]);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="grid size-10 place-items-center" aria-label="Mehr" aria-haspopup="dialog" aria-expanded={open}>
+        <Menu size={20} strokeWidth={1.6} />
+      </button>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Mehr">
+        <ul className="-mx-2 divide-y divide-line">
+          {[{ href: "/nachrichten", icon: <MessageSquare size={18} />, label: "Nachrichten" }, ...secondaryLinks(user, cart)].map((l) => (
+            <li key={l.href}>
+              <Link href={l.href} className={cn("flex h-12 items-center gap-3 px-2 text-[15px] hover:bg-sunken", pathname.startsWith(l.href) && "font-semibold")}>
+                <span className="text-muted [&_svg]:size-[18px]">{l.icon}</span>
+                {l.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Dialog>
+    </>
   );
 }
 

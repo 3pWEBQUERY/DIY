@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ListChecks } from "lucide-react";
 import { VISIBILITY_LABEL } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { SAVED_LABEL, SAVED_TYPES, listCollections, listSaved, type SavedItems, type SavedType } from "@/server/collections/service";
@@ -13,6 +13,8 @@ import { TutorialCard, TutorialGrid } from "@/components/tutorials/tutorial-card
 import { ArticleMiniCard, ProductMiniCard } from "@/components/projects/linked-cards";
 import { EditCollectionButtons, NewCollectionButton, SavedItemControls } from "@/components/saved/collection-controls";
 import { cn } from "@/lib/utils";
+import { db } from "@/server/db";
+import { AddToShoppingList } from "@/components/materials/add-to-list";
 
 export const metadata: Metadata = { title: "Gespeichert", robots: { index: false } };
 
@@ -39,6 +41,17 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
     }
   }
   const total = SAVED_TYPES.reduce((a, t) => a + data.counts[t], 0);
+  // Materialanzahl je gespeichertem Projekt/Anleitung → „Auf Einkaufsliste“ (§17.4)
+  const itemIds = data.content.type === "PROJECT" || data.content.type === "TUTORIAL" ? data.content.items.map((i) => i.id) : [];
+  const materialCounts = new Map<string, number>();
+  if (data.content.type === "PROJECT" && itemIds.length) {
+    const rows = await db.projectMaterial.groupBy({ by: ["projectId"], where: { projectId: { in: itemIds } }, _count: { _all: true } });
+    rows.forEach((r) => materialCounts.set(r.projectId, r._count._all));
+  } else if (data.content.type === "TUTORIAL" && itemIds.length) {
+    const rows = await db.tutorial.findMany({ where: { id: { in: itemIds } }, select: { id: true, currentVersion: { select: { materials: true } } } });
+    rows.forEach((r) => materialCounts.set(r.id, Array.isArray(r.currentVersion?.materials) ? r.currentVersion.materials.length : 0));
+  }
+  const listCount = await db.shoppingList.count({ where: { ownerId: user.id } });
   const viewer = { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl };
   const options = collections.map((c) => ({ id: c.id, title: c.title }));
   const q = (patch: Record<string, string | undefined>) => {
@@ -46,7 +59,16 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
     const s = new URLSearchParams(Object.entries(next).filter((e): e is [string, string] => !!e[1])).toString();
     return `/gespeichert${s ? `?${s}` : ""}`;
   };
-  const controls = (id: string) => <SavedItemControls type={type} id={id} collectionId={data.meta[id]?.collectionId ?? null} collections={options} />;
+  const controls = (id: string, title?: string) => (
+    <>
+      <SavedItemControls type={type} id={id} collectionId={data.meta[id]?.collectionId ?? null} collections={options} />
+      {(type === "PROJECT" || type === "TUTORIAL") && (materialCounts.get(id) ?? 0) > 0 && (
+        <div className="mt-2">
+          <AddToShoppingList kind={type} id={id} title={title ?? ""} count={materialCounts.get(id)!} signedIn className="w-full" />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <Page width="wide">
@@ -64,7 +86,12 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
               )}
               <EditCollectionButtons collection={activeCollection} />
             </div>
-          ) : undefined
+          ) : (
+            <Link href="/einkaufslisten" className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink">
+              <ListChecks size={16} /> Einkaufslisten
+              <span className="font-mono text-[11px] text-muted">{listCount}</span>
+            </Link>
+          )
         }
       />
 
@@ -129,7 +156,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function SavedContent({ content, viewer, controls }: { content: SavedItems; viewer: { id: string; displayName: string; avatarUrl: string | null }; controls: (id: string) => React.ReactNode }) {
+function SavedContent({ content, viewer, controls }: { content: SavedItems; viewer: { id: string; displayName: string; avatarUrl: string | null }; controls: (id: string, title?: string) => React.ReactNode }) {
   switch (content.type) {
     case "POST":
       return (
@@ -146,7 +173,7 @@ function SavedContent({ content, viewer, controls }: { content: SavedItems; view
       return (
         <ProjectGrid className="lg:grid-cols-3">
           {content.items.map((p) => (
-            <ProjectCard key={p.id} project={p} footer={controls(p.id)} />
+            <ProjectCard key={p.id} project={p} footer={controls(p.id, p.title)} />
           ))}
         </ProjectGrid>
       );
@@ -154,7 +181,7 @@ function SavedContent({ content, viewer, controls }: { content: SavedItems; view
       return (
         <TutorialGrid>
           {content.items.map((t) => (
-            <TutorialCard key={t.id} tutorial={t} footer={controls(t.id)} />
+            <TutorialCard key={t.id} tutorial={t} footer={controls(t.id, t.title)} />
           ))}
         </TutorialGrid>
       );
