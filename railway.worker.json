@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "watchPatterns": ["apps/web/src/server/**", "apps/web/src/worker/**", "apps/web/prisma/**", "packages/shared/**", "Dockerfile"]
+  },
+  "deploy": {
+    "startCommand": "pnpm worker",
+    "restartPolicyType": "ALWAYS"
+  }
+}
