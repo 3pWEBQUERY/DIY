@@ -457,7 +457,7 @@ function Journal({ p }: { p: ProjectPageView }) {
                 <ul className={cn("mt-4 grid gap-2", e.media.length === 1 ? "grid-cols-1 sm:w-3/4" : e.media.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3")}>
                   {e.media.map((m) => (
                     <li key={m.mediaId} className="relative overflow-hidden border border-line bg-sunken" style={{ aspectRatio: e.media.length === 1 ? "4/3" : "1/1" }}>
-                      <MediaImage url={m.url} alt={m.alt} className="absolute inset-0" sizes="(min-width: 1024px) 320px, 50vw" />
+                      <MediaImage url={m.url} alt={m.alt || `Foto zu Eintrag ${pad(i + 1)}`} className="absolute inset-0" sizes="(min-width: 1024px) 320px, 50vw" />
                     </li>
                   ))}
                 </ul>

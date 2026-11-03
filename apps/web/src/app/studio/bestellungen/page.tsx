@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
-import { currentUser } from "@/server/auth/session";
+import { formatMoney, type Currency } from "@werkraum/shared";
+import { currentUser, requireUser } from "@/server/auth/session";
 import { getMyShop } from "@/server/commerce/shops";
 import { listShopOrders } from "@/server/commerce/orders";
 import { SELLER_ORDER_TABS } from "@/server/commerce/rules";
@@ -29,7 +29,7 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
   const [sp, user] = await Promise.all([searchParams, currentUser()]);
   if (!user?.profile) redirect("/anmelden?weiter=/studio/bestellungen");
   if (!(await getMyShop(user.id))) redirect("/studio/shop");
-  const { tab, items, nextCursor, counts } = await listShopOrders(user as Parameters<typeof listShopOrders>[0], sp.status, sp.cursor ?? null);
+  const { tab, items, nextCursor, counts } = await listShopOrders(await requireUser(), sp.status, sp.cursor ?? null);
   const working = tab.status === "NEW" || tab.status === "IN_PROGRESS" || tab.status === "READY_TO_SHIP";
 
   return (
@@ -103,9 +103,6 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
           )}
         </div>
       )}
-      <p className="sr-only" aria-live="polite">
-        {items.length} Bestellungen im Status {tab.label as string} ({tab.status as OrderStatus})
-      </p>
     </div>
   );
 }

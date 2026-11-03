@@ -100,6 +100,15 @@ async function writeChildren(tx: Tx, projectId: string, data: UpsertData, catalo
   }
 }
 
+/** decodeURIComponent ohne Absturz bei kaputten Sequenzen. */
+function safeDecode(v: string) {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
+}
+
 function ownerHref(handle: string | null | undefined, slug: string) {
   return `/u/${handle ?? "unbekannt"}/${slug}`;
 }
@@ -451,10 +460,10 @@ export async function listProjects(filters: ProjectFilters, viewerId: string | n
     filters.sort === "popular"
       ? [{ saveCount: "desc" }, { likeCount: "desc" }, { remixCount: "desc" }, { id: "desc" }]
       : filters.sort === "completed"
-        ? [{ completedAt: "desc" }, { id: "desc" }]
+        ? [{ completedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }]
         : filters.sort === "updated"
           ? [{ updatedAt: "desc" }, { id: "desc" }]
-          : [{ publishedAt: "desc" }, { id: "desc" }];
+          : [{ publishedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }];
   const rows = await db.project.findMany({
     where: { AND: and },
     select: projectCardSelect,
@@ -532,13 +541,13 @@ export type ProjectPageResult =
  * Alte Handles werden über HandleRedirect weitergeleitet.
  */
 export const getProjectPage = cache(async (handle: string, slug: string, viewerId: string | null): Promise<ProjectPageResult> => {
-  const h = decodeURIComponent(handle).toLowerCase();
+  const h = safeDecode(handle).toLowerCase();
   const profile = await db.userProfile.findUnique({ where: { handle: h }, select: { userId: true } });
   if (!profile) {
     const r = await db.handleRedirect.findUnique({ where: { oldHandle: h }, select: { profile: { select: { handle: true } } } });
     return r ? { kind: "redirect", to: `/u/${r.profile.handle}/${slug}` } : null;
   }
-  const p = await db.project.findUnique({ where: { ownerId_slug: { ownerId: profile.userId, slug: decodeURIComponent(slug) } }, include: pageInclude });
+  const p = await db.project.findUnique({ where: { ownerId_slug: { ownerId: profile.userId, slug: safeDecode(slug) } }, include: pageInclude });
   if (!p) return null;
   const isOwner = viewerId === p.ownerId;
   if (!isOwner && (p.owner.status === "BANNED" || p.owner.status === "DELETED")) return null;
@@ -674,9 +683,9 @@ export type ProjectPageView = Awaited<ReturnType<typeof buildProjectView>>;
 // ───────────────────────── Editor ─────────────────────────
 
 export async function getProjectForEdit(user: SessionUser, handle: string, slug: string) {
-  if (user.profile?.handle !== decodeURIComponent(handle).toLowerCase()) return null;
+  if (user.profile?.handle !== safeDecode(handle).toLowerCase()) return null;
   const p = await db.project.findUnique({
-    where: { ownerId_slug: { ownerId: user.id, slug: decodeURIComponent(slug) } },
+    where: { ownerId_slug: { ownerId: user.id, slug: safeDecode(slug) } },
     include: {
       media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, kind: true, state: true } } } },
       materials: { orderBy: { position: "asc" } },

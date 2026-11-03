@@ -32,7 +32,7 @@ export function ProjectCard({
     <article className={cn("group relative min-w-0", className)}>
       <Link href={p.href} className="block">
         <div className="relative border border-line transition-colors duration-200 group-hover:border-ink">
-          <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio={ratio} sizes="(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw" priority={priority} label={p.coverUrl ? undefined : p.title} />
+          <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio={ratio} sizes="(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw" priority={priority} />
           {p.counts.tutorials > 0 && (
             <span className="absolute bottom-0 left-0 bg-ink px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-paper">Mit Anleitung</span>
           )}

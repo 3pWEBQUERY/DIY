@@ -39,7 +39,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
   const filters = parseProductFilters(sp);
   const raw = Object.fromEntries(Object.entries(filters.raw).filter(([k]) => k !== "cursor"));
   const cursor = typeof sp.cursor === "string" ? sp.cursor : null;
-  const filtered = Object.keys(raw).length > 0;
+  const filtered = Object.keys(raw).some((k) => k !== "sort");
 
   const [result, shops] = await Promise.all([
     listProducts(filters, cursor, { viewerId: user?.id, take: 24 }),
@@ -138,11 +138,11 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               <SlidersHorizontal size={15} /> Filter {chips.length > 0 && <span className="spec">({chips.length})</span>}
             </summary>
             <div className="mt-5">
-              <MarketFilters raw={raw} />
+              <MarketFilters raw={raw} idPrefix="fm" />
             </div>
           </details>
           <div className="sticky top-6 hidden lg:block">
-            <MarketFilters raw={raw} />
+            <MarketFilters raw={raw} idPrefix="fd" />
           </div>
         </aside>
 

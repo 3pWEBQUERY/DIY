@@ -16,13 +16,14 @@ export const MARKET_SORT_LABEL = SORT_LABEL;
  * Filter als einfaches GET-Formular – funktioniert ohne JavaScript, Zustand steckt in der URL
  * (teilbar, zurück-Taste funktioniert). Kein Infinite-Scroll-Sog.
  */
-export function MarketFilters({ raw, action = "/markt" }: { raw: Record<string, string>; action?: string }) {
+export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw: Record<string, string>; action?: string; idPrefix?: string }) {
+  const id = (k: string) => `${idPrefix}-${k}`;
   return (
     <form action={action} method="get" className="space-y-6" aria-label="Produkte filtern">
       {raw.q && <input type="hidden" name="q" value={raw.q} />}
       <div>
-        <Label htmlFor="f-kategorie">Kategorie</Label>
-        <Select id="f-kategorie" name="kategorie" defaultValue={raw.kategorie ?? ""}>
+        <Label htmlFor={id("kategorie")}>Kategorie</Label>
+        <Select id={id("kategorie")} name="kategorie" defaultValue={raw.kategorie ?? ""}>
           <option value="">Alle Kategorien</option>
           {CATEGORIES.map((c) => (
             <option key={c.slug} value={c.slug}>
@@ -65,8 +66,8 @@ export function MarketFilters({ raw, action = "/markt" }: { raw: Record<string, 
       </label>
 
       <div>
-        <Label htmlFor="f-versand">Versand ab</Label>
-        <Select id="f-versand" name="versand" defaultValue={raw.versand ?? ""}>
+        <Label htmlFor={id("versand")}>Versand ab</Label>
+        <Select id={id("versand")} name="versand" defaultValue={raw.versand ?? ""}>
           <option value="">Alle Länder</option>
           {SHIP_COUNTRIES.map((c) => (
             <option key={c} value={c}>
@@ -77,8 +78,8 @@ export function MarketFilters({ raw, action = "/markt" }: { raw: Record<string, 
       </div>
 
       <div>
-        <Label htmlFor="f-sort">Sortierung</Label>
-        <Select id="f-sort" name="sort" defaultValue={raw.sort ?? "neu"}>
+        <Label htmlFor={id("sort")}>Sortierung</Label>
+        <Select id={id("sort")} name="sort" defaultValue={raw.sort ?? "neu"}>
           {Object.entries(SORT_LABEL).map(([k, l]) => (
             <option key={k} value={k}>
               {l}

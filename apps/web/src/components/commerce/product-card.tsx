@@ -62,7 +62,7 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
       </div>
       <div className="mt-2.5 space-y-1">
         <h3 className="headline line-clamp-2 text-[16.5px] leading-snug text-ink">
-          <Link href={p.href} className="after:absolute after:inset-0 focus-visible:outline-none group-focus-within:underline group-hover:underline decoration-1 underline-offset-[3px]">
+          <Link href={p.href} className="after:absolute after:inset-0 group-focus-within:underline group-hover:underline decoration-1 underline-offset-[3px]">
             {p.title}
           </Link>
         </h3>

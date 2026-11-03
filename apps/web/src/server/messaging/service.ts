@@ -225,7 +225,8 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
           displayName: other.user.status === "DELETED" ? "Gelöschtes Konto" : other.user.profile?.displayName ?? "Unbekannt",
           avatarUrl: other.user.profile?.avatarUrl ?? null,
           active: other.user.status === "ACTIVE",
-          lastReadAt: other.lastReadAt?.toISOString() ?? null,
+          // Lesebestätigung erst, wenn die Kontaktanfrage angenommen wurde
+          lastReadAt: other.isRequest ? null : other.lastReadAt?.toISOString() ?? null,
           pendingRequest: other.isRequest && !other.archivedAt,
           declined: isDeclined(other),
         }
@@ -254,7 +255,7 @@ export async function messagesSince(user: SessionUser, conversationId: string, a
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound();
   return {
     messages: rows.map((m) => messageView(m, user.id)),
-    otherLastReadAt: other?.lastReadAt?.toISOString() ?? null,
+    otherLastReadAt: other && !other.isRequest ? other.lastReadAt?.toISOString() ?? null : null,
     otherPendingRequest: !!other && other.isRequest && !other.archivedAt,
   };
 }
@@ -298,7 +299,6 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
   }
   await limit("message", user.id);
   const flags = flagsFor(data.body);
-  const now = new Date();
   const message = await db.$transaction(async (tx) => {
     const media = await buildMedia(tx, user.id, data.media);
     const m = await tx.message.create({ data: { conversationId, senderId: user.id, body: data.body, media: media as unknown as Prisma.InputJsonValue, flags } });
@@ -325,7 +325,6 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
       data: { title: user.profile?.displayName ?? "Neue Nachricht", href: `/nachrichten/${conversationId}`, excerpt: flags.length ? "Neue Nachricht" : excerpt },
     });
   }
-  void now;
   return messageView(message, user.id);
 }
 

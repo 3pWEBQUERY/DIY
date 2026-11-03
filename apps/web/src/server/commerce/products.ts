@@ -310,7 +310,8 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
     const mediaIds = data.media.map((m) => m.id);
     await attachMedia(tx, user.id, [...mediaIds, ...(digitalMediaId && digitalMediaId !== existing?.digitalKey ? [digitalMediaId] : [])]);
     const firstMedia = await tx.media.findUnique({ where: { id: mediaIds[0]! }, select: { variants: true } });
-    const slug = existing && existing.title === data.title ? existing.slug : await uniqueSlug(tx, shop.id, data.title, existing?.id);
+    // Slug bleibt nach der ersten Veröffentlichung stabil, damit geteilte Links nicht brechen.
+    const slug = existing && (existing.title === data.title || existing.publishedAt) ? existing.slug : await uniqueSlug(tx, shop.id, data.title, existing?.id);
     const base = {
       title: data.title,
       slug,

@@ -120,6 +120,14 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
             shop: p.shop,
           };
         });
+        // Wechselseitige Blockierungen gelten auch im Handel (§9.7)
+        const owners = [...new Set(lines.map((l) => l.shop.ownerId))];
+        const blocked = await tx.userBlock.findFirst({
+          where: { OR: [{ blockerId: user.id, blockedId: { in: owners } }, { blockerId: { in: owners }, blockedId: user.id }] },
+          select: { blockerId: true },
+        });
+        if (blocked) throw fail.forbidden("Bei diesem Shop ist derzeit keine Bestellung möglich.");
+
         const digitalIds = lines.filter((l) => l.isDigital).map((l) => l.productId);
         if (digitalIds.length) {
           const owned = await tx.digitalEntitlement.findFirst({ where: { userId: user.id, productId: { in: digitalIds }, revokedAt: null }, select: { product: { select: { title: true } } } });

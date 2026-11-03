@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Combine, Link2, Pencil, Printer, Trash2, X } from "lucide-react";
 import type { ShoppingListView } from "@/server/materials/service";
@@ -46,7 +46,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
   const open = items.filter((i) => !i.purchased && !i.haveIt);
   const done = items.filter((i) => i.purchased || i.haveIt);
   const pct = items.length ? Math.round((done.length / items.length) * 100) : 0;
-  const shareUrl = useMemo(() => (token && typeof window !== "undefined" ? `${location.origin}/liste/${token}` : token ? `/liste/${token}` : null), [token]);
+  const sharePath = token ? `/liste/${token}` : null;
 
   const patch = (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => {
     const prev = items;
@@ -164,11 +164,11 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
             <div className="h-full bg-moss transition-[width] duration-500" style={{ width: `${pct}%` }} />
           </div>
         </div>
-        {token && shareUrl && (
+        {token && sharePath && (
           <div className="mt-4 flex flex-wrap items-center gap-3 border border-line bg-sunken px-3 py-2 text-[13px] print:hidden">
             <span className="spec">Nur lesen</span>
-            <code className="min-w-0 flex-1 truncate font-mono text-[12px]">{shareUrl}</code>
-            <button type="button" className="font-semibold underline underline-offset-2" onClick={() => navigator.clipboard?.writeText(shareUrl).then(() => toast("Link kopiert."))}>Kopieren</button>
+            <code className="min-w-0 flex-1 truncate font-mono text-[12px]">{sharePath}</code>
+            <button type="button" className="font-semibold underline underline-offset-2" onClick={() => navigator.clipboard?.writeText(`${location.origin}${sharePath}`).then(() => toast("Link kopiert."))}>Kopieren</button>
             <button type="button" className="text-muted hover:text-danger" onClick={() => share(false)}>Freigabe beenden</button>
           </div>
         )}

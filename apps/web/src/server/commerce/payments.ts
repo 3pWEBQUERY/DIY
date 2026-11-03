@@ -105,7 +105,7 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
         await emit({ type: "PaymentConfirmed", orderId, paymentId: pay.id }, tx);
         await emit({ type: "ProductPurchased", orderId }, tx);
         const title = itemsTitle(order.items);
-        await notify({ recipientId: order.shop.ownerId, type: "ORDER_NEW", actorId: order.buyerId, bundle: false, data: { number: order.number, title, href: `/studio/bestellungen/${orderId}` } }, tx);
+        await notify({ recipientId: order.shop.ownerId, type: "ORDER_NEW", bundle: false, data: { number: order.number, title, href: `/studio/bestellungen/${orderId}` } }, tx);
         await notify({ recipientId: order.buyerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, title, status: next, note: digitalOnly ? "Dein Download ist bereit." : "Zahlung bestätigt.", href: `/bestellungen/${orderId}` } }, tx);
         return "paid" as const;
       },
@@ -130,7 +130,7 @@ async function refundUnfulfillable(orderId: string, input: PaidInput) {
     await audit({ action: "payment.auto_refund_unavailable", targetType: "Order", targetId: orderId, meta: { amountMinor: input.amountMinor } }, tx);
     return o;
   });
-  await initiateRefund(orderId, { amountMinor: input.amountMinor, reason: "Artikel nach Ablauf der Reservierung nicht mehr verfügbar", actorId: null, system: true });
+  await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: "Artikel nach Ablauf der Reservierung nicht mehr verfügbar", actorId: null, system: true });
   await notify({
     recipientId: order.buyerId,
     type: "ORDER_STATUS",
@@ -212,7 +212,7 @@ type RefundUpdate = { providerRef: string; amountMinor: number; status: "PENDING
 export async function applyRefunds(orderId: string, updates: RefundUpdate[]) {
   await db.$transaction(async (tx) => {
     await lockOrder(tx, orderId);
-    const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: { orderBy: { createdAt: "desc" }, take: 1 }, refunds: true, items: { select: { title: true } } } });
+    const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: { orderBy: { createdAt: "desc" }, take: 1 }, refunds: true, items: { select: { id: true, title: true, isDigital: true } } } });
     if (!order) return;
     const newlySucceeded: number[] = [];
     for (const u of updates) {
@@ -236,6 +236,9 @@ export async function applyRefunds(orderId: string, updates: RefundUpdate[]) {
     const payStatus = paymentStatusAfterRefund(payment.amountMinor, refunded);
     if (payment.status !== "DISPUTED") await tx.payment.update({ where: { id: payment.id }, data: { status: payStatus } });
     const full = payStatus === "REFUNDED";
+    // Vollständig erstattet → digitale Lizenzen dieser Bestellung widerrufen (§13.7)
+    const digitalItems = order.items.filter((i) => i.isDigital).map((i) => i.id);
+    if (full && digitalItems.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digitalItems }, revokedAt: null }, data: { revokedAt: new Date() } });
     const toRefunded = full && order.status !== "CANCELLED" && order.status !== "REFUNDED";
     const amount = newlySucceeded.reduce((s, n) => s + n, 0);
     await tx.orderEvent.create({

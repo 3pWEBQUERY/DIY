@@ -28,13 +28,8 @@ const markerClass: Record<Marker, string> = {
   ghost: "size-[11px] border border-dashed border-muted bg-paper",
 };
 
-function Node({ marker, small }: { marker: Marker; small?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn("absolute top-[3px] -translate-x-1/2", small ? "left-[5.5px]" : "left-[5.5px]", markerClass[marker])}
-    />
-  );
+function Node({ marker }: { marker: Marker }) {
+  return <span aria-hidden className={cn("absolute left-[5.5px] top-[3px] -translate-x-1/2", markerClass[marker])} />;
 }
 
 type Station = {
@@ -58,8 +53,8 @@ function Child({ marker, label, children, href }: { marker: Marker; label: strin
     </>
   );
   return (
-    <li className="relative pl-7">
-      <Node marker={marker} small />
+    <li className="relative -ml-7 pl-7">
+      <Node marker={marker} />
       {href ? (
         <Link href={href} className="group block">
           {inner}
@@ -125,7 +120,7 @@ export function ProjectThread({ project: p, variant = "aside", className }: { pr
                 {e.milestone ?? (e.body.length > 70 ? `${e.body.slice(0, 68).trimEnd()} …` : e.body)}
               </Child>
             ) : (
-              <li key={`gap-${i}`} className="relative pl-7">
+              <li key={`gap-${i}`} className="relative -ml-7 py-0.5 pl-7">
                 <span aria-hidden className="absolute left-[5.5px] top-0 h-full -translate-x-1/2 border-l border-dashed border-paper" />
                 <a href="#journal" className="spec hover:text-ink">… {hiddenCount} weitere Einträge</a>
               </li>

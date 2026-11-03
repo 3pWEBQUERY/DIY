@@ -35,7 +35,7 @@ export function ShopCard({ shop, className }: { shop: ShopCardProps; className?:
           <span className="truncate text-[12px] text-muted">von {shop.owner.displayName}</span>
         </div>
         <h3 className="headline text-xl leading-tight">
-          <Link href={`/markt/${shop.slug}`} className="after:absolute after:inset-0 focus-visible:outline-none group-hover:underline decoration-1 underline-offset-4">
+          <Link href={`/markt/${shop.slug}`} className="after:absolute after:inset-0 group-hover:underline decoration-1 underline-offset-4">
             {shop.name}
           </Link>
         </h3>

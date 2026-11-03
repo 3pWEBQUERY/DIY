@@ -49,16 +49,20 @@ export const orderDetailInclude = {
 
 export type OrderDetail = Prisma.OrderGetPayload<{ include: typeof orderDetailInclude }>;
 
-function notifyBuyer(tx: Prisma.TransactionClient, order: { id: string; number: string; buyerId: string }, status: OrderStatus, note?: string, actorId?: string) {
+/**
+ * Bestellbenachrichtigungen sind transaktional: ohne actorId, damit Stummschaltungen sie
+ * nicht unterdrücken (Blockierungen verhindern neue Bestellungen bereits im Checkout).
+ */
+function notifyBuyer(tx: Prisma.TransactionClient, order: { id: string; number: string; buyerId: string }, status: OrderStatus, note?: string, _actorId?: string) {
   return notify(
-    { recipientId: order.buyerId, type: "ORDER_STATUS", actorId: actorId ?? null, bundle: false, data: { number: order.number, status, statusLabel: ORDER_STATUS_LABEL[status], note: note || undefined, href: `/bestellungen/${order.id}` } },
+    { recipientId: order.buyerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, status, statusLabel: ORDER_STATUS_LABEL[status], note: note || undefined, href: `/bestellungen/${order.id}` } },
     tx,
   );
 }
 
-function notifySeller(tx: Prisma.TransactionClient, order: { id: string; number: string }, sellerId: string, status: OrderStatus, note?: string, actorId?: string) {
+function notifySeller(tx: Prisma.TransactionClient, order: { id: string; number: string }, sellerId: string, status: OrderStatus, note?: string, _actorId?: string) {
   return notify(
-    { recipientId: sellerId, type: "ORDER_STATUS", actorId: actorId ?? null, bundle: false, data: { number: order.number, status, statusLabel: ORDER_STATUS_LABEL[status], note: note || undefined, href: `/studio/bestellungen/${order.id}` } },
+    { recipientId: sellerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, status, statusLabel: ORDER_STATUS_LABEL[status], note: note || undefined, href: `/studio/bestellungen/${order.id}` } },
     tx,
   );
 }

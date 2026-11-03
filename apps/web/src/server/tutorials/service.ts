@@ -423,7 +423,7 @@ export async function listTutorials(filters: TutorialFilters, viewerId: string |
       ? [{ completionCount: "desc" }, { saveCount: "desc" }, { id: "desc" }]
       : filters.sort === "updated"
         ? [{ updatedAt: "desc" }, { id: "desc" }]
-        : [{ publishedAt: "desc" }, { id: "desc" }];
+        : [{ publishedAt: { sort: "desc", nulls: "last" } }, { id: "desc" }];
   const rows = await db.tutorial.findMany({
     where: { AND: and },
     select: tutorialCardSelect,
@@ -489,7 +489,7 @@ export type TutorialStepView = ReturnType<typeof mapStep>;
 
 export const getTutorialPage = cache(async (slug: string, viewerId: string | null) => {
   const t = await db.tutorial.findUnique({
-    where: { slug: decodeURIComponent(slug) },
+    where: { slug: (() => { try { return decodeURIComponent(slug); } catch { return slug; } })() },
     include: {
       author: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, followerCount: true } } } },
       currentVersion: { include: { steps: { orderBy: { position: "asc" }, select: stepSelect } } },
