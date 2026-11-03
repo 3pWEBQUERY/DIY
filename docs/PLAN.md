@@ -200,3 +200,29 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 | 9 | Digital auf iOS | Deaktiviert bis Klärung |
 | 10 | Startmarkt | Schweiz (CHF, de-CH) |
 | 12 | Upload-Limits | Bild 15 MB, Video 200 MB / 3 min |
+
+---
+
+## 5. Umsetzungsstand (03.11.2026)
+
+**Web: alle Arbeitspakete WP1–WP18 umgesetzt**, getestet mit Typecheck (0 Fehler), 32 Unit-Tests,
+Produktions-Build und Browser-Durchläufen (alle öffentlichen, Mitglieder-, Studio- und Admin-Seiten → HTTP 200,
+keine JS-Fehler) sowie End-to-End-Abläufen:
+
+| Ablauf | Ergebnis |
+|---|---|
+| Registrierung → Onboarding → Feed | ✅ |
+| Beitrag mit Foto (Upload → EXIF-frei → WebP-Varianten → Alt-Text) | ✅ |
+| Frage auf Projekt, Meldung mit Fallnummer | ✅ |
+| Kauf: Warenkorb → Kasse → Zahlung (simuliert) → Bestellung „Neu“, Provision 6 % | ✅ |
+| Einzelstück nach Kauf nicht erneut kaufbar | ✅ |
+
+**Bewusst offen / vor Launch zu erledigen**
+
+- Stripe-Schlüssel und Webhook-Secret in Railway setzen (bis dahin ist der Kauf im Produktionsmodus deaktiviert).
+- `RESEND_API_KEY` für echte E-Mails; Apple-Login-Schlüssel.
+- Rechtstexte juristisch prüfen (Platzhalter `[Firma]`, `[Adresse]`).
+- Video-Transkodierung (ffmpeg-Worker) – Videos werden derzeit unverändert ausgeliefert.
+- Verkäufer-Antwort auf Bewertungen (Feld vorhanden, UI fehlt).
+- Hinweis an Moderation bei Beitrittsanfragen (derzeit nur Zähler).
+- **iOS-App: Schlussphase** (WP19).
