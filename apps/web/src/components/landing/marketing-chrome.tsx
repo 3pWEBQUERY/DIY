@@ -23,7 +23,7 @@ export function MarketingHeader() {
           <LinkButton href="/anmelden" variant="ghost" size="sm" className="hidden sm:inline-flex">
             Anmelden
           </LinkButton>
-          <LinkButton href="/registrieren" variant="ink" size="sm">
+          <LinkButton href="/registrieren" size="sm">
             Beitreten
           </LinkButton>
         </div>
