@@ -14,6 +14,11 @@ import { openOrAttachCase } from "@/server/moderation/cases";
 async function assertViewable(user: SessionUser, type: TargetType, id: string) {
   const meta = await targetMeta(type, id);
   if (!meta || !(await canViewContent(user.id, meta))) throw fail.notFound();
+  if (type === "POST") {
+    const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });
+    const { canViewCommunityContentOf } = await import("./posts");
+    if (post?.communityId && !(await canViewCommunityContentOf(post.communityId, user.id))) throw fail.notFound();
+  }
   return meta;
 }
 
@@ -81,6 +86,18 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
   const data = commentCreateSchema.parse(input);
   await limit("comment", user.id);
   const meta = await assertViewable(user, type, id);
+  // Serverseitige Durchsetzung von Kommentar-Einstellungen und Community-Stummschaltungen
+  if (type === "ARTICLE") {
+    const a = await db.blogArticle.findUnique({ where: { id }, select: { commentsEnabled: true } });
+    if (!a?.commentsEnabled) throw fail.forbidden("Kommentare sind für diesen Artikel deaktiviert.");
+  }
+  if (type === "POST") {
+    const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });
+    if (post?.communityId) {
+      const m = await db.communityMember.findUnique({ where: { communityId_userId: { communityId: post.communityId, userId: user.id } }, select: { state: true, mutedUntil: true } });
+      if (m?.state === "BANNED" || (m?.mutedUntil && m.mutedUntil > new Date())) throw fail.forbidden("Du bist in dieser Community derzeit stummgeschaltet.");
+    }
+  }
   let parentAuthor: string | null = null;
   if (data.parentId) {
     const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true } });
@@ -127,6 +144,13 @@ export async function deleteComment(user: SessionUser, commentId: string) {
 }
 
 export async function listComments(type: TargetType, id: string, viewerId: string | null) {
+  const meta = await targetMeta(type, id);
+  if (!meta || !(await canViewContent(viewerId, meta))) return [];
+  if (type === "POST") {
+    const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });
+    const { canViewCommunityContentOf } = await import("./posts");
+    if (post?.communityId && !(await canViewCommunityContentOf(post.communityId, viewerId))) return [];
+  }
   const blocked = viewerId
     ? (await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] }, select: { blockerId: true, blockedId: true } })).flatMap((b) => [b.blockerId, b.blockedId]).filter((x) => x !== viewerId)
     : [];

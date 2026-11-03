@@ -152,8 +152,8 @@ export default async function ArticlePage({ params }: Props) {
         </header>
 
         {a.coverUrl && (
-          <figure className="-mx-4 mt-10 sm:mx-0">
-            <Cover url={a.coverUrl} alt={a.title} seed={a.id} ratio="16/9" priority sizes="(min-width: 1100px) 1100px, 100vw" className="crop" />
+          <figure className="crop -mx-4 mt-10 sm:mx-0">
+            <Cover url={a.coverUrl} alt={a.title} seed={a.id} ratio="16/9" priority sizes="(min-width: 1100px) 1100px, 100vw" />
           </figure>
         )}
 

@@ -14,7 +14,7 @@ async function counts(userId: string) {
     db.$queryRaw<{ n: bigint }[]>`
       SELECT count(*)::bigint AS n FROM "ConversationMember" cm
       JOIN "Conversation" c ON c.id = cm."conversationId"
-      WHERE cm."userId" = ${userId} AND cm."archivedAt" IS NULL
+      WHERE cm."userId" = ${userId} AND cm."archivedAt" IS NULL AND cm."isRequest" = false
         AND (cm."lastReadAt" IS NULL OR cm."lastReadAt" < c."lastMessageAt")
         AND EXISTS (SELECT 1 FROM "Message" m WHERE m."conversationId" = c.id AND m."senderId" <> ${userId})`.then((r) => Number(r[0]?.n ?? 0)),
     db.cartItem.aggregate({ where: { cart: { userId } }, _sum: { quantity: true } }).then((r) => r._sum.quantity ?? 0),

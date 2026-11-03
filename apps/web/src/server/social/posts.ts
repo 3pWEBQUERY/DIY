@@ -283,8 +283,21 @@ export async function deletePost(user: SessionUser, postId: string) {
   ]);
 }
 
+/** Beiträge privater Communities sind nur für aktive Mitglieder sichtbar (§15.1). */
+export async function canViewCommunityContentOf(communityId: string, viewerId: string | null) {
+  const c = await db.community.findUnique({ where: { id: communityId }, select: { visibility: true, state: true } });
+  if (!c || c.state === "REMOVED") return false;
+  if (c.visibility !== "PRIVATE") return true;
+  if (!viewerId) return false;
+  const viewer = await db.user.findUnique({ where: { id: viewerId }, select: { role: true } });
+  if (viewer && viewer.role !== "MEMBER") return true;
+  const m = await db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId: viewerId } }, select: { state: true } });
+  return m?.state === "ACTIVE";
+}
+
 export async function getPostForViewer(postId: string, viewerId: string | null) {
-  const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true } });
+  const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true, communityId: true } });
   if (!p || !(await canViewContent(viewerId, { ownerId: p.authorId, visibility: p.visibility, state: p.state }))) return null;
+  if (p.communityId && !(await canViewCommunityContentOf(p.communityId, viewerId))) return null;
   return (await hydratePosts([postId], viewerId))[0] ?? null;
 }

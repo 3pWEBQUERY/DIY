@@ -31,8 +31,8 @@ export function ArticleCard({
   if (variant === "hero") {
     return (
       <article className={cn("group grid gap-6 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-10", className)}>
-        <Link href={a.href} tabIndex={-1} aria-hidden className="block">
-          <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" priority={priority} sizes="(min-width: 1024px) 680px, 100vw" className="crop border border-line" label={a.title} />
+        <Link href={a.href} tabIndex={-1} aria-hidden className="crop block">
+          <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" priority={priority} sizes="(min-width: 1024px) 680px, 100vw" className="border border-line" label={a.title} />
         </Link>
         <div className="flex flex-col justify-end">
           <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-clay" />Aufmacher · {kicker}</p>

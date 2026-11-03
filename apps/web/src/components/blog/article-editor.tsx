@@ -88,7 +88,13 @@ export function ArticleEditor({
   const [dek, setDek] = useState(initial?.dek ?? "");
   const [blocks, setBlocks] = useState<ArticleBlock[]>(initial?.blocks ?? []);
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [slugTouched, setSlugTouched] = useState(!!initial?.everPublished);
+  // Adresse folgt dem Titel, bis sie von Hand gesetzt oder der Artikel veröffentlicht wurde
+  const [slugTouched, setSlugTouched] = useState(() => {
+    if (!initial) return false;
+    if (initial.everPublished) return true;
+    const auto = slugify(initial.title, 72);
+    return initial.slug !== auto && !new RegExp(`^${auto}-\\d+$`).test(initial.slug);
+  });
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagDraft, setTagDraft] = useState("");
@@ -116,7 +122,8 @@ export function ArticleEditor({
     setDirty(true);
   };
 
-  const effectiveSlug = slugTouched ? slug : slugify(title || "artikel", 72);
+  const autoSlug = slugify(title || "artikel", 72);
+  const effectiveSlug = slugTouched ? slug : slug && new RegExp(`^${autoSlug}(-\\d+)?$`).test(slug) ? slug : autoSlug;
   const minutes = useMemo(() => readingMinutes(`${title} ${dek} ${plainFromBlocks(blocks)}`), [title, dek, blocks]);
   const seoT = seoTitle || title;
   const seoD = seoDescription || dek;

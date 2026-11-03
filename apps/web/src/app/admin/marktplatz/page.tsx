@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { hasRole } from "@/server/authz";
 import { adminPage } from "@/server/admin/guard";
 import { listShops } from "@/server/admin/content";
 import { AdminHeader, EmptyRow, FilterBar, FilterField, Pager, Segments, Table, Td, Th, Tr, filterInput } from "@/components/admin/ui";
@@ -20,6 +21,8 @@ export default async function MarketAdmin({ searchParams }: { searchParams: Prom
   const page = Math.max(1, Number(sp.seite) || 1);
   const status = sp.status && sp.status in STATUS ? sp.status : null;
   const r = await listShops(user, { status, q: sp.q?.trim() || null, page });
+  // Zahlungs-/Auszahlungsstatus nur für die Administration (§24.3)
+  const isAdmin = hasRole(user, "ADMIN");
 
   return (
     <div>
@@ -48,7 +51,7 @@ export default async function MarketAdmin({ searchParams }: { searchParams: Prom
             <Th>Art</Th>
             <Th>Status</Th>
             <Th>Verifizierung</Th>
-            <Th>Zahlungen</Th>
+            {isAdmin && <Th>Zahlungen</Th>}
             <Th align="right">Produkte</Th>
             <Th align="right">Bewertung</Th>
             <Th>Seit</Th>
@@ -56,7 +59,7 @@ export default async function MarketAdmin({ searchParams }: { searchParams: Prom
           </tr>
         </thead>
         <tbody>
-          {r.rows.length === 0 && <EmptyRow cols={9}>Keine Shops in dieser Ansicht.</EmptyRow>}
+          {r.rows.length === 0 && <EmptyRow cols={isAdmin ? 9 : 8}>Keine Shops in dieser Ansicht.</EmptyRow>}
           {r.rows.map((s) => (
             <Tr key={s.id} highlight={s.status === "PENDING_VERIFICATION"}>
               <Td className="max-w-[260px]">
@@ -73,10 +76,12 @@ export default async function MarketAdmin({ searchParams }: { searchParams: Prom
                 {VERIF[s.verification?.state ?? "NOT_STARTED"]}
                 {s.verification?.businessName && <span className="block text-xs text-muted">{s.verification.businessName}</span>}
               </Td>
-              <Td className="whitespace-nowrap text-[13px]">
-                <span className={s.chargesEnabled ? "text-moss" : "text-muted"}>{s.chargesEnabled ? "Zahlungen ✓" : "Zahlungen –"}</span>
-                <span className={`ml-2 ${s.payoutsEnabled ? "text-moss" : "text-muted"}`}>{s.payoutsEnabled ? "Auszahlung ✓" : "Auszahlung –"}</span>
-              </Td>
+              {isAdmin && (
+                <Td className="whitespace-nowrap text-[13px]">
+                  <span className={s.chargesEnabled ? "text-moss" : "text-muted"}>{s.chargesEnabled ? "Zahlungen ✓" : "Zahlungen –"}</span>
+                  <span className={`ml-2 ${s.payoutsEnabled ? "text-moss" : "text-muted"}`}>{s.payoutsEnabled ? "Auszahlung ✓" : "Auszahlung –"}</span>
+                </Td>
+              )}
               <Td align="right">{num(s._count.products)}</Td>
               <Td align="right">{s.ratingCount ? `${dec(s.ratingAvg)} (${s.ratingCount})` : "–"}</Td>
               <Td className="whitespace-nowrap text-muted">{shortDate(s.createdAt)}</Td>

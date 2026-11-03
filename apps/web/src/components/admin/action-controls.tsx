@@ -88,6 +88,9 @@ export function ReasonButton({
 }) {
   const [open, setOpen] = useState(false);
   const { run, pending, fields } = useAction(action, { success, onSuccess: () => setOpen(false) });
+  // Feldfehler ohne eigenes Eingabefeld (z.B. „note“) nicht verschlucken
+  const known = ["reason", "publicNote", "days", "choice", "role", "_"];
+  const other = Object.entries(fields).find(([k]) => !known.includes(k))?.[1];
   return (
     <>
       <Button size={size} variant={variant} onClick={() => setOpen(true)}>
@@ -126,7 +129,7 @@ export function ReasonButton({
               {(p) => <Input name="days" type="number" min={1} max={365} defaultValue={daysOptional ? "" : 7} required={!daysOptional} {...p} />}
             </Field>
           )}
-          <Field label={reasonLabel} hint={reasonHint} error={fields.reason ?? fields._}>
+          <Field label={reasonLabel} hint={reasonHint} error={fields.reason ?? fields._ ?? other}>
             {(p) => <Textarea name="reason" required minLength={5} maxLength={1000} rows={3} {...p} />}
           </Field>
           {withPublicNote && (
