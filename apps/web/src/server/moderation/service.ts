@@ -476,7 +476,8 @@ export async function appealContext(userId: string, caseId: string) {
       snapshot: true,
       resolvedAt: true,
       createdAt: true,
-      actions: { orderBy: { createdAt: "desc" }, take: 1, select: { action: true, publicNote: true, until: true, createdAt: true } },
+      // Ursprüngliche Entscheidung (eine Aufhebung nach Einspruch wird später als NONE angehängt)
+      actions: { orderBy: { createdAt: "asc" }, take: 1, select: { action: true, publicNote: true, until: true, createdAt: true } },
       appeals: { where: { userId }, select: { id: true, status: true, statement: true, decision: true, createdAt: true, decidedAt: true } },
     },
   });
@@ -530,7 +531,7 @@ export async function listAppeals(actor: Actor, status: "OPEN" | "UPHELD" | "OVE
           targetType: true,
           primaryReason: true,
           snapshot: true,
-          actions: { orderBy: { createdAt: "desc" }, take: 1, select: { action: true, moderatorId: true, reason: true, publicNote: true, moderator: { select: { profile: { select: { handle: true } } } } } },
+          actions: { orderBy: { createdAt: "asc" }, take: 1, select: { action: true, moderatorId: true, reason: true, publicNote: true, moderator: { select: { profile: { select: { handle: true } } } } } },
         },
       },
     },
@@ -542,7 +543,7 @@ export async function decideAppeal(actor: Actor, appealId: string, input: unknow
   const data = appealDecisionSchema.parse(input);
   const appeal = await db.appeal.findUnique({
     where: { id: appealId },
-    include: { case: { include: { actions: { orderBy: { createdAt: "desc" }, take: 1 } } } },
+    include: { case: { include: { actions: { orderBy: { createdAt: "asc" }, take: 1 } } } },
   });
   if (!appeal) throw fail.notFound();
   if (appeal.status !== "OPEN") throw fail.conflict("Über diesen Einspruch wurde bereits entschieden.");
