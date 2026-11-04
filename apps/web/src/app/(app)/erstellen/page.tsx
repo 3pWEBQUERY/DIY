@@ -40,7 +40,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
           <ul className="divide-y divide-line border-y border-ink">
             {OPTIONS.filter((o) => o.key !== "beitrag").map((o, i) => (
               <li key={o.key}>
-                <Link href={o.href} className="group grid grid-cols-[2rem_2.25rem_1fr_auto] items-center gap-3 py-4 hover:bg-card sm:px-2">
+                <Link href={o.href} className="group grid grid-cols-[2rem_2.25rem_1fr_auto] items-center gap-3 py-4 hover:bg-card sm:px-2 rounded-2xl">
                   <span className="font-mono text-xs text-muted">{pad(i + 1)}</span>
                   <Glyph name={o.glyph} size={26} strokeWidth={1.6} />
                   <span>

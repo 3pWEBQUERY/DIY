@@ -41,7 +41,7 @@ export function Comments({
       {viewer ? (
         <CommentForm targetType={targetType} targetId={targetId} viewer={viewer} placeholder={placeholder} onDone={reload} />
       ) : (
-        <p className="border border-line bg-sunken px-4 py-3 text-sm text-muted">
+        <p className="border border-line bg-sunken px-4 py-3 text-sm text-muted rounded-2xl">
           <Link href="/anmelden" className="font-semibold text-ink underline underline-offset-2">Melde dich an</Link>, um {questionsMode ? "Fragen zu stellen" : "mitzudiskutieren"}.
         </p>
       )}

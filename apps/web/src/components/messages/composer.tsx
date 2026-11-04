@@ -67,7 +67,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
         {files.length > 0 && (
           <ul className="mb-2 flex gap-2 overflow-x-auto" aria-label="Angehängte Bilder">
             {files.map((f, i) => (
-              <li key={f.key} className="relative size-16 shrink-0 overflow-hidden border border-line bg-sunken">
+              <li key={f.key} className="relative size-16 shrink-0 overflow-hidden border border-line bg-sunken rounded-2xl">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={f.preview} alt="" className={cn("h-full w-full object-cover", !f.id && "opacity-60")} />
                 {!f.id && !f.error && <LoaderCircle size={16} className="absolute inset-0 m-auto animate-spin text-ink" />}
@@ -80,7 +80,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
           </ul>
         )}
         <div className="flex items-end gap-2">
-          <button type="button" onClick={() => input.current?.click()} disabled={files.length >= 6 || disabled} className="grid size-10 shrink-0 place-items-center text-muted hover:bg-sunken hover:text-ink disabled:opacity-40" aria-label="Bild anhängen">
+          <button type="button" onClick={() => input.current?.click()} disabled={files.length >= 6 || disabled} className="grid size-10 shrink-0 place-items-center text-muted hover:bg-sunken hover:text-ink disabled:opacity-40 rounded-xl" aria-label="Bild anhängen">
             <ImagePlus size={19} strokeWidth={1.7} />
           </button>
           <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/avif" multiple hidden onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
@@ -102,9 +102,9 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
             maxLength={5000}
             placeholder={placeholder}
             aria-describedby="msg-hint"
-            className="max-h-40 min-h-10 flex-1 resize-none border border-line-strong bg-card px-3 py-2 text-[15px] leading-relaxed outline-none field-sizing-content focus:border-ink"
+            className="max-h-40 min-h-10 flex-1 resize-none border border-line-strong bg-card px-3 py-2 text-[15px] leading-relaxed outline-none field-sizing-content focus:border-ink rounded-2xl"
           />
-          <button type="button" onClick={() => void send()} disabled={!canSend} className="grid size-10 shrink-0 place-items-center bg-ink text-paper hover:bg-ink-2 disabled:opacity-35" aria-label="Senden">
+          <button type="button" onClick={() => void send()} disabled={!canSend} className="grid size-10 shrink-0 place-items-center bg-ink text-paper hover:bg-ink-2 disabled:opacity-35 rounded-xl" aria-label="Senden">
             {sending ? <LoaderCircle size={17} className="animate-spin" /> : <SendHorizontal size={17} />}
           </button>
         </div>

@@ -18,9 +18,9 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("relative inline-flex h-6 w-11 shrink-0 items-center border transition-colors disabled:opacity-50", checked ? "border-moss bg-moss" : "border-line-strong bg-sunken")}
+      className={cn("relative inline-flex h-6 w-11 shrink-0 items-center border transition-colors disabled:opacity-50 rounded-xl", checked ? "border-moss bg-moss" : "border-line-strong bg-sunken")}
     >
-      <span className={cn("absolute size-4 bg-paper transition-transform", checked ? "translate-x-[22px]" : "translate-x-[3px] border border-line-strong")} />
+      <span className={cn("absolute size-4 bg-paper transition-transform", checked ? "translate-x-[22px]" : "translate-x-[3px] border border-line-strong rounded-2xl")} />
     </button>
   );
 }
@@ -76,7 +76,7 @@ export function SettingControl({
       }}
     >
       {format === "bps" && Number.isFinite(n) && <span className="font-mono text-[12px] text-muted">= {(n / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 })} %</span>}
-      <span className="flex items-center border border-line-strong bg-card focus-within:border-ink">
+      <span className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
         <input
           type="number"
           value={draft}
@@ -153,7 +153,7 @@ export function TicketStatusSelect({ id, status, options, action }: { id: string
       disabled={pending}
       onChange={(e) => run(id, e.target.value)}
       aria-label="Status ändern"
-      className="h-8 border border-line-strong bg-card px-2 text-[13px] focus:border-ink focus:outline-none"
+      className="h-8 border border-line-strong bg-card px-2 text-[13px] focus:border-ink focus:outline-none rounded-2xl"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

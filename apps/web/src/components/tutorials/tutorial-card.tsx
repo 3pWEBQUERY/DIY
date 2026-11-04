@@ -15,13 +15,13 @@ export function TutorialCard({ tutorial: t, showAuthor = true, priority, classNa
   return (
     <article className={cn("group relative min-w-0", className)}>
       <Link href={t.href} className="block">
-        <div className="relative border border-line transition-colors duration-200 group-hover:border-ink">
+        <div className="relative border border-line transition-colors duration-200 group-hover:border-ink rounded-2xl">
           <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="3/2" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" priority={priority} />
           <span className="absolute left-0 top-0 border-b border-r border-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink">
             Anleitung{t.version && t.version > 1 ? ` · v${t.version}` : ""}
           </span>
           {t.state !== "PUBLISHED" && (
-            <span className="absolute right-0 top-0 bg-ink px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-paper">Entwurf</span>
+            <span className="absolute right-0 top-0 bg-ink px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-paper rounded-2xl">Entwurf</span>
           )}
         </div>
         <p className="spec mt-3 truncate">
@@ -36,7 +36,7 @@ export function TutorialCard({ tutorial: t, showAuthor = true, priority, classNa
       </div>
       {t.safetyKinds.length > 0 && (
         <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-warn">
-          <span aria-hidden className="mt-[5px] inline-block size-1.5 shrink-0 rotate-45 bg-warn" />
+          <span aria-hidden className="mt-[5px] inline-block size-1.5 shrink-0 rotate-45 bg-warn rounded-full" />
           <span>
             <span className="sr-only">Sicherheitshinweise: </span>
             {t.safetyKinds.map((k) => SAFETY_LABEL[k]).join(" · ")}

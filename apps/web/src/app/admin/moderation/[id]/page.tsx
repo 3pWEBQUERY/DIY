@@ -78,7 +78,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
                 Der Inhalt wurde gelöscht. Zuletzt gespeicherter Titel: {snap.title || "–"}
               </Notice>
             ) : (
-              <article className="mt-4 border border-line bg-card">
+              <article className="mt-4 border border-line bg-card rounded-2xl">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
                   <span className="text-sm font-semibold">{preview.title}</span>
                   <span className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
                   </div>
                   {preview.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={preview.imageUrl} alt="Vorschaubild des gemeldeten Inhalts" className="h-40 w-40 border border-line object-cover" />
+                    <img src={preview.imageUrl} alt="Vorschaubild des gemeldeten Inhalts" className="h-40 w-40 border border-line object-cover rounded-2xl" />
                   )}
                 </div>
               </article>
@@ -160,7 +160,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
                 ]
                   .sort((a, b) => a.at.getTime() - b.at.getTime())
                   .map((e) => (
-                    <li key={e.key} className="relative pb-5 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-ink">
+                    <li key={e.key} className="relative pb-5 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-ink rounded-full">
                       {e.node}
                     </li>
                   ))}

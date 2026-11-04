@@ -34,7 +34,7 @@ export function StudioNav({ hasShop }: { hasShop: boolean }) {
                 href={disabled ? "/studio/shop" : item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-9 items-center gap-3 px-3 text-[14px] text-ink-2 hover:bg-sunken",
+                  "flex h-9 items-center gap-3 px-3 text-[14px] text-ink-2 hover:bg-sunken rounded-xl",
                   active && "bg-ink text-paper hover:bg-ink",
                   disabled && "text-muted/70",
                 )}

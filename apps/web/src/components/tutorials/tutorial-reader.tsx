@@ -134,7 +134,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                   onClick={() => toggle(s.stableKey)}
                   aria-pressed={isDone}
                   aria-label={`Schritt ${s.position + 1} ${isDone ? "als offen markieren" : "als erledigt markieren"}`}
-                  className={cn("mt-[9px] grid size-4 shrink-0 place-items-center border transition-colors", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-ink")}
+                  className={cn("mt-[9px] grid size-4 shrink-0 place-items-center border transition-colors rounded-2xl", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-ink")}
                 >
                   {isDone && <Check size={11} strokeWidth={3} />}
                 </button>
@@ -183,11 +183,11 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                   </header>
 
                   {s.safety && (
-                    <div role="alert" className="mt-6 border border-danger/40 border-l-[3px] border-l-danger bg-danger-soft px-4 py-3">
+                    <div role="alert" className="mt-6 border border-danger/40 border-l-[3px] border-l-danger bg-danger-soft px-4 py-3 rounded-2xl">
                       <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-danger">Sicherheitshinweis</span>
                         {s.safetyKinds.map((k) => (
-                          <span key={k} className="border border-danger/40 px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-danger">
+                          <span key={k} className="border border-danger/40 px-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-danger rounded-2xl">
                             {SAFETY_LABEL[k]}
                           </span>
                         ))}
@@ -207,7 +207,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                       {s.media.map((m, i) => (
                         <li key={m.mediaId}>
                           <figure>
-                            <div className="relative overflow-hidden border border-line bg-sunken" style={{ aspectRatio: s.media.length === 1 ? "16/10" : "4/3" }}>
+                            <div className="relative overflow-hidden border border-line bg-sunken rounded-2xl" style={{ aspectRatio: s.media.length === 1 ? "16/10" : "4/3" }}>
                               <MediaImage url={m.url} alt={m.alt || `Schritt ${s.position + 1}, Bild ${i + 1}`} className="absolute inset-0" sizes="(min-width: 1024px) 760px, 100vw" />
                             </div>
                             <figcaption className="mt-1.5 flex gap-2 text-[12px] text-muted">
@@ -254,9 +254,9 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                       type="button"
                       onClick={() => toggle(s.stableKey)}
                       aria-pressed={isDone}
-                      className={cn("inline-flex h-10 items-center gap-2.5 border px-4 text-sm font-semibold transition-colors", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-ink")}
+                      className={cn("inline-flex h-10 items-center gap-2.5 border px-4 text-sm font-semibold transition-colors rounded-xl", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-ink")}
                     >
-                      <span className={cn("grid size-4 place-items-center border", isDone ? "border-paper" : "border-ink")}>{isDone && <Check size={11} strokeWidth={3} />}</span>
+                      <span className={cn("grid size-4 place-items-center border rounded-2xl", isDone ? "border-paper" : "border-ink")}>{isDone && <Check size={11} strokeWidth={3} />}</span>
                       {isDone ? "Erledigt" : "Schritt erledigt"}
                     </button>
                     {signedIn && !isOwner && !preview && (
@@ -272,7 +272,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
         </ol>
 
         {/* Abschluss */}
-        <section aria-label="Abschluss" className="mt-16 border border-ink bg-card p-6 sm:p-8">
+        <section aria-label="Abschluss" className="mt-16 border border-ink bg-card p-6 sm:p-8 rounded-2xl">
           <p className="spec text-ink">Ende der Anleitung</p>
           <p className="headline mt-2 text-[1.8rem] text-balance">{completed ? "Nachgebaut – stark!" : count === total && total > 0 ? "Alle Schritte erledigt." : "Fertig gebaut?"}</p>
           <p className="mt-2 max-w-[56ch] text-[15px] text-muted">
@@ -287,7 +287,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
               </Button>
             )}
             {!isOwner && (
-              <Link href={remixHref} className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink">
+              <Link href={remixHref} className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink rounded-xl">
                 Eigenes Nachbauprojekt erstellen
               </Link>
             )}

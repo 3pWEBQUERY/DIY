@@ -114,7 +114,7 @@ export function ProjectOwnerBar({ project, ownerHandle }: { project: { id: strin
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border border-ink bg-card px-3 py-2.5">
+    <div className="flex flex-wrap items-center gap-3 border border-ink bg-card px-3 py-2.5 rounded-2xl">
       <span className="spec text-ink">Deine Werkbank</span>
       <span className="h-4 w-px bg-line" aria-hidden />
       <label className="flex items-center gap-2 text-[13px]">
@@ -124,7 +124,7 @@ export function ProjectOwnerBar({ project, ownerHandle }: { project: { id: strin
           value={status}
           disabled={pending}
           onChange={(e) => changeStatus(e.target.value as ProjectStatus)}
-          className="h-8 border border-line-strong bg-card px-2 text-[13px] font-semibold hover:border-ink"
+          className="h-8 border border-line-strong bg-card px-2 text-[13px] font-semibold hover:border-ink rounded-2xl"
         >
           {PROJECT_STATUS.map((s) => (
             <option key={s} value={s}>

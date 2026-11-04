@@ -60,7 +60,7 @@ export default async function StudioProjects() {
                   <tr key={r.id} className="border-b border-line align-middle">
                     <td className="py-2.5 pr-3">
                       <Link href={href} className="group flex max-w-[340px] items-center gap-3">
-                        <span className="relative size-10 shrink-0 overflow-hidden border border-line">
+                        <span className="relative size-10 shrink-0 overflow-hidden border border-line rounded-2xl">
                           {r.coverUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={r.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />

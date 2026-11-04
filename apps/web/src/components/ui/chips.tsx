@@ -13,7 +13,7 @@ export function ChipLink({ href, active, children, count, className }: { href: s
       aria-current={active ? "true" : undefined}
       scroll={false}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 border px-3 text-[13px] transition-colors",
+        "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] transition-colors",
         active ? "border-ink bg-ink text-paper" : "border-line-strong bg-card text-ink-2 hover:border-ink hover:text-ink",
         className,
       )}

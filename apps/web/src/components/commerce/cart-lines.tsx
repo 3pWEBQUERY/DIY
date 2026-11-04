@@ -43,7 +43,7 @@ function Line({ line, currency }: { line: CartLine; currency: Currency }) {
 
   return (
     <li className={cn("grid grid-cols-[72px_1fr] gap-4 py-4 sm:grid-cols-[88px_1fr_auto]", pending && "opacity-60")}>
-      <Link href={line.href} className="block border border-line" tabIndex={-1} aria-hidden>
+      <Link href={line.href} className="block border border-line rounded-2xl" tabIndex={-1} aria-hidden>
         <Cover url={line.cover.url} variants={line.cover.variants} alt="" seed={line.productId} category={line.category} ratio="4/5" sizes="88px" />
       </Link>
       <div className="min-w-0">
@@ -77,12 +77,12 @@ function Line({ line, currency }: { line: CartLine; currency: Currency }) {
 function Qty({ line, max, disabled, onChange }: { line: CartLine; max: number; disabled: boolean; onChange: (q: number) => void }) {
   if (line.isDigital) return <span className="spec">1 Lizenz</span>;
   return (
-    <div className="flex h-9 items-center border border-line-strong bg-card" role="group" aria-label={`Menge für ${line.title}`}>
-      <button type="button" className="grid size-9 place-items-center hover:bg-sunken disabled:opacity-40" aria-label="Weniger" disabled={disabled || line.quantity <= 1} onClick={() => onChange(line.quantity - 1)}>
+    <div className="flex h-9 items-center border border-line-strong bg-card rounded-xl" role="group" aria-label={`Menge für ${line.title}`}>
+      <button type="button" className="grid size-9 place-items-center hover:bg-sunken disabled:opacity-40 rounded-xl" aria-label="Weniger" disabled={disabled || line.quantity <= 1} onClick={() => onChange(line.quantity - 1)}>
         <Minus size={13} />
       </button>
       <span className="num w-7 text-center text-[14px] font-semibold">{line.quantity}</span>
-      <button type="button" className="grid size-9 place-items-center hover:bg-sunken disabled:opacity-40" aria-label="Mehr" disabled={disabled || line.quantity >= max} onClick={() => onChange(line.quantity + 1)}>
+      <button type="button" className="grid size-9 place-items-center hover:bg-sunken disabled:opacity-40 rounded-xl" aria-label="Mehr" disabled={disabled || line.quantity >= max} onClick={() => onChange(line.quantity + 1)}>
         <Plus size={13} />
       </button>
     </div>

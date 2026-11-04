@@ -81,7 +81,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           </p>
         </div>
         {!user && (
-          <div className="border border-line bg-card p-5">
+          <div className="border border-line bg-card p-5 rounded-2xl">
             <p className="text-sm text-ink-2">Folge Creatorn, speichere Projekte und teile deine eigenen Arbeiten.</p>
             <div className="mt-4 flex gap-2">
               <LinkButton href="/registrieren">Kostenlos beitreten</LinkButton>
@@ -93,13 +93,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
       {/* Kategorien */}
       <nav aria-label="Kategorien" className="-mx-4 mb-12 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
-        <Link href="/entdecken" className={cn("flex h-9 shrink-0 items-center border px-3 text-sm", !cat ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}>Alle</Link>
+        <Link href="/entdecken" className={cn("flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm", !cat ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}>Alle</Link>
         {CATEGORIES.map((c) => (
           <Link
             key={c.slug}
             href={`/entdecken?kategorie=${c.slug}`}
             aria-current={cat?.slug === c.slug ? "page" : undefined}
-            className={cn("flex h-9 shrink-0 items-center gap-2 border px-3 text-sm", cat?.slug === c.slug ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}
+            className={cn("flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm", cat?.slug === c.slug ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}
           >
             <Glyph name={c.glyph} size={16} strokeWidth={1.5} />
             {c.short}
@@ -120,7 +120,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
         {collectionCards.map(({ c, projects, tutorials: tuts }, idx) =>
           projects.length + tuts.length === 0 ? null : (
-            <section key={c.id} className={cn(idx === 0 && "border border-ink bg-card p-6 sm:p-10")}>
+            <section key={c.id} className={cn(idx === 0 && "border border-ink bg-card p-6 sm:p-10 rounded-2xl")}>
               <div className="grid gap-8 lg:grid-cols-[1fr_3fr]">
                 <div>
                   <p className="spec text-clay">{c.kicker || "Kollektion"}</p>
@@ -177,7 +177,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
         {communities.length > 0 && (
           <section>
             <SectionTitle n={posts ? "06" : "05"} title="Community-Highlights" action={<Link href="/communities" className="inline-flex items-center gap-1 text-xs text-muted hover:text-ink">Alle <ArrowRight size={12} /></Link>} />
-            <ul className="mt-6 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            <ul className="mt-6 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4 rounded-2xl overflow-hidden">
               {communities.map((c) => (
                 <li key={c.id}>
                   <Link href={`/c/${c.slug}`} className="flex h-full flex-col justify-between bg-paper p-5 hover:bg-card">

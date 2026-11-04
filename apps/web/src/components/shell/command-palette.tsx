@@ -116,7 +116,7 @@ export function CommandPalette() {
       onClose={() => setOpen(false)}
       onClick={(e) => e.target === dialog.current && setOpen(false)}
       aria-label="Befehlspalette"
-      className="mt-[12vh] mx-auto w-[min(100vw-1.5rem,40rem)] border border-ink bg-card p-0 text-ink open:animate-rise"
+      className="mt-[12vh] mx-auto w-[min(100vw-1.5rem,40rem)] border border-ink bg-card p-0 text-ink open:animate-rise rounded-2xl"
     >
       <div className="flex items-center gap-3 border-b border-line px-4">
         <Search size={18} className="text-muted" />

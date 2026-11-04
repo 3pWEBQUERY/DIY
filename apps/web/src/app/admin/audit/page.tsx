@@ -37,7 +37,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
       <div className="mb-5 flex flex-wrap gap-1.5">
         {r.prefixes.map((p) => (
-          <Link key={p.prefix} href={`/admin/audit?aktion=${encodeURIComponent(p.prefix + ".")}`} className="border border-line-strong px-2 py-1 font-mono text-[11px] hover:border-ink">
+          <Link key={p.prefix} href={`/admin/audit?aktion=${encodeURIComponent(p.prefix + ".")}`} className="border border-line-strong px-2 py-1 font-mono text-[11px] hover:border-ink rounded-2xl">
             {p.prefix} <span className="text-muted">{num(p.n)}</span>
           </Link>
         ))}

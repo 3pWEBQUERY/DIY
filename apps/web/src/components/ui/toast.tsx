@@ -29,7 +29,7 @@ export function Toaster() {
         <div
           key={t.id}
           className={cn(
-            "pointer-events-auto flex items-center gap-3 px-4 py-3 text-sm font-medium animate-rise",
+            "pointer-events-auto flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium animate-rise",
             t.tone === "ok" ? "bg-ink text-paper" : "bg-danger text-paper",
           )}
         >

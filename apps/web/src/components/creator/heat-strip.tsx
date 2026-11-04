@@ -33,7 +33,7 @@ export function HeatStrip({ days, today }: { days: { date: string; n: number }[]
                   role="gridcell"
                   aria-label={`${fmt(d.date)}: ${d.n} ${d.n === 1 ? "Veröffentlichung" : "Veröffentlichungen"}`}
                   title={`${fmt(d.date)}: ${d.n}`}
-                  className={cn("size-3.5 border", d.date > today ? "border-dashed border-line bg-transparent" : tone(d.n), d.date === today && "outline outline-1 outline-offset-1 outline-ink")}
+                  className={cn("size-3.5 border rounded-2xl", d.date > today ? "border-dashed border-line bg-transparent" : tone(d.n), d.date === today && "outline outline-1 outline-offset-1 outline-ink")}
                 />
               ))}
             </div>
@@ -48,10 +48,10 @@ export function HeatLegend() {
   return (
     <span className="flex items-center gap-1.5 font-mono text-[10px] text-muted" aria-hidden>
       weniger
-      <span className="size-3 border border-line bg-sunken" />
-      <span className="size-3 border border-moss/30 bg-moss-soft" />
-      <span className="size-3 border border-moss bg-moss" />
-      <span className="size-3 border border-moss-ink bg-moss-ink" />
+      <span className="size-3 border border-line bg-sunken rounded-full" />
+      <span className="size-3 border border-moss/30 bg-moss-soft rounded-full" />
+      <span className="size-3 border border-moss bg-moss rounded-full" />
+      <span className="size-3 border border-moss-ink bg-moss-ink rounded-full" />
       mehr
     </span>
   );

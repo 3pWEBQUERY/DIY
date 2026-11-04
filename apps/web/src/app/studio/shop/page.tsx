@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Shopverwaltung" };
 function Step({ done, active, title, body, children }: { done: boolean; active?: boolean; title: string; body?: React.ReactNode; children?: React.ReactNode }) {
   return (
     <li className="relative pb-7 pl-8 last:pb-0">
-      <span aria-hidden className={cn("absolute -left-[9px] top-0.5 grid size-[17px] place-items-center border", done ? "border-moss bg-moss text-paper" : active ? "border-ink bg-paper" : "border-line-strong bg-paper text-line-strong")}>
+      <span aria-hidden className={cn("absolute -left-[9px] top-0.5 grid size-[17px] place-items-center border rounded-xl", done ? "border-moss bg-moss text-paper" : active ? "border-ink bg-paper" : "border-line-strong bg-paper text-line-strong")}>
         {done ? <Check size={11} strokeWidth={3} /> : active ? <Circle size={6} className="fill-ink" /> : <Minus size={10} />}
       </span>
       <p className={cn("text-[14.5px]", done || active ? "font-semibold" : "text-muted")}>

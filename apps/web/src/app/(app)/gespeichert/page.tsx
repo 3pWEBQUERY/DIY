@@ -87,7 +87,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
               <EditCollectionButtons collection={activeCollection} />
             </div>
           ) : (
-            <Link href="/einkaufslisten" className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink">
+            <Link href="/einkaufslisten" className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink rounded-xl">
               <ListChecks size={16} /> Einkaufslisten
               <span className="font-mono text-[11px] text-muted">{listCount}</span>
             </Link>
@@ -145,8 +145,8 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
             )}
             {(data.hasMore || data.page > 1) && (
               <div className="mt-10 flex justify-between gap-3">
-                {data.page > 1 ? <Link href={q({ seite: String(data.page - 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-ink">Zurück</Link> : <span />}
-                {data.hasMore && <Link href={q({ seite: String(data.page + 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-ink">Weitere</Link>}
+                {data.page > 1 ? <Link href={q({ seite: String(data.page - 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-ink rounded-2xl">Zurück</Link> : <span />}
+                {data.hasMore && <Link href={q({ seite: String(data.page + 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-ink rounded-2xl">Weitere</Link>}
               </div>
             )}
           </div>

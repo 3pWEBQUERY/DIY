@@ -40,9 +40,9 @@ export function RulesEditor({ value, onChange }: { value: Rule[]; onChange: (r: 
               <Textarea value={r.body} maxLength={1000} rows={2} onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)))} aria-label={`Regel ${i + 1}: Erläuterung`} placeholder="Erläuterung (optional)" className="min-h-16" />
             </div>
             <div className="flex flex-col gap-1 pt-1">
-              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid size-8 place-items-center hover:bg-sunken disabled:opacity-30" aria-label={`Regel ${i + 1} nach oben`}><ArrowUp size={14} /></button>
-              <button type="button" onClick={() => move(i, 1)} disabled={i === value.length - 1} className="grid size-8 place-items-center hover:bg-sunken disabled:opacity-30" aria-label={`Regel ${i + 1} nach unten`}><ArrowDown size={14} /></button>
-              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="grid size-8 place-items-center hover:bg-danger-soft hover:text-danger" aria-label={`Regel ${i + 1} entfernen`}><Trash2 size={14} /></button>
+              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid size-8 place-items-center hover:bg-sunken disabled:opacity-30 rounded-xl" aria-label={`Regel ${i + 1} nach oben`}><ArrowUp size={14} /></button>
+              <button type="button" onClick={() => move(i, 1)} disabled={i === value.length - 1} className="grid size-8 place-items-center hover:bg-sunken disabled:opacity-30 rounded-xl" aria-label={`Regel ${i + 1} nach unten`}><ArrowDown size={14} /></button>
+              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="grid size-8 place-items-center hover:bg-danger-soft hover:text-danger rounded-xl" aria-label={`Regel ${i + 1} entfernen`}><Trash2 size={14} /></button>
             </div>
           </li>
         ))}
@@ -64,14 +64,14 @@ function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUplo
       {url ? (
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt="Titelbild" className="aspect-[16/9] w-full border border-line object-cover" />
+          <img src={url} alt="Titelbild" className="aspect-[16/9] w-full border border-line object-cover rounded-2xl" />
           <div className="mt-2 flex gap-4 text-xs">
             <button type="button" onClick={() => input.current?.click()} className="font-semibold hover:underline">Ersetzen</button>
             <button type="button" onClick={onRemove} className="text-muted hover:text-danger">Entfernen</button>
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => input.current?.click()} disabled={progress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-ink hover:text-ink">
+        <button type="button" onClick={() => input.current?.click()} disabled={progress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-ink hover:text-ink rounded-2xl">
           {progress !== null ? <><LoaderCircle size={18} className="animate-spin" /><span className="font-mono text-xs">{Math.round(progress * 100)} %</span></> : <><ImagePlus size={20} strokeWidth={1.5} /> Titelbild hochladen (16:9)</>}
         </button>
       )}
@@ -136,7 +136,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
         {!editing && (
           <Field label="Adresse" error={a.fields.slug} hint="Kann später nicht mehr geändert werden.">
             {(p) => (
-              <div className="flex items-center border border-line-strong bg-card focus-within:border-ink">
+              <div className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
                 <span className="pl-3 font-mono text-[12px] text-muted">/c/</span>
                 <input
                   {...p}
@@ -178,7 +178,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
           <legend className="sr-only">Sichtbarkeit</legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {VIS.map((v) => (
-              <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4", visibility === v.key ? "border-ink bg-card" : "border-line hover:border-line-strong")}>
+              <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4 rounded-2xl", visibility === v.key ? "border-ink bg-card" : "border-line hover:border-line-strong")}>
                 <span className="flex items-center gap-2 font-semibold">
                   <input type="radio" name="visibility" value={v.key} checked={visibility === v.key} onChange={() => setVisibility(v.key)} className="accent-[#B64B3A]" />
                   {v.icon} {v.label}

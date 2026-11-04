@@ -215,7 +215,7 @@ export function TutorialEditor({
           </div>
           <fieldset>
             <legend className="mb-2 text-[13px] font-semibold">Schwierigkeit</legend>
-            <div className="grid grid-cols-5 border border-line-strong">
+            <div className="grid grid-cols-5 border border-line-strong rounded-2xl">
               {DIFFICULTY.map((d) => (
                 <label key={d} className={cn("flex cursor-pointer flex-col items-center gap-2 border-r border-line px-1 py-3 text-center last:border-r-0", difficulty === d ? "bg-ink text-paper" : "hover:bg-sunken")}>
                   <input type="radio" name="t-difficulty" value={d} checked={difficulty === d} onChange={() => setDifficulty(d)} className="sr-only" />
@@ -243,7 +243,7 @@ export function TutorialEditor({
             <Label>Titelbild</Label>
             <MediaPicker value={cover} onChange={setCover} max={1} accept="image/jpeg,image/png,image/webp,image/heic,image/avif" />
           </div>
-          <p className="flex items-center justify-between border border-line bg-sunken px-4 py-3 text-[13px] text-muted">
+          <p className="flex items-center justify-between border border-line bg-sunken px-4 py-3 text-[13px] text-muted rounded-2xl">
             <span>Preis</span>
             <span className="font-semibold text-ink">Kostenlos</span>
           </p>
@@ -288,7 +288,7 @@ export function TutorialEditor({
             type="button"
             onClick={() => setSteps((prev) => [...prev.map((x) => ({ ...x, open: false })), emptyStep()])}
             disabled={steps.length >= 80}
-            className="flex h-14 w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm font-semibold text-muted hover:border-ink hover:text-ink"
+            className="flex h-14 w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl"
           >
             <Plus size={16} /> Schritt {pad(steps.length + 1)} hinzufügen
           </button>
@@ -297,7 +297,7 @@ export function TutorialEditor({
 
       {/* Seitenleiste: Status & Veröffentlichen */}
       <aside className="xl:sticky xl:top-24 xl:h-fit">
-        <div className="border border-ink bg-card">
+        <div className="border border-ink bg-card rounded-2xl">
           <div className="border-b border-line px-4 py-3">
             <p className="spec text-ink">Stand</p>
             <p className="mt-1 text-[15px] font-semibold">{currentVersion ? `Veröffentlicht · v${currentVersion}` : "Noch nicht veröffentlicht"}</p>
@@ -390,7 +390,7 @@ function StepCard({
   const hasError = Object.keys(errors).some((k) => k.startsWith(`steps.${i}.`));
 
   return (
-    <li className={cn("border bg-card", s.open ? "border-ink" : hasError ? "border-danger" : "border-line")}>
+    <li className={cn("border bg-card rounded-2xl", s.open ? "border-ink" : hasError ? "border-danger" : "border-line")}>
       <div className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
@@ -450,7 +450,7 @@ function StepCard({
                       maxLength={500}
                       placeholder={`Bildbeschreibung Abb. ${i + 1}.${mi + 1}`}
                       aria-label={`Bildbeschreibung für Bild ${mi + 1} in Schritt ${i + 1}`}
-                      className="h-9 w-full border border-line px-2.5 text-[13px] outline-none focus:border-ink"
+                      className="h-9 w-full border border-line px-2.5 text-[13px] outline-none focus:border-ink rounded-2xl"
                     />
                   ) : null,
                 )}
@@ -484,7 +484,7 @@ function StepCard({
           <Field label="Tipp aus Erfahrung" optional hint="Persönliche Erfahrung – wird grün und klar als Tipp markiert." error={err("tip")}>
             {(a) => <Textarea {...a} value={s.tip} onChange={(e) => onPatch({ tip: e.target.value })} maxLength={1000} rows={2} className="border-l-2 border-l-moss" />}
           </Field>
-          <div className="border border-danger/30 bg-danger-soft/50 p-4">
+          <div className="border border-danger/30 bg-danger-soft/50 p-4 rounded-2xl">
             <fieldset>
               <legend className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-danger">Sicherheit</legend>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
@@ -505,7 +505,7 @@ function StepCard({
 
 function TogglePill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={cn("h-7 border px-2.5 text-[12px]", active ? "border-ink bg-ink text-paper" : "border-line-strong bg-card text-ink-2 hover:border-ink")}>
+    <button type="button" aria-pressed={active} onClick={onClick} className={cn("h-7 border px-2.5 text-[12px] rounded-2xl", active ? "border-ink bg-ink text-paper" : "border-line-strong bg-card text-ink-2 hover:border-ink")}>
       {children}
     </button>
   );

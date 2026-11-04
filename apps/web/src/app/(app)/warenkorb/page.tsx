@@ -77,7 +77,7 @@ export default async function CartPage() {
           </div>
 
           <aside className="lg:sticky lg:top-6 lg:h-fit">
-            <div className="border border-ink bg-card p-5">
+            <div className="border border-ink bg-card p-5 rounded-2xl">
               <p className="spec mb-3">Zusammenfassung</p>
               <FeeSummary subtotal={cart.totals.subtotal} shipping={cart.totals.shipping} total={cart.totals.total} />
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted">

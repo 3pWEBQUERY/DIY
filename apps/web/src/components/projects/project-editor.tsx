@@ -159,7 +159,7 @@ export function ProjectEditor({
   return (
     <form onSubmit={submit} className="space-y-14" noValidate>
       {remixSource && (
-        <div className="flex items-start gap-4 border border-clay bg-clay-soft px-5 py-4">
+        <div className="flex items-start gap-4 border border-clay bg-clay-soft px-5 py-4 rounded-2xl">
           <GitFork size={18} className="mt-0.5 shrink-0 text-clay-ink" />
           <div className="min-w-0 flex-1">
             <p className="spec text-clay-ink">Nachbau</p>
@@ -223,11 +223,11 @@ export function ProjectEditor({
             <legend className="spec mb-2">Titelbild</legend>
             <div className="flex flex-wrap gap-2">
               {readyImages.map((m, i) => (
-                <label key={m.id} className={cn("relative size-16 cursor-pointer overflow-hidden border", effectiveCover === m.id ? "border-ink outline outline-1 outline-ink" : "border-line opacity-70 hover:opacity-100")}>
+                <label key={m.id} className={cn("relative size-16 cursor-pointer overflow-hidden border rounded-2xl", effectiveCover === m.id ? "border-ink outline outline-1 outline-ink" : "border-line opacity-70 hover:opacity-100")}>
                   <input type="radio" name="cover" className="sr-only" checked={effectiveCover === m.id} onChange={() => setCoverId(m.id)} aria-label={`Bild ${i + 1} als Titelbild`} />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={m.preview} alt="" className="h-full w-full object-cover" />
-                  {effectiveCover === m.id && <span className="absolute inset-x-0 bottom-0 bg-ink py-0.5 text-center font-mono text-[9px] uppercase text-paper">Titel</span>}
+                  {effectiveCover === m.id && <span className="absolute inset-x-0 bottom-0 bg-ink py-0.5 text-center font-mono text-[9px] uppercase text-paper rounded-2xl">Titel</span>}
                 </label>
               ))}
             </div>
@@ -243,7 +243,7 @@ export function ProjectEditor({
           <legend className="mb-2 text-[13px] font-semibold">Status</legend>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {PROJECT_STATUS.map((s) => (
-              <label key={s} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2.5 text-sm", status === s ? "border-ink bg-sunken font-semibold" : "border-line hover:border-line-strong")}>
+              <label key={s} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2.5 text-sm rounded-2xl", status === s ? "border-ink bg-sunken font-semibold" : "border-line hover:border-line-strong")}>
                 <input type="radio" name="status" value={s} checked={status === s} onChange={() => setStatus(s)} className="sr-only" />
                 <StatusMark status={s} />
                 {PROJECT_STATUS_LABEL[s]}
@@ -253,7 +253,7 @@ export function ProjectEditor({
         </fieldset>
         <fieldset>
           <legend className="mb-2 text-[13px] font-semibold">Schwierigkeit</legend>
-          <div className="grid grid-cols-5 border border-line-strong">
+          <div className="grid grid-cols-5 border border-line-strong rounded-2xl">
             {DIFFICULTY.map((d) => (
               <label key={d} className={cn("flex cursor-pointer flex-col items-center gap-2 border-r border-line px-1 py-3 text-center last:border-r-0", difficulty === d ? "bg-ink text-paper" : "hover:bg-sunken")}>
                 <input type="radio" name="difficulty" value={d} checked={difficulty === d} onChange={() => setDifficulty(d)} className="sr-only" />

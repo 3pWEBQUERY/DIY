@@ -147,7 +147,7 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
               }
             });
           }}
-          className="h-8 w-full min-w-0 truncate border border-line bg-card pl-7 pr-2 text-[12px] text-ink-2 hover:border-line-strong"
+          className="h-8 w-full min-w-0 truncate border border-line bg-card pl-7 pr-2 text-[12px] text-ink-2 hover:border-line-strong rounded-2xl"
         >
           <option value="">Ohne Sammlung</option>
           {collections.map((c) => (

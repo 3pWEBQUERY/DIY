@@ -52,9 +52,9 @@ export function DecisionForm({
     >
       <fieldset>
         <legend className="mb-2 text-[13px] font-semibold">Massnahme</legend>
-        <div className="divide-y divide-line border border-line-strong">
+        <div className="divide-y divide-line border border-line-strong rounded-2xl overflow-hidden">
           {allowed.map((a) => (
-            <label key={a} className={cn("flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-sunken", choice === a && "bg-sunken")}>
+            <label key={a} className={cn("flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-sunken rounded-2xl", choice === a && "bg-sunken")}>
               <input type="radio" name="action" value={a} checked={choice === a} onChange={() => setChoice(a)} className="mt-1 accent-[var(--color-ink)]" />
               <span className="min-w-0">
                 <span className="flex items-center gap-2 text-sm font-semibold">

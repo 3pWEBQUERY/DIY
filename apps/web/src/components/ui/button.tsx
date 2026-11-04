@@ -19,10 +19,10 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-[13px] rounded-sm",
-  md: "h-10 px-4 text-sm rounded-sm",
-  lg: "h-12 px-6 text-[15px] rounded-sm",
-  icon: "size-10 rounded-sm",
+  sm: "h-9 px-3.5 text-[13px] rounded-xl",
+  md: "h-11 px-5 text-sm rounded-xl",
+  lg: "h-12 px-6 text-[15px] rounded-xl",
+  icon: "size-10 rounded-xl",
 };
 
 export function buttonClass(variant: Variant = "primary", size: Size = "md", className?: string) {

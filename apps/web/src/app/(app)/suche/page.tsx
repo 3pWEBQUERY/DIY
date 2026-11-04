@@ -55,7 +55,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <label htmlFor="q" className="sr-only">Suchbegriff</label>
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="q" name="q" defaultValue={q} placeholder="Technik, Material, Projekt oder Creator – z. B. „Granny Square“, „Arve“, „Leinen“" className="h-12 w-full border border-ink bg-card pl-11 pr-4 text-[16px] outline-none" />
+          <input id="q" name="q" defaultValue={q} placeholder="Technik, Material, Projekt oder Creator – z. B. „Granny Square“, „Arve“, „Leinen“" className="h-12 w-full border border-ink bg-card pl-11 pr-4 text-[16px] outline-none rounded-2xl" />
         </div>
         {type && <input type="hidden" name="typ" value={type} />}
         <button className={buttonClass("ink", "lg")}>Suchen</button>
@@ -73,21 +73,21 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             {type && <input type="hidden" name="typ" value={type} />}
             <label className="flex flex-col gap-1">
               <span className="spec">Kategorie</span>
-              <select name="kategorie" defaultValue={sp.kategorie ?? ""} className="h-9 border border-line-strong bg-card px-2">
+              <select name="kategorie" defaultValue={sp.kategorie ?? ""} className="h-9 border border-line-strong bg-card px-2 rounded-2xl">
                 <option value="">Alle</option>
                 {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="spec">Schwierigkeit bis</span>
-              <select name="stufe" defaultValue={sp.stufe ?? ""} className="h-9 border border-line-strong bg-card px-2">
+              <select name="stufe" defaultValue={sp.stufe ?? ""} className="h-9 border border-line-strong bg-card px-2 rounded-2xl">
                 <option value="">Alle</option>
                 {[1, 2, 3, 4, 5].map((d) => <option key={d} value={d}>{DIFFICULTY_LABEL[d]}</option>)}
               </select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="spec">Dauer bis</span>
-              <select name="dauer" defaultValue={sp.dauer ?? ""} className="h-9 border border-line-strong bg-card px-2">
+              <select name="dauer" defaultValue={sp.dauer ?? ""} className="h-9 border border-line-strong bg-card px-2 rounded-2xl">
                 <option value="">Beliebig</option>
                 <option value="60">1 Std.</option>
                 <option value="240">4 Std.</option>
@@ -97,7 +97,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             </label>
             <label className="flex flex-col gap-1">
               <span className="spec">Preis bis (CHF)</span>
-              <input name="preis_max" type="number" min={0} defaultValue={sp.preis_max} className="h-9 w-24 border border-line-strong bg-card px-2" />
+              <input name="preis_max" type="number" min={0} defaultValue={sp.preis_max} className="h-9 w-24 border border-line-strong bg-card px-2 rounded-2xl" />
             </label>
             <label className="flex h-9 items-center gap-2">
               <input type="checkbox" name="kostenlos" value="1" defaultChecked={sp.kostenlos === "1"} className="accent-[#B64B3A]" /> Nur kostenlose Anleitungen
@@ -108,7 +108,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       )}
 
       {!q && (
-        <div className="grid gap-px border border-line bg-line sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-px border border-line bg-line sm:grid-cols-3 lg:grid-cols-5 rounded-2xl overflow-hidden">
           {CATEGORIES.map((c) => (
             <Link key={c.slug} href={`/entdecken?kategorie=${c.slug}`} className="bg-paper p-4 text-sm font-semibold hover:bg-card">{c.name}</Link>
           ))}
@@ -143,7 +143,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             <ul className="mt-2 grid gap-x-8 sm:grid-cols-2">
               {results!.user.map((u) => (
                 <li key={u.id} className="border-b border-line">
-                  <Link href={u.href} className="flex items-center gap-3 py-3 hover:bg-card">
+                  <Link href={u.href} className="flex items-center gap-3 py-3 hover:bg-card rounded-2xl">
                     <Avatar src={u.cover} name={u.title} size={40} />
                     <span className="min-w-0">
                       <span className="block font-semibold">{u.title}</span>
@@ -177,7 +177,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 <ul>
                   {results![t].map((h) => (
                     <li key={h.id} className="border-b border-line">
-                      <Link href={h.href} className={cn("block py-3.5 hover:bg-card", t === "article" && "py-5")}>
+                      <Link href={h.href} className={cn("block py-3.5 hover:bg-card rounded-2xl", t === "article" && "py-5")}>
                         <span className={cn("block font-semibold", t === "article" && "headline text-xl font-normal")}>{h.title}</span>
                         <span className="text-sm text-muted">{h.subtitle}</span>
                       </Link>

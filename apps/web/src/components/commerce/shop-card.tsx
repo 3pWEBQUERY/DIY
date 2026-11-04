@@ -23,7 +23,7 @@ export type ShopCardProps = {
 export function ShopCard({ shop, className }: { shop: ShopCardProps; className?: string }) {
   const tiles = [...shop.covers, ...Array.from({ length: Math.max(0, 3 - shop.covers.length) }, (_, i) => ({ id: `${shop.id}-${i}`, url: null, category: shop.covers[0]?.category ?? "weitere" }))].slice(0, 3);
   return (
-    <article className={cn("group relative flex h-full flex-col border border-line bg-card transition-colors hover:border-ink", className)}>
+    <article className={cn("group relative flex h-full flex-col border border-line bg-card transition-colors hover:border-ink rounded-2xl", className)}>
       <div className="grid grid-cols-3 gap-px border-b border-line bg-line">
         {tiles.map((t) => (
           <Cover key={t.id} url={t.url} alt="" seed={t.id} category={t.category} ratio="1/1" sizes="120px" />

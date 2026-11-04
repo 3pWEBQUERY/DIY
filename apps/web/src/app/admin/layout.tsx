@@ -69,7 +69,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-dvh bg-paper">
-      <header className="sticky top-0 z-30 flex h-12 items-center gap-4 bg-ink px-4 text-paper sm:px-6">
+      <header className="sticky top-0 z-30 flex h-12 items-center gap-4 bg-ink px-4 text-paper sm:px-6 rounded-xl">
         <Link href="/admin" className="flex items-center gap-2.5" aria-label="Administration – Übersicht">
           <Signet size={24} />
           <span className="font-serif text-[18px] leading-none tracking-[-0.02em]">Werkraum</span>
@@ -79,7 +79,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="ml-auto flex items-center gap-4 text-[13px]">
           <span className="hidden items-center gap-2 sm:flex">
             <span className="text-paper/70">{user.profile.displayName}</span>
-            <span className="border border-paper/30 px-1.5 font-mono text-[10px] uppercase tracking-[0.08em]">{ROLE_LABEL[user.role]}</span>
+            <span className="border border-paper/30 px-1.5 font-mono text-[10px] uppercase tracking-[0.08em] rounded-2xl">{ROLE_LABEL[user.role]}</span>
           </span>
           <Link href="/feed" className="flex items-center gap-1.5 text-paper/80 hover:text-paper">
             <ArrowLeft size={14} aria-hidden />

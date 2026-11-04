@@ -45,7 +45,7 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
   const soldOut = p.status === "SOLD_OUT";
   return (
     <article className={cn("group relative", className)}>
-      <div className="relative border border-line bg-card transition-colors group-hover:border-ink">
+      <div className="relative border border-line bg-card transition-colors group-hover:border-ink rounded-2xl">
         <Cover plateNumber={false}
           url={p.cover.url}
           variants={p.cover.variants}
@@ -57,8 +57,8 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
           sizes={sizes ?? "(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw"}
           className={cn(soldOut && "opacity-60 grayscale-[35%]")}
         />
-        <span className="absolute left-2 top-2 bg-paper/95 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-2">{PRODUCT_KIND_LABEL[p.kind]}</span>
-        {soldOut && <span className="absolute bottom-2 left-2 bg-ink px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-paper">Vergriffen</span>}
+        <span className="absolute left-2 top-2 bg-paper/95 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-2 rounded-2xl">{PRODUCT_KIND_LABEL[p.kind]}</span>
+        {soldOut && <span className="absolute bottom-2 left-2 bg-ink px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-paper rounded-2xl">Vergriffen</span>}
       </div>
       <div className="mt-2.5 space-y-1">
         <h3 className="headline line-clamp-2 text-[16.5px] leading-snug text-ink">

@@ -91,7 +91,7 @@ export function OrderTimeline({ events, className }: { events: TimelineEvent[]; 
         const changed = e.from !== e.to;
         return (
           <li key={e.id} className="relative pb-6 pl-6 last:pb-0">
-            <span aria-hidden className={cn("absolute -left-[5px] top-1.5 size-[9px] border border-ink", last ? "bg-ink" : changed ? "bg-paper" : "bg-line-strong border-line-strong")} />
+            <span aria-hidden className={cn("absolute -left-[5px] top-1.5 size-[9px] border border-ink rounded-full", last ? "bg-ink" : changed ? "bg-paper" : "bg-line-strong border-line-strong")} />
             <p className="spec">
               {formatDate(e.createdAt, { day: "numeric", month: "short", year: "numeric" })} ·{" "}
               {new Date(e.createdAt).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}

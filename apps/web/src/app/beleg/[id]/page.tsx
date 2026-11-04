@@ -37,7 +37,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
         <PrintButton label="Beleg drucken" />
       </div>
 
-      <article className="border border-ink bg-card p-8 print:border-0 print:p-0">
+      <article className="border border-ink bg-card p-8 print:border-0 print:p-0 rounded-2xl">
         <header className="flex flex-wrap items-start justify-between gap-6 border-b border-ink pb-6">
           <div>
             <p className="spec">{r.role === "seller" ? "Verkaufsbeleg" : "Kaufbeleg"}</p>

@@ -57,7 +57,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
     const m = media[0]!;
     const ratio = m.width && m.height ? Math.min(Math.max(m.width / m.height, 0.8), 1.78) : 4 / 3;
     return (
-      <div className="relative overflow-hidden bg-sunken" style={{ aspectRatio: ratio }}>
+      <div className="relative overflow-hidden rounded-2xl bg-sunken" style={{ aspectRatio: ratio }}>
         {m.kind === "VIDEO" ? (
           <video src={m.variants.video} controls playsInline preload="metadata" className="h-full w-full bg-ink object-contain" aria-label={m.alt || "Video"} />
         ) : (
@@ -67,7 +67,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
     );
   }
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden rounded-2xl">
       <div
         ref={track}
         onScroll={(e) => setIdx(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
@@ -85,7 +85,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
           </div>
         ))}
       </div>
-      <div className="pointer-events-none absolute right-3 top-3 bg-ink/85 px-2 py-0.5 font-mono text-[11px] text-paper" aria-hidden>
+      <div className="pointer-events-none absolute right-3 top-3 bg-ink/85 px-2 py-0.5 font-mono text-[11px] text-paper rounded-2xl" aria-hidden>
         {String(idx + 1).padStart(2, "0")} / {String(media.length).padStart(2, "0")}
       </div>
       <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
@@ -106,9 +106,8 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
 /** Projektfaden-Verknüpfung: Der Beitrag hängt sichtbar an seinem Projekt (§1.3). */
 function ProjectLink({ p }: { p: NonNullable<PostView["project"]> }) {
   return (
-    <Link href={`/u/${p.ownerHandle}/${p.slug}`} className="group relative mt-3 flex items-stretch border border-line bg-card transition-colors hover:border-ink">
-      <span className="absolute -left-[13px] top-1/2 h-px w-3 bg-ink" aria-hidden />
-      <div className="relative w-20 shrink-0 overflow-hidden border-r border-line">
+    <Link href={`/u/${p.ownerHandle}/${p.slug}`} className="group relative mt-3 flex items-stretch border border-line bg-card transition-colors hover:border-ink rounded-2xl">
+            <div className="relative w-20 shrink-0 overflow-hidden rounded-l-2xl border-r border-line">
         {p.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -198,7 +197,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
         {post.body && <RichText text={post.body} className="text-[15.5px] leading-relaxed text-ink-2" />}
 
         {post.repostOf && (
-          <Link href={`/beitrag/${post.repostOf.id}`} className="mt-3 block border border-line p-3.5 hover:border-ink">
+          <Link href={`/beitrag/${post.repostOf.id}`} className="mt-3 block border border-line p-3.5 hover:border-ink rounded-2xl">
             <p className="text-sm font-semibold">{post.repostOf.author?.displayName} <span className="font-normal text-muted">@{post.repostOf.author?.handle}</span></p>
             <p className="mt-1 line-clamp-3 text-sm text-ink-2">{post.repostOf.body}</p>
           </Link>
@@ -213,7 +212,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
         {post.project && <ProjectLink p={post.project} />}
 
         {post.tutorial && (
-          <Link href={`/anleitungen/${post.tutorial.slug}`} className="mt-3 flex items-center justify-between border border-line bg-card px-4 py-3 hover:border-ink">
+          <Link href={`/anleitungen/${post.tutorial.slug}`} className="mt-3 flex items-center justify-between border border-line bg-card px-4 py-3 hover:border-ink rounded-2xl">
             <span>
               <span className="spec">Neue Anleitung</span>
               <span className="block font-semibold">{post.tutorial.title}</span>
@@ -222,14 +221,14 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           </Link>
         )}
         {post.article && (
-          <Link href={`/u/${post.article.authorHandle}/blog/${post.article.slug}`} className="mt-3 block border border-line bg-card px-4 py-3 hover:border-ink">
+          <Link href={`/u/${post.article.authorHandle}/blog/${post.article.slug}`} className="mt-3 block border border-line bg-card px-4 py-3 hover:border-ink rounded-2xl">
             <span className="spec">Artikel · {post.article.readingMinutes} Min. Lesezeit</span>
             <span className="headline mt-1 block text-xl">{post.article.title}</span>
             {post.article.dek && <span className="mt-1 block text-sm text-muted line-clamp-2">{post.article.dek}</span>}
           </Link>
         )}
         {post.product && (
-          <Link href={`/markt/${post.product.shop.slug}/${post.product.slug}`} className="mt-3 flex items-center justify-between border border-clay/40 bg-clay-soft px-4 py-3 hover:border-clay">
+          <Link href={`/markt/${post.product.shop.slug}/${post.product.slug}`} className="mt-3 flex items-center justify-between border border-clay/40 bg-clay-soft px-4 py-3 hover:border-clay rounded-2xl">
             <span>
               <span className="spec text-clay-ink">Im Shop von {post.product.shop.name}</span>
               <span className="block font-semibold">{post.product.title}</span>
@@ -278,7 +277,7 @@ function RepostDialog({ open, onClose, post }: { open: boolean; onClose: () => v
   return (
     <Dialog open={open} onClose={onClose} title="Mit Einordnung teilen" description="Erzähl, warum dich das inspiriert.">
       <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Deine Gedanken (optional)" maxLength={5000} />
-      <div className="mt-3 border border-line p-3 text-sm text-muted line-clamp-3">
+      <div className="mt-3 border border-line p-3 text-sm text-muted line-clamp-3 rounded-2xl">
         <strong className="text-ink">{post.author.displayName}:</strong> {post.body || "Medienbeitrag"}
       </div>
       <Button

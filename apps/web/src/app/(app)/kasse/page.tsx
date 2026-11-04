@@ -54,7 +54,7 @@ export default async function CheckoutPage() {
         <CheckoutForm initial={initial} totalMinor={cart.totals.total} currency="CHF" orderCount={cart.groups.length} mode={cart.mode === "stripe" ? "stripe" : "simulated"} digitalOnly={digitalOnly} />
 
         <aside className="lg:sticky lg:top-6 lg:h-fit">
-          <div className="border border-ink bg-card">
+          <div className="border border-ink bg-card rounded-2xl">
             <p className="spec border-b border-line px-5 py-3">Deine Bestellung</p>
             {cart.groups.map((g) => (
               <div key={g.shop.id} className="border-b border-line px-5 py-4">

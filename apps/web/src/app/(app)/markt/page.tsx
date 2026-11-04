@@ -81,7 +81,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
           <label htmlFor="markt-q" className="spec mb-2 block">
             Im Marktplatz suchen
           </label>
-          <div className="flex items-stretch border border-ink bg-card focus-within:outline-2 focus-within:outline-moss">
+          <div className="flex items-stretch border border-ink bg-card focus-within:outline-2 focus-within:outline-moss rounded-2xl">
             <Search size={17} className="ml-3 self-center text-muted" aria-hidden />
             <input
               id="markt-q"
@@ -102,7 +102,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
       <nav aria-label="Kategorien" className="-mx-4 overflow-x-auto border-b border-line px-4 scrollbar-none sm:mx-0 sm:px-0">
         <ul className="flex min-w-max gap-1 py-3">
           <li>
-            <Link href={hrefWith(raw, { kategorie: null })} aria-current={!activeCat ? "page" : undefined} className={cn("flex h-9 items-center px-3 text-[13.5px]", !activeCat ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}>
+            <Link href={hrefWith(raw, { kategorie: null })} aria-current={!activeCat ? "page" : undefined} className={cn("flex h-9 items-center rounded-full px-3.5 text-[13.5px]", !activeCat ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}>
               Alles
             </Link>
           </li>
@@ -113,7 +113,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
                 <Link
                   href={hrefWith(raw, { kategorie: c.slug })}
                   aria-current={active ? "page" : undefined}
-                  className={cn("flex h-9 items-center gap-2 px-3 text-[13.5px]", active ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}
+                  className={cn("flex h-9 items-center gap-2 rounded-full px-3.5 text-[13.5px]", active ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}
                 >
                   <Glyph name={c.glyph} size={15} strokeWidth={1.6} />
                   {c.short}
@@ -133,7 +133,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
       <div className="mt-8 grid gap-10 lg:grid-cols-[220px_1fr]">
         {/* ───── Filter ───── */}
         <aside aria-label="Filter">
-          <details className="group border border-line bg-card p-4 lg:hidden" open={filtered ? true : undefined}>
+          <details className="group border border-line bg-card p-4 lg:hidden rounded-2xl" open={filtered ? true : undefined}>
             <summary className="flex cursor-pointer list-none items-center gap-2 text-[14px] font-semibold">
               <SlidersHorizontal size={15} /> Filter {chips.length > 0 && <span className="spec">({chips.length})</span>}
             </summary>
@@ -151,7 +151,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
             <div className="flex flex-wrap items-center gap-2">
               {chips.length ? (
                 chips.map((c) => (
-                  <Link key={c.label} href={c.href} className="inline-flex h-8 items-center gap-2 border border-line-strong bg-card px-2.5 text-[13px] hover:border-ink" aria-label={`Filter ${c.label} entfernen`}>
+                  <Link key={c.label} href={c.href} className="inline-flex h-8 items-center gap-2 border border-line-strong bg-card px-2.5 text-[13px] hover:border-ink rounded-xl" aria-label={`Filter ${c.label} entfernen`}>
                     {c.label} <span aria-hidden className="text-muted">×</span>
                   </Link>
                 ))

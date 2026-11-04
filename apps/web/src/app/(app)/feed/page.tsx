@@ -54,7 +54,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
             {myProjects.map((p) => (
               <li key={p.id}>
                 <Link href={`/u/${user.profile?.handle}/${p.slug}`} className="flex items-center gap-3 py-3 group">
-                  <div className="relative size-12 shrink-0 overflow-hidden border border-line">
+                  <div className="relative size-12 shrink-0 overflow-hidden border border-line rounded-2xl">
                     {p.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -153,7 +153,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
       />
 
       {isNew && tab.key !== "new" && (
-        <div className="mt-6 flex items-center justify-between gap-4 border border-moss/30 bg-moss-soft px-4 py-3 text-sm">
+        <div className="mt-6 flex items-center justify-between gap-4 border border-moss/30 bg-moss-soft px-4 py-3 text-sm rounded-2xl">
           <span>Folge ein paar Creatorn, damit dein Feed persönlicher wird.</span>
           <Link href="/entdecken" className="inline-flex shrink-0 items-center gap-1 font-semibold text-moss-ink">
             Entdecken <ArrowRight size={14} />

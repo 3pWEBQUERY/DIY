@@ -48,7 +48,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
         <nav aria-label="Kategorien" className="-mx-4 mt-5 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0">
           <ul className="flex min-w-max gap-2">
             <li>
-              <Link href={sp.q ? `/communities?q=${encodeURIComponent(sp.q)}` : "/communities"} aria-current={!sp.kategorie ? "page" : undefined} className={cn("inline-flex h-8 items-center border px-3 text-[13px]", !sp.kategorie ? "border-ink bg-ink text-paper" : "border-line-strong hover:border-ink")}>
+              <Link href={sp.q ? `/communities?q=${encodeURIComponent(sp.q)}` : "/communities"} aria-current={!sp.kategorie ? "page" : undefined} className={cn("inline-flex h-8 items-center border px-3 text-[13px] rounded-xl", !sp.kategorie ? "border-ink bg-ink text-paper" : "border-line-strong hover:border-ink")}>
                 Alle
               </Link>
             </li>
@@ -57,7 +57,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
                 <Link
                   href={`/communities?${new URLSearchParams({ ...(sp.q ? { q: sp.q } : {}), kategorie: c.slug })}`}
                   aria-current={sp.kategorie === c.slug ? "page" : undefined}
-                  className={cn("inline-flex h-8 items-center gap-2 border px-3 text-[13px]", sp.kategorie === c.slug ? "border-ink bg-ink text-paper" : "border-line-strong hover:border-ink")}
+                  className={cn("inline-flex h-8 items-center gap-2 border px-3 text-[13px] rounded-xl", sp.kategorie === c.slug ? "border-ink bg-ink text-paper" : "border-line-strong hover:border-ink")}
                 >
                   {c.short}
                   <span className={cn("font-mono text-[10px]", sp.kategorie === c.slug ? "text-paper/70" : "text-muted")}>{counts.get(c.slug)}</span>

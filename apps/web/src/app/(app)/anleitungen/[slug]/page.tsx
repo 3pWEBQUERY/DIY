@@ -137,7 +137,7 @@ export default async function TutorialPage({ params }: Params) {
             {!t.viewer.isOwner && viewer && <FollowButton userId={t.author.id} following={t.viewer.followingAuthor} size="sm" />}
           </div>
         </div>
-        <div className="crop border border-line">
+        <div className="crop border border-line rounded-2xl">
           <Cover url={t.coverUrl} alt={t.title} seed={`t-${t.id}`} category={t.category} ratio="16/10" priority sizes="(min-width: 1024px) 600px, 100vw" />
         </div>
       </header>
@@ -169,7 +169,7 @@ export default async function TutorialPage({ params }: Params) {
       </dl>
 
       {t.safetyKinds.length > 0 && (
-        <div role="note" className="mt-6 flex flex-wrap items-start gap-x-4 gap-y-2 border border-danger/40 border-l-[3px] border-l-danger bg-danger-soft px-5 py-4">
+        <div role="note" className="mt-6 flex flex-wrap items-start gap-x-4 gap-y-2 border border-danger/40 border-l-[3px] border-l-danger bg-danger-soft px-5 py-4 rounded-2xl">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-danger">Sicherheit</p>
           <div className="min-w-0 flex-1 text-[14.5px] text-ink">
             <p>
@@ -263,7 +263,7 @@ export default async function TutorialPage({ params }: Params) {
             <section>
               <p className="spec mb-3 text-ink">Zum Projekt</p>
               <Link href={t.project.href} className="group block border-l border-ink pl-3">
-                <div className="border border-line transition-colors group-hover:border-ink">
+                <div className="border border-line transition-colors group-hover:border-ink rounded-2xl">
                   <Cover url={t.project.coverUrl} alt="" seed={t.project.id} category={t.project.category} ratio="4/3" sizes="320px" />
                 </div>
                 <p className="spec mt-2"><StatusLabel status={t.project.status} /></p>
@@ -293,7 +293,7 @@ export default async function TutorialPage({ params }: Params) {
               <ol className="border-l border-ink">
                 {t.versions.slice(0, 8).map((v) => (
                   <li key={v.version} className="relative pb-4 pl-4 last:pb-0">
-                    <span aria-hidden className={cn("absolute -left-px top-[5px] -translate-x-1/2", v.version === t.version.number ? "size-[9px] bg-ink" : v.isMajor ? "size-[8px] rotate-45 bg-clay" : "size-[7px] rounded-full border border-ink bg-paper")} />
+                    <span aria-hidden className={cn("absolute -left-px top-[5px] -translate-x-1/2", v.version === t.version.number ? "size-[9px] bg-ink rounded-full" : v.isMajor ? "size-[8px] rotate-45 bg-clay" : "size-[7px] rounded-full border border-ink bg-paper")} />
                     <p className="spec">
                       v{v.version} · {formatDate(v.publishedAt, { day: "numeric", month: "short", year: "numeric" })}
                       {v.isMajor ? " · wesentlich" : ""}

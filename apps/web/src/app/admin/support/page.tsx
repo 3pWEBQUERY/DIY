@@ -57,7 +57,7 @@ export default async function SupportAdmin({ searchParams }: { searchParams: Pro
               </div>
               <div className="flex items-start justify-end gap-2">
                 {isAdmin && (
-                  <a href={`mailto:${t.email}?subject=${encodeURIComponent(`Re: ${t.subject} [${t.id.slice(-6)}]`)}`} className="h-8 border border-line-strong px-3 text-[13px] leading-8 hover:border-ink">
+                  <a href={`mailto:${t.email}?subject=${encodeURIComponent(`Re: ${t.subject} [${t.id.slice(-6)}]`)}`} className="h-8 border border-line-strong px-3 text-[13px] leading-8 hover:border-ink rounded-2xl">
                     Antworten
                   </a>
                 )}

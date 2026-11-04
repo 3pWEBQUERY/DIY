@@ -66,7 +66,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
         <span className="absolute left-0 top-[5px] h-px bg-ink transition-[width] duration-500" style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }} aria-hidden />
         {STEPS.map((s, i) => (
           <li key={s} className="relative" aria-current={i === step ? "step" : undefined}>
-            <span className={cn("block size-[11px] border transition-colors", i <= step ? "border-ink bg-ink" : "border-line-strong bg-paper")} />
+            <span className={cn("block size-[11px] border transition-colors rounded-full", i <= step ? "border-ink bg-ink" : "border-line-strong bg-paper")} />
             <span className={cn("mt-3 block spec", i === step && "text-ink")}>
               {pad(i + 1)} <span className="hidden sm:inline">{s}</span>
             </span>
@@ -127,7 +127,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
           )}
 
           {step === 1 && (
-            <ul className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3">
+            <ul className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3 rounded-2xl overflow-hidden">
               {CATEGORIES.map((c) => {
                 const on = data.interests.includes(c.slug);
                 return (
@@ -153,7 +153,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
             <div className="space-y-5">
               <div className="flex items-center gap-5">
                 <Avatar src={data.avatarUrl} name={data.displayName} size={88} />
-                <label className={cn("inline-flex cursor-pointer items-center gap-2 border border-line-strong px-4 py-2.5 text-sm font-semibold hover:border-ink", uploading && "opacity-50")}>
+                <label className={cn("inline-flex cursor-pointer items-center gap-2 border border-line-strong px-4 py-2.5 text-sm font-semibold hover:border-ink rounded-2xl", uploading && "opacity-50")}>
                   <Camera size={16} /> {uploading ? "Lädt hoch …" : "Profilbild wählen"}
                   <input
                     type="file"
@@ -216,7 +216,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                             const r = await joinCommunityQuickAction(c.id);
                             if (r.ok && r.data.joined) setJoined((s) => new Set(s).add(c.id));
                           }}
-                          className={cn("flex w-full items-center justify-between border px-4 py-3 text-left", joined.has(c.id) ? "border-moss bg-moss-soft" : "border-line hover:border-ink")}
+                          className={cn("flex w-full items-center justify-between border px-4 py-3 text-left rounded-2xl", joined.has(c.id) ? "border-moss bg-moss-soft" : "border-line hover:border-ink")}
                         >
                           <span>
                             <span className="block text-sm font-semibold">{c.name}</span>
@@ -233,7 +233,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
           )}
 
           {step === 4 && (
-            <div className="grid gap-px border border-line bg-line sm:grid-cols-2">
+            <div className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
               {[
                 ["/erstellen?typ=beitrag", "Ersten Beitrag teilen", "Ein Foto, ein Gedanke – so einfach wie überall."],
                 ["/erstellen?typ=projekt", "Projekt anlegen", "Mit Journal, Materialliste und Status."],

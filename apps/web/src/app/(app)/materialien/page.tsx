@@ -46,7 +46,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
           {active && <input type="hidden" name="kategorie" value={active.slug} />}
           <label htmlFor="mq" className="sr-only">Materialien durchsuchen</label>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="mq" name="q" defaultValue={q} placeholder="z. B. Merino, Eiche, Acrylfarbe …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink" />
+          <input id="mq" name="q" defaultValue={q} placeholder="z. B. Merino, Eiche, Acrylfarbe …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl" />
         </form>
         {categories.length > 0 && (
           <ChipRow label="Gruppe">
@@ -110,7 +110,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
           </div>
           {result.nextCursor && (
             <div className="mt-8 flex justify-center">
-              <Link href={href({ nach: result.nextCursor })} className="border border-line px-6 py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink">Weitere Materialien</Link>
+              <Link href={href({ nach: result.nextCursor })} className="border border-line px-6 py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">Weitere Materialien</Link>
             </div>
           )}
         </>

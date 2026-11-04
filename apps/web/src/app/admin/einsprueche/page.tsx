@@ -42,7 +42,7 @@ export default async function AppealsPage({ searchParams }: { searchParams: Prom
             const ownDecision = original?.moderatorId === user.id;
             const snap = (a.case.snapshot ?? {}) as { title?: string };
             return (
-              <li key={a.id} className="border border-line bg-card">
+              <li key={a.id} className="border border-line bg-card rounded-2xl">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2.5">
                   <div className="flex flex-wrap items-center gap-3 text-sm">
                     <Link href={`/admin/moderation/${a.case.id}`} className="font-mono font-semibold hover:underline">

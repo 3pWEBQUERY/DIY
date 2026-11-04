@@ -7,15 +7,15 @@ import { cn } from "@/lib/utils";
  */
 const MARK: Record<ProjectStatus, string> = {
   IDEA: "border border-ink bg-transparent rounded-full",
-  PLANNING: "border border-ink bg-transparent",
+  PLANNING: "border border-ink bg-transparent rounded-2xl",
   IN_PROGRESS: "bg-clay",
-  PAUSED: "border border-muted bg-line-strong",
+  PAUSED: "border border-muted bg-line-strong rounded-2xl",
   COMPLETED: "bg-moss",
   ARCHIVED: "bg-muted",
 };
 
 export function StatusMark({ status, className }: { status: ProjectStatus; className?: string }) {
-  return <span aria-hidden className={cn("inline-block size-2 shrink-0", MARK[status], className)} />;
+  return <span aria-hidden className={cn("inline-block size-2 shrink-0 rounded-full", MARK[status], className)} />;
 }
 
 export function StatusLabel({ status, className }: { status: ProjectStatus; className?: string }) {

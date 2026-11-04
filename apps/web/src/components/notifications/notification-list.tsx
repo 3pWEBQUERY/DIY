@@ -121,7 +121,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                       void open(n);
                     }}
                     className={cn(
-                      "group relative flex gap-3.5 py-3.5 pl-4 pr-2 transition-colors hover:bg-sunken focus-visible:bg-sunken",
+                      "group relative flex gap-3.5 py-3.5 pl-4 pr-2 transition-colors hover:bg-sunken focus-visible:bg-sunken rounded-2xl",
                       !n.read && "bg-card before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-clay",
                     )}
                   >
@@ -129,12 +129,12 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                       {n.actor ? (
                         <Avatar src={n.actor.avatarUrl} name={n.actor.displayName} size={36} />
                       ) : (
-                        <span className={cn("grid size-9 place-items-center border", n.group === "system" ? "border-ink bg-ink text-paper" : "border-line-strong bg-paper text-ink")}>
+                        <span className={cn("grid size-9 place-items-center border rounded-xl", n.group === "system" ? "border-ink bg-ink text-paper" : "border-line-strong bg-paper text-ink")}>
                           <Icon size={16} strokeWidth={1.7} aria-hidden />
                         </span>
                       )}
                       {n.actor && (
-                        <span className="absolute -bottom-1 -right-1 grid size-[18px] place-items-center border border-paper bg-ink text-paper">
+                        <span className="absolute -bottom-1 -right-1 grid size-[18px] place-items-center border border-paper bg-ink text-paper rounded-xl">
                           <Icon size={10} strokeWidth={2} aria-hidden />
                         </span>
                       )}

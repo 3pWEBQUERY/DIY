@@ -124,7 +124,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-10">
         <header className="relative grid gap-6 border-b border-line pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 border border-ink sm:-mt-16" />
+            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 border border-ink sm:-mt-16 rounded-2xl" />
             <div className="min-w-0 pb-1 sm:pt-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="display text-4xl sm:text-5xl">{profile.displayName}</h1>
@@ -133,7 +133,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
               </div>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                 <span>@{profile.handle}</span>
-                {followsYou && <span className="bg-sunken px-1.5 text-xs">folgt dir</span>}
+                {followsYou && <span className="bg-sunken px-1.5 text-xs rounded-2xl">folgt dir</span>}
                 {profile.region && (
                   <span className="inline-flex items-center gap-1"><MapPin size={13} />{profile.region}</span>
                 )}
@@ -157,7 +157,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : !viewer ? (
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
-            <span className="grid size-10 place-items-center border border-line-strong"><ShareButton url={`/u/${profile.handle}`} title={`${profile.displayName} auf WERKRAUM`} /></span>
+            <span className="grid size-10 place-items-center border border-line-strong rounded-xl"><ShareButton url={`/u/${profile.handle}`} title={`${profile.displayName} auf WERKRAUM`} /></span>
             {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
           </div>
         </header>
@@ -184,7 +184,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                 {tab === "anleitungen" && tutorials && <div className="grid gap-x-6 gap-y-10 sm:grid-cols-2">{tutorials.items.map((t) => <TutorialCard key={t.id} tutorial={t} showAuthor={false} />)}</div>}
                 {tab === "shop" && profile.user.shop && (
                   <div>
-                    <div className="mb-6 flex items-center justify-between border border-line bg-card px-5 py-4">
+                    <div className="mb-6 flex items-center justify-between border border-line bg-card px-5 py-4 rounded-2xl">
                       <div>
                         <p className="spec">Shop</p>
                         <p className="font-semibold">{profile.user.shop.name}</p>
@@ -204,7 +204,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                   </div>
                 )}
                 {tab === "sammlungen" && (
-                  <ul className="grid gap-px border border-line bg-line sm:grid-cols-2">
+                  <ul className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
                     {collections.map((c) => (
                       <li key={c.id}>
                         <Link href={`/sammlungen/${c.id}`} className="block bg-paper p-5 hover:bg-card">
@@ -245,7 +245,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                       const cat = categoryBySlug(c);
                       return cat ? (
                         <li key={c}>
-                          <Link href={`/entdecken?kategorie=${c}`} className="inline-flex h-8 items-center gap-1.5 border border-line px-2.5 text-[13px] hover:border-ink">
+                          <Link href={`/entdecken?kategorie=${c}`} className="inline-flex h-8 items-center gap-1.5 border border-line px-2.5 text-[13px] hover:border-ink rounded-xl">
                             <Glyph name={cat.glyph} size={14} strokeWidth={1.5} />{cat.short}
                           </Link>
                         </li>
@@ -266,7 +266,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                 </ul>
               )}
               {articles > 0 && (
-                <Link href={`/u/${profile.handle}/blog`} className="flex items-center justify-between border border-line px-4 py-3 text-sm hover:border-ink">
+                <Link href={`/u/${profile.handle}/blog`} className="flex items-center justify-between border border-line px-4 py-3 text-sm hover:border-ink rounded-2xl">
                   <span className="inline-flex items-center gap-2"><BookOpen size={15} /> Blog</span>
                   <span className="font-mono text-xs text-muted">{articles} Artikel</span>
                 </Link>

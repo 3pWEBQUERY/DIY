@@ -89,7 +89,7 @@ function RatingInput({ label, value, onChange, optional }: { label: string; valu
             aria-checked={value === n}
             aria-label={`${n} von 5`}
             onClick={() => onChange(value === n && optional ? 0 : n)}
-            className="grid size-9 place-items-center hover:bg-sunken"
+            className="grid size-9 place-items-center hover:bg-sunken rounded-xl"
           >
             <Star size={20} strokeWidth={1.6} className={cn(n <= value ? "fill-clay text-clay" : "text-line-strong")} />
           </button>
@@ -118,7 +118,7 @@ export function ReviewForm({ orderId, orderItemId, title }: { orderId: string; o
   }
   return (
     <form
-      className="mt-3 space-y-4 border border-line bg-card p-4"
+      className="mt-3 space-y-4 border border-line bg-card p-4 rounded-2xl"
       onSubmit={(e) => {
         e.preventDefault();
         if (!product) {

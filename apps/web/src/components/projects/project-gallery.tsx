@@ -17,7 +17,7 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
 
   if (!cur) {
     return (
-      <div className="crop border border-line" style={{ aspectRatio: "4/3" }}>
+      <div className="overflow-hidden rounded-2xl border border-line" style={{ aspectRatio: "4/3" }}>
         <Plate seed={seed} category={category} label={title} />
       </div>
     );
@@ -37,7 +37,7 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
   return (
     <figure aria-roledescription="Galerie" aria-label={`Bilder zu ${title}`}>
       <div
-        className="crop relative overflow-hidden border border-line bg-sunken focus-visible:outline-offset-4"
+        className="relative overflow-hidden rounded-2xl border border-line bg-sunken focus-visible:outline-offset-4"
         style={{ aspectRatio: "4/3" }}
         tabIndex={items.length > 1 ? 0 : -1}
         onKeyDown={onKey}
@@ -50,7 +50,7 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
         )}
         {items.length > 1 && (
           <>
-            <span className="pointer-events-none absolute right-0 top-0 bg-ink px-2 py-1 font-mono text-[11px] text-paper num" aria-hidden>
+            <span className="pointer-events-none absolute right-0 top-0 bg-ink/85 px-2 py-1 font-mono text-[11px] text-paper num rounded-bl-xl" aria-hidden>
               {pad(idx + 1)} / {pad(items.length)}
             </span>
             <button type="button" onClick={() => go(-1)} aria-label="Vorheriges Bild" className="absolute inset-y-0 left-0 w-1/4 cursor-w-resize focus-visible:outline-offset-[-4px]" />
@@ -73,7 +73,7 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
                 onClick={() => setIdx(i)}
                 aria-label={`Bild ${i + 1}${m.alt ? `: ${m.alt}` : ""}`}
                 aria-current={i === idx ? "true" : undefined}
-                className={cn("relative block aspect-square w-full overflow-hidden border transition-colors", i === idx ? "border-ink" : "border-line opacity-70 hover:opacity-100")}
+                className={cn("relative block aspect-square w-full overflow-hidden border transition-colors rounded-2xl", i === idx ? "border-ink" : "border-line opacity-70 hover:opacity-100")}
               >
                 {m.kind === "VIDEO" ? (
                   <span className="absolute inset-0 grid place-items-center bg-ink font-mono text-[10px] text-paper">VIDEO</span>

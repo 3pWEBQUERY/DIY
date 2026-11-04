@@ -46,7 +46,7 @@ export function VersionBanner({ tutorialId, version, changeNote, isMajor, publis
   const [pending, start] = useTransition();
   if (hidden) return null;
   return (
-    <div role="status" className="flex flex-wrap items-start gap-4 border border-moss bg-moss-soft px-5 py-4">
+    <div role="status" className="flex flex-wrap items-start gap-4 border border-moss bg-moss-soft px-5 py-4 rounded-2xl">
       <div className="min-w-0 flex-1">
         <p className="spec text-moss-ink">
           Neue Version verfügbar · v{version}

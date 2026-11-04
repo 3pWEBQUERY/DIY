@@ -37,7 +37,7 @@ export default async function FeedSettingsPage() {
       </SettingsSection>
 
       <SettingsSection n="04" title="Ausgeblendete Inhalte" description="Inhalte, die du mit „Weniger davon“ ausgeblendet hast.">
-        <div className="flex items-center justify-between gap-4 border border-line bg-card px-4 py-3">
+        <div className="flex items-center justify-between gap-4 border border-line bg-card px-4 py-3 rounded-2xl">
           <span className="text-sm">{s.hiddenCount ? pluralize(s.hiddenCount, "Inhalt ausgeblendet", "Inhalte ausgeblendet") : "Keine ausgeblendeten Inhalte"}</span>
           <ResetHiddenButton count={s.hiddenCount} />
         </div>

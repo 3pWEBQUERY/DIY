@@ -100,7 +100,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       }}
     >
       <SettingsSection n="01" title="Bild & Titelbild" description="Ein Foto von dir oder deiner Werkbank. Das Titelbild erscheint oben auf deinem Profil (Querformat, mind. 1600 px breit).">
-        <div className="relative border border-line">
+        <div className="relative border border-line rounded-2xl">
           <div className="relative aspect-[4/1] overflow-hidden bg-sunken">
             {cover.img.url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -245,7 +245,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                 type="button"
                 aria-pressed={on}
                 onClick={() => setCats((p) => (on ? p.filter((x) => x !== c.slug) : [...p, c.slug]))}
-                className={cn("flex items-center gap-2.5 border px-3 py-2.5 text-left text-[13.5px] transition-colors", on ? "border-ink bg-ink text-paper" : "border-line-strong bg-card hover:border-ink")}
+                className={cn("flex items-center gap-2.5 border px-3 py-2.5 text-left text-[13.5px] transition-colors rounded-2xl", on ? "border-ink bg-ink text-paper" : "border-line-strong bg-card hover:border-ink")}
               >
                 <Glyph name={c.glyph} size={18} />
                 <span className="min-w-0 truncate">{c.name}</span>

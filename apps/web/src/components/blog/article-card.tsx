@@ -32,7 +32,7 @@ export function ArticleCard({
     return (
       <article className={cn("group grid gap-6 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-10", className)}>
         <Link href={a.href} tabIndex={-1} aria-hidden className="crop block">
-          <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" priority={priority} sizes="(min-width: 1024px) 680px, 100vw" className="border border-line" label={a.title} />
+          <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" priority={priority} sizes="(min-width: 1024px) 680px, 100vw" className="border border-line rounded-2xl" label={a.title} />
         </Link>
         <div className="flex flex-col justify-end">
           <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-clay" />Aufmacher · {kicker}</p>
@@ -76,7 +76,7 @@ export function ArticleCard({
   return (
     <article className={cn("group flex flex-col", className)}>
       <Link href={a.href} tabIndex={-1} aria-hidden className="block">
-        <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="border border-line transition-colors group-hover:border-ink" />
+        <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="border border-line transition-colors group-hover:border-ink rounded-2xl" />
       </Link>
       <p className="spec mt-4">{kicker}</p>
       <h3 className="headline mt-1.5 text-[1.45rem] text-balance">

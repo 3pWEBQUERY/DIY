@@ -123,14 +123,14 @@ export default function HelpPage() {
             </section>
           ))}
 
-          <section aria-labelledby="kontakt-t" className="crop border border-line bg-card p-6 sm:p-8">
+          <section aria-labelledby="kontakt-t" className="crop border border-line bg-card p-6 sm:p-8 rounded-2xl">
             <h2 id="kontakt-t" className="headline text-2xl">Noch Fragen?</h2>
             <p className="mt-2 text-[15px] text-ink-2">Wir antworten in der Regel innerhalb von zwei Werktagen.</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/einstellungen/hilfe-support" className="inline-flex h-10 items-center border border-ink bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-2">
+              <Link href="/einstellungen/hilfe-support" className="inline-flex h-10 items-center border border-ink bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-2 rounded-xl">
                 Support kontaktieren
               </Link>
-              <a href={`mailto:${BRAND.supportEmail}`} className="inline-flex h-10 items-center border border-line-strong px-4 text-sm font-semibold hover:border-ink">
+              <a href={`mailto:${BRAND.supportEmail}`} className="inline-flex h-10 items-center border border-line-strong px-4 text-sm font-semibold hover:border-ink rounded-xl">
                 {BRAND.supportEmail}
               </a>
             </div>

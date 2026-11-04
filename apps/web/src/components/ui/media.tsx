@@ -122,7 +122,7 @@ export function Cover({
   label?: string;
 }) {
   return (
-    <div className={cn("relative overflow-hidden bg-sunken", className)} style={{ aspectRatio: ratio }}>
+    <div className={cn("relative overflow-hidden rounded-2xl bg-sunken", className)} style={{ aspectRatio: ratio }}>
       {url || variants?.md ? (
         <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className="absolute inset-0" />
       ) : (

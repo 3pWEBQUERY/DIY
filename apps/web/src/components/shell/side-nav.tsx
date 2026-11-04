@@ -43,7 +43,7 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
 
       <button
         onClick={openCommandPalette}
-        className="mx-3 mb-3 flex h-10 items-center gap-2.5 border border-line bg-card px-3 text-sm text-muted transition-colors hover:border-ink hover:text-ink xl:mx-4"
+        className="mx-3 mb-3 flex h-10 items-center gap-2.5 border border-line bg-card px-3 text-sm text-muted transition-colors hover:border-ink hover:text-ink xl:mx-4 rounded-xl"
         aria-label="Suchen (Befehlspalette öffnen)"
       >
         <Search size={16} className="shrink-0" />
@@ -82,7 +82,7 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex h-10 items-center justify-center gap-3 px-3 text-[14px] text-ink-2 transition-colors hover:bg-sunken hover:text-ink xl:justify-start",
+                  "group relative flex h-10 items-center justify-center gap-3 px-3 text-[14px] text-ink-2 transition-colors hover:bg-sunken hover:text-ink xl:justify-start rounded-xl",
                   active && "font-semibold text-ink",
                 )}
               >
@@ -114,7 +114,7 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
                 <MiniLink key={l.href} {...l} />
               ))}
             </div>
-            <Link href={`/u/${user.handle}`} className="flex items-center gap-3 p-1.5 hover:bg-sunken">
+            <Link href={`/u/${user.handle}`} className="flex items-center gap-3 p-1.5 hover:bg-sunken rounded-2xl">
               <Avatar src={user.avatarUrl} name={user.displayName} size={34} />
               <span className="hidden min-w-0 xl:block">
                 <span className="block truncate text-sm font-semibold">{user.displayName}</span>
@@ -124,11 +124,11 @@ export function SideNav({ user, counts }: { user: ShellUser; counts: { messages:
           </>
         ) : (
           <div className="flex flex-col gap-2">
-            <Link href="/anmelden" className="flex h-10 items-center justify-center gap-2 border border-ink text-sm font-semibold hover:bg-ink hover:text-paper">
+            <Link href="/anmelden" className="flex h-10 items-center justify-center gap-2 border border-ink text-sm font-semibold hover:bg-ink hover:text-paper rounded-xl">
               <LogIn size={16} />
               <span className="hidden xl:inline">Anmelden</span>
             </Link>
-            <Link href="/registrieren" className="hidden h-10 items-center justify-center bg-moss text-sm font-semibold text-paper hover:bg-moss-ink xl:flex">
+            <Link href="/registrieren" className="hidden h-10 items-center justify-center bg-moss text-sm font-semibold text-paper hover:bg-moss-ink xl:flex rounded-xl">
               Konto erstellen
             </Link>
           </div>
@@ -159,7 +159,7 @@ function MiniLink({ href, icon, label }: { href: string; icon: React.ReactNode; 
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-8 items-center justify-center gap-2 px-2 text-[12px] text-muted hover:bg-sunken hover:text-ink xl:justify-start",
+        "flex h-8 items-center justify-center gap-2 px-2 text-[12px] text-muted hover:bg-sunken hover:text-ink xl:justify-start rounded-xl",
         pathname.startsWith(href) && "text-ink font-semibold",
       )}
     >
@@ -183,7 +183,7 @@ export function MobileMoreMenu({ user, cart }: { user: NonNullable<ShellUser>; c
         <ul className="-mx-2 divide-y divide-line">
           {[{ href: "/nachrichten", icon: <MessageSquare size={18} />, label: "Nachrichten" }, ...secondaryLinks(user, cart)].map((l) => (
             <li key={l.href}>
-              <Link href={l.href} className={cn("flex h-12 items-center gap-3 px-2 text-[15px] hover:bg-sunken", pathname.startsWith(l.href) && "font-semibold")}>
+              <Link href={l.href} className={cn("flex h-12 items-center gap-3 px-2 text-[15px] hover:bg-sunken rounded-xl", pathname.startsWith(l.href) && "font-semibold")}>
                 <span className="text-muted [&_svg]:size-[18px]">{l.icon}</span>
                 {l.label}
               </Link>

@@ -31,10 +31,10 @@ export function ProjectCard({
   return (
     <article className={cn("group relative min-w-0", className)}>
       <Link href={p.href} className="block">
-        <div className="relative border border-line transition-colors duration-200 group-hover:border-ink">
+        <div className="relative border border-line transition-colors duration-200 group-hover:border-ink rounded-2xl">
           <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio={ratio} sizes="(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw" priority={priority} />
           {p.counts.tutorials > 0 && (
-            <span className="absolute bottom-0 left-0 bg-ink px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-paper">Mit Anleitung</span>
+            <span className="absolute bottom-0 left-0 bg-ink px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-paper rounded-2xl">Mit Anleitung</span>
           )}
           {p.visibility !== "PUBLIC" && (
             <span className="absolute right-0 top-0 border-b border-l border-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-2">

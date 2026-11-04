@@ -96,7 +96,7 @@ export default async function StudioProductsPage({ searchParams }: { searchParam
                   <tr key={p.id} className="align-middle">
                     <td className="py-3 pr-4">
                       <Link href={`/studio/produkte/${p.id}`} className="group flex items-center gap-3">
-                        <div className="w-12 shrink-0 border border-line">
+                        <div className="w-12 shrink-0 border border-line rounded-2xl">
                           <Cover url={p.coverUrl} variants={p.media[0]?.media.variants as Record<string, string> | undefined} alt="" seed={p.id} category={p.category} ratio="4/5" sizes="48px" />
                         </div>
                         <div className="min-w-0">

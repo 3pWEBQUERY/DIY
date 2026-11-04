@@ -23,10 +23,10 @@ export default async function SupportSettingsPage() {
   return (
     <div>
       <SettingsSection n="01" title="Schnelle Antworten">
-        <ul className="grid gap-px border border-line bg-line sm:grid-cols-2">
+        <ul className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
           {QUICK.map((q) => (
             <li key={q.href} className="bg-paper">
-              <Link href={q.href} className="block px-4 py-3 hover:bg-sunken">
+              <Link href={q.href} className="block px-4 py-3 hover:bg-sunken rounded-2xl">
                 <span className="block text-sm font-semibold">{q.label} →</span>
                 <span className="block text-xs text-muted">{q.note}</span>
               </Link>

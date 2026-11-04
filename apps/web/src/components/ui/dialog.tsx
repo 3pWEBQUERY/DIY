@@ -38,7 +38,7 @@ export function Dialog({
       }}
       aria-labelledby="dlg-title"
       className={cn(
-        "m-auto w-[min(100vw-2rem,32rem)] max-h-[min(90dvh,48rem)] border border-ink bg-card p-0 text-ink open:animate-rise",
+        "m-auto w-[min(100vw-2rem,32rem)] max-h-[min(90dvh,48rem)] overflow-hidden rounded-3xl border border-line bg-card p-0 text-ink open:animate-rise",
         wide && "w-[min(100vw-2rem,48rem)]",
         className,
       )}
@@ -50,7 +50,7 @@ export function Dialog({
           </h2>
           {description && <p className="mt-1 text-sm text-muted">{description}</p>}
         </div>
-        <button onClick={onClose} className="-mr-2 grid size-9 place-items-center hover:bg-sunken" aria-label="Schliessen">
+        <button onClick={onClose} className="-mr-2 grid size-9 place-items-center hover:bg-sunken rounded-xl" aria-label="Schliessen">
           <X size={18} />
         </button>
       </div>

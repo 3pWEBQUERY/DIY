@@ -85,7 +85,7 @@ export default async function SystemPage() {
             ))}
           </tbody>
         </Table>
-        <div className="mt-5 border border-line bg-card p-4">
+        <div className="mt-5 border border-line bg-card p-4 rounded-2xl">
           <p className="spec mb-3">Neues Flag (startet deaktiviert)</p>
           <NewFlagForm action={upsertFlagAction} />
         </div>

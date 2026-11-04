@@ -117,7 +117,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
               <SectionTitle n={o.buyerNote ? "03" : "02"} title="Versand" />
               <ul className="mt-4 space-y-2 text-[14px]">
                 {o.shipments.map((s) => (
-                  <li key={s.id} className="border border-line bg-card px-4 py-3">
+                  <li key={s.id} className="border border-line bg-card px-4 py-3 rounded-2xl">
                     <span className="font-semibold">{s.carrier}</span>
                     {s.trackingNo && <span className="ml-2 font-mono text-[13px]">{s.trackingNo}</span>}
                     <span className="spec ml-2">{formatDate(s.shippedAt)}</span>
@@ -158,7 +158,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
         </div>
 
         <aside className="space-y-8 xl:sticky xl:top-20 xl:h-fit">
-          <section className="border border-ink bg-card p-5">
+          <section className="border border-ink bg-card p-5 rounded-2xl">
             <p className="spec mb-4">Nächster Schritt</p>
             {status === "CANCELLED" || status === "REFUNDED" ? (
               <p className="text-[14px] text-muted">Diese Bestellung ist abgeschlossen ({status === "CANCELLED" ? "storniert" : "erstattet"}).</p>

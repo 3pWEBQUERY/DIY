@@ -100,7 +100,7 @@ export function InvitePanel({ communityId, invited }: { communityId: string; inv
       >
         <div className="flex-1">
           <Label htmlFor="invite-handle">Profilname</Label>
-          <div className="flex items-center border border-line-strong bg-card focus-within:border-ink">
+          <div className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
             <span className="pl-3 text-muted">@</span>
             <input id="invite-handle" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="handle" className="h-11 flex-1 bg-transparent px-2 outline-none" autoComplete="off" />
           </div>
@@ -172,7 +172,7 @@ export function MembersManager({ communityId, members, viewer }: { communityId: 
                         value={m.role}
                         disabled={pending}
                         onChange={(e) => run(() => setMemberRoleAction(communityId, m.userId, e.target.value))}
-                        className="h-8 border border-line-strong bg-card px-2 text-[13px]"
+                        className="h-8 border border-line-strong bg-card px-2 text-[13px] rounded-2xl"
                       >
                         {(["MEMBER", "MODERATOR", "ADMIN"] as const)
                           .filter((r) => viewer.rank >= 99 || RANK[r] < viewer.rank)

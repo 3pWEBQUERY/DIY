@@ -19,13 +19,13 @@ import { cn, formatDate, formatMinutes, pad } from "@/lib/utils";
 type Marker = "hollow" | "ink" | "moss" | "clay" | "diamond" | "dot" | "ghost";
 
 const markerClass: Record<Marker, string> = {
-  hollow: "size-[11px] border border-ink bg-paper",
-  ink: "size-[11px] bg-ink",
-  moss: "size-[11px] bg-moss",
-  clay: "size-[11px] bg-clay",
+  hollow: "size-[11px] border border-ink bg-paper rounded-full",
+  ink: "size-[11px] bg-ink rounded-full",
+  moss: "size-[11px] bg-moss rounded-full",
+  clay: "size-[11px] bg-clay rounded-full",
   diamond: "size-[8px] rotate-45 bg-clay",
   dot: "size-[7px] rounded-full border border-ink bg-paper",
-  ghost: "size-[11px] border border-dashed border-muted bg-paper",
+  ghost: "size-[11px] border border-dashed border-muted bg-paper rounded-full",
 };
 
 function Node({ marker }: { marker: Marker }) {
@@ -254,7 +254,7 @@ export function ProjectThread({ project: p, variant = "aside", className }: { pr
   const finished = !!p.completedAt;
 
   return (
-    <nav aria-label="Projektfaden" className={cn(variant === "inline" && "border border-line bg-card p-5", className)}>
+    <nav aria-label="Projektfaden" className={cn(variant === "inline" && "border border-line bg-card p-5 rounded-2xl", className)}>
       <div className="mb-5 flex items-baseline justify-between gap-3 border-b border-ink pb-2.5">
         <h2 className="flex items-baseline gap-2.5 text-[15px] font-bold tracking-tight">
           <span className="spec text-ink">Faden</span>

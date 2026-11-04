@@ -35,7 +35,7 @@ export function ProjectList({ initial, cursor: initialCursor, filters }: { initi
         ))}
       </ProjectGrid>
       {cursor ? (
-        <button type="button" onClick={more} disabled={pending} className="mt-12 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink">
+        <button type="button" onClick={more} disabled={pending} className="mt-12 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">
           {pending ? "Lädt …" : "Mehr laden"}
         </button>
       ) : (

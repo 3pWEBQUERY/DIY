@@ -16,7 +16,7 @@ const tones: Record<Tone, string> = {
 export function Badge({ tone = "neutral", className, ...p }: ComponentProps<"span"> & { tone?: Tone }) {
   return (
     <span
-      className={cn("inline-flex items-center gap-1 h-6 px-2 rounded-xs text-[11px] font-mono uppercase tracking-[0.06em] whitespace-nowrap", tones[tone], className)}
+      className={cn("inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] whitespace-nowrap", tones[tone], className)}
       {...p}
     />
   );
@@ -87,7 +87,7 @@ export function SectionTitle({ n, title, action, className }: { n?: string; titl
 /* ───────── Leerer Zustand (§18.4 verständliche leere Ergebnisse) ───────── */
 export function Empty({ title, body, action, className }: { title: string; body?: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className={cn("border border-dashed border-line-strong px-6 py-12 text-center", className)}>
+    <div className={cn("border border-dashed border-line-strong px-6 py-12 text-center rounded-2xl", className)}>
       <svg aria-hidden width="56" height="28" viewBox="0 0 56 28" className="mx-auto mb-4 text-line-strong">
         <path d="M2 20c6-14 12-14 18 0s12 14 18 0 12-14 16-6" fill="none" stroke="currentColor" strokeWidth="1.4" />
       </svg>
@@ -112,13 +112,13 @@ export function Stat({ label, value, note }: { label: string; value: ReactNode; 
 /* ───────── Hinweisbox ───────── */
 export function Notice({ tone = "neutral", title, children, className }: { tone?: "neutral" | "warn" | "danger" | "moss"; title?: string; children: ReactNode; className?: string }) {
   const t = {
-    neutral: "border-line-strong bg-sunken",
-    warn: "border-warn/40 bg-warn-soft",
-    danger: "border-danger/40 bg-danger-soft",
-    moss: "border-moss/30 bg-moss-soft",
+    neutral: "bg-sunken",
+    warn: "bg-warn-soft",
+    danger: "bg-danger-soft",
+    moss: "bg-moss-soft",
   }[tone];
   return (
-    <div role={tone === "danger" ? "alert" : "note"} className={cn("border-l-2 px-4 py-3 text-sm", t, className)}>
+    <div role={tone === "danger" ? "alert" : "note"} className={cn("rounded-2xl px-4 py-3.5 text-sm", t, className)}>
       {title && <p className="font-semibold mb-0.5">{title}</p>}
       <div className="text-ink-2">{children}</div>
     </div>
@@ -130,12 +130,12 @@ export function Difficulty({ level, className }: { level: number; className?: st
   return (
     <span className={cn("inline-flex items-center gap-[3px]", className)} aria-label={`Schwierigkeit ${level} von 5`} role="img">
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={cn("h-2.5 w-[5px]", i <= level ? "bg-ink" : "bg-line-strong")} />
+        <span key={i} className={cn("h-2.5 w-[5px] rounded-full", i <= level ? "bg-ink" : "bg-line-strong")} />
       ))}
     </span>
   );
 }
 
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="inline-grid h-5 min-w-5 place-items-center border border-line-strong bg-card px-1 font-mono text-[10px] text-muted rounded-xs">{children}</kbd>;
+  return <kbd className="inline-grid h-5 min-w-5 place-items-center rounded-md border border-line-strong bg-card px-1 font-mono text-[10px] text-muted">{children}</kbd>;
 }

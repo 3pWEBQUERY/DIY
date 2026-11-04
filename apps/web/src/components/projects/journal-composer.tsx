@@ -70,9 +70,9 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
         id="fortschritt"
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex w-full items-center gap-4 border border-dashed border-line-strong bg-card px-4 py-4 text-left transition-colors hover:border-ink"
+        className="group flex w-full items-center gap-4 border border-dashed border-line-strong bg-card px-4 py-4 text-left transition-colors hover:border-ink rounded-2xl"
       >
-        <span className="grid size-9 shrink-0 place-items-center border border-ink font-mono text-[11px] num">{String(entryNumber).padStart(2, "0")}</span>
+        <span className="grid size-9 shrink-0 place-items-center border border-ink font-mono text-[11px] num rounded-xl">{String(entryNumber).padStart(2, "0")}</span>
         <span className="min-w-0">
           <span className="block font-semibold">Fortschritt eintragen</span>
           <span className="block text-[13px] text-muted">Was hast du heute geschafft? Auch Fehlversuche helfen anderen weiter.</span>
@@ -82,7 +82,7 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
   }
 
   return (
-    <form id="fortschritt" onSubmit={submit} className="border border-ink bg-card animate-fade" aria-label="Neuer Journaleintrag">
+    <form id="fortschritt" onSubmit={submit} className="border border-ink bg-card animate-fade rounded-2xl" aria-label="Neuer Journaleintrag">
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
         <span className="spec text-ink">Eintrag {String(entryNumber).padStart(2, "0")}</span>
         <span className="spec">{new Date().toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}</span>
@@ -138,7 +138,7 @@ export function DeleteJournalEntry({ id, className }: { id: string; className?: 
       type="button"
       disabled={pending}
       aria-label="Eintrag löschen"
-      className={cn("grid size-8 place-items-center text-muted hover:bg-sunken hover:text-danger", className)}
+      className={cn("grid size-8 place-items-center text-muted hover:bg-sunken hover:text-danger rounded-xl", className)}
       onClick={() => {
         if (!confirm("Diesen Journaleintrag löschen? Ein geteilter Feed-Beitrag bleibt bestehen.")) return;
         start(async () => {

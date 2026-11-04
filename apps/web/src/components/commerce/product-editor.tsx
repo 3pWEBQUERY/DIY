@@ -194,7 +194,7 @@ export function ProductEditor({
             <legend className="mb-2 text-[13px] font-semibold">Art des Angebots</legend>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {PRODUCT_KIND.filter((k) => k !== "DIGITAL" || digitalEnabled || v.kind === "DIGITAL").map((k) => (
-                <label key={k} className={cn("flex cursor-pointer flex-col gap-0.5 border px-3.5 py-3 transition-colors", v.kind === k ? "border-ink bg-sunken" : "border-line bg-card hover:border-line-strong")}>
+                <label key={k} className={cn("flex cursor-pointer flex-col gap-0.5 border px-3.5 py-3 transition-colors rounded-2xl", v.kind === k ? "border-ink bg-sunken" : "border-line bg-card hover:border-line-strong")}>
                   <span className="flex items-center gap-2 text-[14px] font-semibold">
                     <input type="radio" name="kind" value={k} checked={v.kind === k} onChange={() => set("kind", k)} className="accent-[#B64B3A]" />
                     {PRODUCT_KIND_LABEL[k]}
@@ -246,7 +246,7 @@ export function ProductEditor({
           </div>
 
           {!isDigital && (
-            <div className="border border-line bg-card">
+            <div className="border border-line bg-card rounded-2xl">
               <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
                 <p className="text-[13px] font-semibold">Varianten <span className="font-normal text-muted">optional – z.B. Farbe oder Grösse</span></p>
                 <Button
@@ -317,7 +317,7 @@ export function ProductEditor({
           <section className="space-y-4">
             <SectionTitle n="04" title="Datei zum Download" />
             <p className="text-[13.5px] text-muted">Die Datei wird privat gespeichert. Käufer:innen erhalten sie nur über einen persönlichen, zeitlich begrenzten Link (max. 20 Downloads je Lizenz).</p>
-            <div className="flex flex-wrap items-center gap-4 border border-line bg-card px-4 py-4">
+            <div className="flex flex-wrap items-center gap-4 border border-line bg-card px-4 py-4 rounded-2xl">
               <FileText size={20} className="text-muted" aria-hidden />
               <div className="min-w-0 flex-1 text-[14px]">
                 {digital ? (
@@ -416,7 +416,7 @@ export function ProductEditor({
       </div>
 
       <aside className="space-y-6 lg:sticky lg:top-20 lg:h-fit">
-        <div className="border border-ink bg-card p-5">
+        <div className="border border-ink bg-card p-5 rounded-2xl">
           <p className="spec mb-3">Abrechnung pro Stück</p>
           {preview ? (
             <dl className="space-y-1.5 text-[13.5px]">
@@ -445,7 +445,7 @@ export function ProductEditor({
           )}
         </div>
 
-        <div className="space-y-3 border border-line bg-card p-5">
+        <div className="space-y-3 border border-line bg-card p-5 rounded-2xl">
           <p className="spec">Veröffentlichung</p>
           {!shopActive && <p className="text-[13px] text-muted">Dein Shop ist noch nicht aktiv. Du kannst Produkte als Entwurf vorbereiten und nach der Verifizierung veröffentlichen.</p>}
           {shopActive && firstPublish && (

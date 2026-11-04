@@ -60,7 +60,7 @@ export function Composer({
   }
 
   return (
-    <section aria-label="Neuer Beitrag" className={cn("border border-line bg-card", open && "border-ink")}>
+    <section aria-label="Neuer Beitrag" className={cn("border border-line bg-card rounded-2xl", open && "border-line-strong")}>
       <div className="flex gap-3 p-4">
         <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={40} />
         <div className="min-w-0 flex-1">
@@ -84,7 +84,7 @@ export function Composer({
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="spec mb-1 block">Kategorie</span>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm">
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm rounded-2xl">
                 <option value="">Ohne Kategorie</option>
                 {CATEGORIES.map((c) => (
                   <option key={c.slug} value={c.slug}>{c.name}</option>
@@ -93,7 +93,7 @@ export function Composer({
             </label>
             <label className="block">
               <span className="spec mb-1 block">Projekt verknüpfen</span>
-              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm">
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm rounded-2xl">
                 <option value="">Kein Projekt</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>{p.title}</option>
@@ -102,7 +102,7 @@ export function Composer({
             </label>
             <label className="block">
               <span className="spec mb-1 block">Sichtbarkeit</span>
-              <select value={visibility} onChange={(e) => setVisibility(e.target.value as typeof visibility)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm">
+              <select value={visibility} onChange={(e) => setVisibility(e.target.value as typeof visibility)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm rounded-2xl">
                 {VISIBILITY.map((v) => (
                   <option key={v} value={v}>{VISIBILITY_LABEL[v]}</option>
                 ))}

@@ -34,7 +34,7 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
         <p className="spec">Neue Nachricht</p>
         <h2 className="headline mt-2 text-2xl">An wen möchtest du schreiben?</h2>
         <label htmlFor="to" className="mt-6 block text-[13px] font-semibold">Profilname</label>
-        <div className="mt-1.5 flex items-center border border-line-strong bg-card focus-within:border-ink">
+        <div className="mt-1.5 flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
           <span className="pl-3 text-muted">@</span>
           <input id="to" name="an" required autoFocus autoComplete="off" placeholder="handle" className="h-11 flex-1 bg-transparent px-2 outline-none" />
           <button type="submit" className="h-11 border-l border-line-strong px-4 text-sm font-semibold hover:bg-sunken">Weiter</button>
@@ -55,7 +55,7 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
         </header>
         {prep.context && (
           <div className="border-b border-line px-3 py-2.5 sm:px-5">
-            <p className="border border-clay/40 bg-clay-soft px-3 py-2 text-sm"><span className="spec block text-clay-ink">{prep.context.orderId ? "Zur Bestellung" : "Zum Produkt"}</span>{prep.context.label}</p>
+            <p className="border border-clay/40 bg-clay-soft px-3 py-2 text-sm rounded-2xl"><span className="spec block text-clay-ink">{prep.context.orderId ? "Zur Bestellung" : "Zum Produkt"}</span>{prep.context.label}</p>
           </div>
         )}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">

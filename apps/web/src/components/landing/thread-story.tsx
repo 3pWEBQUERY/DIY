@@ -240,12 +240,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
         <div className="sticky top-0 h-[58vh] w-full lg:h-dvh">
           <div className="absolute inset-0 grid-paper opacity-60 lg:opacity-100" aria-hidden />
           {/* Masslinien */}
-          <div className="absolute inset-x-6 bottom-6 top-20 border border-line lg:inset-x-10 lg:bottom-10 lg:top-24" aria-hidden>
-            <span className="absolute -left-px -top-px size-3 border-l border-t border-ink" />
-            <span className="absolute -right-px -top-px size-3 border-r border-t border-ink" />
-            <span className="absolute -bottom-px -left-px size-3 border-b border-l border-ink" />
-            <span className="absolute -bottom-px -right-px size-3 border-b border-r border-ink" />
-          </div>
+          <div className="absolute inset-x-6 bottom-6 top-20 rounded-[28px] border border-line lg:inset-x-10 lg:bottom-10 lg:top-24" aria-hidden />
           <div ref={canvasHost} className="absolute inset-0" />
           {fallback && (
             <div className="absolute inset-0 grid place-items-center p-10">
@@ -261,7 +256,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
               className="absolute left-0 top-0 opacity-0 will-change-transform"
               aria-hidden
             >
-              <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-[calc(100%+18px)] whitespace-nowrap bg-paper px-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink lg:text-[11px]">
+              <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-[calc(100%+18px)] whitespace-nowrap rounded-full bg-paper px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink lg:text-[11px]">
                 {String(i + 1).padStart(2, "0")} {l}
               </span>
             </div>

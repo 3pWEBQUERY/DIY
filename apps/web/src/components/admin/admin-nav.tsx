@@ -25,7 +25,7 @@ export function AdminNav({ groups }: { groups: AdminNavGroup[] }) {
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={cn("flex h-8 items-center gap-3 px-3 text-[13.5px] text-ink-2 hover:bg-sunken", active && "bg-ink text-paper hover:bg-ink")}
+                    className={cn("flex h-8 items-center gap-3 px-3 text-[13.5px] text-ink-2 hover:bg-sunken rounded-xl", active && "bg-ink text-paper hover:bg-ink")}
                   >
                     <span className={cn("font-mono text-[10px]", active ? "text-paper/60" : "text-muted/70")}>{pad(n)}</span>
                     <span className="truncate">{item.label}</span>

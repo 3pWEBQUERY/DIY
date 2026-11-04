@@ -35,7 +35,7 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
           <p className="spec">Nachrichten</p>
           <h1 className="display mt-1 text-3xl">Gespräche</h1>
         </div>
-        <Link href="/nachrichten/neu" className="grid size-10 place-items-center border border-line-strong hover:border-ink" aria-label="Neue Nachricht">
+        <Link href="/nachrichten/neu" className="grid size-10 place-items-center border border-line-strong hover:border-ink rounded-xl" aria-label="Neue Nachricht">
           <PenSquare size={17} />
         </Link>
       </div>

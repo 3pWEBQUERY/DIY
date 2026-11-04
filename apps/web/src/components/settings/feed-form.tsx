@@ -35,7 +35,7 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
             <li key={c.slug} className="flex flex-wrap items-center gap-3 py-2.5">
               <Glyph name={c.glyph} size={20} className="text-ink" />
               <span className="min-w-0 flex-1 text-sm font-medium">{c.name}</span>
-              <span role="radiogroup" aria-label={c.name} className="flex border border-line-strong">
+              <span role="radiogroup" aria-label={c.name} className="flex border border-line-strong rounded-2xl">
                 {(["interest", "neutral", "hidden"] as const).map((m, i) => (
                   <button
                     key={m}
@@ -44,7 +44,7 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
                     aria-checked={modes[c.slug] === m}
                     onClick={() => setModes((s) => ({ ...s, [c.slug]: m }))}
                     className={cn(
-                      "h-8 px-2.5 text-[12.5px] text-ink-2 hover:bg-sunken",
+                      "h-8 px-2.5 text-[12.5px] text-ink-2 hover:bg-sunken rounded-2xl",
                       i > 0 && "border-l border-line-strong",
                       modes[c.slug] === m && (m === "interest" ? "bg-moss text-paper hover:bg-moss" : m === "hidden" ? "bg-ink text-paper hover:bg-ink" : "bg-sunken font-semibold"),
                     )}
@@ -62,7 +62,7 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
         <fieldset className="flex flex-wrap gap-2">
           <legend className="sr-only">Standard-Feed</legend>
           {FEED_DEFAULTS.map((f) => (
-            <label key={f} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2 text-sm", def === f ? "border-ink bg-card" : "border-line-strong hover:border-ink")}>
+            <label key={f} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2 text-sm rounded-2xl", def === f ? "border-ink bg-card" : "border-line-strong hover:border-ink")}>
               <input type="radio" name="feedDefault" checked={def === f} onChange={() => setDef(f)} className="accent-[var(--color-ink)]" />
               {FEED_DEFAULT_LABEL[f]}
             </label>

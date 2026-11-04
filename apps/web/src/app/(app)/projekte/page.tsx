@@ -75,7 +75,7 @@ export default async function ProjectsIndex({ searchParams }: { searchParams: Pr
           {cat && <input type="hidden" name="kategorie" value={cat.slug} />}
           <label htmlFor="pq" className="sr-only">Projekte durchsuchen</label>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="pq" name="q" defaultValue={q} placeholder="Projekte durchsuchen …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink" />
+          <input id="pq" name="q" defaultValue={q} placeholder="Projekte durchsuchen …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl" />
         </form>
         <ChipRow label="Kategorie">
           <ChipLink href={href({ kategorie: undefined })} active={!cat}>Alle</ChipLink>
@@ -109,7 +109,7 @@ export default async function ProjectsIndex({ searchParams }: { searchParams: Pr
             Mit Anleitung
           </ChipLink>
           {anyFilter && (
-            <a href="/projekte" className="inline-flex h-8 items-center px-2 text-[13px] text-muted underline underline-offset-2 hover:text-ink">
+            <a href="/projekte" className="inline-flex h-8 items-center px-2 text-[13px] text-muted underline underline-offset-2 hover:text-ink rounded-xl">
               Filter zurücksetzen
             </a>
           )}

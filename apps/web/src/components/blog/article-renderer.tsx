@@ -32,7 +32,7 @@ function EmbedShell({ href, kicker, title, meta, cover, accent = "ink", children
     <aside className="relative my-10 font-sans">
       <span className={cn("absolute -left-4 top-0 hidden h-full w-px sm:block", accent === "clay" ? "bg-clay" : "bg-ink")} aria-hidden />
       <span className={cn("absolute -left-[19px] top-1/2 hidden size-[7px] -translate-y-1/2 rounded-full sm:block", accent === "clay" ? "bg-clay" : "bg-ink")} aria-hidden />
-      <Link href={href} className={cn("group flex items-stretch border bg-card text-ink no-underline transition-colors", accent === "clay" ? "border-clay/40 hover:border-clay" : "border-line hover:border-ink")}>
+      <Link href={href} className={cn("group flex items-stretch border bg-card text-ink no-underline transition-colors rounded-2xl", accent === "clay" ? "border-clay/40 hover:border-clay" : "border-line hover:border-ink")}>
         <div className="relative w-28 shrink-0 overflow-hidden border-r border-line sm:w-36">{cover}</div>
         <div className="min-w-0 flex-1 px-4 py-3.5">
           <p className={cn("spec", accent === "clay" && "text-clay-ink")}>{kicker}</p>
@@ -110,9 +110,9 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
         <figure className="-mx-4 my-10 sm:mx-0" role="group" aria-label={`Galerie mit ${imgs.length} Bildern`}>
           <ul className={cn("grid gap-1.5", imgs.length === 1 ? "grid-cols-1" : imgs.length % 3 === 0 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2")}>
             {imgs.map((i, n) => (
-              <li key={i.mediaId} className="relative m-0 aspect-square overflow-hidden bg-sunken p-0 before:hidden">
+              <li key={i.mediaId} className="relative m-0 aspect-square overflow-hidden bg-sunken p-0 before:hidden rounded-2xl">
                 <MediaImage variants={i.m!.variants} url={i.url} alt={i.alt} sizes="(min-width: 768px) 360px, 50vw" className="absolute inset-0" />
-                <span className="absolute left-2 top-2 bg-ink/85 px-1.5 font-mono text-[10px] text-paper" aria-hidden>{String(n + 1).padStart(2, "0")}</span>
+                <span className="absolute left-2 top-2 bg-ink/85 px-1.5 font-mono text-[10px] text-paper rounded-2xl" aria-hidden>{String(n + 1).padStart(2, "0")}</span>
               </li>
             ))}
           </ul>

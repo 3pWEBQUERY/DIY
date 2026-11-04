@@ -74,7 +74,7 @@ export function LegalDoc({
 
 export function DraftNotice({ className }: { className?: string }) {
   return (
-    <div role="note" className={cn("flex gap-4 border border-warn/40 bg-warn-soft px-5 py-4", className)}>
+    <div role="note" className={cn("flex gap-4 border border-warn/40 bg-warn-soft px-5 py-4 rounded-2xl", className)}>
       <span className="spec mt-0.5 shrink-0 text-warn">Entwurf</span>
       <p className="text-sm leading-relaxed text-ink-2">
         <strong className="text-ink">Entwurf – vor dem Launch juristisch prüfen.</strong> Dieser Text ist eine sorgfältig vorbereitete Vorlage und noch nicht rechtsverbindlich geprüft. Platzhalter in eckigen Klammern werden vor der Veröffentlichung ersetzt.
@@ -100,7 +100,7 @@ export function FactList({ items }: { items: [string, ReactNode][] }) {
 /** Zweispaltige Gegenüberstellung „erlaubt / nicht erlaubt“. */
 export function DoDont({ doTitle = "Erlaubt", dontTitle = "Nicht erlaubt", dos, donts }: { doTitle?: string; dontTitle?: string; dos: ReactNode[]; donts: ReactNode[] }) {
   return (
-    <div className="grid gap-px border border-line bg-line sm:grid-cols-2">
+    <div className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
       <div className="bg-paper p-4">
         <p className="spec mb-2 text-moss">{doTitle}</p>
         <ul>{dos.map((d, i) => <li key={i}>{d}</li>)}</ul>

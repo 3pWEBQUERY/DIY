@@ -166,7 +166,7 @@ export default async function ArticlePage({ params }: Props) {
               <ul className="mt-12 flex flex-wrap gap-2" aria-label="Schlagwörter">
                 {a.tags.map((t) => (
                   <li key={t}>
-                    <Link href={`/blogs?tag=${t}`} className="inline-flex h-7 items-center border border-line-strong px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink">#{t}</Link>
+                    <Link href={`/blogs?tag=${t}`} className="inline-flex h-7 items-center border border-line-strong px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink rounded-xl">#{t}</Link>
                   </li>
                 ))}
               </ul>
@@ -179,7 +179,7 @@ export default async function ArticlePage({ params }: Props) {
             )}
 
             {/* Autorenbox */}
-            <section aria-label="Über die Autorin / den Autor" className="mt-10 grid grid-cols-[auto_1fr] gap-5 border border-line bg-card p-6">
+            <section aria-label="Über die Autorin / den Autor" className="mt-10 grid grid-cols-[auto_1fr] gap-5 border border-line bg-card p-6 rounded-2xl">
               <Link href={`/u/${author.handle}`}><Avatar src={author.avatarUrl} name={author.displayName} size={64} /></Link>
               <div className="min-w-0">
                 <p className="spec">Geschrieben von</p>
@@ -200,7 +200,7 @@ export default async function ArticlePage({ params }: Props) {
                   {projects.map((p) => (
                     <li key={p.id} className="relative">
                       <span className="absolute -left-[23.5px] top-1/2 size-[7px] -translate-y-1/2 rounded-full bg-ink" aria-hidden />
-                      <Link href={p.href} className="group flex items-stretch border border-line bg-card hover:border-ink">
+                      <Link href={p.href} className="group flex items-stretch border border-line bg-card hover:border-ink rounded-2xl">
                         <span className="relative w-20 shrink-0 overflow-hidden border-r border-line">
                           {p.coverUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element

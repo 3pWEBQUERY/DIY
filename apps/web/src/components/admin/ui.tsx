@@ -54,7 +54,7 @@ export function FilterBar({ children, action, className }: { children: ReactNode
   return (
     <form method="get" action={action} role="search" className={cn("mb-5 flex flex-wrap items-end gap-3", className)}>
       {children}
-      <button type="submit" className="h-9 border border-ink bg-ink px-4 text-[13px] font-semibold text-paper hover:bg-ink-2">
+      <button type="submit" className="h-9 border border-ink bg-ink px-4 text-[13px] font-semibold text-paper hover:bg-ink-2 rounded-2xl">
         Anwenden
       </button>
     </form>
@@ -70,18 +70,18 @@ export function FilterField({ label, children, className }: { label: string; chi
   );
 }
 
-export const filterInput = "h-9 min-w-0 border border-line-strong bg-card px-2.5 text-[13.5px] text-ink focus:border-ink focus:outline-none";
+export const filterInput = "h-9 min-w-0 border border-line-strong bg-card px-2.5 text-[13.5px] text-ink focus:border-ink focus:outline-none rounded-2xl";
 
 /** Segmentierte Status-Links (z.B. Offen · In Prüfung · Entschieden) mit Zählern. */
 export function Segments({ items, active, className }: { items: { key: string; label: string; href: string; count?: number }[]; active: string; className?: string }) {
   return (
-    <nav aria-label="Filter" className={cn("mb-5 flex flex-wrap border border-line-strong w-fit", className)}>
+    <nav aria-label="Filter" className={cn("mb-5 flex flex-wrap border border-line-strong w-fit rounded-2xl", className)}>
       {items.map((s, i) => (
         <Link
           key={s.key}
           href={s.href}
           aria-current={active === s.key ? "true" : undefined}
-          className={cn("flex h-8 items-center gap-2 px-3 text-[13px] text-ink-2 hover:bg-sunken", i > 0 && "border-l border-line-strong", active === s.key && "bg-ink text-paper hover:bg-ink")}
+          className={cn("flex h-8 items-center gap-2 px-3 text-[13px] text-ink-2 hover:bg-sunken rounded-xl", i > 0 && "border-l border-line-strong", active === s.key && "bg-ink text-paper hover:bg-ink")}
         >
           {s.label}
           {s.count != null && <span className={cn("font-mono text-[11px]", active === s.key ? "text-paper/70" : "text-muted")}>{s.count}</span>}
@@ -99,8 +99,8 @@ export function Pager({ page, pages, href }: { page: number; pages: number; href
         Seite {page} / {pages}
       </span>
       <span className="flex gap-2">
-        {page > 1 ? <Link className="border border-line-strong px-3 py-1.5 hover:border-ink" href={href(page - 1)}>← Zurück</Link> : <span className="border border-line px-3 py-1.5 text-muted/60">← Zurück</span>}
-        {page < pages ? <Link className="border border-line-strong px-3 py-1.5 hover:border-ink" href={href(page + 1)}>Weiter →</Link> : <span className="border border-line px-3 py-1.5 text-muted/60">Weiter →</span>}
+        {page > 1 ? <Link className="border border-line-strong px-3 py-1.5 hover:border-ink rounded-2xl" href={href(page - 1)}>← Zurück</Link> : <span className="border border-line px-3 py-1.5 text-muted/60 rounded-2xl">← Zurück</span>}
+        {page < pages ? <Link className="border border-line-strong px-3 py-1.5 hover:border-ink rounded-2xl" href={href(page + 1)}>Weiter →</Link> : <span className="border border-line px-3 py-1.5 text-muted/60 rounded-2xl">Weiter →</span>}
       </span>
     </nav>
   );
@@ -136,7 +136,7 @@ export function KpiGrid({ children, className }: { children: ReactNode; classNam
 
 export function Dot({ tone }: { tone: "moss" | "clay" | "ink" | "muted" | "danger" | "warn" }) {
   const c = { moss: "bg-moss", clay: "bg-clay", ink: "bg-ink", muted: "bg-line-strong", danger: "bg-danger", warn: "bg-warn" }[tone];
-  return <span aria-hidden className={cn("inline-block size-2 shrink-0", c)} />;
+  return <span aria-hidden className={cn("inline-block size-2 shrink-0 rounded-full", c)} />;
 }
 
 /** Risikostufe als Balken mit 5 Segmenten (0–100). */

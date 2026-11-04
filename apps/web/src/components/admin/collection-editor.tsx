@@ -139,13 +139,13 @@ export function CollectionEditor({
                 {it.title !== undefined && it.live === false && <span className="text-xs text-warn">nicht öffentlich sichtbar</span>}
               </span>
               <span className="flex shrink-0">
-                <button type="button" onClick={() => move(i, -1)} className="grid size-8 place-items-center hover:bg-sunken" aria-label="Nach oben">
+                <button type="button" onClick={() => move(i, -1)} className="grid size-8 place-items-center hover:bg-sunken rounded-xl" aria-label="Nach oben">
                   <ArrowUp size={14} />
                 </button>
-                <button type="button" onClick={() => move(i, 1)} className="grid size-8 place-items-center hover:bg-sunken" aria-label="Nach unten">
+                <button type="button" onClick={() => move(i, 1)} className="grid size-8 place-items-center hover:bg-sunken rounded-xl" aria-label="Nach unten">
                   <ArrowDown size={14} />
                 </button>
-                <button type="button" onClick={() => setItems((p) => p.filter((_, j) => j !== i))} className="grid size-8 place-items-center hover:bg-sunken" aria-label="Entfernen">
+                <button type="button" onClick={() => setItems((p) => p.filter((_, j) => j !== i))} className="grid size-8 place-items-center hover:bg-sunken rounded-xl" aria-label="Entfernen">
                   <X size={14} />
                 </button>
               </span>

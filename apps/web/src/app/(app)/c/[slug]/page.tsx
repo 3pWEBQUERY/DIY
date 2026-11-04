@@ -57,8 +57,8 @@ function ChallengeBanner({ ch }: { ch: NonNullable<CommunityPageData["challenge"
   const running = ch.startsAt <= new Date();
   const daysLeft = Math.max(0, Math.ceil((ch.endsAt.getTime() - Date.now()) / 86400_000));
   return (
-    <aside aria-label="Challenge" className="mb-8 grid gap-3 border border-clay/40 bg-clay-soft px-5 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-      <span className="grid size-10 place-items-center border border-clay text-clay-ink"><Trophy size={18} aria-hidden /></span>
+    <aside aria-label="Challenge" className="mb-8 grid gap-3 border border-clay/40 bg-clay-soft px-5 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center rounded-2xl">
+      <span className="grid size-10 place-items-center border border-clay text-clay-ink rounded-xl"><Trophy size={18} aria-hidden /></span>
       <div className="min-w-0">
         <p className="spec text-clay-ink">{running ? `Challenge läuft · noch ${pluralize(daysLeft, "Tag", "Tage")}` : `Challenge ab ${formatDate(ch.startsAt, { day: "numeric", month: "long" })}`}</p>
         <p className="headline mt-0.5 text-lg">{ch.title}</p>
@@ -102,7 +102,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
   if (!canView) {
     body = (
       <div className="mx-auto max-w-[660px]">
-        <div className="border border-line bg-card p-8 text-center">
+        <div className="border border-line bg-card p-8 text-center rounded-2xl">
           <Lock size={22} className="mx-auto text-muted" aria-hidden />
           <p className="headline mt-4 text-2xl">Private Community</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted">Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. {membership?.state === "PENDING" ? "Deine Anfrage liegt der Moderation vor." : "Stell eine Beitrittsanfrage – die Moderation entscheidet."}</p>
@@ -122,7 +122,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
           <Notice tone="warn" title="Du bist stummgeschaltet">Bis {formatDate(membership.mutedUntil, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} kannst du hier lesen, aber nichts veröffentlichen.</Notice>
         )}
         {!isMember && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-sunken px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-sunken px-4 py-3 text-sm rounded-2xl">
             <span>{membership?.state === "PENDING" ? "Deine Beitrittsanfrage wird geprüft." : "Tritt bei, um mitzuschreiben und Projekte zu teilen."}</span>
             <JoinButton communityId={c.id} slug={c.slug} visibility={c.visibility} state={(membership?.state as "PENDING" | "INVITED" | "BANNED" | undefined) ?? null} loggedIn={!!viewer} />
           </div>
@@ -150,7 +150,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
         ) : (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
-              <li key={p.id} className="group relative flex flex-col border border-line bg-card hover:border-ink">
+              <li key={p.id} className="group relative flex flex-col border border-line bg-card hover:border-ink rounded-2xl">
                 <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="4/3" className="border-b border-line" sizes="(min-width: 1024px) 360px, 50vw" />
                 <div className="flex flex-1 flex-col p-4">
                   <p className="spec">{PROJECT_STATUS_LABEL[p.status]} · {categoryBySlug(p.category)?.short}</p>
@@ -279,7 +279,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
               {isMod && (
                 <LinkButton href={`${base}/verwalten`} variant="outline" className="relative">
                   <Settings size={15} /> Verwalten
-                  {data.pendingCount > 0 && <span className="ml-1 bg-clay px-1.5 font-mono text-[10px] text-paper" aria-label={`${data.pendingCount} offene Anfragen`}>{data.pendingCount}</span>}
+                  {data.pendingCount > 0 && <span className="ml-1 bg-clay px-1.5 font-mono text-[10px] text-paper rounded-2xl" aria-label={`${data.pendingCount} offene Anfragen`}>{data.pendingCount}</span>}
                 </LinkButton>
               )}
               {canView && (

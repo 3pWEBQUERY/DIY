@@ -56,7 +56,7 @@ function Bubble({ m, otherName, onReport, showTime }: { m: MessageView; otherNam
     <div className={cn("group flex flex-col", m.mine ? "items-end" : "items-start")}>
       {flagged && <Warning />}
       <div className={cn("flex max-w-[85%] items-end gap-2 sm:max-w-[70%]", m.mine && "flex-row-reverse")}>
-        <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "border border-dashed border-line-strong text-muted" : m.mine ? "bg-ink text-paper" : "border border-line bg-card text-ink", flagged && "border-warn")}>
+        <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "border border-dashed border-line-strong text-muted rounded-2xl" : m.mine ? "bg-ink text-paper" : "border border-line bg-card text-ink rounded-2xl", flagged && "border-warn")}>
           <p className="sr-only">{m.mine ? "Du" : otherName}, {time(m.createdAt)}:</p>
           {m.removed ? (
             <p className="text-sm italic">Diese Nachricht wurde entfernt.</p>
@@ -305,7 +305,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
       >
         {hasMore && (
           <div className="mb-4 flex justify-center">
-            <button type="button" onClick={loadOlder} disabled={pending} className="border border-line px-3 py-1.5 text-xs font-semibold text-muted hover:border-ink hover:text-ink">
+            <button type="button" onClick={loadOlder} disabled={pending} className="border border-line px-3 py-1.5 text-xs font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">
               {pending ? "Lädt …" : "Ältere Nachrichten laden"}
             </button>
           </div>
@@ -338,7 +338,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           })}
         </ol>
         {newBelow && (
-          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 bg-ink px-3 py-1.5 text-xs font-semibold text-paper">
+          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 bg-ink px-3 py-1.5 text-xs font-semibold text-paper rounded-2xl">
             <ArrowDown size={13} /> Neue Nachrichten
           </button>
         )}

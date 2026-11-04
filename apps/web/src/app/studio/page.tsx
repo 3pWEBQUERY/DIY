@@ -40,7 +40,7 @@ export default async function StudioOverview() {
         <h1 className="display text-[2.4rem] sm:text-5xl">Deine Werkstatt in Zahlen</h1>
       </header>
 
-      <nav aria-label="Schnellaktionen" className="mb-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3 lg:grid-cols-5">
+      <nav aria-label="Schnellaktionen" className="mb-12 grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3 lg:grid-cols-5 rounded-2xl overflow-hidden">
         {actions.map((a) => (
           <Link key={a.href} href={a.href} className="group flex flex-col gap-3 bg-paper p-4 hover:bg-card">
             <a.icon size={18} strokeWidth={1.6} aria-hidden className="text-ink" />

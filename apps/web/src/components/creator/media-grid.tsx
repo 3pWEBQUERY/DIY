@@ -30,7 +30,7 @@ function Card({ m }: { m: MediaItem }) {
   const del = useAction(deleteMediaAction);
   const dirty = alt.trim() !== m.alt;
   return (
-    <li className="flex flex-col border border-line bg-card">
+    <li className="flex flex-col border border-line bg-card rounded-2xl">
       <div className="relative aspect-square overflow-hidden bg-sunken">
         {m.preview ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -63,7 +63,7 @@ function Card({ m }: { m: MediaItem }) {
               maxLength={500}
               placeholder="Alt-Text: Was ist zu sehen?"
               aria-label="Bildbeschreibung (Alt-Text)"
-              className={cn("h-8 min-w-0 flex-1 border bg-paper px-2 text-[12px] outline-none focus:border-ink", m.alt ? "border-line" : "border-warn/50")}
+              className={cn("h-8 min-w-0 flex-1 border bg-paper px-2 text-[12px] outline-none focus:border-ink rounded-2xl", m.alt ? "border-line" : "border-warn/50")}
             />
             {dirty && (
               <Button type="submit" size="sm" variant="ink" disabled={save.pending} className="h-8 px-2">

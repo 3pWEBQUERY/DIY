@@ -195,7 +195,7 @@ export function BlockEditor({ blocks, onChange, label = "Inhalt" }: { blocks: Ar
         <button
           type="button"
           onClick={() => insertAt(0, { id: blockId(), type: "paragraph", text: "" })}
-          className="block w-full border border-dashed border-line-strong px-6 py-10 text-left font-serif text-xl text-muted hover:border-ink hover:text-ink"
+          className="block w-full border border-dashed border-line-strong px-6 py-10 text-left font-serif text-xl text-muted hover:border-ink hover:text-ink rounded-2xl"
         >
           Beginne zu schreiben …
           <span className="mt-2 block font-sans text-sm">Tippe <Kbd>/</Kbd> in einem leeren Absatz, um Bilder, Tabellen oder Projektkarten einzufügen.</span>
@@ -216,7 +216,7 @@ export function BlockEditor({ blocks, onChange, label = "Inhalt" }: { blocks: Ar
             onClick={() => setMenu({ mode: "insert", index: blocks.length, active: 0, query: "" })}
             aria-haspopup="listbox"
             aria-expanded={menu?.mode === "insert" && menu.index === blocks.length}
-            className="inline-flex h-9 items-center gap-2 border border-line-strong bg-card px-3 text-sm font-semibold hover:border-ink"
+            className="inline-flex h-9 items-center gap-2 border border-line-strong bg-card px-3 text-sm font-semibold hover:border-ink rounded-xl"
           >
             <Plus size={15} /> Block hinzufügen
           </button>
@@ -257,7 +257,7 @@ function Inserter({ index, ctx }: { index: number; ctx: BlockCtx }) {
           open && "opacity-100",
         )}
       >
-        <span className="grid size-4 place-items-center border border-line-strong bg-card"><Plus size={10} /></span>
+        <span className="grid size-4 place-items-center border border-line-strong bg-card rounded-2xl"><Plus size={10} /></span>
         <span className="h-px flex-1 bg-line-strong" />
       </button>
       {open && <InsertMenu ctx={ctx} index={index} className="left-12 top-full" />}
@@ -285,7 +285,7 @@ function MenuList({ items, active, onPick, id }: { items: MenuItem[]; active: nu
               onClick={() => onPick(m)}
               className={cn("flex w-full items-start gap-3 px-3 py-2 text-left", i === active ? "bg-ink text-paper" : "hover:bg-sunken")}
             >
-              <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center border", i === active ? "border-paper/30" : "border-line-strong")}>{m.icon}</span>
+              <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center border rounded-xl", i === active ? "border-paper/30" : "border-line-strong")}>{m.icon}</span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{m.label}</span>
                 <span className={cn("block truncate text-xs", i === active ? "text-paper/70" : "text-muted")}>{m.hint}</span>
@@ -314,7 +314,7 @@ function InsertMenu({ ctx, index, className }: { ctx: BlockCtx; index: number; c
     ctx.insertAt(index, it.make());
   };
   return (
-    <div ref={ref} className={cn("absolute z-40 w-80 border border-ink bg-card animate-rise", className)}>
+    <div ref={ref} className={cn("absolute z-40 w-80 border border-ink bg-card animate-rise rounded-2xl", className)}>
       <div className="flex items-center gap-2 border-b border-line px-3">
         <Search size={14} className="text-muted" />
         <input
@@ -368,17 +368,17 @@ function BlockShell({ block, index, count, ctx }: { block: ArticleBlock; index: 
       </div>
       <div className="relative min-w-0 border-l border-transparent pl-3 transition-colors focus-within:border-ink group-hover/block:border-line-strong">
         <div
-          className="absolute -top-3 right-0 z-20 flex items-center border border-line-strong bg-card opacity-100 transition-opacity md:opacity-0 md:group-focus-within/block:opacity-100 md:group-hover/block:opacity-100"
+          className="absolute -top-3 right-0 z-20 flex items-center border border-line-strong bg-card opacity-100 transition-opacity md:opacity-0 md:group-focus-within/block:opacity-100 md:group-hover/block:opacity-100 rounded-2xl"
           role="toolbar"
           aria-label={`Block ${index + 1} bearbeiten`}
         >
-          <button type="button" onClick={() => ctx.move(block.id, -1)} disabled={index === 0} className="grid size-7 place-items-center hover:bg-sunken disabled:opacity-30" aria-label="Nach oben verschieben" title="Nach oben (Alt+↑)">
+          <button type="button" onClick={() => ctx.move(block.id, -1)} disabled={index === 0} className="grid size-7 place-items-center hover:bg-sunken disabled:opacity-30 rounded-xl" aria-label="Nach oben verschieben" title="Nach oben (Alt+↑)">
             <ArrowUp size={13} />
           </button>
-          <button type="button" onClick={() => ctx.move(block.id, 1)} disabled={index === count - 1} className="grid size-7 place-items-center hover:bg-sunken disabled:opacity-30" aria-label="Nach unten verschieben" title="Nach unten (Alt+↓)">
+          <button type="button" onClick={() => ctx.move(block.id, 1)} disabled={index === count - 1} className="grid size-7 place-items-center hover:bg-sunken disabled:opacity-30 rounded-xl" aria-label="Nach unten verschieben" title="Nach unten (Alt+↓)">
             <ArrowDown size={13} />
           </button>
-          <button type="button" onClick={() => ctx.remove(block.id)} className="grid size-7 place-items-center hover:bg-danger-soft hover:text-danger" aria-label="Block löschen">
+          <button type="button" onClick={() => ctx.remove(block.id)} className="grid size-7 place-items-center hover:bg-danger-soft hover:text-danger rounded-xl" aria-label="Block löschen">
             <Trash2 size={13} />
           </button>
         </div>
@@ -471,10 +471,10 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
   return (
     <div className="relative">
       <div className="pointer-events-none absolute -top-3 left-0 z-10 flex opacity-0 transition-opacity group-focus-within/block:pointer-events-auto group-focus-within/block:opacity-100" role="toolbar" aria-label="Textauszeichnung">
-        <div className="flex border border-line-strong bg-card">
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => applyWrap("**", "**", "fett")} className="grid size-7 place-items-center hover:bg-sunken" aria-label="Fett (⌘B)" title="Fett (⌘B)"><Bold size={13} /></button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => applyWrap("*", "*", "kursiv")} className="grid size-7 place-items-center hover:bg-sunken" aria-label="Kursiv (⌘I)" title="Kursiv (⌘I)"><Italic size={13} /></button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setLinkOpen((o) => !o)} aria-expanded={linkOpen} className="grid size-7 place-items-center hover:bg-sunken" aria-label="Link (⌘K)" title="Link (⌘K)"><Link2 size={13} /></button>
+        <div className="flex border border-line-strong bg-card rounded-2xl">
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => applyWrap("**", "**", "fett")} className="grid size-7 place-items-center hover:bg-sunken rounded-xl" aria-label="Fett (⌘B)" title="Fett (⌘B)"><Bold size={13} /></button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => applyWrap("*", "*", "kursiv")} className="grid size-7 place-items-center hover:bg-sunken rounded-xl" aria-label="Kursiv (⌘I)" title="Kursiv (⌘I)"><Italic size={13} /></button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setLinkOpen((o) => !o)} aria-expanded={linkOpen} className="grid size-7 place-items-center hover:bg-sunken rounded-xl" aria-label="Link (⌘K)" title="Link (⌘K)"><Link2 size={13} /></button>
         </div>
       </div>
       <label htmlFor={`p-${b.id}`} className="sr-only">Absatz {index + 1}</label>
@@ -555,7 +555,7 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
         className={cn(proseInput, "min-h-[1.7em] py-1.5")}
       />
       {linkOpen && (
-        <div className="mt-1 flex items-center gap-2 border border-ink bg-card px-2 animate-fade">
+        <div className="mt-1 flex items-center gap-2 border border-ink bg-card px-2 animate-fade rounded-2xl">
           <Link2 size={13} className="text-muted" />
           <input
             autoFocus
@@ -578,7 +578,7 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
         </div>
       )}
       {slash && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-80 border border-ink bg-card animate-rise">
+        <div className="absolute left-0 top-full z-40 mt-1 w-80 border border-ink bg-card animate-rise rounded-2xl">
           <p className="spec border-b border-line px-3 py-2">Block einfügen{query ? ` · „${query}“` : ""}</p>
           <MenuList items={items} active={slash.active} onPick={pick} id={listId} />
         </div>
@@ -590,7 +590,7 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
 function HeadingBlock({ b, index, ctx }: { b: Of<"heading">; index: number; ctx: BlockCtx }) {
   return (
     <div className="flex items-start gap-2">
-      <div className="mt-2 flex shrink-0 border border-line-strong" role="group" aria-label="Ebene">
+      <div className="mt-2 flex shrink-0 border border-line-strong rounded-2xl" role="group" aria-label="Ebene">
         {([2, 3] as const).map((l) => (
           <button key={l} type="button" aria-pressed={b.level === l} onClick={() => ctx.patch(b.id, { level: l })} className={cn("h-6 px-1.5 font-mono text-[10px]", b.level === l ? "bg-ink text-paper" : "text-muted hover:text-ink")}>
             H{l}
@@ -764,7 +764,7 @@ function UploadDrop({ blockKey, accept, label, onFiles, progress, multiple }: { 
           onFiles(Array.from(e.dataTransfer.files));
         }}
         disabled={progress !== null}
-        className="crop flex h-40 w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong bg-card text-sm text-muted hover:border-ink hover:text-ink"
+        className="crop flex h-40 w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong bg-card text-sm text-muted hover:border-ink hover:text-ink rounded-2xl"
       >
         {progress !== null ? (
           <>
@@ -801,10 +801,10 @@ function ImageBlock({ b, ctx }: { b: Of<"image">; ctx: BlockCtx }) {
   return (
     <figure>
       {b.mediaId && src ? (
-        <div className="relative border border-line bg-sunken">
+        <div className="relative border border-line bg-sunken rounded-2xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={b.alt} className="block max-h-[28rem] w-full object-contain" />
-          <button type="button" onClick={() => ctx.patch(b.id, { mediaId: "", url: "" })} className="absolute right-2 top-2 inline-flex h-7 items-center gap-1 bg-card px-2 text-xs font-semibold hover:bg-sunken">
+          <button type="button" onClick={() => ctx.patch(b.id, { mediaId: "", url: "" })} className="absolute right-2 top-2 inline-flex h-7 items-center gap-1 bg-card px-2 text-xs font-semibold hover:bg-sunken rounded-xl">
             Ersetzen
           </button>
         </div>
@@ -843,11 +843,11 @@ function GalleryBlock({ b, ctx }: { b: Of<"gallery">; ctx: BlockCtx }) {
       {b.images.length > 0 && (
         <ol className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {b.images.map((img, i) => (
-            <li key={img.mediaId} className="group/img border border-line bg-card">
+            <li key={img.mediaId} className="group/img border border-line bg-card rounded-2xl">
               <div className="relative aspect-square overflow-hidden bg-sunken">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.url} alt="" className="h-full w-full object-cover" />
-                <span className="absolute left-1.5 top-1.5 bg-ink px-1.5 font-mono text-[10px] text-paper">{pad(i + 1)}</span>
+                <span className="absolute left-1.5 top-1.5 bg-ink px-1.5 font-mono text-[10px] text-paper rounded-2xl">{pad(i + 1)}</span>
                 <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-focus-within/img:opacity-100 group-hover/img:opacity-100">
                   <button type="button" onClick={() => move(i, -1)} className="grid size-7 place-items-center bg-card" aria-label={`Bild ${i + 1} nach vorne`}><ArrowLeft size={13} /></button>
                   <button type="button" onClick={() => move(i, 1)} className="grid size-7 place-items-center bg-card" aria-label={`Bild ${i + 1} nach hinten`}><ArrowRight size={13} /></button>
@@ -880,9 +880,9 @@ function VideoBlock({ b, ctx }: { b: Of<"video">; ctx: BlockCtx }) {
   return (
     <figure>
       {b.mediaId ? (
-        <div className="relative border border-line bg-ink">
+        <div className="relative border border-line bg-ink rounded-2xl">
           {src ? <video src={src} controls playsInline preload="metadata" className="block max-h-[28rem] w-full" aria-label={b.caption || "Video"} /> : <p className="px-4 py-10 text-center text-sm text-paper/80">Video wird verarbeitet …</p>}
-          <button type="button" onClick={() => ctx.patch(b.id, { mediaId: "", url: "" })} className="absolute right-2 top-2 inline-flex h-7 items-center bg-card px-2 text-xs font-semibold">Ersetzen</button>
+          <button type="button" onClick={() => ctx.patch(b.id, { mediaId: "", url: "" })} className="absolute right-2 top-2 inline-flex h-7 items-center bg-card px-2 text-xs font-semibold rounded-xl">Ersetzen</button>
         </div>
       ) : (
         <UploadDrop blockKey={b.id} accept="video/mp4,video/quicktime,video/webm" label="Video hochladen (max. 3 Min.)" onFiles={onFiles} progress={up.progress} />
@@ -901,7 +901,7 @@ function TableBlock({ b, ctx }: { b: Of<"table">; ctx: BlockCtx }) {
   const setCell = (r: number, c: number, v: string) => set(b.rows.map((row, i) => (i === r ? row.map((x, j) => (j === c ? v : x)) : row)));
   return (
     <div>
-      <div className="overflow-x-auto border border-line">
+      <div className="overflow-x-auto border border-line rounded-2xl">
         <table className="w-full border-collapse text-sm">
           <tbody>
             {b.rows.map((row, r) => (
@@ -930,9 +930,9 @@ function TableBlock({ b, ctx }: { b: Of<"table">; ctx: BlockCtx }) {
         </table>
       </div>
       <div className="mt-2 flex flex-wrap gap-2 text-xs">
-        <button type="button" disabled={b.rows.length >= 60} onClick={() => set([...b.rows, Array(cols).fill("")])} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-ink disabled:opacity-40"><Plus size={12} /> Zeile</button>
-        <button type="button" disabled={cols >= 8} onClick={() => set(b.rows.map((r) => [...r, ""]))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-ink disabled:opacity-40"><Plus size={12} /> Spalte</button>
-        <button type="button" disabled={cols <= 1} onClick={() => set(b.rows.map((r) => r.slice(0, cols - 1)))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 hover:border-ink disabled:opacity-40"><Minus size={12} /> Letzte Spalte</button>
+        <button type="button" disabled={b.rows.length >= 60} onClick={() => set([...b.rows, Array(cols).fill("")])} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-ink disabled:opacity-40 rounded-xl"><Plus size={12} /> Zeile</button>
+        <button type="button" disabled={cols >= 8} onClick={() => set(b.rows.map((r) => [...r, ""]))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-ink disabled:opacity-40 rounded-xl"><Plus size={12} /> Spalte</button>
+        <button type="button" disabled={cols <= 1} onClick={() => set(b.rows.map((r) => r.slice(0, cols - 1)))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 hover:border-ink disabled:opacity-40 rounded-xl"><Minus size={12} /> Letzte Spalte</button>
         <span className="self-center text-muted">Erste Zeile = Kopfzeile</span>
       </div>
     </div>
@@ -980,7 +980,7 @@ function EmbedBlock({ kind, id, title, blockKey, onPick }: { kind: "project" | "
 
   if (!editing && id) {
     return (
-      <div className="flex items-center gap-3 border border-line bg-card px-3 py-2.5">
+      <div className="flex items-center gap-3 border border-line bg-card px-3 py-2.5 rounded-2xl">
         <span className="h-8 w-px bg-ink" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="spec">{EMBED_LABEL[kind]}karte</p>
@@ -993,7 +993,7 @@ function EmbedBlock({ kind, id, title, blockKey, onPick }: { kind: "project" | "
 
   const list = hits ?? [];
   return (
-    <div className="border border-ink bg-card">
+    <div className="border border-ink bg-card rounded-2xl">
       <div className="flex items-center gap-2 border-b border-line px-3">
         <Search size={14} className="text-muted" />
         <input
@@ -1038,7 +1038,7 @@ function EmbedBlock({ kind, id, title, blockKey, onPick }: { kind: "project" | "
               onClick={() => choose(h)}
               className={cn("flex w-full items-center gap-3 px-3 py-2 text-left", i === active ? "bg-sunken" : "hover:bg-sunken")}
             >
-              <span className="relative size-10 shrink-0 overflow-hidden border border-line">
+              <span className="relative size-10 shrink-0 overflow-hidden border border-line rounded-2xl">
                 {h.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={h.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />

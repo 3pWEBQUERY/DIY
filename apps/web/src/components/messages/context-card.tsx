@@ -8,8 +8,8 @@ import { formatDate } from "@/lib/utils";
 export function ContextCard({ ctx }: { ctx: OrderContext }) {
   if (ctx.type === "product") {
     return (
-      <Link href={ctx.href} className="group flex items-center gap-3 border border-clay/40 bg-clay-soft px-3 py-2.5 hover:border-clay">
-        <span className="relative size-11 shrink-0 overflow-hidden border border-clay/30 bg-card">
+      <Link href={ctx.href} className="group flex items-center gap-3 border border-clay/40 bg-clay-soft px-3 py-2.5 hover:border-clay rounded-2xl">
+        <span className="relative size-11 shrink-0 overflow-hidden border border-clay/30 bg-card rounded-2xl">
           {ctx.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ctx.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -27,17 +27,17 @@ export function ContextCard({ ctx }: { ctx: OrderContext }) {
     );
   }
   return (
-    <div className="border border-clay/40 bg-clay-soft">
+    <div className="border border-clay/40 bg-clay-soft rounded-2xl">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clay/20 px-3 py-2">
         <span className="spec text-clay-ink">
           Bestellung <span className="font-semibold text-ink">{ctx.number}</span> · {formatDate(ctx.createdAt, { day: "numeric", month: "short", year: "numeric" })}
         </span>
-        <span className="inline-flex h-6 items-center bg-card px-2 font-mono text-[11px] uppercase tracking-[0.06em]">{ORDER_STATUS_LABEL[ctx.status as OrderStatus] ?? ctx.status}</span>
+        <span className="inline-flex h-6 items-center bg-card px-2 font-mono text-[11px] uppercase tracking-[0.06em] rounded-xl">{ORDER_STATUS_LABEL[ctx.status as OrderStatus] ?? ctx.status}</span>
       </div>
       <div className="flex items-center gap-3 px-3 py-2.5">
         <ul className="flex -space-x-2" aria-hidden>
           {ctx.items.slice(0, 3).map((i, n) => (
-            <li key={n} className="relative size-9 overflow-hidden border border-paper bg-card">
+            <li key={n} className="relative size-9 overflow-hidden border border-paper bg-card rounded-2xl">
               {i.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={i.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />

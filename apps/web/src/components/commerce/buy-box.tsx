@@ -107,7 +107,7 @@ export function BuyBox({
                     setAdded(false);
                   }}
                   className={cn(
-                    "min-h-10 border px-3.5 text-[14px] transition-colors",
+                    "min-h-10 border px-3.5 text-[14px] transition-colors rounded-2xl",
                     active ? "border-ink bg-ink text-paper" : "border-line-strong bg-card hover:border-ink",
                     out && "cursor-not-allowed text-muted line-through decoration-1",
                   )}
@@ -132,12 +132,12 @@ export function BuyBox({
       </p>
 
       {entitlementId ? (
-        <div className="space-y-3 border border-moss/30 bg-moss-soft p-4 text-[14px]">
+        <div className="space-y-3 border border-moss/30 bg-moss-soft p-4 text-[14px] rounded-2xl">
           <p className="font-semibold text-moss-ink">Du besitzt dieses digitale Produkt.</p>
           <a href={`/api/v1/downloads/${entitlementId}`} className="font-semibold text-moss-ink underline underline-offset-2">Jetzt herunterladen</a>
         </div>
       ) : isOwner ? (
-        <p className="border border-dashed border-line-strong px-4 py-3 text-[14px] text-muted">
+        <p className="border border-dashed border-line-strong px-4 py-3 text-[14px] text-muted rounded-2xl">
           Das ist dein Produkt. <Link href={`/studio/produkte/${productId}`} className="font-semibold text-ink underline underline-offset-2">Im Studio bearbeiten</Link>
         </p>
       ) : !paymentsLive ? (
@@ -145,12 +145,12 @@ export function BuyBox({
       ) : (
         <div className="flex items-stretch gap-3">
           {!isDigital && (
-            <div className="flex items-center border border-line-strong bg-card" role="group" aria-label="Menge">
-              <button type="button" className="grid size-11 place-items-center hover:bg-sunken disabled:opacity-40" aria-label="Weniger" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}>
+            <div className="flex items-center border border-line-strong bg-card rounded-2xl" role="group" aria-label="Menge">
+              <button type="button" className="grid size-11 place-items-center hover:bg-sunken disabled:opacity-40 rounded-xl" aria-label="Weniger" disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}>
                 <Minus size={15} />
               </button>
               <output className="num w-8 text-center text-[15px] font-semibold" aria-live="polite">{qty}</output>
-              <button type="button" className="grid size-11 place-items-center hover:bg-sunken disabled:opacity-40" aria-label="Mehr" disabled={qty >= maxQty} onClick={() => setQty((q) => Math.min(maxQty, q + 1))}>
+              <button type="button" className="grid size-11 place-items-center hover:bg-sunken disabled:opacity-40 rounded-xl" aria-label="Mehr" disabled={qty >= maxQty} onClick={() => setQty((q) => Math.min(maxQty, q + 1))}>
                 <Plus size={15} />
               </button>
             </div>

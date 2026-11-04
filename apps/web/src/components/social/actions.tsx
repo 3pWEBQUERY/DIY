@@ -177,7 +177,7 @@ export function ReportDialog({ open, onClose, targetType, targetId }: { open: bo
             <legend className="mb-2 text-[13px] font-semibold">Grund</legend>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {REPORT_REASONS.map((r) => (
-                <label key={r} className={cn("flex cursor-pointer items-center gap-2 border px-3 py-2.5 text-sm", reason === r ? "border-ink bg-sunken" : "border-line hover:border-line-strong")}>
+                <label key={r} className={cn("flex cursor-pointer items-center gap-2 border px-3 py-2.5 text-sm rounded-2xl", reason === r ? "border-ink bg-sunken" : "border-line hover:border-line-strong")}>
                   <input type="radio" name="reason" value={r} checked={reason === r} onChange={() => setReason(r)} className="accent-[#B64B3A]" />
                   {REPORT_REASON_LABEL[r]}
                 </label>
@@ -215,11 +215,11 @@ export function MoreMenu({ items, label = "Weitere Aktionen" }: { items: MenuIte
   }, [open]);
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-label={label} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} className="grid size-8 place-items-center text-muted hover:bg-sunken hover:text-ink">
+      <button type="button" aria-label={label} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} className="grid size-8 place-items-center text-muted hover:bg-sunken hover:text-ink rounded-xl">
         <MoreHorizontal size={18} />
       </button>
       {open && (
-        <ul role="menu" className="absolute right-0 top-9 z-30 min-w-56 border border-ink bg-card py-1 animate-rise">
+        <ul role="menu" className="absolute right-0 top-9 z-30 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise">
           {items.map((it) => (
             <li key={it.label} role="none">
               <button
@@ -229,7 +229,7 @@ export function MoreMenu({ items, label = "Weitere Aktionen" }: { items: MenuIte
                   setOpen(false);
                   it.onSelect();
                 }}
-                className={cn("flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm hover:bg-sunken", it.danger && "text-danger")}
+                className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-sunken", it.danger && "text-danger")}
               >
                 {it.icon}
                 {it.label}

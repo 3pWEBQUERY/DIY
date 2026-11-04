@@ -183,7 +183,7 @@ export default async function ProjectPage({ params }: Params) {
             <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Schlagwörter">
               {p.tags.map((t) => (
                 <li key={t}>
-                  <Link href={`/projekte?q=${encodeURIComponent(t)}`} className="inline-flex h-7 items-center border border-line px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink">#{t}</Link>
+                  <Link href={`/projekte?q=${encodeURIComponent(t)}`} className="inline-flex h-7 items-center border border-line px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink rounded-xl">#{t}</Link>
                 </li>
               ))}
             </ul>
@@ -244,7 +244,7 @@ export default async function ProjectPage({ params }: Params) {
               {p.tutorials.length ? (
                 <div className="mt-6 space-y-4">
                   {p.tutorials.map((t) => (
-                    <Link key={t.id} href={t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : `/studio/anleitungen/${t.id}`} className="group grid gap-0 border border-line bg-card transition-colors hover:border-ink sm:grid-cols-[14rem_1fr]">
+                    <Link key={t.id} href={t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : `/studio/anleitungen/${t.id}`} className="group grid gap-0 border border-line bg-card transition-colors hover:border-ink sm:grid-cols-[14rem_1fr] rounded-2xl">
                       <div className="border-b border-line sm:border-b-0 sm:border-r">
                         <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="3/2" sizes="224px" className="h-full" />
                       </div>
@@ -440,14 +440,14 @@ function Journal({ p }: { p: ProjectPageView }) {
               )}
               <p className={cn("whitespace-pre-line text-[15.5px] leading-relaxed text-ink-2", e.milestone && "mt-2")}>{e.body}</p>
               {(e.problem || e.solution) && (
-                <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2">
+                <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
                   {e.problem && (
-                    <div className="bg-clay-soft px-4 py-3">
+                    <div className="bg-clay-soft px-4 py-3 rounded-2xl">
                       <p className="spec text-clay-ink">Problem</p>
                       <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2">{e.problem}</p>
                     </div>
                   )}
-                  <div className={cn("bg-moss-soft px-4 py-3", !e.problem && "sm:col-span-2")}>
+                  <div className={cn("bg-moss-soft px-4 py-3 rounded-2xl", !e.problem && "sm:col-span-2")}>
                     <p className="spec text-moss-ink">Lösung</p>
                     <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2">{e.solution || <span className="text-muted">Noch offen – weisst du Rat? Schreib es in die Fragen.</span>}</p>
                   </div>
@@ -456,7 +456,7 @@ function Journal({ p }: { p: ProjectPageView }) {
               {e.media.length > 0 && (
                 <ul className={cn("mt-4 grid gap-2", e.media.length === 1 ? "grid-cols-1 sm:w-3/4" : e.media.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3")}>
                   {e.media.map((m) => (
-                    <li key={m.mediaId} className="relative overflow-hidden border border-line bg-sunken" style={{ aspectRatio: e.media.length === 1 ? "4/3" : "1/1" }}>
+                    <li key={m.mediaId} className="relative overflow-hidden border border-line bg-sunken rounded-2xl" style={{ aspectRatio: e.media.length === 1 ? "4/3" : "1/1" }}>
                       <MediaImage url={m.url} alt={m.alt || `Foto zu Eintrag ${pad(i + 1)}`} className="absolute inset-0" sizes="(min-width: 1024px) 320px, 50vw" />
                     </li>
                   ))}
@@ -485,7 +485,7 @@ function Journal({ p }: { p: ProjectPageView }) {
             <time dateTime={p.completedAt!} className="spec block text-moss-ink">{formatDate(p.completedAt!, { day: "numeric", month: "short" })}</time>
           </div>
           <div className="relative pl-6">
-            <span aria-hidden className="absolute -left-px top-[4px] size-[11px] -translate-x-1/2 bg-moss" />
+            <span aria-hidden className="absolute -left-px top-[4px] size-[11px] -translate-x-1/2 bg-moss rounded-full" />
             <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-moss-ink">Abgeschlossen</p>
           </div>
         </li>

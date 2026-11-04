@@ -93,7 +93,7 @@ export function MediaPicker({
       {value.length > 0 && (
         <ol className={cn("mb-3 grid gap-3", compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
           {value.map((m, i) => (
-            <li key={m.id} className="group border border-line bg-card">
+            <li key={m.id} className="group border border-line bg-card rounded-2xl">
               <div className="relative aspect-square overflow-hidden bg-sunken">
                 {m.kind === "VIDEO" ? (
                   <video src={m.preview} className="h-full w-full object-cover" muted />
@@ -101,7 +101,7 @@ export function MediaPicker({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={m.preview} alt="" className="h-full w-full object-cover" />
                 )}
-                <span className="absolute left-1.5 top-1.5 bg-ink px-1.5 font-mono text-[10px] text-paper">{String(i + 1).padStart(2, "0")}</span>
+                <span className="absolute left-1.5 top-1.5 bg-ink px-1.5 font-mono text-[10px] text-paper rounded-2xl">{String(i + 1).padStart(2, "0")}</span>
                 {m.state === "uploading" && (
                   <span className="absolute inset-x-0 bottom-0 h-1 bg-line">
                     <span className="block h-full bg-moss transition-[width]" style={{ width: `${Math.round(m.progress * 100)}%` }} />
@@ -148,7 +148,7 @@ export function MediaPicker({
             add(e.dataTransfer.files);
           }}
           className={cn(
-            "flex w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted transition-colors hover:border-ink hover:text-ink",
+            "flex w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted transition-colors hover:border-ink hover:text-ink rounded-2xl",
             compact ? "h-11" : "h-24",
           )}
         >

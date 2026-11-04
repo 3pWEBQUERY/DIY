@@ -100,7 +100,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 return (
                   <li key={it.id} className="py-5">
                     <div className="grid grid-cols-[64px_1fr_auto] gap-4">
-                      <Link href={`/markt/${it.product.shop.slug}/${it.product.slug}`} className="relative block aspect-[4/5] overflow-hidden border border-line bg-sunken" tabIndex={-1} aria-hidden>
+                      <Link href={`/markt/${it.product.shop.slug}/${it.product.slug}`} className="relative block aspect-[4/5] overflow-hidden border border-line bg-sunken rounded-2xl" tabIndex={-1} aria-hidden>
                         {it.product.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={it.product.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -166,7 +166,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <SectionTitle n="02" title={<span id="versand">Sendungsverfolgung</span>} />
               <ul className="mt-4 space-y-3">
                 {o.shipments.map((s) => (
-                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 border border-line bg-card px-4 py-3 text-[14px]">
+                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 border border-line bg-card px-4 py-3 text-[14px] rounded-2xl">
                     <div>
                       <p className="font-semibold">{s.carrier}</p>
                       <p className="spec mt-0.5">

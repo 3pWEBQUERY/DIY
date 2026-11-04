@@ -17,7 +17,7 @@ export default async function AccountSettingsPage() {
   return (
     <div>
       <SettingsSection n="01" title="E-Mail-Adresse" description="An diese Adresse senden wir Sicherheitshinweise, Bestellbestätigungen und – falls aktiviert – Benachrichtigungen. Sie ist nie öffentlich sichtbar.">
-        <div className="flex flex-wrap items-center gap-3 border border-line bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 border border-line bg-card px-4 py-3 rounded-2xl">
           <span className="font-mono text-[14px]">{a.email}</span>
           {a.emailVerifiedAt ? <Badge tone="moss">Bestätigt</Badge> : <Badge tone="warn">Nicht bestätigt</Badge>}
           {!a.emailVerifiedAt && (
@@ -42,7 +42,7 @@ export default async function AccountSettingsPage() {
       </SettingsSection>
 
       <SettingsSection n="04" title="Konto löschen" id="loeschen">
-        <div className="grid gap-6 border border-danger/30 p-5 sm:grid-cols-2">
+        <div className="grid gap-6 border border-danger/30 p-5 sm:grid-cols-2 rounded-2xl">
           <div>
             <p className="spec mb-2 text-danger">Wird gelöscht bzw. entfernt</p>
             <ul className="space-y-1.5 text-sm text-ink-2">

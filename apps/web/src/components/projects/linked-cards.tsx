@@ -16,7 +16,7 @@ export function ProductMiniCard({
   className?: string;
 }) {
   return (
-    <Link href={p.href} className={cn("group flex min-w-0 items-stretch border border-line bg-card transition-colors hover:border-ink", className)}>
+    <Link href={p.href} className={cn("group flex min-w-0 items-stretch border border-line bg-card transition-colors hover:border-ink rounded-2xl", className)}>
       <div className="relative w-24 shrink-0 border-r border-line">
         <Cover url={p.coverUrl} alt="" seed={`p-${p.id}`} ratio="1/1" className="h-full" sizes="96px" />
       </div>
@@ -50,7 +50,7 @@ export function ArticleMiniCard({
         <p className="headline mt-1 text-xl text-balance group-hover:underline decoration-1 underline-offset-4">{a.title}</p>
         {a.dek && <p className="mt-1 line-clamp-2 text-sm text-muted">{a.dek}</p>}
       </div>
-      <div className="w-24 border border-line sm:w-32">
+      <div className="w-24 border border-line sm:w-32 rounded-2xl">
         <Cover url={a.coverUrl} alt="" seed={`a-${a.id}`} ratio="4/3" sizes="128px" />
       </div>
     </Link>

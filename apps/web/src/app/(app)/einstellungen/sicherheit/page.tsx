@@ -31,7 +31,7 @@ export default async function SecuritySettingsPage() {
             const Icon = x.isApp || /iOS|Android/.test(x.device) ? Smartphone : Monitor;
             return (
               <li key={x.key} className="flex flex-wrap items-center gap-4 py-3.5">
-                <span className="grid size-10 place-items-center border border-line-strong bg-card">
+                <span className="grid size-10 place-items-center border border-line-strong bg-card rounded-xl">
                   <Icon size={18} strokeWidth={1.6} aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -58,7 +58,7 @@ export default async function SecuritySettingsPage() {
         {events.length ? (
           <ol className="border-l border-ink pl-5">
             {events.map((e) => (
-              <li key={e.id} className="relative pb-4 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-ink">
+              <li key={e.id} className="relative pb-4 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-ink rounded-full">
                 <p className="text-sm">{notificationText({ type: "SECURITY", count: 1, data: e.data })}</p>
                 <p className="spec mt-0.5">{relativeTime(e.createdAt)}</p>
               </li>

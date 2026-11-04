@@ -23,7 +23,7 @@ export default async function SimulationPage({ searchParams }: { searchParams: P
 
   return (
     <div className="mx-auto w-full max-w-[600px] px-4 py-10 sm:px-6 md:py-16">
-      <div className="border-2 border-dashed border-warn bg-warn-soft px-5 py-4">
+      <div className="border-2 border-dashed border-warn bg-warn-soft px-5 py-4 rounded-2xl">
         <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em] text-warn">Testmodus · keine echte Zahlung</p>
         <p className="mt-1 text-[13.5px] text-ink-2">
           Stripe ist in dieser Entwicklungsumgebung nicht konfiguriert. Diese Seite ersetzt den Zahlungsanbieter und löst dieselben Verbuchungen aus wie ein echter Webhook.

@@ -47,7 +47,7 @@ export function CommunityComposer({ communityId, communityName, viewer, isMod }:
     });
 
   return (
-    <section aria-label={`In ${communityName} schreiben`} className={cn("border bg-card", open ? "border-ink" : "border-line")}>
+    <section aria-label={`In ${communityName} schreiben`} className={cn("border bg-card rounded-2xl", open ? "border-ink" : "border-line")}>
       <div className="flex gap-3 p-4">
         <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={38} />
         <div className="min-w-0 flex-1">
@@ -110,17 +110,17 @@ function ModBar({ communityId, post, isMod }: { communityId: string; post: PostV
       {flags || <span />}
       {isMod && (
         <span className="flex items-center gap-1" role="group" aria-label="Moderation">
-          <button type="button" disabled={pending} onClick={() => run(() => setPostPinnedAction(communityId, post.id, !post.isPinned))} className="inline-flex h-7 items-center gap-1 px-2 text-xs text-muted hover:bg-sunken hover:text-ink">
+          <button type="button" disabled={pending} onClick={() => run(() => setPostPinnedAction(communityId, post.id, !post.isPinned))} className="inline-flex h-7 items-center gap-1 px-2 text-xs text-muted hover:bg-sunken hover:text-ink rounded-xl">
             {post.isPinned ? <PinOff size={12} /> : <Pin size={12} />} {post.isPinned ? "Lösen" : "Anheften"}
           </button>
-          <button type="button" disabled={pending} onClick={() => run(() => setPostAnnouncementAction(communityId, post.id, !post.isAnnouncement))} className="inline-flex h-7 items-center gap-1 px-2 text-xs text-muted hover:bg-sunken hover:text-ink">
+          <button type="button" disabled={pending} onClick={() => run(() => setPostAnnouncementAction(communityId, post.id, !post.isAnnouncement))} className="inline-flex h-7 items-center gap-1 px-2 text-xs text-muted hover:bg-sunken hover:text-ink rounded-xl">
             <Megaphone size={12} /> {post.isAnnouncement ? "Keine Ankündigung" : "Ankündigung"}
           </button>
           <button
             type="button"
             disabled={pending}
             onClick={() => setHideOpen(true)}
-            className="inline-flex h-7 items-center gap-1 px-2 text-xs text-muted hover:bg-danger-soft hover:text-danger"
+            className="inline-flex h-7 items-center gap-1 px-2 text-xs text-muted hover:bg-danger-soft hover:text-danger rounded-xl"
           >
             <EyeOff size={12} /> Ausblenden
           </button>
@@ -207,7 +207,7 @@ export function CommunityFeed({
       {items.map((p) => renderPost(p))}
       <div ref={sentinel} />
       {cursor ? (
-        <button type="button" onClick={more} disabled={pending} className="mt-6 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink">
+        <button type="button" onClick={more} disabled={pending} className="mt-6 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">
           {pending ? "Lädt …" : "Ältere Beiträge laden"}
         </button>
       ) : (
@@ -245,7 +245,7 @@ export function HiddenPosts({ communityId, posts, viewer }: { communityId: strin
                   } else toast(r.error, "error");
                 })
               }
-              className="inline-flex h-7 items-center gap-1 px-2 text-xs font-semibold hover:bg-sunken"
+              className="inline-flex h-7 items-center gap-1 px-2 text-xs font-semibold hover:bg-sunken rounded-xl"
             >
               <RotateCcw size={12} /> Wiederherstellen
             </button>

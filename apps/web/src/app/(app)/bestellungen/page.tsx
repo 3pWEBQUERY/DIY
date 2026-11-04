@@ -37,7 +37,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
             return (
               <li key={o.id}>
                 <Link href={`/bestellungen/${o.id}`} className="group grid grid-cols-[56px_1fr] items-center gap-4 py-4 sm:grid-cols-[64px_1fr_auto]">
-                  <div className="relative aspect-[4/5] overflow-hidden border border-line bg-sunken">
+                  <div className="relative aspect-[4/5] overflow-hidden border border-line bg-sunken rounded-2xl">
                     {first?.product.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={first.product.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />

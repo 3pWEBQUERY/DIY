@@ -71,7 +71,7 @@ export default async function Landing() {
   const hero = (
     <section className="px-5 pb-10 pt-6 sm:px-8 lg:py-20 lg:pl-[max(2rem,calc((100vw-1400px)/2+2rem))] lg:pr-16 lg:pt-20">
       <p className="spec flex items-center gap-3 text-ink">
-        <span className="inline-block size-1.5 bg-clay" />
+        <span className="inline-block size-1.5 bg-clay rounded-full" />
         Das soziale Netzwerk für Selbstgemachtes
       </p>
       <h1 className="display mt-7 text-[3.4rem] leading-[0.95] sm:text-7xl xl:text-[6.2rem]">
@@ -128,7 +128,7 @@ export default async function Landing() {
             ["Tag 4", "Schlicker + Feuchttuch hat geholfen", "Lösung"],
           ].map(([day, text, tag]) => (
             <li key={day} className="relative py-3 pl-6">
-              <span className="absolute -left-[5px] top-[18px] size-[9px] border border-ink bg-paper" />
+              <span className="absolute -left-[5px] top-[18px] size-[9px] rounded-full border border-ink bg-paper" />
               <span className="spec">{day} · {tag}</span>
               <span className="block text-[15px] font-medium">{text}</span>
             </li>
@@ -154,7 +154,7 @@ export default async function Landing() {
             ["Sitzfläche verleimen", false],
           ].map(([t, done], i) => (
             <li key={i} className="flex items-center gap-3 py-3 text-[15px]">
-              <span className={`grid size-5 place-items-center border ${done ? "border-moss bg-moss text-paper" : "border-line-strong"}`}>{done && <Check size={12} />}</span>
+              <span className={`grid size-5 place-items-center rounded-md border ${done ? "border-moss bg-moss text-paper" : "border-line-strong"}`}>{done && <Check size={12} />}</span>
               <span className="font-mono text-xs text-muted">{pad(i + 1)}</span>
               <span className={done ? "text-muted line-through decoration-1" : ""}>{t as string}</span>
             </li>
@@ -261,7 +261,7 @@ export default async function Landing() {
           <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8 lg:py-28">
             <p className="spec text-ink">Werkstattordnung</p>
             <h2 className="display mt-4 max-w-3xl text-5xl sm:text-6xl">Wir bauen ein Netzwerk, das sich wie eine gute Werkstatt anfühlt.</h2>
-            <div className="mt-16 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-16 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4 rounded-2xl overflow-hidden">
               {[
                 ["Menschen zuerst", "Der Feed ist der Mittelpunkt. Der Shop ergänzt die Community – er dominiert sie nie."],
                 ["Qualität vor Lautstärke", "Sortiert wird nach Frische, Relevanz und Vielfalt. Kleine Creator werden nicht systematisch übersehen."],
@@ -292,7 +292,7 @@ export default async function Landing() {
                 <LinkButton href="/registrieren" size="lg" variant="clay">
                   Konto erstellen <ArrowRight size={16} />
                 </LinkButton>
-                <Link href="/entdecken" className="inline-flex h-12 items-center px-2 text-[15px] font-semibold text-paper underline-offset-4 hover:underline">
+                <Link href="/entdecken" className="inline-flex h-12 items-center px-2 text-[15px] font-semibold text-paper underline-offset-4 hover:underline rounded-xl">
                   Zuerst stöbern
                 </Link>
               </div>

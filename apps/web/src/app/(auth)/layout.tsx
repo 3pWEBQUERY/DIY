@@ -30,10 +30,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div>
             <p className="display max-w-md text-4xl text-ink">„Jedes Projekt beginnt mit einem einzigen Faden.“</p>
             <div className="mt-6 flex items-center gap-6 spec">
-              <span className="flex items-center gap-2"><span className="size-2 bg-moss" />Idee</span>
-              <span className="flex items-center gap-2"><span className="size-2 bg-ink" />Journal</span>
-              <span className="flex items-center gap-2"><span className="size-2 bg-clay" />Anleitung</span>
-              <span className="flex items-center gap-2"><span className="size-2 border border-ink" />Nachbau</span>
+              <span className="flex items-center gap-2"><span className="size-2 bg-moss rounded-full" />Idee</span>
+              <span className="flex items-center gap-2"><span className="size-2 bg-ink rounded-full" />Journal</span>
+              <span className="flex items-center gap-2"><span className="size-2 bg-clay rounded-full" />Anleitung</span>
+              <span className="flex items-center gap-2"><span className="size-2 border border-ink rounded-full" />Nachbau</span>
             </div>
           </div>
         </div>

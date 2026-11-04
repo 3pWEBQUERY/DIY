@@ -87,7 +87,7 @@ export default function CommunityGuidelinesPage() {
           body: (
             <>
               <p>Wir reagieren verhältnismässig. Je nach Schwere und Wiederholung sind möglich:</p>
-              <ol className="grid gap-px border border-line bg-line sm:grid-cols-2">
+              <ol className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
                 {MODERATION_ACTIONS.filter((a) => a !== "NONE").map((a, i) => (
                   <li key={a} className="flex gap-3 bg-paper px-3 py-2 !pl-3 text-sm before:!hidden">
                     <span className="font-mono text-[11px] text-muted">{String(i + 1).padStart(2, "0")}</span>

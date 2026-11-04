@@ -25,7 +25,7 @@ function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onCh
       disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
       aria-label={label}
-      className="size-[18px] cursor-pointer appearance-none border border-line-strong bg-card checked:border-moss checked:bg-moss disabled:cursor-not-allowed disabled:opacity-60 grid place-content-center before:size-2.5 before:scale-0 before:bg-paper before:content-[''] before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)] checked:before:scale-100"
+      className="size-[18px] cursor-pointer appearance-none border border-line-strong bg-card checked:border-moss checked:bg-moss disabled:cursor-not-allowed disabled:opacity-60 grid place-content-center before:size-2.5 before:scale-0 before:bg-paper before:content-[''] before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)] checked:before:scale-100 rounded-xl"
     />
   );
 }
@@ -90,7 +90,7 @@ export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[
         <fieldset className="grid gap-2 sm:grid-cols-2">
           <legend className="sr-only">E-Mail-Rhythmus</legend>
           {EMAIL_DIGEST.map((d) => (
-            <label key={d} className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm", digest === d ? "border-ink bg-card" : "border-line-strong hover:border-ink")}>
+            <label key={d} className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", digest === d ? "border-ink bg-card" : "border-line-strong hover:border-ink")}>
               <input type="radio" name="digest" value={d} checked={digest === d} onChange={() => setDigest(d)} className="accent-[var(--color-ink)]" />
               {EMAIL_DIGEST_LABEL[d]}
             </label>

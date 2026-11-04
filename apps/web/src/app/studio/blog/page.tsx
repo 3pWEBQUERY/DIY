@@ -96,7 +96,7 @@ export default async function StudioBlogPage({ searchParams }: { searchParams: P
                 <tr key={a.id} className="group border-b border-line align-middle hover:bg-card">
                   <td className="py-3 pr-4">
                     <Link href={`/studio/blog/${a.id}`} className="flex items-center gap-4">
-                      <Cover url={a.coverUrl} alt="" seed={a.id} ratio="4/3" className="w-20 shrink-0 border border-line" sizes="80px" />
+                      <Cover url={a.coverUrl} alt="" seed={a.id} ratio="4/3" className="w-20 shrink-0 border border-line rounded-2xl" sizes="80px" />
                       <span className="min-w-0">
                         <span className="headline block truncate text-[17px] group-hover:underline">{a.title}</span>
                         <span className="mt-0.5 block truncate text-xs text-muted">

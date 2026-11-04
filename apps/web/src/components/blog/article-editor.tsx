@@ -268,7 +268,7 @@ export function ArticleEditor({
         </span>
         <div className="ml-auto flex items-center gap-2">
           {previewHref && (
-            <Link href={previewHref} target="_blank" className="inline-flex h-9 items-center gap-1.5 px-2 text-sm text-muted hover:text-ink">
+            <Link href={previewHref} target="_blank" className="inline-flex h-9 items-center gap-1.5 px-2 text-sm text-muted hover:text-ink rounded-xl">
               <Eye size={15} /> Vorschau
             </Link>
           )}
@@ -359,14 +359,14 @@ export function ArticleEditor({
             {cover.url ? (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={cover.url} alt="Titelbild" className="aspect-[16/9] w-full border border-line object-cover" />
+                <img src={cover.url} alt="Titelbild" className="aspect-[16/9] w-full border border-line object-cover rounded-2xl" />
                 <div className="mt-2 flex gap-3 text-xs">
                   <button type="button" onClick={() => coverInput.current?.click()} className="font-semibold hover:underline">Ersetzen</button>
                   <button type="button" onClick={() => touch(setCover)({ url: null, mediaId: null })} className="text-muted hover:text-danger">Entfernen</button>
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => coverInput.current?.click()} disabled={coverProgress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-ink hover:text-ink">
+              <button type="button" onClick={() => coverInput.current?.click()} disabled={coverProgress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-ink hover:text-ink rounded-2xl">
                 {coverProgress !== null ? <><LoaderCircle size={18} className="animate-spin" /><span className="font-mono text-xs">{Math.round(coverProgress * 100)} %</span></> : <><ImagePlus size={20} strokeWidth={1.5} /> Titelbild hochladen</>}
               </button>
             )}
@@ -384,9 +384,9 @@ export function ArticleEditor({
               ))}
             </Select>
             <Label htmlFor="m-tags" className="mt-4">Schlagwörter</Label>
-            <div className="flex min-h-11 flex-wrap items-center gap-1.5 border border-line-strong bg-card px-2 py-1.5 focus-within:border-ink">
+            <div className="flex min-h-11 flex-wrap items-center gap-1.5 border border-line-strong bg-card px-2 py-1.5 focus-within:border-ink rounded-xl">
               {tags.map((t) => (
-                <span key={t} className="inline-flex h-7 items-center gap-1 bg-sunken pl-2 pr-1 font-mono text-[11px]">
+                <span key={t} className="inline-flex h-7 items-center gap-1 bg-sunken pl-2 pr-1 font-mono text-[11px] rounded-xl">
                   #{t}
                   <button type="button" onClick={() => touch(setTags)(tags.filter((x) => x !== t))} className="grid size-5 place-items-center hover:text-danger" aria-label={`Schlagwort ${t} entfernen`}><X size={11} /></button>
                 </span>
@@ -413,7 +413,7 @@ export function ArticleEditor({
           <section aria-labelledby="m-seo">
             <h2 id="m-seo" className="mb-3 flex items-baseline gap-3 border-b border-ink pb-2 text-[14px] font-bold"><span className="spec text-ink">03</span>Adresse & Suchmaschinen</h2>
             <Label htmlFor="m-slug">Adresse</Label>
-            <div className="flex items-center border border-line-strong bg-card focus-within:border-ink">
+            <div className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
               <span className="truncate pl-3 font-mono text-[11px] text-muted">/u/{handle}/blog/</span>
               <input
                 id="m-slug"
@@ -433,15 +433,15 @@ export function ArticleEditor({
               <Label htmlFor="m-seot" className="mb-0">SEO-Titel</Label>
               <Counter n={seoTitle.length} max={70} warnAt={60} />
             </div>
-            <input id="m-seot" value={seoTitle} maxLength={70} onChange={(e) => touch(setSeoTitle)(e.target.value)} placeholder={title || "Standard: Artikeltitel"} className="mt-1.5 h-11 w-full border border-line-strong bg-card px-3 text-[15px] outline-none focus:border-ink" />
+            <input id="m-seot" value={seoTitle} maxLength={70} onChange={(e) => touch(setSeoTitle)(e.target.value)} placeholder={title || "Standard: Artikeltitel"} className="mt-1.5 h-11 w-full border border-line-strong bg-card px-3 text-[15px] outline-none focus:border-ink rounded-2xl" />
 
             <div className="mt-4 flex items-baseline justify-between">
               <Label htmlFor="m-seod" className="mb-0">SEO-Beschreibung</Label>
               <Counter n={seoDescription.length} max={170} warnAt={155} />
             </div>
-            <textarea id="m-seod" value={seoDescription} maxLength={170} rows={3} onChange={(e) => touch(setSeoDescription)(e.target.value)} placeholder={dek || "Standard: Vorspann"} className="mt-1.5 w-full resize-none border border-line-strong bg-card px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-ink" />
+            <textarea id="m-seod" value={seoDescription} maxLength={170} rows={3} onChange={(e) => touch(setSeoDescription)(e.target.value)} placeholder={dek || "Standard: Vorspann"} className="mt-1.5 w-full resize-none border border-line-strong bg-card px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-ink rounded-2xl" />
 
-            <figure className="mt-4 border border-line bg-card p-4" aria-label="Vorschau in Suchergebnissen">
+            <figure className="mt-4 border border-line bg-card p-4 rounded-2xl" aria-label="Vorschau in Suchergebnissen">
               <figcaption className="spec mb-2">Vorschau Suchergebnis</figcaption>
               <p className="truncate text-[12px] text-ink-2">{baseUrl.replace(/^https?:\/\//, "")} › u › {handle} › blog › {effectiveSlug}</p>
               <p className="mt-0.5 line-clamp-1 text-[18px] leading-snug text-[#1a0dab]">{(seoT || "Titel deines Artikels").slice(0, 60)}{seoT.length > 60 ? " …" : ""}</p>
@@ -573,18 +573,18 @@ function PublishDialog({
     <Dialog open={open} onClose={onClose} title="Veröffentlichen" description="Dein Artikel wird öffentlich auf deinem Blog und unter /blogs sichtbar.">
       <fieldset className="space-y-2">
         <legend className="sr-only">Zeitpunkt</legend>
-        <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3", mode === "now" ? "border-ink bg-sunken" : "border-line")}>
+        <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "now" ? "border-ink bg-sunken" : "border-line")}>
           <input type="radio" name="when" checked={mode === "now"} onChange={() => setMode("now")} className="mt-1 accent-[#B64B3A]" />
           <span><span className="block font-semibold">Jetzt veröffentlichen</span><span className="text-sm text-muted">Sofort sichtbar.</span></span>
         </label>
         {canSchedule && (
-          <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3", mode === "later" ? "border-ink bg-sunken" : "border-line")}>
+          <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "later" ? "border-ink bg-sunken" : "border-line")}>
             <input type="radio" name="when" checked={mode === "later"} onChange={() => setMode("later")} className="mt-1 accent-[#B64B3A]" />
             <span className="flex-1">
               <span className="flex items-center gap-1.5 font-semibold"><CalendarClock size={15} /> Planen</span>
               <span className="text-sm text-muted">Automatisch zum gewählten Zeitpunkt.</span>
               {mode === "later" && (
-                <input type="datetime-local" value={when} min={minLocal} onChange={(e) => setWhen(e.target.value)} aria-label="Veröffentlichungszeitpunkt" className="mt-2 h-10 w-full border border-line-strong bg-card px-2 font-mono text-sm outline-none focus:border-ink" />
+                <input type="datetime-local" value={when} min={minLocal} onChange={(e) => setWhen(e.target.value)} aria-label="Veröffentlichungszeitpunkt" className="mt-2 h-10 w-full border border-line-strong bg-card px-2 font-mono text-sm outline-none focus:border-ink rounded-2xl" />
               )}
             </span>
           </label>

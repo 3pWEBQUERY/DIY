@@ -72,9 +72,9 @@ export default async function UserBlogPage({ params, searchParams }: Props) {
 
       {topTags.length > 0 && (
         <nav aria-label="Schlagwörter" className="-mt-6 mb-10 flex flex-wrap gap-2">
-          {sp.tag && <Link href={`/u/${author.handle}/blog`} className="inline-flex h-7 items-center border border-ink bg-ink px-2.5 font-mono text-[11px] text-paper">#{sp.tag} ×</Link>}
+          {sp.tag && <Link href={`/u/${author.handle}/blog`} className="inline-flex h-7 items-center border border-ink bg-ink px-2.5 font-mono text-[11px] text-paper rounded-xl">#{sp.tag} ×</Link>}
           {topTags.filter(([t]) => t !== sp.tag).map(([t]) => (
-            <Link key={t} href={`/u/${author.handle}/blog?tag=${t}`} className="inline-flex h-7 items-center border border-line-strong px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink">#{t}</Link>
+            <Link key={t} href={`/u/${author.handle}/blog?tag=${t}`} className="inline-flex h-7 items-center border border-line-strong px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink rounded-xl">#{t}</Link>
           ))}
         </nav>
       )}

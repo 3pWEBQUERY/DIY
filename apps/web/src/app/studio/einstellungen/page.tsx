@@ -37,7 +37,7 @@ export default async function StudioSettingsPage() {
         </div>
       </section>
 
-      <section aria-labelledby="se2" className="crop border border-line bg-card p-6 sm:p-8">
+      <section aria-labelledby="se2" className="crop border border-line bg-card p-6 sm:p-8 rounded-2xl">
         <div className="flex flex-wrap items-center gap-3">
           <h2 id="se2" className="headline text-2xl">Creator Pro</h2>
           <Badge tone="clay">Bald verfügbar</Badge>
