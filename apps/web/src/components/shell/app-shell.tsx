@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Bell } from "lucide-react";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
@@ -7,6 +8,7 @@ import { SideNav, BottomNav, MobileMoreMenu, type ShellUser } from "./side-nav";
 import { CommandPalette } from "./command-palette";
 import { Wordmark } from "./wordmark";
 import { MobileSearchButton } from "./mobile-search";
+import { PageTransition } from "./page-transition";
 
 async function counts(userId: string) {
   const [notifications, messages, cart] = await Promise.all([
@@ -38,9 +40,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   // Nutzereinstellung „Bewegung reduzieren“ (§29.4) zusätzlich zu prefers-reduced-motion
   const reduceMotion = user ? ((await db.userPreference.findUnique({ where: { userId: user.id }, select: { reduceMotion: true } }))?.reduceMotion ?? false) : false;
 
+  const navCollapsed = (await cookies()).get("wr_nav")?.value === "collapsed";
+
   return (
     <div className="flex min-h-dvh" data-reduce-motion={reduceMotion ? "" : undefined}>
-      <SideNav user={shellUser} counts={c} />
+      <SideNav user={shellUser} counts={c} collapsed={navCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile Kopfzeile */}
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-paper px-4 md:hidden">
@@ -63,7 +67,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main id="main" className="flex-1 pb-20 md:pb-0">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
       <BottomNav user={shellUser} counts={c} />

@@ -30,7 +30,7 @@ export function Toaster() {
           key={t.id}
           className={cn(
             "pointer-events-auto flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium animate-rise",
-            t.tone === "ok" ? "bg-ink text-paper" : "bg-danger text-paper",
+            t.tone === "ok" ? "bg-moss text-paper" : "bg-danger text-paper",
           )}
         >
           <span className={cn("size-1.5 rounded-full", t.tone === "ok" ? "bg-moss-soft" : "bg-paper")} />

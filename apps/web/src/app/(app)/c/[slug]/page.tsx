@@ -150,7 +150,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
         ) : (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
-              <li key={p.id} className="group relative flex flex-col border border-line bg-card hover:border-ink rounded-2xl">
+              <li key={p.id} className="group relative flex flex-col border border-line bg-card hover:border-rule-strong rounded-2xl">
                 <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="4/3" className="border-b border-line" sizes="(min-width: 1024px) 360px, 50vw" />
                 <div className="flex flex-1 flex-col p-4">
                   <p className="spec">{PROJECT_STATUS_LABEL[p.status]} · {categoryBySlug(p.category)?.short}</p>
@@ -232,7 +232,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
           <div className="mt-4"><RulesList rules={c.rules} /></div>
         </div>
         <aside aria-label="Datenblatt">
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-ink pt-5">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-rule pt-5">
             <Spec label="Gegründet">{formatDate(c.createdAt, { month: "long", year: "numeric" })}</Spec>
             <Spec label="Mitglieder">{c.memberCount}</Spec>
             <Spec label="Kategorie">{cat?.name ?? c.category}</Spec>
@@ -256,7 +256,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
 
   return (
     <div className="pb-16">
-      <header className="border-b border-ink">
+      <header className="border-b border-rule">
         <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/5" priority sizes="100vw" className="max-h-[320px] w-full border-b border-line" label={c.name} />
         <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-10">
           <div className="flex flex-wrap items-end justify-between gap-6 py-6">

@@ -8,6 +8,7 @@ import { ActionButton, ReasonButton } from "@/components/admin/action-controls";
 import { Badge } from "@/components/ui/misc";
 import { num, shortDate } from "@/components/admin/format";
 import { setFeaturedAction, setHiddenAction } from "./actions";
+import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Inhalte" };
 
@@ -35,14 +36,14 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
         <input name="q" defaultValue={sp.q ?? ""} placeholder="Titel, @handle oder ID" className={`${filterInput} w-60`} />
       </FilterField>
       <FilterField label="Zustand">
-        <select name="zustand" defaultValue={sp.zustand ?? ""} className={filterInput}>
+        <Select name="zustand" defaultValue={sp.zustand ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
           <option value="">Alle</option>
           {Object.entries(STATE_LABEL).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
           ))}
-        </select>
+        </Select>
       </FilterField>
       <label className="flex h-9 items-center gap-2 text-[13px]">
         <input type="checkbox" name="hervorgehoben" value="1" defaultChecked={opts.featured} className="accent-[var(--color-ink)]" />

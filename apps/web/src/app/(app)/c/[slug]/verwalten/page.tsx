@@ -65,8 +65,8 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
             <form action={base} className="mt-4 flex max-w-sm gap-2">
               <input type="hidden" name="bereich" value="mitglieder" />
               <label htmlFor="mq" className="sr-only">Mitglied suchen</label>
-              <input id="mq" name="q" defaultValue={sp.q} placeholder="Name oder @handle suchen" className="h-10 flex-1 border border-line-strong bg-card px-3 text-sm outline-none focus:border-ink rounded-2xl" />
-              <button type="submit" className="h-10 border border-line-strong px-3 text-sm font-semibold hover:border-ink rounded-2xl">Suchen</button>
+              <input id="mq" name="q" defaultValue={sp.q} placeholder="Name oder @handle suchen" className="h-10 flex-1 border border-line-strong bg-card px-3 text-sm outline-none focus:border-moss rounded-2xl" />
+              <button type="submit" className="h-10 border border-line-strong px-3 text-sm font-semibold hover:border-rule-strong rounded-2xl">Suchen</button>
             </form>
             <div className="mt-4">
               <MembersManager communityId={c.id} members={members.items} viewer={{ id: viewer.id, rank, canManageRoles: canManage, isOwner: data.membership?.role === "OWNER" }} />
@@ -112,7 +112,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
     default: {
       const log = await moderationLog(c.id);
       body = log.length ? (
-        <ol className="max-w-[860px] border-l border-ink">
+        <ol className="max-w-[860px] border-l border-rule">
           {log.map((e) => (
             <li key={e.id} className="relative grid gap-1 py-3 pl-6 sm:grid-cols-[9rem_1fr]">
               <span className="absolute -left-[4px] top-[1.15rem] size-[7px] rounded-full bg-ink" aria-hidden />
@@ -145,7 +145,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
         <ArrowLeft size={14} /> {c.name}
       </Link>
       <header className="mb-6">
-        <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Verwalten</p>
+        <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Verwalten</p>
         <h1 className="display mt-2 text-4xl sm:text-5xl">{c.name}</h1>
       </header>
       <TabLinks className="mb-8" active={active} tabs={SECTIONS.map((s) => ({ key: s.key, label: s.label, href: `${base}?bereich=${s.key}`, count: "count" in s && s.count ? s.count : undefined }))} />

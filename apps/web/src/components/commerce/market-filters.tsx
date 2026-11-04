@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import { CATEGORIES, COUNTRY_LABEL, PRODUCT_KIND, PRODUCT_KIND_LABEL, SHIP_COUNTRIES } from "@werkraum/shared";
 import { Input, Label, Select } from "@/components/ui/field";
@@ -19,7 +20,7 @@ export const MARKET_SORT_LABEL = SORT_LABEL;
 export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw: Record<string, string>; action?: string; idPrefix?: string }) {
   const id = (k: string) => `${idPrefix}-${k}`;
   return (
-    <form action={action} method="get" className="space-y-6" aria-label="Produkte filtern">
+    <Form action={action} className="space-y-6" aria-label="Produkte filtern">
       {raw.q && <input type="hidden" name="q" value={raw.q} />}
       <div>
         <Label htmlFor={id("kategorie")}>Kategorie</Label>
@@ -96,6 +97,6 @@ export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw:
           Zurücksetzen
         </Link>
       </div>
-    </form>
+    </Form>
   );
 }

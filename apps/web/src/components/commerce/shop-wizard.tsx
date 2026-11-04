@@ -85,14 +85,14 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
   return (
     <div className="max-w-2xl">
       {mode === "wizard" && (
-        <ol className="mb-10 grid grid-cols-4 border-t border-ink" aria-label="Schritte">
+        <ol className="mb-10 grid grid-cols-4 border-t border-rule" aria-label="Schritte">
           {STEPS.map((s, i) => (
             <li key={s.key}>
               <button
                 type="button"
                 onClick={() => setStep(i)}
                 aria-current={i === step ? "step" : undefined}
-                className={cn("flex w-full flex-col items-start gap-1 border-t-2 pt-2 text-left", i === step ? "border-ink" : i < step ? "border-moss" : "border-transparent")}
+                className={cn("flex w-full flex-col items-start gap-1 border-t-2 pt-2 text-left", i === step ? "border-rule" : i < step ? "border-moss" : "border-transparent")}
               >
                 <span className="spec flex items-center gap-1">
                   {i < step ? <Check size={11} className="text-moss" /> : String(i + 1).padStart(2, "0")}
@@ -168,7 +168,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
             </p>
             <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Verkäufertyp">
               {SELLER_TYPE.map((t) => (
-                <label key={t} className={cn("flex cursor-pointer flex-col gap-1 border px-4 py-3 rounded-2xl", v.sellerType === t ? "border-ink bg-sunken" : "border-line bg-card hover:border-line-strong")}>
+                <label key={t} className={cn("flex cursor-pointer flex-col gap-1 border px-4 py-3 rounded-2xl", v.sellerType === t ? "border-rule bg-sunken" : "border-line bg-card hover:border-line-strong")}>
                   <span className="flex items-center gap-2 text-[14px] font-semibold">
                     <input type="radio" name="sellerType" checked={v.sellerType === t} onChange={() => set("sellerType", t)} className="accent-[#B64B3A]" />
                     {SELLER_TYPE_LABEL[t]}

@@ -100,7 +100,7 @@ export function InvitePanel({ communityId, invited }: { communityId: string; inv
       >
         <div className="flex-1">
           <Label htmlFor="invite-handle">Profilname</Label>
-          <div className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
+          <div className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
             <span className="pl-3 text-muted">@</span>
             <input id="invite-handle" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="handle" className="h-11 flex-1 bg-transparent px-2 outline-none" autoComplete="off" />
           </div>
@@ -145,7 +145,7 @@ export function MembersManager({ communityId, members, viewer }: { communityId: 
         <table className="w-full min-w-[640px] text-sm">
           <caption className="sr-only">Mitglieder und Rollen</caption>
           <thead>
-            <tr className="border-b border-ink text-left">
+            <tr className="border-b border-rule text-left">
               <th scope="col" className="spec py-2.5 font-normal">Mitglied</th>
               <th scope="col" className="spec py-2.5 font-normal">Rolle</th>
               <th scope="col" className="spec py-2.5 font-normal">Dabei seit</th>
@@ -167,19 +167,19 @@ export function MembersManager({ communityId, members, viewer }: { communityId: 
                       <label className="sr-only" htmlFor={`role-${m.userId}`}>Rolle von {m.displayName}</label>
                     ) : null}
                     {viewer.canManageRoles && canModerate ? (
-                      <select
+                      <Select
                         id={`role-${m.userId}`}
                         value={m.role}
                         disabled={pending}
                         onChange={(e) => run(() => setMemberRoleAction(communityId, m.userId, e.target.value))}
-                        className="h-8 border border-line-strong bg-card px-2 text-[13px] rounded-2xl"
+                        className="h-9 w-auto min-w-[140px] text-[13px]"
                       >
                         {(["MEMBER", "MODERATOR", "ADMIN"] as const)
                           .filter((r) => viewer.rank >= 99 || RANK[r] < viewer.rank)
                           .map((r) => (
                             <option key={r} value={r}>{COMMUNITY_ROLE_LABEL[r]}</option>
                           ))}
-                      </select>
+                      </Select>
                     ) : (
                       <Badge tone={m.role === "OWNER" ? "ink" : m.role === "MEMBER" ? "outline" : "moss"}>{COMMUNITY_ROLE_LABEL[m.role]}</Badge>
                     )}

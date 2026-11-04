@@ -16,7 +16,7 @@ const tones: Record<Tone, string> = {
 export function Badge({ tone = "neutral", className, ...p }: ComponentProps<"span"> & { tone?: Tone }) {
   return (
     <span
-      className={cn("inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-mono uppercase tracking-[0.06em] whitespace-nowrap", tones[tone], className)}
+      className={cn("inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.07em] whitespace-nowrap", tones[tone], className)}
       {...p}
     />
   );
@@ -74,7 +74,7 @@ export function Spec({ label, children, className }: { label: string; children: 
 /* ───────── Abschnittstitel mit Nummer ───────── */
 export function SectionTitle({ n, title, action, className }: { n?: string; title: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex items-end justify-between gap-4 border-b border-ink pb-2.5", className)}>
+    <div className={cn("flex items-end justify-between gap-4 border-b border-rule pb-2.5", className)}>
       <h2 className="flex items-baseline gap-3 text-[15px] font-bold tracking-tight">
         {n && <span className="spec text-ink">{n}</span>}
         {title}

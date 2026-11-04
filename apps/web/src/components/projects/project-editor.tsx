@@ -223,7 +223,7 @@ export function ProjectEditor({
             <legend className="spec mb-2">Titelbild</legend>
             <div className="flex flex-wrap gap-2">
               {readyImages.map((m, i) => (
-                <label key={m.id} className={cn("relative size-16 cursor-pointer overflow-hidden border rounded-2xl", effectiveCover === m.id ? "border-ink outline outline-1 outline-ink" : "border-line opacity-70 hover:opacity-100")}>
+                <label key={m.id} className={cn("relative size-16 cursor-pointer overflow-hidden border rounded-2xl", effectiveCover === m.id ? "border-rule outline outline-1 outline-ink" : "border-line opacity-70 hover:opacity-100")}>
                   <input type="radio" name="cover" className="sr-only" checked={effectiveCover === m.id} onChange={() => setCoverId(m.id)} aria-label={`Bild ${i + 1} als Titelbild`} />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={m.preview} alt="" className="h-full w-full object-cover" />
@@ -243,7 +243,7 @@ export function ProjectEditor({
           <legend className="mb-2 text-[13px] font-semibold">Status</legend>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {PROJECT_STATUS.map((s) => (
-              <label key={s} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2.5 text-sm rounded-2xl", status === s ? "border-ink bg-sunken font-semibold" : "border-line hover:border-line-strong")}>
+              <label key={s} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2.5 text-sm rounded-2xl", status === s ? "border-rule bg-sunken font-semibold" : "border-line hover:border-line-strong")}>
                 <input type="radio" name="status" value={s} checked={status === s} onChange={() => setStatus(s)} className="sr-only" />
                 <StatusMark status={s} />
                 {PROJECT_STATUS_LABEL[s]}
@@ -253,9 +253,9 @@ export function ProjectEditor({
         </fieldset>
         <fieldset>
           <legend className="mb-2 text-[13px] font-semibold">Schwierigkeit</legend>
-          <div className="grid grid-cols-5 border border-line-strong rounded-2xl">
+          <div className="grid grid-cols-5 overflow-hidden rounded-2xl border border-line-strong">
             {DIFFICULTY.map((d) => (
-              <label key={d} className={cn("flex cursor-pointer flex-col items-center gap-2 border-r border-line px-1 py-3 text-center last:border-r-0", difficulty === d ? "bg-ink text-paper" : "hover:bg-sunken")}>
+              <label key={d} className={cn("flex cursor-pointer flex-col items-center gap-2 border-r border-line px-1 py-3 text-center last:border-r-0", difficulty === d ? "bg-moss text-paper" : "hover:bg-moss-soft")}>
                 <input type="radio" name="difficulty" value={d} checked={difficulty === d} onChange={() => setDifficulty(d)} className="sr-only" />
                 <Difficulty level={d} className={difficulty === d ? "[&>span]:bg-paper [&>span.bg-line-strong]:bg-paper/30" : ""} />
                 <span className="text-[12px] leading-tight">{DIFFICULTY_LABEL[d]}</span>
@@ -315,7 +315,7 @@ export function ProjectEditor({
         </section>
       )}
 
-      <div className="sticky bottom-16 z-20 -mx-4 flex items-center justify-between gap-3 border-t border-ink bg-paper px-4 py-3 md:bottom-0">
+      <div className="sticky bottom-16 z-20 -mx-4 flex items-center justify-between gap-3 border-t border-rule bg-paper px-4 py-3 md:bottom-0">
         <span className="hidden text-[13px] text-muted sm:block">
           {mode === "edit" ? "Änderungen sind nach dem Speichern sofort sichtbar." : "Du kannst alles später ergänzen – auch Journal und Anleitung."}
         </span>

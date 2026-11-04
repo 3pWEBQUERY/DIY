@@ -22,9 +22,9 @@ export default async function CartPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
-      <header className="mb-8 border-b border-ink pb-6">
+      <header className="mb-8 border-b border-rule pb-6">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           Marktplatz
         </p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Warenkorb</h1>
@@ -77,7 +77,7 @@ export default async function CartPage() {
           </div>
 
           <aside className="lg:sticky lg:top-6 lg:h-fit">
-            <div className="border border-ink bg-card p-5 rounded-2xl">
+            <div className="border border-rule bg-card p-5 rounded-2xl">
               <p className="spec mb-3">Zusammenfassung</p>
               <FeeSummary subtotal={cart.totals.subtotal} shipping={cart.totals.shipping} total={cart.totals.total} />
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted">

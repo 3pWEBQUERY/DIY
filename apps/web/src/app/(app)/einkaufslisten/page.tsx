@@ -32,7 +32,7 @@ export default async function ShoppingListsPage() {
       />
       <CreateShoppingList />
       {lists.length ? (
-        <ol className="mt-8 border-t border-ink">
+        <ol className="mt-8 border-t border-rule">
           {lists.map((l, i) => {
             const pct = l.total ? Math.round((l.done / l.total) * 100) : 0;
             return (

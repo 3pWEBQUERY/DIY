@@ -148,7 +148,7 @@ export function MediaPicker({
             add(e.dataTransfer.files);
           }}
           className={cn(
-            "flex w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted transition-colors hover:border-ink hover:text-ink rounded-2xl",
+            "flex w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted transition-colors hover:border-rule-strong hover:text-ink rounded-2xl",
             compact ? "h-11" : "h-24",
           )}
         >

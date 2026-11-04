@@ -106,7 +106,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
 /** Projektfaden-Verknüpfung: Der Beitrag hängt sichtbar an seinem Projekt (§1.3). */
 function ProjectLink({ p }: { p: NonNullable<PostView["project"]> }) {
   return (
-    <Link href={`/u/${p.ownerHandle}/${p.slug}`} className="group relative mt-3 flex items-stretch border border-line bg-card transition-colors hover:border-ink rounded-2xl">
+    <Link href={`/u/${p.ownerHandle}/${p.slug}`} className="group relative mt-3 flex items-stretch border border-line bg-card transition-colors hover:border-rule-strong rounded-2xl">
             <div className="relative w-20 shrink-0 overflow-hidden rounded-l-2xl border-r border-line">
         {p.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -193,11 +193,11 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
         </div>
       </header>
 
-      <div className={cn("mt-3", (post.project || post.tutorial || post.product || post.article) && "border-l border-ink pl-3")}>
+      <div className={cn("mt-3", (post.project || post.tutorial || post.product || post.article) && "border-l border-rule pl-3")}>
         {post.body && <RichText text={post.body} className="text-[15.5px] leading-relaxed text-ink-2" />}
 
         {post.repostOf && (
-          <Link href={`/beitrag/${post.repostOf.id}`} className="mt-3 block border border-line p-3.5 hover:border-ink rounded-2xl">
+          <Link href={`/beitrag/${post.repostOf.id}`} className="mt-3 block border border-line p-3.5 hover:border-rule-strong rounded-2xl">
             <p className="text-sm font-semibold">{post.repostOf.author?.displayName} <span className="font-normal text-muted">@{post.repostOf.author?.handle}</span></p>
             <p className="mt-1 line-clamp-3 text-sm text-ink-2">{post.repostOf.body}</p>
           </Link>
@@ -212,7 +212,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
         {post.project && <ProjectLink p={post.project} />}
 
         {post.tutorial && (
-          <Link href={`/anleitungen/${post.tutorial.slug}`} className="mt-3 flex items-center justify-between border border-line bg-card px-4 py-3 hover:border-ink rounded-2xl">
+          <Link href={`/anleitungen/${post.tutorial.slug}`} className="mt-3 flex items-center justify-between border border-line bg-card px-4 py-3 hover:border-rule-strong rounded-2xl">
             <span>
               <span className="spec">Neue Anleitung</span>
               <span className="block font-semibold">{post.tutorial.title}</span>
@@ -221,7 +221,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           </Link>
         )}
         {post.article && (
-          <Link href={`/u/${post.article.authorHandle}/blog/${post.article.slug}`} className="mt-3 block border border-line bg-card px-4 py-3 hover:border-ink rounded-2xl">
+          <Link href={`/u/${post.article.authorHandle}/blog/${post.article.slug}`} className="mt-3 block border border-line bg-card px-4 py-3 hover:border-rule-strong rounded-2xl">
             <span className="spec">Artikel · {post.article.readingMinutes} Min. Lesezeit</span>
             <span className="headline mt-1 block text-xl">{post.article.title}</span>
             {post.article.dek && <span className="mt-1 block text-sm text-muted line-clamp-2">{post.article.dek}</span>}

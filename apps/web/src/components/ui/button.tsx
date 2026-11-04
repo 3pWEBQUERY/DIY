@@ -11,7 +11,7 @@ const base =
 const variants: Record<Variant, string> = {
   primary: "bg-moss text-paper hover:bg-moss-ink border border-moss hover:border-moss-ink",
   ink: "bg-ink text-paper hover:bg-ink-2 border border-ink",
-  outline: "border border-line-strong bg-card text-ink hover:border-ink",
+  outline: "border border-line-strong bg-card text-ink hover:border-rule-strong",
   ghost: "text-ink hover:bg-sunken border border-transparent",
   clay: "bg-clay text-paper hover:bg-clay-ink border border-clay",
   danger: "bg-danger text-paper hover:opacity-90 border border-danger",

@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Plus, Search } from "lucide-react";
@@ -37,18 +38,18 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
         </LinkButton>
       }
     >
-      <form role="search" action="/communities" className="mt-8 flex max-w-xl items-center border-b border-ink">
+      <Form role="search" action="/communities" className="mt-8 flex max-w-xl items-center border-b border-rule">
         <label htmlFor="c-q" className="sr-only">Communities durchsuchen</label>
         <Search size={16} className="text-muted" aria-hidden />
         <input id="c-q" name="q" type="search" defaultValue={sp.q} placeholder="Nach Thema, Ort oder Name suchen …" className="h-12 flex-1 bg-transparent px-3 text-[15px] outline-none" />
         {sp.kategorie && <input type="hidden" name="kategorie" value={sp.kategorie} />}
         <button type="submit" className="text-sm font-semibold">Suchen</button>
-      </form>
+      </Form>
       {cats.length > 0 && (
         <nav aria-label="Kategorien" className="-mx-4 mt-5 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0">
           <ul className="flex min-w-max gap-2">
             <li>
-              <Link href={sp.q ? `/communities?q=${encodeURIComponent(sp.q)}` : "/communities"} aria-current={!sp.kategorie ? "page" : undefined} className={cn("inline-flex h-8 items-center border px-3 text-[13px] rounded-xl", !sp.kategorie ? "border-ink bg-ink text-paper" : "border-line-strong hover:border-ink")}>
+              <Link href={sp.q ? `/communities?q=${encodeURIComponent(sp.q)}` : "/communities"} aria-current={!sp.kategorie ? "page" : undefined} className={cn("inline-flex h-8 items-center border px-3 text-[13px] rounded-xl", !sp.kategorie ? "border-moss bg-moss text-paper" : "border-line-strong hover:border-rule-strong")}>
                 Alle
               </Link>
             </li>
@@ -57,7 +58,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
                 <Link
                   href={`/communities?${new URLSearchParams({ ...(sp.q ? { q: sp.q } : {}), kategorie: c.slug })}`}
                   aria-current={sp.kategorie === c.slug ? "page" : undefined}
-                  className={cn("inline-flex h-8 items-center gap-2 border px-3 text-[13px] rounded-xl", sp.kategorie === c.slug ? "border-ink bg-ink text-paper" : "border-line-strong hover:border-ink")}
+                  className={cn("inline-flex h-8 items-center gap-2 border px-3 text-[13px] rounded-xl", sp.kategorie === c.slug ? "border-moss bg-moss text-paper" : "border-line-strong hover:border-rule-strong")}
                 >
                   {c.short}
                   <span className={cn("font-mono text-[10px]", sp.kategorie === c.slug ? "text-paper/70" : "text-muted")}>{counts.get(c.slug)}</span>

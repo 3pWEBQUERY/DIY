@@ -27,7 +27,7 @@ export function SettingsNav() {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={cn("-ml-px flex h-9 items-center gap-3 border-l-2 border-transparent pl-4 text-[14px] text-muted hover:text-ink", active && "border-ink font-semibold text-ink")}
+                  className={cn("-ml-px flex h-9 items-center gap-3 border-l-2 border-transparent pl-4 text-[14px] text-muted hover:text-ink", active && "border-rule font-semibold text-ink")}
                 >
                   <span className="font-mono text-[10px] text-muted/70">{pad(i + 1)}</span>
                   {item.label}
@@ -41,7 +41,7 @@ export function SettingsNav() {
         {SETTINGS_NAV.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
-            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-ink text-paper" : "text-muted")}>
+            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-moss text-paper" : "text-muted")}>
               {item.label}
             </Link>
           );

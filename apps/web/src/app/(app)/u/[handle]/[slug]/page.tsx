@@ -183,7 +183,7 @@ export default async function ProjectPage({ params }: Params) {
             <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Schlagwörter">
               {p.tags.map((t) => (
                 <li key={t}>
-                  <Link href={`/projekte?q=${encodeURIComponent(t)}`} className="inline-flex h-7 items-center border border-line px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink rounded-xl">#{t}</Link>
+                  <Link href={`/projekte?q=${encodeURIComponent(t)}`} className="inline-flex h-7 items-center border border-line px-2.5 font-mono text-[11px] text-ink-2 hover:border-rule-strong rounded-xl">#{t}</Link>
                 </li>
               ))}
             </ul>
@@ -244,7 +244,7 @@ export default async function ProjectPage({ params }: Params) {
               {p.tutorials.length ? (
                 <div className="mt-6 space-y-4">
                   {p.tutorials.map((t) => (
-                    <Link key={t.id} href={t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : `/studio/anleitungen/${t.id}`} className="group grid gap-0 border border-line bg-card transition-colors hover:border-ink sm:grid-cols-[14rem_1fr] rounded-2xl">
+                    <Link key={t.id} href={t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : `/studio/anleitungen/${t.id}`} className="group grid gap-0 border border-line bg-card transition-colors hover:border-rule-strong sm:grid-cols-[14rem_1fr] rounded-2xl">
                       <div className="border-b border-line sm:border-b-0 sm:border-r">
                         <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="3/2" sizes="224px" className="h-full" />
                       </div>
@@ -397,7 +397,7 @@ function SpecSheet({ p }: { p: ProjectPageView }) {
   ];
   return (
     <section aria-label="Datenblatt" className="mt-6">
-      <div className="flex items-baseline justify-between border-b border-ink pb-2">
+      <div className="flex items-baseline justify-between border-b border-rule pb-2">
         <h2 className="spec text-ink">Datenblatt</h2>
         <span className="spec">{p.counts.views > 0 ? `${p.counts.views} Aufrufe` : ""}</span>
       </div>
@@ -430,8 +430,8 @@ function Journal({ p }: { p: ProjectPageView }) {
               <span className="spec hidden sm:block">{formatDate(e.happenedAt, { year: "numeric" })}</span>
               {e.minutes ? <span className="spec mt-1 block text-ink-2">{formatMinutes(e.minutes)}</span> : null}
             </div>
-            <div className={cn("relative min-w-0 pb-12 pl-6", last && !finished ? "border-l border-dashed border-muted" : "border-l border-ink", last && finished && "pb-6")}>
-              <span aria-hidden className={cn("absolute -left-px top-[5px] -translate-x-1/2", e.milestone ? "size-[10px] rotate-45 bg-clay" : "size-[9px] rounded-full border border-ink bg-paper")} />
+            <div className={cn("relative min-w-0 pb-12 pl-6", last && !finished ? "border-l border-dashed border-muted" : "border-l border-rule", last && finished && "pb-6")}>
+              <span aria-hidden className={cn("absolute -left-px top-[5px] -translate-x-1/2", e.milestone ? "size-[10px] rotate-45 bg-clay" : "size-[9px] rounded-full border border-rule bg-paper")} />
               {e.milestone && (
                 <>
                   <p className="spec text-clay-ink">Meilenstein</p>
@@ -505,7 +505,7 @@ function Materials({ p }: { p: ProjectPageView }) {
           <table className="w-full border-collapse text-[14px]">
             <caption className="spec mb-2 text-left">Material · {p.materials.length} Positionen</caption>
             <thead>
-              <tr className="border-b border-ink text-left">
+              <tr className="border-b border-rule text-left">
                 <th scope="col" className="spec w-10 py-2 font-normal">Pos.</th>
                 <th scope="col" className="spec py-2 font-normal">Material</th>
                 <th scope="col" className="spec py-2 pl-3 text-right font-normal">Menge</th>
@@ -540,10 +540,10 @@ function Materials({ p }: { p: ProjectPageView }) {
       {p.tools.length > 0 && (
         <div className="min-w-0">
           <p className="spec mb-2">Werkzeug · {p.tools.length}</p>
-          <ul className="border-t border-ink">
+          <ul className="border-t border-rule">
             {p.tools.map((t) => (
               <li key={t.id} className="flex items-baseline gap-3 border-b border-line py-2.5 text-[14px]">
-                <span aria-hidden className="mt-[7px] h-px w-3 shrink-0 bg-ink" />
+                <span aria-hidden className="mt-[7px] h-px w-3 shrink-0 bg-rule-strong" />
                 <span className="min-w-0">
                   <span className="font-semibold">{t.name}</span>
                   {t.note && <span className="block text-[13px] text-muted">{t.note}</span>}

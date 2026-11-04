@@ -47,7 +47,7 @@ export function CommunityComposer({ communityId, communityName, viewer, isMod }:
     });
 
   return (
-    <section aria-label={`In ${communityName} schreiben`} className={cn("border bg-card rounded-2xl", open ? "border-ink" : "border-line")}>
+    <section aria-label={`In ${communityName} schreiben`} className={cn("border bg-card rounded-2xl", open ? "border-rule" : "border-line")}>
       <div className="flex gap-3 p-4">
         <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={38} />
         <div className="min-w-0 flex-1">
@@ -195,7 +195,7 @@ export function CommunityFeed({
   }, [cursor]);
 
   const renderPost = (p: PostView, highlight?: boolean) => (
-    <div key={p.id} className={cn(highlight && "border-l-2 border-ink pl-4", p.isAnnouncement && "border-l-2 border-clay pl-4")}>
+    <div key={p.id} className={cn(highlight && "border-l-2 border-rule pl-4", p.isAnnouncement && "border-l-2 border-clay pl-4")}>
       <ModBar communityId={communityId} post={p} isMod={isMod} />
       <PostCard post={p} viewer={viewer} />
     </div>
@@ -203,11 +203,11 @@ export function CommunityFeed({
 
   return (
     <div>
-      {pinned.length > 0 && <div className="mb-2 border-b border-ink">{pinned.map((p) => renderPost(p, true))}</div>}
+      {pinned.length > 0 && <div className="mb-2 border-b border-rule">{pinned.map((p) => renderPost(p, true))}</div>}
       {items.map((p) => renderPost(p))}
       <div ref={sentinel} />
       {cursor ? (
-        <button type="button" onClick={more} disabled={pending} className="mt-6 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">
+        <button type="button" onClick={more} disabled={pending} className="mt-6 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-rule-strong hover:text-ink rounded-2xl">
           {pending ? "Lädt …" : "Ältere Beiträge laden"}
         </button>
       ) : (

@@ -37,7 +37,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         actions={
           <>
             {(unread.all ?? 0) > 0 && <MarkAllRead />}
-            <Link href="/einstellungen/benachrichtigungen" className="grid size-10 place-items-center border border-line-strong hover:border-ink rounded-xl" aria-label="Benachrichtigungen einstellen">
+            <Link href="/einstellungen/benachrichtigungen" className="grid size-10 place-items-center border border-line-strong hover:border-rule-strong rounded-xl" aria-label="Benachrichtigungen einstellen">
               <Settings size={16} aria-hidden />
             </Link>
           </>

@@ -44,8 +44,13 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
   const p = product;
   const soldOut = p.status === "SOLD_OUT";
   return (
-    <article className={cn("group relative", className)}>
-      <div className="relative border border-line bg-card transition-colors group-hover:border-ink rounded-2xl">
+    <article
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-rule-strong",
+        className,
+      )}
+    >
+      <div className="relative">
         <Cover plateNumber={false}
           url={p.cover.url}
           variants={p.cover.variants}
@@ -55,22 +60,22 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
           ratio="4/5"
           priority={priority}
           sizes={sizes ?? "(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw"}
-          className={cn(soldOut && "opacity-60 grayscale-[35%]")}
+          className={cn("rounded-none", soldOut && "opacity-60 grayscale-[35%]")}
         />
-        <span className="absolute left-2 top-2 bg-paper/95 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-2 rounded-2xl">{PRODUCT_KIND_LABEL[p.kind]}</span>
-        {soldOut && <span className="absolute bottom-2 left-2 bg-ink px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-paper rounded-2xl">Vergriffen</span>}
+        <span className="absolute left-3 top-3 rounded-full bg-paper/95 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-2">{PRODUCT_KIND_LABEL[p.kind]}</span>
+        {soldOut && <span className="absolute bottom-3 left-3 rounded-full bg-ink/85 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-paper">Vergriffen</span>}
       </div>
-      <div className="mt-2.5 space-y-1">
-        <h3 className="headline line-clamp-2 text-[16.5px] leading-snug text-ink">
+      <div className="flex flex-1 flex-col gap-1 px-4 pb-4 pt-3">
+        <h3 className="headline line-clamp-2 min-h-[2lh] text-[16.5px] leading-snug text-ink">
           <Link href={p.href} className="after:absolute after:inset-0 group-focus-within:underline group-hover:underline decoration-1 underline-offset-[3px]">
             {p.title}
           </Link>
         </h3>
-        <div className="flex items-baseline justify-between gap-3 text-[13px]">
+        <div className="mt-auto flex items-baseline justify-between gap-3 pt-1 text-[13px]">
           {showShop ? <span className="min-w-0 truncate text-muted">{p.shop.name}</span> : <RatingInline avg={p.ratingAvg ?? 0} count={p.ratingCount ?? 0} />}
           <Price minor={p.priceMinor} currency={p.currency} className="font-semibold text-ink" />
         </div>
-        {showShop && (p.ratingCount ?? 0) > 0 && <RatingInline avg={p.ratingAvg ?? 0} count={p.ratingCount ?? 0} />}
+        {showShop && <div className="min-h-[1lh]">{(p.ratingCount ?? 0) > 0 && <RatingInline avg={p.ratingAvg ?? 0} count={p.ratingCount ?? 0} />}</div>}
       </div>
     </article>
   );
@@ -79,9 +84,9 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
 /** Raster für Produktkarten – 2 Spalten mobil, bis 4 auf breiten Screens. */
 export function ProductGrid({ products, className, priorityFirst }: { products: ProductCardProps[]; className?: string; priorityFirst?: number }) {
   return (
-    <ul className={cn("grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 md:grid-cols-3 xl:grid-cols-4", className)}>
+    <ul className={cn("grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 xl:grid-cols-4", className)}>
       {products.map((p, i) => (
-        <li key={p.id}>
+        <li key={p.id} className="h-full">
           <ProductCard product={p} priority={i < (priorityFirst ?? 0)} />
         </li>
       ))}

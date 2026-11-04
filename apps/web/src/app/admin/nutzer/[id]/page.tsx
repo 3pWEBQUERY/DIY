@@ -46,7 +46,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
         <ArrowLeft size={14} aria-hidden /> Alle Nutzer
       </Link>
 
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-6 border-b border-ink pb-5">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-6 border-b border-rule pb-5">
         <div className="flex items-center gap-4">
           <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? "?"} size={64} />
           <div>

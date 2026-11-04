@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
@@ -42,12 +43,12 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
         ]}
       />
       <div className="mt-6 space-y-4 border-b border-line pb-6">
-        <form action="/materialien" className="relative max-w-md" role="search">
+        <Form action="/materialien" className="relative max-w-md" role="search">
           {active && <input type="hidden" name="kategorie" value={active.slug} />}
           <label htmlFor="mq" className="sr-only">Materialien durchsuchen</label>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="mq" name="q" defaultValue={q} placeholder="z. B. Merino, Eiche, Acrylfarbe …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl" />
-        </form>
+          <input id="mq" name="q" defaultValue={q} placeholder="z. B. Merino, Eiche, Acrylfarbe …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl" />
+        </Form>
         {categories.length > 0 && (
           <ChipRow label="Gruppe">
             <ChipLink href={href({ kategorie: undefined, nach: undefined })} active={!active}>Alle</ChipLink>
@@ -64,7 +65,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
             <table className="w-full min-w-[720px] border-collapse text-[14px]">
               <caption className="sr-only">Materialien</caption>
               <thead>
-                <tr className="border-b border-ink text-left">
+                <tr className="border-b border-rule text-left">
                   <th scope="col" className="spec py-2 pr-4 font-normal">Material</th>
                   <th scope="col" className="spec py-2 pr-4 font-normal">Art</th>
                   <th scope="col" className="spec py-2 pr-4 font-normal">Eigenschaften</th>
@@ -110,7 +111,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
           </div>
           {result.nextCursor && (
             <div className="mt-8 flex justify-center">
-              <Link href={href({ nach: result.nextCursor })} className="border border-line px-6 py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">Weitere Materialien</Link>
+              <Link href={href({ nach: result.nextCursor })} className="border border-line px-6 py-3 text-sm font-semibold text-muted hover:border-rule-strong hover:text-ink rounded-2xl">Weitere Materialien</Link>
             </div>
           )}
         </>

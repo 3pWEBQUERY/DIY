@@ -39,7 +39,7 @@ export default async function StudioContentPage({ searchParams }: { searchParams
     <div className="max-w-[1100px]">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Alles an einem Ort</p>
+          <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Alles an einem Ort</p>
           <h1 className="display text-[2.4rem] sm:text-5xl">Meine Inhalte</h1>
         </div>
         <LinkButton href="/erstellen" variant="ink">Neu erstellen</LinkButton>

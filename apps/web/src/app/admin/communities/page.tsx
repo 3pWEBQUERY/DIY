@@ -8,6 +8,7 @@ import { ActionButton, ReasonButton } from "@/components/admin/action-controls";
 import { Badge } from "@/components/ui/misc";
 import { num, shortDate } from "@/components/admin/format";
 import { setFeaturedAction, setHiddenAction } from "../inhalte/actions";
+import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Communities" };
 
@@ -28,14 +29,14 @@ export default async function CommunitiesAdmin({ searchParams }: { searchParams:
           <input name="q" defaultValue={sp.q ?? ""} placeholder="Name oder Slug" className={`${filterInput} w-56`} />
         </FilterField>
         <FilterField label="Zustand">
-          <select name="zustand" defaultValue={sp.zustand ?? ""} className={filterInput}>
+          <Select name="zustand" defaultValue={sp.zustand ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             {Object.entries(STATE).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
-          </select>
+          </Select>
         </FilterField>
       </FilterBar>
       <Table caption="Communities">

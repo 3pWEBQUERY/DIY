@@ -30,12 +30,12 @@ export default async function SharedListPage({ params }: { params: Promise<{ tok
 
   return (
     <Page width="feed">
-      <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Geteilte Einkaufsliste · nur lesen</p>
+      <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Geteilte Einkaufsliste · nur lesen</p>
       <h1 className="display mt-3 text-[2.4rem] text-balance sm:text-5xl">{list.title}</h1>
       <p className="mt-3 text-sm text-muted">
         von {list.owner.displayName || list.owner.handle} · Stand {formatDate(list.updatedAt, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
       </p>
-      <p className="spec mt-8 border-b border-ink pb-2 text-ink">Offen · {open.length}</p>
+      <p className="spec mt-8 border-b border-rule pb-2 text-ink">Offen · {open.length}</p>
       {open.length ? <ol>{open.map((it, i) => <Row key={it.id} it={it} i={i} />)}</ol> : <p className="py-6 text-sm text-muted">Alles erledigt.</p>}
       {done.length > 0 && (
         <>

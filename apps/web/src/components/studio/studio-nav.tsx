@@ -35,7 +35,7 @@ export function StudioNav({ hasShop }: { hasShop: boolean }) {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-9 items-center gap-3 px-3 text-[14px] text-ink-2 hover:bg-sunken rounded-xl",
-                  active && "bg-ink text-paper hover:bg-ink",
+                  active && "bg-moss text-paper hover:bg-moss-ink",
                   disabled && "text-muted/70",
                 )}
               >
@@ -59,7 +59,7 @@ export function StudioMobileNav() {
       {STUDIO_NAV.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         return (
-          <Link key={item.href} href={item.href} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-ink text-paper" : "text-muted")}>
+          <Link key={item.href} href={item.href} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-moss text-paper" : "text-muted")}>
             {item.label}
           </Link>
         );

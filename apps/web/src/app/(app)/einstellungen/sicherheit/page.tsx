@@ -56,9 +56,9 @@ export default async function SecuritySettingsPage() {
 
       <SettingsSection n="02" title="Sicherheitsereignisse" description="Anmeldungen von neuen Geräten, Passwortänderungen und beendete Sitzungen.">
         {events.length ? (
-          <ol className="border-l border-ink pl-5">
+          <ol className="border-l border-rule pl-5">
             {events.map((e) => (
-              <li key={e.id} className="relative pb-4 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-ink rounded-full">
+              <li key={e.id} className="relative pb-4 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-rule-strong rounded-full">
                 <p className="text-sm">{notificationText({ type: "SECURITY", count: 1, data: e.data })}</p>
                 <p className="spec mt-0.5">{relativeTime(e.createdAt)}</p>
               </li>

@@ -31,7 +31,7 @@ export default async function CheckoutSuccessPage({ searchParams }: { searchPara
     <div className="mx-auto w-full max-w-[640px] px-4 py-10 sm:px-6 md:py-16">
       {!paid && !failed && <AwaitConfirmation />}
       <p className="spec mb-3 flex items-center gap-2">
-        <span className="inline-block h-px w-6 bg-ink" />
+        <span className="inline-block h-px w-6 bg-rule-strong" />
         Bestellung <span className="font-mono">{order.number}</span>
       </p>
       <h1 className="display text-[2.6rem] text-balance sm:text-5xl">

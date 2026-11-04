@@ -23,7 +23,7 @@ export default async function StudioSettingsPage() {
   return (
     <div className="max-w-[820px]">
       <header className="mb-10">
-        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Studio</p>
+        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Studio</p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Einstellungen</h1>
       </header>
 

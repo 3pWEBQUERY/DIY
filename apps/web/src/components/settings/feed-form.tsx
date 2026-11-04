@@ -46,7 +46,7 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
                     className={cn(
                       "h-8 px-2.5 text-[12.5px] text-ink-2 hover:bg-sunken rounded-2xl",
                       i > 0 && "border-l border-line-strong",
-                      modes[c.slug] === m && (m === "interest" ? "bg-moss text-paper hover:bg-moss" : m === "hidden" ? "bg-ink text-paper hover:bg-ink" : "bg-sunken font-semibold"),
+                      modes[c.slug] === m && (m === "interest" ? "bg-moss text-paper hover:bg-moss" : m === "hidden" ? "bg-moss text-paper hover:bg-moss-ink" : "bg-sunken font-semibold"),
                     )}
                   >
                     {m === "interest" ? "Interessiert mich" : m === "neutral" ? "Neutral" : "Ausblenden"}
@@ -62,7 +62,7 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
         <fieldset className="flex flex-wrap gap-2">
           <legend className="sr-only">Standard-Feed</legend>
           {FEED_DEFAULTS.map((f) => (
-            <label key={f} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2 text-sm rounded-2xl", def === f ? "border-ink bg-card" : "border-line-strong hover:border-ink")}>
+            <label key={f} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2 text-sm rounded-2xl", def === f ? "border-rule bg-card" : "border-line-strong hover:border-rule-strong")}>
               <input type="radio" name="feedDefault" checked={def === f} onChange={() => setDef(f)} className="accent-[var(--color-ink)]" />
               {FEED_DEFAULT_LABEL[f]}
             </label>

@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Search } from "lucide-react";
@@ -28,7 +29,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 function Lead({ t }: { t: TutorialCardData }) {
   const cat = categoryBySlug(t.category);
   return (
-    <Link href={t.href} className="group mb-14 grid gap-6 border-b border-ink pb-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10">
+    <Link href={t.href} className="group mb-14 grid gap-6 border-b border-rule pb-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10">
       <div className="crop border border-line rounded-2xl">
         <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="16/10" priority sizes="(min-width: 1024px) 680px, 100vw" />
       </div>
@@ -102,12 +103,12 @@ export default async function TutorialsIndex({ searchParams }: { searchParams: P
       />
 
       <div className="mt-6 space-y-3 border-b border-line pb-6">
-        <form action="/anleitungen" className="relative mb-5 max-w-md" role="search">
+        <Form action="/anleitungen" className="relative mb-5 max-w-md" role="search">
           {cat && <input type="hidden" name="kategorie" value={cat.slug} />}
           <label htmlFor="tq" className="sr-only">Anleitungen durchsuchen</label>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="tq" name="q" defaultValue={q} placeholder="Was möchtest du lernen?" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl" />
-        </form>
+          <input id="tq" name="q" defaultValue={q} placeholder="Was möchtest du lernen?" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl" />
+        </Form>
         <ChipRow label="Kategorie">
           <ChipLink href={href({ kategorie: undefined })} active={!cat}>Alle</ChipLink>
           {CATEGORIES.map((c) => (
@@ -135,9 +136,9 @@ export default async function TutorialsIndex({ searchParams }: { searchParams: P
             { key: "new", label: "Neu", param: undefined },
             { key: "popular", label: "Oft nachgebaut", param: "beliebt" },
           ].map((s) => (
-            <a key={s.key} href={href({ sort: s.param })} aria-current={sort === s.key ? "true" : undefined} className={sort === s.key ? "border-b-2 border-ink px-2 py-1 text-[14px] font-semibold" : "border-b-2 border-transparent px-2 py-1 text-[14px] text-muted hover:text-ink"}>
+            <Link key={s.key} scroll={false} href={href({ sort: s.param })} aria-current={sort === s.key ? "true" : undefined} className={sort === s.key ? "border-b-2 border-moss px-2 py-1 text-[14px] font-semibold" : "border-b-2 border-transparent px-2 py-1 text-[14px] text-muted hover:text-ink"}>
               {s.label}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>

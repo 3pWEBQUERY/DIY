@@ -28,7 +28,7 @@ export function LegalDoc({
     <div className="mx-auto max-w-[1120px] px-4 py-10 sm:px-6 md:py-14 lg:px-10">
       <header className="mb-10 max-w-3xl">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           {kicker}
         </p>
         <h1 className="display text-[2.6rem] text-balance sm:text-6xl">{title}</h1>
@@ -44,7 +44,7 @@ export function LegalDoc({
           <ol className="space-y-1.5 border-l border-line text-[13.5px]">
             {sections.map((s, i) => (
               <li key={s.id}>
-                <a href={`#${s.id}`} className="-ml-px flex gap-2.5 border-l border-transparent pl-3 text-muted hover:border-ink hover:text-ink">
+                <a href={`#${s.id}`} className="-ml-px flex gap-2.5 border-l border-transparent pl-3 text-muted hover:border-rule-strong hover:text-ink">
                   <span className="font-mono text-[10px] leading-5">{String(i + 1).padStart(2, "0")}</span>
                   <span>{s.title}</span>
                 </a>
@@ -57,7 +57,7 @@ export function LegalDoc({
         <article className="max-w-[44rem]">
           {sections.map((s, i) => (
             <section key={s.id} id={s.id} aria-labelledby={`${s.id}-t`} className="mb-12 scroll-mt-8">
-              <h2 id={`${s.id}-t`} className="mb-4 flex items-baseline gap-3 border-b border-ink pb-2.5 text-[17px] font-bold tracking-tight">
+              <h2 id={`${s.id}-t`} className="mb-4 flex items-baseline gap-3 border-b border-rule pb-2.5 text-[17px] font-bold tracking-tight">
                 <span className="spec text-ink">{String(i + 1).padStart(2, "0")}</span>
                 {s.title}
               </h2>

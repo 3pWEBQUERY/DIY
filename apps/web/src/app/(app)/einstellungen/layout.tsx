@@ -13,7 +13,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
       <header className="mb-8">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           Konto · @{user.profile.handle}
         </p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Einstellungen</h1>

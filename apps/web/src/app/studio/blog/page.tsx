@@ -82,7 +82,7 @@ export default async function StudioBlogPage({ searchParams }: { searchParams: P
           <table className="w-full min-w-[720px] text-sm">
             <caption className="sr-only">Artikelübersicht</caption>
             <thead>
-              <tr className="border-b border-ink text-left">
+              <tr className="border-b border-rule text-left">
                 <th scope="col" className="spec py-3 pr-4 font-normal">Artikel</th>
                 <th scope="col" className="spec py-3 pr-4 font-normal">Status</th>
                 <th scope="col" className="spec py-3 pr-4 text-right font-normal">Aufrufe</th>

@@ -109,7 +109,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
     <div className="grid gap-10 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-14">
       {/* ───── Schrittnavigation ───── */}
       <nav aria-label="Schritte" className="lg:sticky lg:top-8 lg:h-fit lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto lg:pr-2">
-        <div className="border-b border-ink pb-3">
+        <div className="border-b border-rule pb-3">
           <div className="flex items-baseline justify-between">
             <p className="spec text-ink">Fortschritt</p>
             <p className="font-mono text-[12px] num" aria-live="polite">
@@ -134,14 +134,14 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                   onClick={() => toggle(s.stableKey)}
                   aria-pressed={isDone}
                   aria-label={`Schritt ${s.position + 1} ${isDone ? "als offen markieren" : "als erledigt markieren"}`}
-                  className={cn("mt-[9px] grid size-4 shrink-0 place-items-center border transition-colors rounded-2xl", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-ink")}
+                  className={cn("mt-[9px] grid size-4 shrink-0 place-items-center border transition-colors rounded-2xl", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-rule-strong")}
                 >
                   {isDone && <Check size={11} strokeWidth={3} />}
                 </button>
                 <a
                   href={`#schritt-${s.position + 1}`}
                   aria-current={isActive ? "step" : undefined}
-                  className={cn("flex min-w-0 flex-1 gap-2 border-l py-2 pl-3 text-[13.5px] leading-snug", isActive ? "border-ink font-semibold text-ink" : "border-line text-muted hover:text-ink", isDone && !isActive && "text-muted line-through decoration-line-strong")}
+                  className={cn("flex min-w-0 flex-1 gap-2 border-l py-2 pl-3 text-[13.5px] leading-snug", isActive ? "border-rule font-semibold text-ink" : "border-line text-muted hover:text-ink", isDone && !isActive && "text-muted line-through decoration-line-strong")}
                 >
                   <span className="font-mono text-[11px] num">{pad(s.position + 1)}</span>
                   <span className="min-w-0">{s.title}</span>
@@ -166,7 +166,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
             const isDone = done.has(s.stableKey);
             return (
               <li key={s.stableKey}>
-                <article id={`schritt-${s.position + 1}`} data-key={s.stableKey} aria-labelledby={`st-${s.stableKey}`} className="scroll-mt-24 border-t border-ink pt-6">
+                <article id={`schritt-${s.position + 1}`} data-key={s.stableKey} aria-labelledby={`st-${s.stableKey}`} className="scroll-mt-24 border-t border-rule pt-6">
                   <header className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-5">
                     <span className={cn("display text-[3.4rem] leading-[0.85] num transition-colors", isDone ? "text-moss" : "text-ink")} aria-hidden>
                       {pad(s.position + 1)}
@@ -254,9 +254,9 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                       type="button"
                       onClick={() => toggle(s.stableKey)}
                       aria-pressed={isDone}
-                      className={cn("inline-flex h-10 items-center gap-2.5 border px-4 text-sm font-semibold transition-colors rounded-xl", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-ink")}
+                      className={cn("inline-flex h-10 items-center gap-2.5 border px-4 text-sm font-semibold transition-colors rounded-xl", isDone ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-rule-strong")}
                     >
-                      <span className={cn("grid size-4 place-items-center border rounded-2xl", isDone ? "border-paper" : "border-ink")}>{isDone && <Check size={11} strokeWidth={3} />}</span>
+                      <span className={cn("grid size-4 place-items-center border rounded-2xl", isDone ? "border-paper" : "border-rule")}>{isDone && <Check size={11} strokeWidth={3} />}</span>
                       {isDone ? "Erledigt" : "Schritt erledigt"}
                     </button>
                     {signedIn && !isOwner && !preview && (
@@ -272,7 +272,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
         </ol>
 
         {/* Abschluss */}
-        <section aria-label="Abschluss" className="mt-16 border border-ink bg-card p-6 sm:p-8 rounded-2xl">
+        <section aria-label="Abschluss" className="mt-16 border border-rule bg-card p-6 sm:p-8 rounded-2xl">
           <p className="spec text-ink">Ende der Anleitung</p>
           <p className="headline mt-2 text-[1.8rem] text-balance">{completed ? "Nachgebaut – stark!" : count === total && total > 0 ? "Alle Schritte erledigt." : "Fertig gebaut?"}</p>
           <p className="mt-2 max-w-[56ch] text-[15px] text-muted">
@@ -287,7 +287,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
               </Button>
             )}
             {!isOwner && (
-              <Link href={remixHref} className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink rounded-xl">
+              <Link href={remixHref} className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-rule-strong rounded-xl">
                 Eigenes Nachbauprojekt erstellen
               </Link>
             )}

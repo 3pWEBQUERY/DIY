@@ -42,7 +42,7 @@ export function LineEditor({
   return (
     <div>
       {value.length > 0 && (
-        <div className="hidden grid-cols-[2rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_5.5rem] gap-2 border-b border-ink pb-1.5 sm:grid" aria-hidden>
+        <div className="hidden grid-cols-[2rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_5.5rem] gap-2 border-b border-rule pb-1.5 sm:grid" aria-hidden>
           <span className="spec">Pos.</span>
           <span className="spec">{label}</span>
           <span className="spec">{kind === "material" ? "Menge" : "Anzahl"}</span>
@@ -74,7 +74,7 @@ export function LineEditor({
                     aria-label={`${label} ${i + 1}`}
                     aria-invalid={err ? true : undefined}
                     placeholder="z. B. Japansäge"
-                    className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-ink aria-[invalid=true]:border-danger rounded-2xl"
+                    className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl"
                   />
                 )}
                 {err && <p className="mt-1 text-[12px] text-danger">{err}</p>}
@@ -86,7 +86,7 @@ export function LineEditor({
                   maxLength={40}
                   aria-label={`Menge für ${label} ${i + 1}`}
                   placeholder={kind === "material" ? "z. B. 3 Knäuel" : "1"}
-                  className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl"
+                  className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
                 />
                 <input
                   value={l.note}
@@ -94,7 +94,7 @@ export function LineEditor({
                   maxLength={200}
                   aria-label={`Notiz für ${label} ${i + 1}`}
                   placeholder="Notiz (optional)"
-                  className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl"
+                  className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
                 />
               </div>
               <div className="col-start-3 row-start-1 flex justify-end sm:col-start-auto sm:row-start-auto">
@@ -116,7 +116,7 @@ export function LineEditor({
         <button
           type="button"
           onClick={() => onChange([...value, newLine()])}
-          className="mt-2 inline-flex h-10 items-center gap-2 border border-dashed border-line-strong px-3 text-[13px] font-semibold text-muted hover:border-ink hover:text-ink rounded-xl"
+          className="mt-2 inline-flex h-10 items-center gap-2 border border-dashed border-line-strong px-3 text-[13px] font-semibold text-muted hover:border-rule-strong hover:text-ink rounded-xl"
         >
           <Plus size={14} /> {label} hinzufügen
         </button>
@@ -201,11 +201,11 @@ export function MaterialInput({ value, onText, onPick, linked, invalid, label }:
             pick(items[active]!);
           } else if (e.key === "Escape") setOpen(false);
         }}
-        className={cn("h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-ink aria-[invalid=true]:border-danger rounded-2xl", linked && "pr-16")}
+        className={cn("h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl", linked && "pr-16")}
       />
       {linked && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[9px] uppercase tracking-[0.08em] text-moss">Katalog</span>}
       {open && (
-        <ul id={`${id}-list`} role="listbox" className="absolute left-0 right-0 top-[calc(100%+2px)] z-30 max-h-64 overflow-y-auto border border-ink bg-card py-1 rounded-2xl">
+        <ul id={`${id}-list`} role="listbox" className="absolute left-0 right-0 top-[calc(100%+2px)] z-30 max-h-64 overflow-y-auto border border-rule bg-card py-1 rounded-2xl">
           {items.map((s, i) => (
             <li
               key={s.id}

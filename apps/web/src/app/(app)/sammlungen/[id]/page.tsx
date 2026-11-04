@@ -37,9 +37,9 @@ export default async function CollectionPage({ params }: Params) {
 
   return (
     <Page width="wide">
-      <header className="mb-12 border-b border-ink pb-8">
+      <header className="mb-12 border-b border-rule pb-8">
         <p className="spec flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           Sammlung · {VISIBILITY_LABEL[c.visibility]} · {c.total} {c.total === 1 ? "Eintrag" : "Einträge"}
         </p>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">

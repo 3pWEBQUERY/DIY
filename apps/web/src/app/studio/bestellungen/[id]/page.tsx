@@ -40,7 +40,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
         / <span className="font-mono text-ink">{o.number}</span>
       </nav>
 
-      <header className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-ink pb-6">
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-rule pb-6">
         <div>
           <p className="spec">Bezahlt {o.paidAt ? `am ${formatDate(o.paidAt)}` : "–"}</p>
           <h1 className="display mt-1 font-mono text-[2.2rem] tracking-tight sm:text-5xl">{o.number}</h1>
@@ -158,7 +158,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
         </div>
 
         <aside className="space-y-8 xl:sticky xl:top-20 xl:h-fit">
-          <section className="border border-ink bg-card p-5 rounded-2xl">
+          <section className="border border-rule bg-card p-5 rounded-2xl">
             <p className="spec mb-4">Nächster Schritt</p>
             {status === "CANCELLED" || status === "REFUNDED" ? (
               <p className="text-[14px] text-muted">Diese Bestellung ist abgeschlossen ({status === "CANCELLED" ? "storniert" : "erstattet"}).</p>

@@ -39,9 +39,9 @@ export default async function CheckoutPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1100px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
-      <header className="mb-10 border-b border-ink pb-6">
+      <header className="mb-10 border-b border-rule pb-6">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           <Link href="/warenkorb" className="hover:text-ink">
             Warenkorb
           </Link>{" "}
@@ -54,7 +54,7 @@ export default async function CheckoutPage() {
         <CheckoutForm initial={initial} totalMinor={cart.totals.total} currency="CHF" orderCount={cart.groups.length} mode={cart.mode === "stripe" ? "stripe" : "simulated"} digitalOnly={digitalOnly} />
 
         <aside className="lg:sticky lg:top-6 lg:h-fit">
-          <div className="border border-ink bg-card rounded-2xl">
+          <div className="border border-rule bg-card rounded-2xl">
             <p className="spec border-b border-line px-5 py-3">Deine Bestellung</p>
             {cart.groups.map((g) => (
               <div key={g.shop.id} className="border-b border-line px-5 py-4">

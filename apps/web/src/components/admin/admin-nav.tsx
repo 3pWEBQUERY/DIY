@@ -25,7 +25,7 @@ export function AdminNav({ groups }: { groups: AdminNavGroup[] }) {
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={cn("flex h-8 items-center gap-3 px-3 text-[13.5px] text-ink-2 hover:bg-sunken rounded-xl", active && "bg-ink text-paper hover:bg-ink")}
+                    className={cn("flex h-8 items-center gap-3 px-3 text-[13.5px] text-ink-2 hover:bg-sunken rounded-xl", active && "bg-moss text-paper hover:bg-moss-ink")}
                   >
                     <span className={cn("font-mono text-[10px]", active ? "text-paper/60" : "text-muted/70")}>{pad(n)}</span>
                     <span className="truncate">{item.label}</span>
@@ -53,7 +53,7 @@ export function AdminMobileNav({ groups }: { groups: AdminNavGroup[] }) {
       {items.map((item) => {
         const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
-          <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-ink text-paper" : "text-muted")}>
+          <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-moss text-paper" : "text-muted")}>
             {item.label}
             {!!item.badge && <span className="ml-1.5 font-mono text-[11px]">{item.badge}</span>}
           </Link>

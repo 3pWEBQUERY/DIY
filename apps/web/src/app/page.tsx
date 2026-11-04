@@ -52,7 +52,7 @@ function Chapter({ n, kicker, title, children, aside }: { n: string; kicker: str
     <section className="px-5 py-14 sm:px-8 lg:py-0 lg:pl-[max(2rem,calc((100vw-1400px)/2+2rem))] lg:pr-16">
       <div className="flex items-baseline gap-4">
         <span className="font-mono text-sm text-clay">{n}</span>
-        <span className="h-px w-10 bg-ink" />
+        <span className="h-px w-10 bg-rule-strong" />
         <span className="spec text-ink">{kicker}</span>
       </div>
       <h2 className="display mt-6 max-w-xl text-[2.6rem] text-balance sm:text-6xl">{title}</h2>
@@ -90,7 +90,7 @@ export default async function Landing() {
           Erst einmal stöbern
         </LinkButton>
       </div>
-      <dl className="mt-14 grid max-w-md grid-cols-3 border-t border-ink pt-4">
+      <dl className="mt-14 grid max-w-md grid-cols-3 border-t border-rule pt-4">
         {[
           ["Projekte", d.projects],
           ["Anleitungen", d.tutorials],
@@ -103,7 +103,7 @@ export default async function Landing() {
         ))}
       </dl>
       <p className="mt-10 hidden items-center gap-2 spec lg:flex">
-        <span className="inline-block h-6 w-px animate-pulse bg-ink" /> Scrollen, um den Faden zu verfolgen
+        <span className="inline-block h-6 w-px animate-pulse bg-rule-strong" /> Scrollen, um den Faden zu verfolgen
       </p>
     </section>
   );
@@ -121,14 +121,14 @@ export default async function Landing() {
       kicker="Erschaffen"
       title="Dokumentiere Schicht für Schicht."
       aside={
-        <ol className="border-l border-ink">
+        <ol className="border-l border-rule">
           {[
             ["Tag 1", "Ton geknetet, Boden aufgebaut", "Meilenstein"],
             ["Tag 3", "Wülste bis zur Schulter – Riss am Rand", "Problem"],
             ["Tag 4", "Schlicker + Feuchttuch hat geholfen", "Lösung"],
           ].map(([day, text, tag]) => (
             <li key={day} className="relative py-3 pl-6">
-              <span className="absolute -left-[5px] top-[18px] size-[9px] rounded-full border border-ink bg-paper" />
+              <span className="absolute -left-[5px] top-[18px] size-[9px] rounded-full border border-rule bg-paper" />
               <span className="spec">{day} · {tag}</span>
               <span className="block text-[15px] font-medium">{text}</span>
             </li>
@@ -182,7 +182,7 @@ export default async function Landing() {
         <ThreadStory hero={hero} chapters={chapters} />
 
         {/* Frisch von der Werkbank */}
-        <section className="border-t border-ink bg-paper">
+        <section className="border-t border-rule bg-paper">
           <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8 lg:py-28">
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div>
@@ -235,7 +235,7 @@ export default async function Landing() {
                 Wir starten mit Häkeln, Stricken und Nähen – und bauen von Anfang an für Holz, Keramik, 3D-Druck, Elektronik und alles, was Hände erschaffen.
               </p>
             </div>
-            <ol className="border-t border-ink">
+            <ol className="border-t border-rule">
               {CATEGORIES.map((c, i) => (
                 <li key={c.slug}>
                   <Link href={`/entdecken?kategorie=${c.slug}`} className="group grid grid-cols-[2.5rem_2rem_1fr_auto] items-center gap-3 border-b border-line py-3.5 transition-colors hover:bg-paper sm:px-3">
@@ -257,7 +257,7 @@ export default async function Landing() {
         </section>
 
         {/* Prinzipien */}
-        <section className="border-t border-ink bg-paper">
+        <section className="border-t border-rule bg-paper">
           <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8 lg:py-28">
             <p className="spec text-ink">Werkstattordnung</p>
             <h2 className="display mt-4 max-w-3xl text-5xl sm:text-6xl">Wir bauen ein Netzwerk, das sich wie eine gute Werkstatt anfühlt.</h2>

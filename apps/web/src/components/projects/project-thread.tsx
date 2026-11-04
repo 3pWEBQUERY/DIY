@@ -19,12 +19,12 @@ import { cn, formatDate, formatMinutes, pad } from "@/lib/utils";
 type Marker = "hollow" | "ink" | "moss" | "clay" | "diamond" | "dot" | "ghost";
 
 const markerClass: Record<Marker, string> = {
-  hollow: "size-[11px] border border-ink bg-paper rounded-full",
+  hollow: "size-[11px] border border-rule bg-paper rounded-full",
   ink: "size-[11px] bg-ink rounded-full",
   moss: "size-[11px] bg-moss rounded-full",
   clay: "size-[11px] bg-clay rounded-full",
   diamond: "size-[8px] rotate-45 bg-clay",
-  dot: "size-[7px] rounded-full border border-ink bg-paper",
+  dot: "size-[7px] rounded-full border border-rule bg-paper",
   ghost: "size-[11px] border border-dashed border-muted bg-paper rounded-full",
 };
 
@@ -255,7 +255,7 @@ export function ProjectThread({ project: p, variant = "aside", className }: { pr
 
   return (
     <nav aria-label="Projektfaden" className={cn(variant === "inline" && "border border-line bg-card p-5 rounded-2xl", className)}>
-      <div className="mb-5 flex items-baseline justify-between gap-3 border-b border-ink pb-2.5">
+      <div className="mb-5 flex items-baseline justify-between gap-3 border-b border-rule pb-2.5">
         <h2 className="flex items-baseline gap-2.5 text-[15px] font-bold tracking-tight">
           <span className="spec text-ink">Faden</span>
           Projektfaden
@@ -272,7 +272,7 @@ export function ProjectThread({ project: p, variant = "aside", className }: { pr
               {!last && (
                 <span
                   aria-hidden
-                  className={cn("absolute left-[5.5px] top-[7px] h-full -translate-x-1/2", nextGhost || s.ghost ? "border-l border-dashed border-muted" : "w-px bg-ink")}
+                  className={cn("absolute left-[5.5px] top-[7px] h-full -translate-x-1/2", nextGhost || s.ghost ? "border-l border-dashed border-muted" : "w-px bg-rule-strong")}
                 />
               )}
               <Node marker={s.marker} />
@@ -297,7 +297,7 @@ export function ProjectThread({ project: p, variant = "aside", className }: { pr
       </ol>
       {/* Fadenende: Masslinien-Abschluss oder offener Faden */}
       <div className="mt-1 flex items-center gap-2 pl-0.5" aria-hidden>
-        {finished ? <span className="h-px w-3 bg-ink" /> : <span className="h-3 border-l border-dashed border-muted" />}
+        {finished ? <span className="h-px w-3 bg-rule-strong" /> : <span className="h-3 border-l border-dashed border-muted" />}
         <span className="spec">{finished ? "Faden abgeschlossen" : "Faden läuft weiter"}</span>
       </div>
     </nav>

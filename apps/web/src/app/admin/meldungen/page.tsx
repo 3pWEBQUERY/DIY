@@ -7,6 +7,7 @@ import { listReports } from "@/server/moderation/service";
 import { AdminHeader, EmptyRow, FilterBar, FilterField, Pager, RiskMeter, Table, Td, Th, Tr, filterInput } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/misc";
 import { dateTime, num } from "@/components/admin/format";
+import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Meldungen" };
 
@@ -45,24 +46,24 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
       <FilterBar>
         <FilterField label="Grund">
-          <select name="grund" defaultValue={reason ?? ""} className={filterInput}>
+          <Select name="grund" defaultValue={reason ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             {REPORT_REASONS.map((k) => (
               <option key={k} value={k}>
                 {REPORT_REASON_LABEL[k]}
               </option>
             ))}
-          </select>
+          </Select>
         </FilterField>
         <FilterField label="Inhaltstyp">
-          <select name="typ" defaultValue={targetType ?? ""} className={filterInput}>
+          <Select name="typ" defaultValue={targetType ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             {Object.entries(TARGET_TYPE_LABEL).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
-          </select>
+          </Select>
         </FilterField>
       </FilterBar>
 

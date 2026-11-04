@@ -5,6 +5,7 @@ import { currentUser } from "@/server/auth/session";
 import { Wordmark } from "@/components/shell/wordmark";
 import { StudioNav, StudioMobileNav } from "@/components/studio/studio-nav";
 import { Avatar } from "@/components/ui/misc";
+import { PageTransition } from "@/components/shell/page-transition";
 
 export const metadata = { title: { default: "Creator Studio", template: "%s · Creator Studio" }, robots: { index: false } };
 
@@ -14,7 +15,7 @@ export default async function StudioLayout({ children }: { children: React.React
   if (!user?.profile) redirect("/anmelden?weiter=/studio");
   return (
     <div className="min-h-dvh bg-paper">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-ink bg-paper px-4 sm:px-6">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-rule bg-paper px-4 sm:px-6">
         <Link href="/feed" className="flex items-center gap-2 text-sm text-muted hover:text-ink" aria-label="Zurück zur Community">
           <ArrowLeft size={16} />
           <Wordmark compact />
@@ -30,7 +31,7 @@ export default async function StudioLayout({ children }: { children: React.React
         <StudioNav hasShop={!!user.shop} />
         <main id="main" className="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-12">
           <StudioMobileNav />
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

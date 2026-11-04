@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
  * Idee/Planung hohl, in Arbeit Terrakotta, abgeschlossen Moos.
  */
 const MARK: Record<ProjectStatus, string> = {
-  IDEA: "border border-ink bg-transparent rounded-full",
-  PLANNING: "border border-ink bg-transparent rounded-2xl",
+  IDEA: "border border-rule bg-transparent rounded-full",
+  PLANNING: "border border-rule bg-transparent rounded-2xl",
   IN_PROGRESS: "bg-clay",
   PAUSED: "border border-muted bg-line-strong rounded-2xl",
   COMPLETED: "bg-moss",

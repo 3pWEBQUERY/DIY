@@ -129,7 +129,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                       {n.actor ? (
                         <Avatar src={n.actor.avatarUrl} name={n.actor.displayName} size={36} />
                       ) : (
-                        <span className={cn("grid size-9 place-items-center border rounded-xl", n.group === "system" ? "border-ink bg-ink text-paper" : "border-line-strong bg-paper text-ink")}>
+                        <span className={cn("grid size-9 place-items-center border rounded-xl", n.group === "system" ? "border-moss bg-moss text-paper" : "border-line-strong bg-paper text-ink")}>
                           <Icon size={16} strokeWidth={1.7} aria-hidden />
                         </span>
                       )}

@@ -121,7 +121,7 @@ export default async function TutorialPage({ params }: Params) {
       <header className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-end">
         <div className="min-w-0">
           <p className="spec flex items-center gap-2">
-            <span className="inline-block h-px w-6 bg-ink" />
+            <span className="inline-block h-px w-6 bg-rule-strong" />
             Anleitung{cat ? ` · ${cat.name}` : ""}
           </p>
           <h1 className="display mt-4 text-[2.5rem] text-balance sm:text-[3.4rem]">{t.title}</h1>
@@ -194,7 +194,7 @@ export default async function TutorialPage({ params }: Params) {
             {t.materials.length > 0 && (
               <div>
                 <p className="spec mb-2">Material · {t.materials.length}</p>
-                <ul className="border-t border-ink">
+                <ul className="border-t border-rule">
                   {t.materials.map((m, i) => (
                     <li key={`${m.name}-${i}`} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-baseline gap-3 border-b border-line py-2.5 text-[14px]">
                       <span className="font-mono text-[11px] text-muted num">{pad(i + 1)}</span>
@@ -211,10 +211,10 @@ export default async function TutorialPage({ params }: Params) {
             {t.tools.length > 0 && (
               <div>
                 <p className="spec mb-2">Werkzeug · {t.tools.length}</p>
-                <ul className="border-t border-ink">
+                <ul className="border-t border-rule">
                   {t.tools.map((x, i) => (
                     <li key={`${x.name}-${i}`} className="flex items-baseline gap-3 border-b border-line py-2.5 text-[14px]">
-                      <span aria-hidden className="mt-[7px] h-px w-3 shrink-0 bg-ink" />
+                      <span aria-hidden className="mt-[7px] h-px w-3 shrink-0 bg-rule-strong" />
                       <span className="min-w-0">
                         <span className="font-semibold">{x.name}</span>
                         {(x.quantity || x.note) && <span className="block text-[13px] text-muted">{[x.quantity, x.note].filter(Boolean).join(" · ")}</span>}
@@ -262,8 +262,8 @@ export default async function TutorialPage({ params }: Params) {
           {t.project && (
             <section>
               <p className="spec mb-3 text-ink">Zum Projekt</p>
-              <Link href={t.project.href} className="group block border-l border-ink pl-3">
-                <div className="border border-line transition-colors group-hover:border-ink rounded-2xl">
+              <Link href={t.project.href} className="group block border-l border-rule pl-3">
+                <div className="border border-line transition-colors group-hover:border-rule-strong rounded-2xl">
                   <Cover url={t.project.coverUrl} alt="" seed={t.project.id} category={t.project.category} ratio="4/3" sizes="320px" />
                 </div>
                 <p className="spec mt-2"><StatusLabel status={t.project.status} /></p>
@@ -290,10 +290,10 @@ export default async function TutorialPage({ params }: Params) {
           {t.versions.length > 0 && (
             <section>
               <p className="spec mb-3 text-ink">Versionen</p>
-              <ol className="border-l border-ink">
+              <ol className="border-l border-rule">
                 {t.versions.slice(0, 8).map((v) => (
                   <li key={v.version} className="relative pb-4 pl-4 last:pb-0">
-                    <span aria-hidden className={cn("absolute -left-px top-[5px] -translate-x-1/2", v.version === t.version.number ? "size-[9px] bg-ink rounded-full" : v.isMajor ? "size-[8px] rotate-45 bg-clay" : "size-[7px] rounded-full border border-ink bg-paper")} />
+                    <span aria-hidden className={cn("absolute -left-px top-[5px] -translate-x-1/2", v.version === t.version.number ? "size-[9px] bg-ink rounded-full" : v.isMajor ? "size-[8px] rotate-45 bg-clay" : "size-[7px] rounded-full border border-rule bg-paper")} />
                     <p className="spec">
                       v{v.version} · {formatDate(v.publishedAt, { day: "numeric", month: "short", year: "numeric" })}
                       {v.isMajor ? " · wesentlich" : ""}

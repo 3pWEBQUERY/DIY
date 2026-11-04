@@ -6,6 +6,7 @@ import { listQueue, reasonLabel } from "@/server/moderation/service";
 import { AdminHeader, EmptyRow, FilterBar, FilterField, Pager, RiskMeter, Segments, Table, Td, Th, Tr, filterInput } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Moderation" };
 
@@ -60,21 +61,21 @@ export default async function ModerationQueue({ searchParams }: { searchParams: 
           <input name="q" defaultValue={sp.q ?? ""} placeholder="Fall-Nr., @handle oder ID" className={`${filterInput} w-56`} />
         </FilterField>
         <FilterField label="Inhaltstyp">
-          <select name="typ" defaultValue={targetType ?? ""} className={filterInput}>
+          <Select name="typ" defaultValue={targetType ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             {Object.entries(TARGET_TYPE_LABEL).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
-          </select>
+          </Select>
         </FilterField>
         <FilterField label="Zuweisung">
-          <select name="zugewiesen" defaultValue={assignee ?? ""} className={filterInput}>
+          <Select name="zugewiesen" defaultValue={assignee ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             <option value="me">Mir zugewiesen</option>
             <option value="none">Nicht zugewiesen</option>
-          </select>
+          </Select>
         </FilterField>
       </FilterBar>
 

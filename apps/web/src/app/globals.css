@@ -2,12 +2,20 @@
 @import "@fontsource-variable/manrope";
 @import "@fontsource-variable/source-serif-4";
 @import "@fontsource-variable/source-serif-4/wght-italic.css";
-@import "@fontsource-variable/jetbrains-mono";
 
 /*
  * WERKRAUM Designsystem „Werkbuch“ (PRD §28)
  * Flach. Keine Verläufe, keine Schatten, kein Glas. Haarlinien, Papier, Tinte.
  */
+/* Seitenleiste ausgeklappt: ab xl und solange der Nutzer sie nicht eingeklappt hat */
+@custom-variant nav-open {
+  @media (width >= 80rem) {
+    &:where([data-nav="open"], [data-nav="open"] *) {
+      @slot;
+    }
+  }
+}
+
 @theme {
   /* Palette „Coral Studio“ – warm, kreativ, selbstbewusst */
   --color-paper: #faf8f5;      /* Hintergrund */
@@ -24,6 +32,8 @@
   --color-clay-soft: #f6e5e0;
   --color-line: #e7e2de;       /* Trennlinien */
   --color-line-strong: #d8d0cb;
+  --color-rule: #ddd3cd;        /* sanfte Linie statt Schwarz */
+  --color-rule-strong: #c9bcb4; /* Hover / Betonung */
   --color-danger: #9b2335;
   --color-danger-soft: #f7e3e4;
   --color-warn: #8a6a1f;
@@ -31,7 +41,8 @@
 
   --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Source Serif 4 Variable", ui-serif, Georgia, serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Label-/Zahlenschrift: Manrope statt Monospace – ruhiger, runder, passend zur weichen UI */
+  --font-mono: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
 
   /* Weiche, freundliche Formen (Coral Studio) */
   --radius-xs: 6px;
@@ -50,6 +61,10 @@
   --animate-draw: draw 1.2s var(--ease-out-quint) both;
   --animate-rise: rise 0.6s var(--ease-out-quint) both;
   --animate-fade: fade 0.4s ease-out both;
+  --animate-pop: pop 0.16s var(--ease-out-quint) both;
+  --animate-page: page 0.38s var(--ease-out-quint) both;
+
+  --shadow-float: 0 14px 36px -14px rgb(38 36 39 / 0.22), 0 2px 6px -2px rgb(38 36 39 / 0.06);
 }
 
 @keyframes draw {
@@ -58,6 +73,18 @@
 }
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: translateY(-3px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes page {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes tip-x {
+  from { opacity: 0; transform: translateX(-4px); }
   to { opacity: 1; transform: none; }
 }
 @keyframes fade {
@@ -126,13 +153,15 @@
   /* Technische Datenblatt-Labels */
   .spec {
     font-family: var(--font-mono);
-    font-size: var(--text-micro);
+    font-size: 0.6875rem;
     line-height: 1rem;
-    letter-spacing: 0.06em;
+    font-weight: 600;
+    letter-spacing: 0.075em;
     text-transform: uppercase;
     color: var(--color-muted);
     font-variant-numeric: tabular-nums;
   }
+  .font-mono { font-variant-numeric: tabular-nums; }
   .num { font-variant-numeric: tabular-nums; }
 
   /* Lesetypografie für Artikel und Anleitungen */
@@ -200,3 +229,42 @@
 @utility text-balance { text-wrap: balance; }
 @utility text-pretty { text-wrap: pretty; }
 @utility safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
+
+/* ── Seitenwechsel (View Transitions) ───────────────────────────────────────
+   Shell bleibt stehen, nur der Inhalt („page“) blendet weich über. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+}
+::view-transition-group(.page) {
+  animation: none;
+}
+::view-transition-old(.page) {
+  animation: 120ms ease-in both vt-out;
+}
+::view-transition-new(.page) {
+  animation: 300ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both vt-in;
+}
+@keyframes vt-out {
+  to { opacity: 0; }
+}
+@keyframes vt-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+:root:has([data-reduce-motion])::view-transition-old(*),
+:root:has([data-reduce-motion])::view-transition-new(*),
+:root:has([data-reduce-motion])::view-transition-group(*) {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}

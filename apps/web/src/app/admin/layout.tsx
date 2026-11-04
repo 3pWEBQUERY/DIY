@@ -6,6 +6,7 @@ import { adminPage, ROLE_LABEL } from "@/server/admin/guard";
 import { adminNavCounts } from "@/server/admin/kpis";
 import { Signet } from "@/components/shell/wordmark";
 import { AdminNav, AdminMobileNav, type AdminNavGroup } from "@/components/admin/admin-nav";
+import { PageTransition } from "@/components/shell/page-transition";
 
 export const metadata: Metadata = {
   title: { default: "Administration", template: "%s · Administration" },
@@ -91,7 +92,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminNav groups={groups} />
         <main id="main" className="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-10">
           <AdminMobileNav groups={groups} />
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
     </div>

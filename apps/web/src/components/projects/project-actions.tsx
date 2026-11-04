@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { followProjectAction } from "@/app/(app)/social-actions";
 import { deleteProjectAction, setProjectStatusAction } from "@/app/(app)/projekte/actions";
 import { StatusMark } from "./status";
+import { Select } from "@/components/ui/select";
 
 type Props = {
   project: { id: string; title: string; href: string; status: ProjectStatus };
@@ -114,24 +115,24 @@ export function ProjectOwnerBar({ project, ownerHandle }: { project: { id: strin
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border border-ink bg-card px-3 py-2.5 rounded-2xl">
+    <div className="flex flex-wrap items-center gap-3 border border-rule bg-card px-3 py-2.5 rounded-2xl">
       <span className="spec text-ink">Deine Werkbank</span>
       <span className="h-4 w-px bg-line" aria-hidden />
       <label className="flex items-center gap-2 text-[13px]">
         <span className="sr-only">Projektstatus</span>
         <StatusMark status={status} />
-        <select
+        <Select
           value={status}
           disabled={pending}
           onChange={(e) => changeStatus(e.target.value as ProjectStatus)}
-          className="h-8 border border-line-strong bg-card px-2 text-[13px] font-semibold hover:border-ink rounded-2xl"
+          className="h-9 w-auto min-w-[150px] text-[13px] font-semibold"
         >
           {PROJECT_STATUS.map((s) => (
             <option key={s} value={s}>
               {PROJECT_STATUS_LABEL[s]}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <div className="ml-auto flex items-center gap-2">
         <a href="#fortschritt" className={buttonClass("primary", "sm")}>

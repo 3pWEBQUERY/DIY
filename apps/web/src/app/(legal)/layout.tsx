@@ -24,7 +24,7 @@ const LINKS = {
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
-      <header className="border-b border-ink">
+      <header className="border-b border-rule">
         <div className="mx-auto flex h-16 max-w-[1120px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
           <Link href="/" aria-label={`${BRAND.name} – Startseite`}>
             <Wordmark />
@@ -33,7 +33,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Link href="/hilfe" className="hover:text-ink">Hilfe</Link>
             <Link href="/richtlinien/community" className="hover:text-ink">Richtlinien</Link>
             <Link href="/rechtliches/datenschutz" className="hover:text-ink">Datenschutz</Link>
-            <Link href="/feed" className="border border-ink px-3 py-1.5 font-semibold text-ink hover:bg-ink hover:text-paper rounded-2xl">Zur Community</Link>
+            <Link href="/feed" className="border border-rule px-3 py-1.5 font-semibold text-ink hover:bg-ink hover:text-paper rounded-2xl">Zur Community</Link>
           </nav>
           <Link href="/feed" className="text-sm font-semibold md:hidden">Zur Community →</Link>
         </div>

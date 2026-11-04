@@ -63,7 +63,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
     }
 
     return (
-      <div className="border-t border-ink bg-paper px-3 py-3 sm:px-4">
+      <div className="border-t border-rule bg-paper px-3 py-3 sm:px-4">
         {files.length > 0 && (
           <ul className="mb-2 flex gap-2 overflow-x-auto" aria-label="Angehängte Bilder">
             {files.map((f, i) => (
@@ -102,7 +102,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
             maxLength={5000}
             placeholder={placeholder}
             aria-describedby="msg-hint"
-            className="max-h-40 min-h-10 flex-1 resize-none border border-line-strong bg-card px-3 py-2 text-[15px] leading-relaxed outline-none field-sizing-content focus:border-ink rounded-2xl"
+            className="max-h-40 min-h-10 flex-1 resize-none border border-line-strong bg-card px-3 py-2 text-[15px] leading-relaxed outline-none field-sizing-content focus:border-moss rounded-2xl"
           />
           <button type="button" onClick={() => void send()} disabled={!canSend} className="grid size-10 shrink-0 place-items-center bg-ink text-paper hover:bg-ink-2 disabled:opacity-35 rounded-xl" aria-label="Senden">
             {sending ? <LoaderCircle size={17} className="animate-spin" /> : <SendHorizontal size={17} />}

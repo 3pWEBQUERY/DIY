@@ -45,7 +45,7 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
         <div className="overflow-x-auto">
           <table className="mt-2 w-full min-w-[720px] text-[14px]">
             <thead>
-              <tr className="border-b border-ink text-left">
+              <tr className="border-b border-rule text-left">
                 <th scope="col" className="spec py-3 font-normal">
                   Bestellung
                 </th>

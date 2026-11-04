@@ -38,7 +38,7 @@ function Card({ m }: { m: MediaItem }) {
         ) : (
           <span className="grid h-full place-items-center text-muted">{m.kind === "VIDEO" ? <Film size={28} strokeWidth={1.4} aria-hidden /> : <FileText size={28} strokeWidth={1.4} aria-hidden />}</span>
         )}
-        <span className={cn("absolute left-1.5 top-1.5 px-1.5 font-mono text-[10px] uppercase", m.attached ? "bg-ink text-paper" : "bg-paper text-ink")}>{m.attached ? "Verwendet" : "Unbenutzt"}</span>
+        <span className={cn("absolute left-1.5 top-1.5 px-1.5 font-mono text-[10px] uppercase", m.attached ? "bg-moss text-paper" : "bg-paper text-ink")}>{m.attached ? "Verwendet" : "Unbenutzt"}</span>
         {m.isPrivate && (
           <span className="absolute right-1.5 top-1.5 grid size-6 place-items-center bg-paper" title="Privat (nur über signierte Links)">
             <Lock size={12} aria-label="Privat" />
@@ -63,7 +63,7 @@ function Card({ m }: { m: MediaItem }) {
               maxLength={500}
               placeholder="Alt-Text: Was ist zu sehen?"
               aria-label="Bildbeschreibung (Alt-Text)"
-              className={cn("h-8 min-w-0 flex-1 border bg-paper px-2 text-[12px] outline-none focus:border-ink rounded-2xl", m.alt ? "border-line" : "border-warn/50")}
+              className={cn("h-8 min-w-0 flex-1 border bg-paper px-2 text-[12px] outline-none focus:border-moss rounded-2xl", m.alt ? "border-line" : "border-warn/50")}
             />
             {dirty && (
               <Button type="submit" size="sm" variant="ink" disabled={save.pending} className="h-8 px-2">

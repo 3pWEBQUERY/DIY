@@ -37,7 +37,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
         </section>
         <section aria-labelledby="more">
           <h2 id="more" className="spec mb-3 text-ink">02 — Mehr erschaffen</h2>
-          <ul className="divide-y divide-line border-y border-ink">
+          <ul className="divide-y divide-line border-y border-rule">
             {OPTIONS.filter((o) => o.key !== "beitrag").map((o, i) => (
               <li key={o.key}>
                 <Link href={o.href} className="group grid grid-cols-[2rem_2.25rem_1fr_auto] items-center gap-3 py-4 hover:bg-card sm:px-2 rounded-2xl">

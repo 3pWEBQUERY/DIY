@@ -108,7 +108,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     <div>
       {!isSelf && !blocked && <TrackView targetType="USER" targetId={userId} />}
       {/* Titelbild: Foto oder Rasterpapier mit den Werkstatt-Glyphen */}
-      <div className="relative h-44 overflow-hidden border-b border-ink bg-sunken sm:h-64">
+      <div className="relative h-44 overflow-hidden border-b border-rule bg-sunken sm:h-64">
         {profile.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.coverUrl} alt="" className="h-full w-full object-cover" />
@@ -124,7 +124,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-10">
         <header className="relative grid gap-6 border-b border-line pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 border border-ink sm:-mt-16 rounded-2xl" />
+            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 border border-rule sm:-mt-16 rounded-2xl" />
             <div className="min-w-0 pb-1 sm:pt-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="display text-4xl sm:text-5xl">{profile.displayName}</h1>
@@ -228,7 +228,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             </div>
 
             <aside className="space-y-8" aria-label="Profilinformationen">
-              <dl className="grid grid-cols-4 border-y border-ink py-4 lg:grid-cols-2 lg:gap-y-5">
+              <dl className="grid grid-cols-4 border-y border-rule py-4 lg:grid-cols-2 lg:gap-y-5">
                 {stats.map(([l, v]) => (
                   <div key={l}>
                     <dt className="spec">{l}</dt>
@@ -245,7 +245,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                       const cat = categoryBySlug(c);
                       return cat ? (
                         <li key={c}>
-                          <Link href={`/entdecken?kategorie=${c}`} className="inline-flex h-8 items-center gap-1.5 border border-line px-2.5 text-[13px] hover:border-ink rounded-xl">
+                          <Link href={`/entdecken?kategorie=${c}`} className="inline-flex h-8 items-center gap-1.5 border border-line px-2.5 text-[13px] hover:border-rule-strong rounded-xl">
                             <Glyph name={cat.glyph} size={14} strokeWidth={1.5} />{cat.short}
                           </Link>
                         </li>
@@ -266,7 +266,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                 </ul>
               )}
               {articles > 0 && (
-                <Link href={`/u/${profile.handle}/blog`} className="flex items-center justify-between border border-line px-4 py-3 text-sm hover:border-ink rounded-2xl">
+                <Link href={`/u/${profile.handle}/blog`} className="flex items-center justify-between border border-line px-4 py-3 text-sm hover:border-rule-strong rounded-2xl">
                   <span className="inline-flex items-center gap-2"><BookOpen size={15} /> Blog</span>
                   <span className="font-mono text-xs text-muted">{articles} Artikel</span>
                 </Link>

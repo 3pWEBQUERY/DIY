@@ -87,7 +87,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
               <EditCollectionButtons collection={activeCollection} />
             </div>
           ) : (
-            <Link href="/einkaufslisten" className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-ink rounded-xl">
+            <Link href="/einkaufslisten" className="inline-flex h-10 items-center gap-2 border border-line-strong bg-card px-4 text-sm font-semibold hover:border-rule-strong rounded-xl">
               <ListChecks size={16} /> Einkaufslisten
               <span className="font-mono text-[11px] text-muted">{listCount}</span>
             </Link>
@@ -97,7 +97,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
 
       <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
         <nav aria-label="Sammlungen" className="lg:sticky lg:top-10 lg:h-fit">
-          <div className="flex items-baseline justify-between border-b border-ink pb-2">
+          <div className="flex items-baseline justify-between border-b border-rule pb-2">
             <p className="spec text-ink">Sammlungen</p>
             <span className="spec">{collections.length}</span>
           </div>
@@ -113,7 +113,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
                   <Link
                     href={c.id ? `/gespeichert?sammlung=${c.id}` : "/gespeichert"}
                     aria-current={active ? "page" : undefined}
-                    className={cn("flex items-center justify-between gap-3 px-2 py-2 text-[14px]", active ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}
+                    className={cn("flex items-center justify-between gap-3 px-2 py-2 text-[14px]", active ? "bg-moss text-paper" : "text-ink-2 hover:bg-sunken")}
                   >
                     <span className="truncate">{c.title}</span>
                     <span className={cn("shrink-0 font-mono text-[10px]", active ? "text-paper/70" : "text-muted")}>
@@ -145,8 +145,8 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
             )}
             {(data.hasMore || data.page > 1) && (
               <div className="mt-10 flex justify-between gap-3">
-                {data.page > 1 ? <Link href={q({ seite: String(data.page - 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-ink rounded-2xl">Zurück</Link> : <span />}
-                {data.hasMore && <Link href={q({ seite: String(data.page + 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-ink rounded-2xl">Weitere</Link>}
+                {data.page > 1 ? <Link href={q({ seite: String(data.page - 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-rule-strong rounded-2xl">Zurück</Link> : <span />}
+                {data.hasMore && <Link href={q({ seite: String(data.page + 1) })} className="border border-line px-4 py-2 text-sm font-semibold hover:border-rule-strong rounded-2xl">Weitere</Link>}
               </div>
             )}
           </div>

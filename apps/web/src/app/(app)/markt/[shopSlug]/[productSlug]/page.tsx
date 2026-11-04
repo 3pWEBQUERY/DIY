@@ -128,7 +128,7 @@ export default async function ProductPage({ params }: Params) {
             <RatingInline avg={p.ratingAvg} count={p.ratingCount} />
           </p>
 
-          <div className="mt-7 border-t border-ink pt-6">
+          <div className="mt-7 border-t border-rule pt-6">
             <BuyBox
               productId={p.id}
               priceMinor={p.priceMinor}
@@ -206,11 +206,11 @@ export default async function ProductPage({ params }: Params) {
           {(p.project || p.tutorial) && (
             <section aria-labelledby="entstehung">
               <SectionTitle n="02" title={<span id="entstehung">So ist es entstanden</span>} />
-              <ol className="relative mt-6 ml-1.5 space-y-6 border-l border-ink">
+              <ol className="relative mt-6 ml-1.5 space-y-6 border-l border-rule">
                 {p.project && (
                   <li className="relative pl-6">
-                    <span aria-hidden className="absolute -left-[5px] top-4 size-[9px] border border-ink bg-paper rounded-full" />
-                    <Link href={`/u/${p.project.ownerHandle}/${p.project.slug}`} className="group flex items-stretch border border-line bg-card transition-colors hover:border-ink rounded-2xl">
+                    <span aria-hidden className="absolute -left-[5px] top-4 size-[9px] border border-rule bg-paper rounded-full" />
+                    <Link href={`/u/${p.project.ownerHandle}/${p.project.slug}`} className="group flex items-stretch border border-line bg-card transition-colors hover:border-rule-strong rounded-2xl">
                       <div className="relative w-24 shrink-0 overflow-hidden border-r border-line">
                         {p.project.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -229,8 +229,8 @@ export default async function ProductPage({ params }: Params) {
                 )}
                 {p.tutorial && (
                   <li className="relative pl-6">
-                    <span aria-hidden className="absolute -left-[5px] top-4 size-[9px] border border-ink bg-paper rounded-full" />
-                    <Link href={`/anleitungen/${p.tutorial.slug}`} className="group flex items-center justify-between gap-4 border border-line bg-card px-4 py-3 transition-colors hover:border-ink rounded-2xl">
+                    <span aria-hidden className="absolute -left-[5px] top-4 size-[9px] border border-rule bg-paper rounded-full" />
+                    <Link href={`/anleitungen/${p.tutorial.slug}`} className="group flex items-center justify-between gap-4 border border-line bg-card px-4 py-3 transition-colors hover:border-rule-strong rounded-2xl">
                       <div className="min-w-0">
                         <p className="spec">Anleitung · {formatMinutes(p.tutorial.minutes)}</p>
                         <p className="headline mt-1 text-lg group-hover:underline">{p.tutorial.title}</p>
@@ -308,7 +308,7 @@ export default async function ProductPage({ params }: Params) {
                     </div>
                     {r.body && <p className="mt-3 text-[14.5px] leading-relaxed text-ink-2">{r.body}</p>}
                     {r.sellerReply && (
-                      <div className="mt-3 border-l border-ink pl-3 text-[13.5px] text-ink-2">
+                      <div className="mt-3 border-l border-rule pl-3 text-[13.5px] text-ink-2">
                         <p className="spec mb-0.5">Antwort von {p.shop.name}</p>
                         {r.sellerReply}
                       </div>
@@ -323,7 +323,7 @@ export default async function ProductPage({ params }: Params) {
         </div>
 
         <aside className="space-y-8 lg:sticky lg:top-6 lg:h-fit" aria-label="Verkäufer">
-          <section className="border border-ink bg-card p-5 rounded-2xl">
+          <section className="border border-rule bg-card p-5 rounded-2xl">
             <p className="spec mb-3">Gemacht von</p>
             <Link href={`/u/${owner.handle}`} className="group flex items-center gap-3">
               <Avatar src={owner.avatarUrl} name={owner.displayName} size={48} />

@@ -18,6 +18,8 @@ const config: NextConfig = {
   outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },
+    // Besuchte Seiten kurz im Client-Cache halten: Zurück/Vor und Tab-Wechsel ohne Wartezeit
+    staleTimes: { dynamic: 30, static: 300 },
   },
   images: {
     remotePatterns: [

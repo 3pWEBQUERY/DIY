@@ -37,10 +37,10 @@ export function ProductGallery({ items, seed, category, title }: { items: Item[]
                 onClick={() => setIdx(i)}
                 aria-label={`Bild ${i + 1}${m.alt ? `: ${m.alt}` : ""}`}
                 aria-current={i === idx}
-                className={cn("relative block aspect-square w-full overflow-hidden border bg-sunken transition-colors rounded-2xl", i === idx ? "border-ink" : "border-line hover:border-line-strong")}
+                className={cn("relative block aspect-square w-full overflow-hidden border bg-sunken transition-colors rounded-2xl", i === idx ? "border-rule" : "border-line hover:border-line-strong")}
               >
                 <MediaImage variants={{ sm: m.variants.thumb ?? m.variants.sm, md: m.variants.sm }} alt="" sizes="96px" className="absolute inset-0" />
-                <span className={cn("absolute bottom-0 left-0 px-1 font-mono text-[9px]", i === idx ? "bg-ink text-paper" : "bg-paper/90 text-ink-2")}>{String(i + 1).padStart(2, "0")}</span>
+                <span className={cn("absolute bottom-0 left-0 px-1 font-mono text-[9px]", i === idx ? "bg-moss text-paper" : "bg-paper/90 text-ink-2")}>{String(i + 1).padStart(2, "0")}</span>
               </button>
             </li>
           ))}

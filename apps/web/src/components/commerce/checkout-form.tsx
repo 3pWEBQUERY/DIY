@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
@@ -38,7 +40,7 @@ export function CheckoutForm({
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const set = (k: keyof Address) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setA((s) => ({ ...s, [k]: e.target.value }));
+  const set = (k: keyof Address) => (e: { target: { value: string } }) => setA((s) => ({ ...s, [k]: e.target.value }));
   const f = (k: keyof Address) => fields[`address.${k}`];
 
   function submit(e: React.FormEvent) {
@@ -122,7 +124,7 @@ export function CheckoutForm({
         </Button>
         <p className="text-center text-[12.5px] leading-relaxed text-muted">
           {mode === "stripe" ? "Du bezahlst sicher über Stripe. Kartendaten werden nicht bei WERKRAUM gespeichert." : "Im Testmodus wird nichts belastet."} Mit der Bestellung akzeptierst du die{" "}
-          <a href="/richtlinien/marktplatz" className="underline underline-offset-2 hover:text-ink">Marktplatz-Richtlinien</a> und die Rückgabebedingungen der Shops.
+          <Link href="/richtlinien/marktplatz" className="underline underline-offset-2 hover:text-ink">Marktplatz-Richtlinien</Link> und die Rückgabebedingungen der Shops.
         </p>
       </div>
     </form>

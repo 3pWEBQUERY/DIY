@@ -16,7 +16,7 @@ export function ProductMiniCard({
   className?: string;
 }) {
   return (
-    <Link href={p.href} className={cn("group flex min-w-0 items-stretch border border-line bg-card transition-colors hover:border-ink rounded-2xl", className)}>
+    <Link href={p.href} className={cn("group flex min-w-0 items-stretch border border-line bg-card transition-colors hover:border-rule-strong rounded-2xl", className)}>
       <div className="relative w-24 shrink-0 border-r border-line">
         <Cover url={p.coverUrl} alt="" seed={`p-${p.id}`} ratio="1/1" className="h-full" sizes="96px" />
       </div>

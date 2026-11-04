@@ -17,7 +17,7 @@ export default async function CheckoutCancelledPage({ searchParams }: { searchPa
   return (
     <div className="mx-auto w-full max-w-[640px] px-4 py-10 sm:px-6 md:py-16">
       <p className="spec mb-3 flex items-center gap-2">
-        <span className="inline-block h-px w-6 bg-ink" />
+        <span className="inline-block h-px w-6 bg-rule-strong" />
         Kasse
       </p>
       <h1 className="display text-[2.6rem] text-balance sm:text-5xl">{grund === "fehlgeschlagen" ? "Die Zahlung wurde abgelehnt." : "Zahlung abgebrochen."}</h1>

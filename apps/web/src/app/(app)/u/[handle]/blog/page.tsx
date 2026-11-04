@@ -53,10 +53,10 @@ export default async function UserBlogPage({ params, searchParams }: Props) {
       <Link href={`/u/${author.handle}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
         <ArrowLeft size={14} /> Profil von {author.displayName}
       </Link>
-      <header className="mb-12 grid gap-6 border-b border-ink pb-8 md:grid-cols-[auto_1fr_auto] md:items-end">
+      <header className="mb-12 grid gap-6 border-b border-rule pb-8 md:grid-cols-[auto_1fr_auto] md:items-end">
         <Avatar src={author.avatarUrl} name={author.displayName} size={88} />
         <div>
-          <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Blog · @{author.handle}</p>
+          <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Blog · @{author.handle}</p>
           <h1 className="display mt-2 text-[2.6rem] sm:text-6xl">{author.displayName}</h1>
           {author.bio && <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted text-pretty">{author.bio}</p>}
         </div>
@@ -72,9 +72,9 @@ export default async function UserBlogPage({ params, searchParams }: Props) {
 
       {topTags.length > 0 && (
         <nav aria-label="Schlagwörter" className="-mt-6 mb-10 flex flex-wrap gap-2">
-          {sp.tag && <Link href={`/u/${author.handle}/blog`} className="inline-flex h-7 items-center border border-ink bg-ink px-2.5 font-mono text-[11px] text-paper rounded-xl">#{sp.tag} ×</Link>}
+          {sp.tag && <Link href={`/u/${author.handle}/blog`} className="inline-flex h-7 items-center rounded-full bg-moss-soft px-3 text-[12px] font-semibold text-moss-ink">#{sp.tag} ×</Link>}
           {topTags.filter(([t]) => t !== sp.tag).map(([t]) => (
-            <Link key={t} href={`/u/${author.handle}/blog?tag=${t}`} className="inline-flex h-7 items-center border border-line-strong px-2.5 font-mono text-[11px] text-ink-2 hover:border-ink rounded-xl">#{t}</Link>
+            <Link key={t} href={`/u/${author.handle}/blog?tag=${t}`} className="inline-flex h-7 items-center border border-line-strong px-2.5 font-mono text-[11px] text-ink-2 hover:border-rule-strong rounded-xl">#{t}</Link>
           ))}
         </nav>
       )}

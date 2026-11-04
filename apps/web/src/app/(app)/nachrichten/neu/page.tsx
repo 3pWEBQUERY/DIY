@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -30,17 +31,17 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
   let main: React.ReactNode;
   if (!prep) {
     main = (
-      <form action="/nachrichten/neu" className="mx-auto mt-16 w-full max-w-md px-4">
+      <Form action="/nachrichten/neu" className="mx-auto mt-16 w-full max-w-md px-4">
         <p className="spec">Neue Nachricht</p>
         <h2 className="headline mt-2 text-2xl">An wen möchtest du schreiben?</h2>
         <label htmlFor="to" className="mt-6 block text-[13px] font-semibold">Profilname</label>
-        <div className="mt-1.5 flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
+        <div className="mt-1.5 flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
           <span className="pl-3 text-muted">@</span>
           <input id="to" name="an" required autoFocus autoComplete="off" placeholder="handle" className="h-11 flex-1 bg-transparent px-2 outline-none" />
           <button type="submit" className="h-11 border-l border-line-strong px-4 text-sm font-semibold hover:bg-sunken">Weiter</button>
         </div>
         <p className="mt-2 text-xs text-muted">Du findest den Profilnamen unter dem Namen jedes Profils, z.B. @anna.holz.</p>
-      </form>
+      </Form>
     );
   } else if (prep.kind === "ok") {
     main = (

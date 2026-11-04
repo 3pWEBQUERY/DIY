@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";
@@ -59,10 +60,10 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
       {/* ───── Redaktioneller Kopf ───── */}
-      <header className="grid gap-8 border-b border-ink pb-8 md:grid-cols-[1.2fr_1fr] md:items-end">
+      <header className="grid gap-8 border-b border-rule pb-8 md:grid-cols-[1.2fr_1fr] md:items-end">
         <div>
           <p className="spec mb-3 flex items-center gap-2">
-            <span className="inline-block h-px w-6 bg-ink" />
+            <span className="inline-block h-px w-6 bg-rule-strong" />
             Marktplatz
           </p>
           <h1 className="display text-[2.6rem] text-balance sm:text-6xl">
@@ -72,7 +73,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
             Einzelstücke, Kleinserien, DIY-Materialsets und Anleitungen – direkt aus der Community. Viele Arbeiten zeigen ihr Projekt: Du siehst, wie sie entstanden sind.
           </p>
         </div>
-        <form action="/markt" method="get" role="search" className="md:justify-self-end md:w-full md:max-w-md">
+        <Form action="/markt" role="search" className="md:justify-self-end md:w-full md:max-w-md">
           {Object.entries(raw)
             .filter(([k]) => k !== "q")
             .map(([k, v]) => (
@@ -81,7 +82,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
           <label htmlFor="markt-q" className="spec mb-2 block">
             Im Marktplatz suchen
           </label>
-          <div className="flex items-stretch border border-ink bg-card focus-within:outline-2 focus-within:outline-moss rounded-2xl">
+          <div className="flex items-stretch border border-rule bg-card focus-within:outline-2 focus-within:outline-moss rounded-2xl">
             <Search size={17} className="ml-3 self-center text-muted" aria-hidden />
             <input
               id="markt-q"
@@ -91,18 +92,18 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               placeholder="Korb, Wollset, Schneidebrett …"
               className="h-12 min-w-0 flex-1 bg-transparent px-3 text-[15px] outline-none placeholder:text-muted/80"
             />
-            <button type="submit" className="border-l border-ink px-4 text-[14px] font-semibold hover:bg-ink hover:text-paper">
+            <button type="submit" className="border-l border-rule px-4 text-[14px] font-semibold hover:bg-ink hover:text-paper">
               Suchen
             </button>
           </div>
-        </form>
+        </Form>
       </header>
 
       {/* ───── Kategorien ───── */}
       <nav aria-label="Kategorien" className="-mx-4 overflow-x-auto border-b border-line px-4 scrollbar-none sm:mx-0 sm:px-0">
         <ul className="flex min-w-max gap-1 py-3">
           <li>
-            <Link href={hrefWith(raw, { kategorie: null })} aria-current={!activeCat ? "page" : undefined} className={cn("flex h-9 items-center rounded-full px-3.5 text-[13.5px]", !activeCat ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}>
+            <Link href={hrefWith(raw, { kategorie: null })} aria-current={!activeCat ? "page" : undefined} className={cn("flex h-9 items-center rounded-full px-3.5 text-[13.5px]", !activeCat ? "bg-moss text-paper" : "text-ink-2 hover:bg-sunken")}>
               Alles
             </Link>
           </li>
@@ -113,7 +114,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
                 <Link
                   href={hrefWith(raw, { kategorie: c.slug })}
                   aria-current={active ? "page" : undefined}
-                  className={cn("flex h-9 items-center gap-2 rounded-full px-3.5 text-[13.5px]", active ? "bg-ink text-paper" : "text-ink-2 hover:bg-sunken")}
+                  className={cn("flex h-9 items-center gap-2 rounded-full px-3.5 text-[13.5px]", active ? "bg-moss text-paper" : "text-ink-2 hover:bg-sunken")}
                 >
                   <Glyph name={c.glyph} size={15} strokeWidth={1.6} />
                   {c.short}
@@ -151,7 +152,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
             <div className="flex flex-wrap items-center gap-2">
               {chips.length ? (
                 chips.map((c) => (
-                  <Link key={c.label} href={c.href} className="inline-flex h-8 items-center gap-2 border border-line-strong bg-card px-2.5 text-[13px] hover:border-ink rounded-xl" aria-label={`Filter ${c.label} entfernen`}>
+                  <Link key={c.label} href={c.href} className="inline-flex h-8 items-center gap-2 border border-line-strong bg-card px-2.5 text-[13px] hover:border-rule-strong rounded-xl" aria-label={`Filter ${c.label} entfernen`}>
                     {c.label} <span aria-hidden className="text-muted">×</span>
                   </Link>
                 ))
@@ -210,7 +211,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
             </section>
           )}
 
-          <aside className="mt-16 grid gap-6 border-t border-ink pt-6 text-[13.5px] leading-relaxed text-ink-2 md:grid-cols-3">
+          <aside className="mt-16 grid gap-6 border-t border-rule pt-6 text-[13.5px] leading-relaxed text-ink-2 md:grid-cols-3">
             <div>
               <p className="spec mb-1.5">Transparent</p>
               <p>Du zahlst den angezeigten Preis plus Versand – keine Zusatzgebühren. Die Shops tragen eine Plattformprovision, die wir offen ausweisen.</p>

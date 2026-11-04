@@ -1,3 +1,5 @@
+import Link from "next/link";
+import Form from "next/form";
 import type { Metadata } from "next";
 import { Plus, Search } from "lucide-react";
 import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, PROJECT_STATUS, PROJECT_STATUS_LABEL, categoryBySlug, type ProjectStatus } from "@werkraum/shared";
@@ -71,12 +73,12 @@ export default async function ProjectsIndex({ searchParams }: { searchParams: Pr
       />
 
       <div className="mt-6 space-y-3 border-b border-line pb-6">
-        <form action="/projekte" className="relative mb-5 max-w-md" role="search">
+        <Form action="/projekte" className="relative mb-5 max-w-md" role="search">
           {cat && <input type="hidden" name="kategorie" value={cat.slug} />}
           <label htmlFor="pq" className="sr-only">Projekte durchsuchen</label>
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="pq" name="q" defaultValue={q} placeholder="Projekte durchsuchen …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl" />
-        </form>
+          <input id="pq" name="q" defaultValue={q} placeholder="Projekte durchsuchen …" className="h-10 w-full border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl" />
+        </Form>
         <ChipRow label="Kategorie">
           <ChipLink href={href({ kategorie: undefined })} active={!cat}>Alle</ChipLink>
           {CATEGORIES.map((c) => (
@@ -109,9 +111,9 @@ export default async function ProjectsIndex({ searchParams }: { searchParams: Pr
             Mit Anleitung
           </ChipLink>
           {anyFilter && (
-            <a href="/projekte" className="inline-flex h-8 items-center px-2 text-[13px] text-muted underline underline-offset-2 hover:text-ink rounded-xl">
+            <Link href="/projekte" className="inline-flex h-8 items-center px-2 text-[13px] text-muted underline underline-offset-2 hover:text-ink rounded-xl">
               Filter zurücksetzen
-            </a>
+            </Link>
           )}
         </ChipRow>
       </div>
@@ -120,14 +122,15 @@ export default async function ProjectsIndex({ searchParams }: { searchParams: Pr
         <p className="spec">{q ? `Treffer für «${q}»` : "Sortierung"}</p>
         <nav aria-label="Sortierung" className="flex gap-1">
           {SORTS.map((s) => (
-            <a
+            <Link
               key={s.key}
+              scroll={false}
               href={href({ sort: s.param === "neu" ? undefined : s.param })}
               aria-current={s.key === sort.key ? "true" : undefined}
-              className={s.key === sort.key ? "border-b-2 border-ink px-2 py-1 text-[14px] font-semibold" : "border-b-2 border-transparent px-2 py-1 text-[14px] text-muted hover:text-ink"}
+              className={s.key === sort.key ? "border-b-2 border-moss px-2 py-1 text-[14px] font-semibold" : "border-b-2 border-transparent px-2 py-1 text-[14px] text-muted hover:text-ink"}
             >
               {s.label}
-            </a>
+            </Link>
           ))}
         </nav>
       </div>

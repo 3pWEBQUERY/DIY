@@ -59,7 +59,7 @@ export function FeeSummary({
 }) {
   const c = cur(currency);
   const Row = ({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) => (
-    <div className={cn("flex items-baseline justify-between gap-4 py-1.5", strong && "border-t border-ink pt-2.5 mt-1", muted && "text-muted")}>
+    <div className={cn("flex items-baseline justify-between gap-4 py-1.5", strong && "border-t border-rule pt-2.5 mt-1", muted && "text-muted")}>
       <dt className={cn("text-[14px]", strong && "font-semibold")}>{label}</dt>
       <dd className={cn("num text-[14px]", strong ? "text-[17px] font-semibold" : "")}>{value}</dd>
     </div>
@@ -85,13 +85,13 @@ export type TimelineEvent = { id: string; from: OrderStatus | null; to: OrderSta
 /** Statusverlauf als Projektfaden: Knoten auf einer durchgehenden Linie. */
 export function OrderTimeline({ events, className }: { events: TimelineEvent[]; className?: string }) {
   return (
-    <ol className={cn("relative ml-1.5 border-l border-ink", className)}>
+    <ol className={cn("relative ml-1.5 border-l border-rule", className)}>
       {events.map((e, i) => {
         const last = i === events.length - 1;
         const changed = e.from !== e.to;
         return (
           <li key={e.id} className="relative pb-6 pl-6 last:pb-0">
-            <span aria-hidden className={cn("absolute -left-[5px] top-1.5 size-[9px] border border-ink rounded-full", last ? "bg-ink" : changed ? "bg-paper" : "bg-line-strong border-line-strong")} />
+            <span aria-hidden className={cn("absolute -left-[5px] top-1.5 size-[9px] border border-rule rounded-full", last ? "bg-ink" : changed ? "bg-paper" : "bg-line-strong border-line-strong")} />
             <p className="spec">
               {formatDate(e.createdAt, { day: "numeric", month: "short", year: "numeric" })} ·{" "}
               {new Date(e.createdAt).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}

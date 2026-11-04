@@ -7,6 +7,7 @@ import { useAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 
 /** Barrierefreier Schalter (role=switch). */
 export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
@@ -76,7 +77,7 @@ export function SettingControl({
       }}
     >
       {format === "bps" && Number.isFinite(n) && <span className="font-mono text-[12px] text-muted">= {(n / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 })} %</span>}
-      <span className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
+      <span className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
         <input
           type="number"
           value={draft}
@@ -148,19 +149,19 @@ export function NewFlagForm({ action }: { action: (input: unknown) => Promise<Ac
 export function TicketStatusSelect({ id, status, options, action }: { id: string; status: string; options: { value: string; label: string }[]; action: (id: string, status: string) => Promise<ActionResult<unknown>> }) {
   const { run, pending } = useAction(action);
   return (
-    <select
+    <Select
       defaultValue={status}
       disabled={pending}
       onChange={(e) => run(id, e.target.value)}
       aria-label="Status ändern"
-      className="h-8 border border-line-strong bg-card px-2 text-[13px] focus:border-ink focus:outline-none rounded-2xl"
+      className="h-9 w-auto min-w-[150px] text-[13px]"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 

@@ -174,7 +174,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
         )}
       </header>
 
-      <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)_7rem_auto] gap-2 border-b border-ink pb-4 print:hidden">
+      <form onSubmit={add} className="grid grid-cols-[minmax(0,1fr)_7rem_auto] gap-2 border-b border-rule pb-4 print:hidden">
         <MaterialInput
           value={name}
           linked={!!materialId}
@@ -190,7 +190,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
             if (!qty && s.unit) setQty(`1 ${s.unit}`);
           }}
         />
-        <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={40} placeholder="Menge" aria-label="Menge" className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-ink rounded-2xl" />
+        <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={40} placeholder="Menge" aria-label="Menge" className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl" />
         <Button type="submit" disabled={pending || !name.trim()}>Hinzufügen</Button>
       </form>
 
@@ -227,7 +227,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
           <ul className="space-y-1.5">
             {otherLists.map((l) => (
               <li key={l.id}>
-                <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", mergeFrom === l.id ? "border-ink bg-sunken" : "border-line hover:border-line-strong")}>
+                <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", mergeFrom === l.id ? "border-rule bg-sunken" : "border-line hover:border-line-strong")}>
                   <input type="radio" name="merge" checked={mergeFrom === l.id} onChange={() => setMergeFrom(l.id)} className="accent-[#B64B3A]" />
                   <span className="min-w-0 flex-1 truncate font-medium">{l.title}</span>
                   <span className="spec">{l.total} Pos.</span>
@@ -261,7 +261,7 @@ function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch
             maxLength={40}
             aria-label={`Menge für ${it.name}`}
             placeholder="Menge"
-            className="col-start-2 h-9 w-full border border-line bg-card px-2 text-[13px] outline-none hover:border-line-strong focus:border-ink sm:col-start-auto print:border-0 rounded-2xl"
+            className="col-start-2 h-9 w-full border border-line bg-card px-2 text-[13px] outline-none hover:border-line-strong focus:border-moss sm:col-start-auto print:border-0 rounded-2xl"
           />
           <div className="col-start-3 row-start-1 flex items-center gap-1 sm:col-start-auto sm:row-start-auto print:hidden">
             <ToggleChip active={it.haveIt} onClick={() => onPatch(it.id, { haveIt: !it.haveIt })} label="Habe ich" />
@@ -278,8 +278,8 @@ function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch
 
 function ToggleChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={cn("inline-flex h-8 items-center gap-1.5 border px-2.5 text-[12px] font-semibold rounded-xl", active ? "border-moss bg-moss text-paper" : "border-line-strong bg-card text-ink-2 hover:border-ink")}>
-      <span className={cn("grid size-3 place-items-center border rounded-full", active ? "border-paper" : "border-ink")}>{active && <Check size={9} strokeWidth={3.5} />}</span>
+    <button type="button" aria-pressed={active} onClick={onClick} className={cn("inline-flex h-8 items-center gap-1.5 border px-2.5 text-[12px] font-semibold rounded-xl", active ? "border-moss bg-moss text-paper" : "border-line-strong bg-card text-ink-2 hover:border-rule-strong")}>
+      <span className={cn("grid size-3 place-items-center border rounded-full", active ? "border-paper" : "border-rule")}>{active && <Check size={9} strokeWidth={3.5} />}</span>
       {label}
     </button>
   );

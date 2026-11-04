@@ -215,9 +215,9 @@ export function TutorialEditor({
           </div>
           <fieldset>
             <legend className="mb-2 text-[13px] font-semibold">Schwierigkeit</legend>
-            <div className="grid grid-cols-5 border border-line-strong rounded-2xl">
+            <div className="grid grid-cols-5 overflow-hidden rounded-2xl border border-line-strong">
               {DIFFICULTY.map((d) => (
-                <label key={d} className={cn("flex cursor-pointer flex-col items-center gap-2 border-r border-line px-1 py-3 text-center last:border-r-0", difficulty === d ? "bg-ink text-paper" : "hover:bg-sunken")}>
+                <label key={d} className={cn("flex cursor-pointer flex-col items-center gap-2 border-r border-line px-1 py-3 text-center last:border-r-0", difficulty === d ? "bg-moss text-paper" : "hover:bg-moss-soft")}>
                   <input type="radio" name="t-difficulty" value={d} checked={difficulty === d} onChange={() => setDifficulty(d)} className="sr-only" />
                   <Difficulty level={d} className={difficulty === d ? "[&>span]:bg-paper [&>span.bg-line-strong]:bg-paper/30" : ""} />
                   <span className="text-[12px] leading-tight">{DIFFICULTY_LABEL[d]}</span>
@@ -288,7 +288,7 @@ export function TutorialEditor({
             type="button"
             onClick={() => setSteps((prev) => [...prev.map((x) => ({ ...x, open: false })), emptyStep()])}
             disabled={steps.length >= 80}
-            className="flex h-14 w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl"
+            className="flex h-14 w-full items-center justify-center gap-2 border border-dashed border-line-strong text-sm font-semibold text-muted hover:border-rule-strong hover:text-ink rounded-2xl"
           >
             <Plus size={16} /> Schritt {pad(steps.length + 1)} hinzufügen
           </button>
@@ -297,7 +297,7 @@ export function TutorialEditor({
 
       {/* Seitenleiste: Status & Veröffentlichen */}
       <aside className="xl:sticky xl:top-24 xl:h-fit">
-        <div className="border border-ink bg-card rounded-2xl">
+        <div className="border border-rule bg-card rounded-2xl">
           <div className="border-b border-line px-4 py-3">
             <p className="spec text-ink">Stand</p>
             <p className="mt-1 text-[15px] font-semibold">{currentVersion ? `Veröffentlicht · v${currentVersion}` : "Noch nicht veröffentlicht"}</p>
@@ -390,7 +390,7 @@ function StepCard({
   const hasError = Object.keys(errors).some((k) => k.startsWith(`steps.${i}.`));
 
   return (
-    <li className={cn("border bg-card rounded-2xl", s.open ? "border-ink" : hasError ? "border-danger" : "border-line")}>
+    <li className={cn("border bg-card rounded-2xl", s.open ? "border-rule" : hasError ? "border-danger" : "border-line")}>
       <div className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
@@ -450,7 +450,7 @@ function StepCard({
                       maxLength={500}
                       placeholder={`Bildbeschreibung Abb. ${i + 1}.${mi + 1}`}
                       aria-label={`Bildbeschreibung für Bild ${mi + 1} in Schritt ${i + 1}`}
-                      className="h-9 w-full border border-line px-2.5 text-[13px] outline-none focus:border-ink rounded-2xl"
+                      className="h-9 w-full border border-line px-2.5 text-[13px] outline-none focus:border-moss rounded-2xl"
                     />
                   ) : null,
                 )}
@@ -505,7 +505,7 @@ function StepCard({
 
 function TogglePill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={cn("h-7 border px-2.5 text-[12px] rounded-2xl", active ? "border-ink bg-ink text-paper" : "border-line-strong bg-card text-ink-2 hover:border-ink")}>
+    <button type="button" aria-pressed={active} onClick={onClick} className={cn("h-7 border px-2.5 text-[12px] rounded-2xl", active ? "border-moss bg-moss text-paper" : "border-line-strong bg-card text-ink-2 hover:border-rule-strong")}>
       {children}
     </button>
   );

@@ -19,9 +19,9 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto w-full max-w-[860px] px-4 py-6 sm:px-6 md:py-10">
-      <header className="mb-8 border-b border-ink pb-6">
+      <header className="mb-8 border-b border-rule pb-6">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           Marktplatz
         </p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Meine Bestellungen</h1>

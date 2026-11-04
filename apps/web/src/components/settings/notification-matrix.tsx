@@ -49,7 +49,7 @@ export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[
           <table className="w-full min-w-[420px] border-collapse text-sm">
             <caption className="sr-only">Benachrichtigungen je Ereignis und Kanal</caption>
             <thead>
-              <tr className="border-b border-ink">
+              <tr className="border-b border-rule">
                 <th scope="col" className="spec py-2 text-left font-normal">Ereignis</th>
                 <th scope="col" className="spec w-20 py-2 text-center font-normal">In-App</th>
                 <th scope="col" className="spec w-20 py-2 text-center font-normal">E-Mail</th>
@@ -90,7 +90,7 @@ export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[
         <fieldset className="grid gap-2 sm:grid-cols-2">
           <legend className="sr-only">E-Mail-Rhythmus</legend>
           {EMAIL_DIGEST.map((d) => (
-            <label key={d} className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", digest === d ? "border-ink bg-card" : "border-line-strong hover:border-ink")}>
+            <label key={d} className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", digest === d ? "border-rule bg-card" : "border-line-strong hover:border-rule-strong")}>
               <input type="radio" name="digest" value={d} checked={digest === d} onChange={() => setDigest(d)} className="accent-[var(--color-ink)]" />
               {EMAIL_DIGEST_LABEL[d]}
             </label>

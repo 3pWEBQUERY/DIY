@@ -37,8 +37,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
         <PrintButton label="Beleg drucken" />
       </div>
 
-      <article className="border border-ink bg-card p-8 print:border-0 print:p-0 rounded-2xl">
-        <header className="flex flex-wrap items-start justify-between gap-6 border-b border-ink pb-6">
+      <article className="border border-rule bg-card p-8 print:border-0 print:p-0 rounded-2xl">
+        <header className="flex flex-wrap items-start justify-between gap-6 border-b border-rule pb-6">
           <div>
             <p className="spec">{r.role === "seller" ? "Verkaufsbeleg" : "Kaufbeleg"}</p>
             <h1 className="display mt-1 text-4xl">Beleg {o.number}</h1>
@@ -79,7 +79,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
         <table className="mt-6 w-full text-[14px]">
           <thead>
-            <tr className="border-b border-ink text-left">
+            <tr className="border-b border-rule text-left">
               <th scope="col" className="spec py-2 font-normal">
                 Artikel
               </th>
@@ -122,10 +122,10 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
               <td className="num py-1 text-right">{m(o.shippingMinor)}</td>
             </tr>
             <tr className="font-semibold">
-              <td colSpan={3} className="border-t border-ink pt-2 text-right">
+              <td colSpan={3} className="border-t border-rule pt-2 text-right">
                 Gesamtbetrag
               </td>
-              <td className="num border-t border-ink pt-2 text-right">{m(o.totalMinor)}</td>
+              <td className="num border-t border-rule pt-2 text-right">{m(o.totalMinor)}</td>
             </tr>
             {refunded > 0 && (
               <tr>

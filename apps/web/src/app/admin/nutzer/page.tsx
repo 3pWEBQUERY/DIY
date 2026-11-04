@@ -7,6 +7,7 @@ import { AdminHeader, EmptyRow, FilterBar, FilterField, Pager, Table, Td, Th, Tr
 import { Avatar, Badge } from "@/components/ui/misc";
 import { num, shortDate } from "@/components/admin/format";
 import { relativeTime } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Nutzer" };
 
@@ -31,24 +32,24 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           <input name="q" defaultValue={sp.q ?? ""} placeholder="@handle, Name, E-Mail" className={`${filterInput} w-64`} />
         </FilterField>
         <FilterField label="Status">
-          <select name="status" defaultValue={sp.status ?? ""} className={filterInput}>
+          <Select name="status" defaultValue={sp.status ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             {Object.entries(ACCOUNT_STATUS_LABEL).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
             ))}
-          </select>
+          </Select>
         </FilterField>
         <FilterField label="Rolle">
-          <select name="rolle" defaultValue={sp.rolle ?? ""} className={filterInput}>
+          <Select name="rolle" defaultValue={sp.rolle ?? ""} className="h-9 w-auto min-w-[160px] text-[13.5px]">
             <option value="">Alle</option>
             {ROLES.map((k) => (
               <option key={k} value={k}>
                 {ROLE_LABEL[k]}
               </option>
             ))}
-          </select>
+          </Select>
         </FilterField>
       </FilterBar>
 

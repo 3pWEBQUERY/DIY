@@ -313,7 +313,7 @@ export function ArticleEditor({
         {/* Schreibfläche */}
         <div className="min-w-0">
           <div className="mx-auto max-w-[720px]">
-            <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Artikel · {minutes} Min. Lesezeit</p>
+            <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Artikel · {minutes} Min. Lesezeit</p>
             <label htmlFor="article-title" className="sr-only">Titel</label>
             <textarea
               id="article-title"
@@ -346,7 +346,7 @@ export function ArticleEditor({
               className="mt-4 block w-full resize-none bg-transparent font-serif text-xl italic leading-snug text-ink-2 outline-none placeholder:text-muted/50 field-sizing-content"
             />
             <div className="mt-1 flex justify-end"><Counter n={dek.length} max={400} warnAt={300} /></div>
-            <div className="mt-6 border-t border-ink pt-8">
+            <div className="mt-6 border-t border-rule pt-8">
               <BlockEditor blocks={blocks} onChange={touch(setBlocks)} label="Artikelinhalt" />
             </div>
           </div>
@@ -355,7 +355,7 @@ export function ArticleEditor({
         {/* Metadaten */}
         <aside className="space-y-9 xl:sticky xl:top-32 xl:h-fit xl:max-h-[calc(100dvh-9rem)] xl:overflow-y-auto xl:pr-1" aria-label="Artikeleinstellungen">
           <section aria-labelledby="m-cover">
-            <h2 id="m-cover" className="mb-3 flex items-baseline gap-3 border-b border-ink pb-2 text-[14px] font-bold"><span className="spec text-ink">01</span>Titelbild</h2>
+            <h2 id="m-cover" className="mb-3 flex items-baseline gap-3 border-b border-rule pb-2 text-[14px] font-bold"><span className="spec text-ink">01</span>Titelbild</h2>
             {cover.url ? (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -366,7 +366,7 @@ export function ArticleEditor({
                 </div>
               </div>
             ) : (
-              <button type="button" onClick={() => coverInput.current?.click()} disabled={coverProgress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-ink hover:text-ink rounded-2xl">
+              <button type="button" onClick={() => coverInput.current?.click()} disabled={coverProgress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-rule-strong hover:text-ink rounded-2xl">
                 {coverProgress !== null ? <><LoaderCircle size={18} className="animate-spin" /><span className="font-mono text-xs">{Math.round(coverProgress * 100)} %</span></> : <><ImagePlus size={20} strokeWidth={1.5} /> Titelbild hochladen</>}
               </button>
             )}
@@ -375,7 +375,7 @@ export function ArticleEditor({
           </section>
 
           <section aria-labelledby="m-class">
-            <h2 id="m-class" className="mb-3 flex items-baseline gap-3 border-b border-ink pb-2 text-[14px] font-bold"><span className="spec text-ink">02</span>Einordnung</h2>
+            <h2 id="m-class" className="mb-3 flex items-baseline gap-3 border-b border-rule pb-2 text-[14px] font-bold"><span className="spec text-ink">02</span>Einordnung</h2>
             <Label htmlFor="m-category">Rubrik</Label>
             <Select id="m-category" value={categoryId} onChange={(e) => touch(setCategoryId)(e.target.value)}>
               <option value="">Ohne Rubrik</option>
@@ -384,7 +384,7 @@ export function ArticleEditor({
               ))}
             </Select>
             <Label htmlFor="m-tags" className="mt-4">Schlagwörter</Label>
-            <div className="flex min-h-11 flex-wrap items-center gap-1.5 border border-line-strong bg-card px-2 py-1.5 focus-within:border-ink rounded-xl">
+            <div className="flex min-h-11 flex-wrap items-center gap-1.5 border border-line-strong bg-card px-2 py-1.5 focus-within:border-moss rounded-xl">
               {tags.map((t) => (
                 <span key={t} className="inline-flex h-7 items-center gap-1 bg-sunken pl-2 pr-1 font-mono text-[11px] rounded-xl">
                   #{t}
@@ -411,9 +411,9 @@ export function ArticleEditor({
           </section>
 
           <section aria-labelledby="m-seo">
-            <h2 id="m-seo" className="mb-3 flex items-baseline gap-3 border-b border-ink pb-2 text-[14px] font-bold"><span className="spec text-ink">03</span>Adresse & Suchmaschinen</h2>
+            <h2 id="m-seo" className="mb-3 flex items-baseline gap-3 border-b border-rule pb-2 text-[14px] font-bold"><span className="spec text-ink">03</span>Adresse & Suchmaschinen</h2>
             <Label htmlFor="m-slug">Adresse</Label>
-            <div className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
+            <div className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
               <span className="truncate pl-3 font-mono text-[11px] text-muted">/u/{handle}/blog/</span>
               <input
                 id="m-slug"
@@ -433,13 +433,13 @@ export function ArticleEditor({
               <Label htmlFor="m-seot" className="mb-0">SEO-Titel</Label>
               <Counter n={seoTitle.length} max={70} warnAt={60} />
             </div>
-            <input id="m-seot" value={seoTitle} maxLength={70} onChange={(e) => touch(setSeoTitle)(e.target.value)} placeholder={title || "Standard: Artikeltitel"} className="mt-1.5 h-11 w-full border border-line-strong bg-card px-3 text-[15px] outline-none focus:border-ink rounded-2xl" />
+            <input id="m-seot" value={seoTitle} maxLength={70} onChange={(e) => touch(setSeoTitle)(e.target.value)} placeholder={title || "Standard: Artikeltitel"} className="mt-1.5 h-11 w-full border border-line-strong bg-card px-3 text-[15px] outline-none focus:border-moss rounded-2xl" />
 
             <div className="mt-4 flex items-baseline justify-between">
               <Label htmlFor="m-seod" className="mb-0">SEO-Beschreibung</Label>
               <Counter n={seoDescription.length} max={170} warnAt={155} />
             </div>
-            <textarea id="m-seod" value={seoDescription} maxLength={170} rows={3} onChange={(e) => touch(setSeoDescription)(e.target.value)} placeholder={dek || "Standard: Vorspann"} className="mt-1.5 w-full resize-none border border-line-strong bg-card px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-ink rounded-2xl" />
+            <textarea id="m-seod" value={seoDescription} maxLength={170} rows={3} onChange={(e) => touch(setSeoDescription)(e.target.value)} placeholder={dek || "Standard: Vorspann"} className="mt-1.5 w-full resize-none border border-line-strong bg-card px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-moss rounded-2xl" />
 
             <figure className="mt-4 border border-line bg-card p-4 rounded-2xl" aria-label="Vorschau in Suchergebnissen">
               <figcaption className="spec mb-2">Vorschau Suchergebnis</figcaption>
@@ -454,8 +454,8 @@ export function ArticleEditor({
 
           {projects.length > 0 && (
             <section aria-labelledby="m-proj">
-              <h2 id="m-proj" className="mb-3 flex items-baseline gap-3 border-b border-ink pb-2 text-[14px] font-bold"><span className="spec text-ink">04</span>Verknüpfte Projekte</h2>
-              <ul className="max-h-56 space-y-2 overflow-y-auto border-l border-ink pl-3">
+              <h2 id="m-proj" className="mb-3 flex items-baseline gap-3 border-b border-rule pb-2 text-[14px] font-bold"><span className="spec text-ink">04</span>Verknüpfte Projekte</h2>
+              <ul className="max-h-56 space-y-2 overflow-y-auto border-l border-rule pl-3">
                 {projects.map((p) => (
                   <li key={p.id}>
                     <Checkbox
@@ -471,13 +471,13 @@ export function ArticleEditor({
           )}
 
           <section aria-labelledby="m-opt">
-            <h2 id="m-opt" className="mb-3 flex items-baseline gap-3 border-b border-ink pb-2 text-[14px] font-bold"><span className="spec text-ink">{projects.length ? "05" : "04"}</span>Optionen</h2>
+            <h2 id="m-opt" className="mb-3 flex items-baseline gap-3 border-b border-rule pb-2 text-[14px] font-bold"><span className="spec text-ink">{projects.length ? "05" : "04"}</span>Optionen</h2>
             <Checkbox label="Kommentare erlauben" checked={commentsEnabled} onChange={(e) => touch(setCommentsEnabled)(e.target.checked)} />
           </section>
 
           {id && (
             <section aria-labelledby="m-rev">
-              <h2 id="m-rev" className="mb-3 flex items-baseline justify-between gap-3 border-b border-ink pb-2 text-[14px] font-bold">
+              <h2 id="m-rev" className="mb-3 flex items-baseline justify-between gap-3 border-b border-rule pb-2 text-[14px] font-bold">
                 <span className="flex items-baseline gap-3"><span className="spec text-ink">{projects.length ? "06" : "05"}</span>Revisionen</span>
                 {revisions === null && (
                   <button type="button" onClick={loadRevisions} className="inline-flex items-center gap-1 text-xs font-normal text-muted hover:text-ink"><History size={13} /> Anzeigen</button>
@@ -573,18 +573,18 @@ function PublishDialog({
     <Dialog open={open} onClose={onClose} title="Veröffentlichen" description="Dein Artikel wird öffentlich auf deinem Blog und unter /blogs sichtbar.">
       <fieldset className="space-y-2">
         <legend className="sr-only">Zeitpunkt</legend>
-        <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "now" ? "border-ink bg-sunken" : "border-line")}>
+        <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "now" ? "border-rule bg-sunken" : "border-line")}>
           <input type="radio" name="when" checked={mode === "now"} onChange={() => setMode("now")} className="mt-1 accent-[#B64B3A]" />
           <span><span className="block font-semibold">Jetzt veröffentlichen</span><span className="text-sm text-muted">Sofort sichtbar.</span></span>
         </label>
         {canSchedule && (
-          <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "later" ? "border-ink bg-sunken" : "border-line")}>
+          <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "later" ? "border-rule bg-sunken" : "border-line")}>
             <input type="radio" name="when" checked={mode === "later"} onChange={() => setMode("later")} className="mt-1 accent-[#B64B3A]" />
             <span className="flex-1">
               <span className="flex items-center gap-1.5 font-semibold"><CalendarClock size={15} /> Planen</span>
               <span className="text-sm text-muted">Automatisch zum gewählten Zeitpunkt.</span>
               {mode === "later" && (
-                <input type="datetime-local" value={when} min={minLocal} onChange={(e) => setWhen(e.target.value)} aria-label="Veröffentlichungszeitpunkt" className="mt-2 h-10 w-full border border-line-strong bg-card px-2 font-mono text-sm outline-none focus:border-ink rounded-2xl" />
+                <input type="datetime-local" value={when} min={minLocal} onChange={(e) => setWhen(e.target.value)} aria-label="Veröffentlichungszeitpunkt" className="mt-2 h-10 w-full border border-line-strong bg-card px-2 font-mono text-sm outline-none focus:border-moss rounded-2xl" />
               )}
             </span>
           </label>

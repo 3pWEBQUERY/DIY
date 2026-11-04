@@ -120,7 +120,7 @@ export function CollectionEditor({
       </div>
 
       <fieldset>
-        <legend className="mb-2 flex w-full items-baseline justify-between border-b border-ink pb-2 text-[15px] font-bold">
+        <legend className="mb-2 flex w-full items-baseline justify-between border-b border-rule pb-2 text-[15px] font-bold">
           Einträge <span className="spec">{items.length} / 48</span>
         </legend>
         {(fields.items ?? Object.entries(fields).find(([k]) => k.startsWith("items."))?.[1]) && (

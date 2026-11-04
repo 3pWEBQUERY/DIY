@@ -35,7 +35,7 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
           <p className="spec">Nachrichten</p>
           <h1 className="display mt-1 text-3xl">Gespräche</h1>
         </div>
-        <Link href="/nachrichten/neu" className="grid size-10 place-items-center border border-line-strong hover:border-ink rounded-xl" aria-label="Neue Nachricht">
+        <Link href="/nachrichten/neu" className="grid size-10 place-items-center border border-line-strong hover:border-rule-strong rounded-xl" aria-label="Neue Nachricht">
           <PenSquare size={17} />
         </Link>
       </div>
@@ -45,7 +45,7 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
             key={t.key}
             href={`/nachrichten${q(t.key)}`}
             aria-current={box === t.key ? "page" : undefined}
-            className={cn("relative -mb-px flex items-center gap-1.5 border-b-2 border-transparent py-2.5 text-[13px] text-muted hover:text-ink", box === t.key && "border-ink font-semibold text-ink")}
+            className={cn("relative -mb-px flex items-center gap-1.5 border-b-2 border-transparent py-2.5 text-[13px] text-muted hover:text-ink", box === t.key && "border-rule font-semibold text-ink")}
           >
             {t.label}
             {t.count != null && <span className={cn("min-w-4 px-1 text-center font-mono text-[10px]", t.key === "requests" ? "bg-clay text-paper" : "bg-ink text-paper")}>{t.count}</span>}
@@ -69,11 +69,11 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                   <Link
                     href={`/nachrichten/${c.id}${q(box)}`}
                     aria-current={active ? "page" : undefined}
-                    className={cn("flex gap-3 border-b border-line px-4 py-3.5 sm:px-5", active ? "bg-ink text-paper" : "hover:bg-card")}
+                    className={cn("flex gap-3 border-b border-line px-4 py-3.5 sm:px-5", active ? "bg-moss text-paper" : "hover:bg-card")}
                   >
                     <span className="relative shrink-0">
                       <Avatar src={c.other.avatarUrl} name={c.other.displayName} size={42} />
-                      {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-ink" : "border-paper")} aria-hidden />}
+                      {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-rule" : "border-paper")} aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">

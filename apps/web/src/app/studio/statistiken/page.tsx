@@ -22,7 +22,7 @@ export default async function StudioStatsPage() {
   return (
     <div className="max-w-[1100px]">
       <header className="mb-10">
-        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Je Inhalt · Verlauf der letzten 12 Wochen</p>
+        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Je Inhalt · Verlauf der letzten 12 Wochen</p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Statistiken</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
           „Aufrufe“ sind Seitenaufrufe, nicht eindeutige Besucher. Gemerkt und Nachbauten sagen oft mehr über den Wert eines Projekts als Aufrufe – sie zeigen, dass jemand es selbst machen will.

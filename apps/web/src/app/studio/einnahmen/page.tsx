@@ -67,7 +67,7 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
             <div className="overflow-x-auto">
               <table className="mt-2 w-full min-w-[640px] text-[13.5px]">
                 <thead>
-                  <tr className="border-b border-ink text-left">
+                  <tr className="border-b border-rule text-left">
                     <th scope="col" className="spec py-2.5 font-normal">
                       Bestellung
                     </th>

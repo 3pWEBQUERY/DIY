@@ -194,7 +194,7 @@ export function ProductEditor({
             <legend className="mb-2 text-[13px] font-semibold">Art des Angebots</legend>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {PRODUCT_KIND.filter((k) => k !== "DIGITAL" || digitalEnabled || v.kind === "DIGITAL").map((k) => (
-                <label key={k} className={cn("flex cursor-pointer flex-col gap-0.5 border px-3.5 py-3 transition-colors rounded-2xl", v.kind === k ? "border-ink bg-sunken" : "border-line bg-card hover:border-line-strong")}>
+                <label key={k} className={cn("flex cursor-pointer flex-col gap-0.5 border px-3.5 py-3 transition-colors rounded-2xl", v.kind === k ? "border-rule bg-sunken" : "border-line bg-card hover:border-line-strong")}>
                   <span className="flex items-center gap-2 text-[14px] font-semibold">
                     <input type="radio" name="kind" value={k} checked={v.kind === k} onChange={() => set("kind", k)} className="accent-[#B64B3A]" />
                     {PRODUCT_KIND_LABEL[k]}
@@ -386,7 +386,7 @@ export function ProductEditor({
         <section className="space-y-5">
           <SectionTitle n="06" title="Projektfaden" />
           <p className="text-[13.5px] text-muted">Zeig, wie das Stück entstanden ist: Verknüpfe dein Projekt oder deine Anleitung. Auf der Produktseite erscheint „So ist es entstanden“.</p>
-          <div className="grid gap-4 border-l border-ink pl-4 sm:grid-cols-2">
+          <div className="grid gap-4 border-l border-rule pl-4 sm:grid-cols-2">
             <Field label="Projekt" optional>
               {(p) => (
                 <Select {...p} value={v.projectId} onChange={(e) => set("projectId", e.target.value)}>
@@ -416,7 +416,7 @@ export function ProductEditor({
       </div>
 
       <aside className="space-y-6 lg:sticky lg:top-20 lg:h-fit">
-        <div className="border border-ink bg-card p-5 rounded-2xl">
+        <div className="border border-rule bg-card p-5 rounded-2xl">
           <p className="spec mb-3">Abrechnung pro Stück</p>
           {preview ? (
             <dl className="space-y-1.5 text-[13.5px]">
@@ -434,7 +434,7 @@ export function ProductEditor({
                 <dt>Plattformgebühr {formatBps(feeBps)}</dt>
                 <dd className="num">− {formatMoney(preview.platformFee)}</dd>
               </div>
-              <div className="mt-2 flex justify-between border-t border-ink pt-2 font-semibold">
+              <div className="mt-2 flex justify-between border-t border-rule pt-2 font-semibold">
                 <dt>Du erhältst</dt>
                 <dd className="num">{formatMoney(preview.sellerNet)}</dd>
               </div>

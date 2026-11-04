@@ -61,10 +61,10 @@ export default async function ShopPage({ params, searchParams }: Params) {
         </Notice>
       )}
 
-      <header className="grid gap-8 border-b border-ink pb-10 md:grid-cols-[1fr_auto] md:items-end">
+      <header className="grid gap-8 border-b border-rule pb-10 md:grid-cols-[1fr_auto] md:items-end">
         <div>
           <p className="spec mb-3 flex items-center gap-2">
-            <span className="inline-block h-px w-6 bg-ink" />
+            <span className="inline-block h-px w-6 bg-rule-strong" />
             Shop · {country}
           </p>
           <h1 className="display text-[2.6rem] text-balance sm:text-6xl">{shop.name}</h1>

@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, PenLine, Search } from "lucide-react";
@@ -21,7 +22,7 @@ type SP = { q?: string; rubrik?: string; tag?: string; nach?: string };
 function CategoryNav({ categories, active }: { categories: { slug: string; name: string }[]; active?: string }) {
   return (
     <nav aria-label="Rubriken" className="-mx-4 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0">
-      <ul className="flex min-w-max gap-5 border-y border-ink py-2.5 text-[13px]">
+      <ul className="flex min-w-max gap-5 border-y border-rule py-2.5 text-[13px]">
         <li>
           <Link href="/blogs" aria-current={!active ? "page" : undefined} className={cn("font-semibold hover:underline", active ? "text-muted" : "text-ink")}>Alle</Link>
         </li>
@@ -39,13 +40,13 @@ function CategoryNav({ categories, active }: { categories: { slug: string; name:
 
 function SearchBox({ q, rubrik }: { q?: string; rubrik?: string }) {
   return (
-    <form role="search" action="/blogs" className="flex w-full max-w-sm items-center border-b border-ink">
+    <Form role="search" action="/blogs" className="flex w-full max-w-sm items-center border-b border-rule">
       <label htmlFor="blog-q" className="sr-only">Artikel durchsuchen</label>
       <Search size={16} className="text-muted" aria-hidden />
       <input id="blog-q" name="q" type="search" defaultValue={q} placeholder="Artikel durchsuchen …" className="h-11 flex-1 bg-transparent px-3 text-[15px] outline-none" />
       {rubrik && <input type="hidden" name="rubrik" value={rubrik} />}
       <button type="submit" className="text-sm font-semibold">Suchen</button>
-    </form>
+    </Form>
   );
 }
 
@@ -186,7 +187,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
             </section>
           )}
 
-          <section className="mt-16 grid gap-6 border-t border-ink pt-8 md:grid-cols-[1fr_auto] md:items-end">
+          <section className="mt-16 grid gap-6 border-t border-rule pt-8 md:grid-cols-[1fr_auto] md:items-end">
             <div>
               <p className="spec">Für Creator</p>
               <p className="headline mt-2 max-w-xl text-2xl">Erzähl, wie es entstanden ist. Mit Fotos, Materialtabellen und Projektkarten – direkt verknüpft mit deinem Projektfaden.</p>

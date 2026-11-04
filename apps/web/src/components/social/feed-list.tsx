@@ -45,7 +45,7 @@ export function FeedList({ kind, initial, cursor: initialCursor, viewer }: { kin
       ))}
       <div ref={sentinel} />
       {cursor ? (
-        <button onClick={more} disabled={pending} className="mt-6 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-ink hover:text-ink rounded-2xl">
+        <button onClick={more} disabled={pending} className="mt-6 w-full border border-line py-3 text-sm font-semibold text-muted hover:border-rule-strong hover:text-ink rounded-2xl">
           {pending ? "Lädt …" : "Mehr laden"}
         </button>
       ) : (

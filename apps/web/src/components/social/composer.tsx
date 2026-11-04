@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/toast";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { createPostAction } from "@/app/(app)/social-actions";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 /**
  * Beitragseditor – so einfach wie in einem modernen sozialen Netzwerk (§5.4, §9.3).
@@ -84,29 +85,29 @@ export function Composer({
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="spec mb-1 block">Kategorie</span>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm rounded-2xl">
+              <Select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 text-sm">
                 <option value="">Ohne Kategorie</option>
                 {CATEGORIES.map((c) => (
                   <option key={c.slug} value={c.slug}>{c.name}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="block">
               <span className="spec mb-1 block">Projekt verknüpfen</span>
-              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm rounded-2xl">
+              <Select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-10 text-sm">
                 <option value="">Kein Projekt</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>{p.title}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="block">
               <span className="spec mb-1 block">Sichtbarkeit</span>
-              <select value={visibility} onChange={(e) => setVisibility(e.target.value as typeof visibility)} className="h-10 w-full border border-line-strong bg-card px-2 text-sm rounded-2xl">
+              <Select value={visibility} onChange={(e) => setVisibility(e.target.value as typeof visibility)} className="h-10 text-sm">
                 {VISIBILITY.map((v) => (
                   <option key={v} value={v}>{VISIBILITY_LABEL[v]}</option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
           <div className="mt-4 flex items-center justify-between gap-3">

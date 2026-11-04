@@ -32,7 +32,7 @@ function EmbedShell({ href, kicker, title, meta, cover, accent = "ink", children
     <aside className="relative my-10 font-sans">
       <span className={cn("absolute -left-4 top-0 hidden h-full w-px sm:block", accent === "clay" ? "bg-clay" : "bg-ink")} aria-hidden />
       <span className={cn("absolute -left-[19px] top-1/2 hidden size-[7px] -translate-y-1/2 rounded-full sm:block", accent === "clay" ? "bg-clay" : "bg-ink")} aria-hidden />
-      <Link href={href} className={cn("group flex items-stretch border bg-card text-ink no-underline transition-colors rounded-2xl", accent === "clay" ? "border-clay/40 hover:border-clay" : "border-line hover:border-ink")}>
+      <Link href={href} className={cn("group flex items-stretch border bg-card text-ink no-underline transition-colors rounded-2xl", accent === "clay" ? "border-clay/40 hover:border-clay" : "border-line hover:border-rule-strong")}>
         <div className="relative w-28 shrink-0 overflow-hidden border-r border-line sm:w-36">{cover}</div>
         <div className="min-w-0 flex-1 px-4 py-3.5">
           <p className={cn("spec", accent === "clay" && "text-clay-ink")}>{kicker}</p>
@@ -145,7 +145,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
         <figure className="my-8 overflow-x-auto">
           <table>
             <thead>
-              <tr className="border-b border-ink">
+              <tr className="border-b border-rule">
                 {head.map((h, i) => (
                   <th key={i} scope="col" className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted">{h}</th>
                 ))}

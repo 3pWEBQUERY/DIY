@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
@@ -13,6 +14,7 @@ import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { Cover } from "@/components/ui/media";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Suche", robots: { index: false } };
 
@@ -51,15 +53,15 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   return (
     <Page width="wide">
       <PageHeader kicker="Suche" title={q ? <>Ergebnisse für <em className="italic text-moss">„{q}“</em></> : "Was suchst du?"} />
-      <form action="/suche" role="search" className="mb-6 flex gap-2">
+      <Form action="/suche" role="search" className="mb-6 flex gap-2">
         <label htmlFor="q" className="sr-only">Suchbegriff</label>
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="q" name="q" defaultValue={q} placeholder="Technik, Material, Projekt oder Creator – z. B. „Granny Square“, „Arve“, „Leinen“" className="h-12 w-full border border-ink bg-card pl-11 pr-4 text-[16px] outline-none rounded-2xl" />
+          <input id="q" name="q" defaultValue={q} placeholder="Technik, Material, Projekt oder Creator – z. B. „Granny Square“, „Arve“, „Leinen“" className="h-12 w-full border border-rule bg-card pl-11 pr-4 text-[16px] outline-none rounded-2xl" />
         </div>
         {type && <input type="hidden" name="typ" value={type} />}
         <button className={buttonClass("ink", "lg")}>Suchen</button>
-      </form>
+      </Form>
 
       {q && (
         <>
@@ -68,32 +70,32 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             tabs={[{ key: "all", label: "Alle", href: qs({ typ: undefined }), count: total }, ...SEARCH_TYPES.map((t) => ({ key: t, label: LABEL[t], href: qs({ typ: t }), count: results?.[t].length }))]}
           />
           {/* Filter (§18.2) – barrierefrei als normale Links/Formular */}
-          <form action="/suche" className="mt-4 flex flex-wrap items-end gap-3 border-b border-line pb-4 text-sm">
+          <Form action="/suche" className="mt-4 flex flex-wrap items-end gap-3 border-b border-line pb-4 text-sm">
             <input type="hidden" name="q" value={q} />
             {type && <input type="hidden" name="typ" value={type} />}
             <label className="flex flex-col gap-1">
               <span className="spec">Kategorie</span>
-              <select name="kategorie" defaultValue={sp.kategorie ?? ""} className="h-9 border border-line-strong bg-card px-2 rounded-2xl">
+              <Select name="kategorie" defaultValue={sp.kategorie ?? ""} className="h-9 w-auto min-w-[150px] text-[14px]">
                 <option value="">Alle</option>
                 {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
-              </select>
+              </Select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="spec">Schwierigkeit bis</span>
-              <select name="stufe" defaultValue={sp.stufe ?? ""} className="h-9 border border-line-strong bg-card px-2 rounded-2xl">
+              <Select name="stufe" defaultValue={sp.stufe ?? ""} className="h-9 w-auto min-w-[150px] text-[14px]">
                 <option value="">Alle</option>
                 {[1, 2, 3, 4, 5].map((d) => <option key={d} value={d}>{DIFFICULTY_LABEL[d]}</option>)}
-              </select>
+              </Select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="spec">Dauer bis</span>
-              <select name="dauer" defaultValue={sp.dauer ?? ""} className="h-9 border border-line-strong bg-card px-2 rounded-2xl">
+              <Select name="dauer" defaultValue={sp.dauer ?? ""} className="h-9 w-auto min-w-[150px] text-[14px]">
                 <option value="">Beliebig</option>
                 <option value="60">1 Std.</option>
                 <option value="240">4 Std.</option>
                 <option value="480">1 Tag</option>
                 <option value="1440">3 Tage</option>
-              </select>
+              </Select>
             </label>
             <label className="flex flex-col gap-1">
               <span className="spec">Preis bis (CHF)</span>
@@ -103,7 +105,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               <input type="checkbox" name="kostenlos" value="1" defaultChecked={sp.kostenlos === "1"} className="accent-[#B64B3A]" /> Nur kostenlose Anleitungen
             </label>
             <button className={buttonClass("outline", "sm")}>Filter anwenden</button>
-          </form>
+          </Form>
         </>
       )}
 

@@ -80,7 +80,7 @@ export default function HelpPage() {
     <div className="mx-auto max-w-[1120px] px-4 py-10 sm:px-6 md:py-14 lg:px-10">
       <header className="mb-12 max-w-3xl">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           Hilfe
         </p>
         <h1 className="display text-[2.6rem] sm:text-6xl">Wie können wir helfen?</h1>
@@ -93,7 +93,7 @@ export default function HelpPage() {
           <ol className="space-y-1.5 border-l border-line text-[13.5px]">
             {GROUPS.map((g, i) => (
               <li key={g.id}>
-                <a href={`#${g.id}`} className="-ml-px flex gap-2.5 border-l border-transparent pl-3 text-muted hover:border-ink hover:text-ink">
+                <a href={`#${g.id}`} className="-ml-px flex gap-2.5 border-l border-transparent pl-3 text-muted hover:border-rule-strong hover:text-ink">
                   <span className="font-mono text-[10px] leading-5">{String(i + 1).padStart(2, "0")}</span>
                   {g.title}
                 </a>
@@ -105,7 +105,7 @@ export default function HelpPage() {
         <div className="max-w-[46rem]">
           {GROUPS.map((g, i) => (
             <section key={g.id} id={g.id} aria-labelledby={`${g.id}-t`} className="mb-12 scroll-mt-8">
-              <h2 id={`${g.id}-t`} className="flex items-baseline gap-3 border-b border-ink pb-2.5 text-[17px] font-bold tracking-tight">
+              <h2 id={`${g.id}-t`} className="flex items-baseline gap-3 border-b border-rule pb-2.5 text-[17px] font-bold tracking-tight">
                 <span className="spec text-ink">{String(i + 1).padStart(2, "0")}</span>
                 {g.title}
               </h2>
@@ -127,10 +127,10 @@ export default function HelpPage() {
             <h2 id="kontakt-t" className="headline text-2xl">Noch Fragen?</h2>
             <p className="mt-2 text-[15px] text-ink-2">Wir antworten in der Regel innerhalb von zwei Werktagen.</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/einstellungen/hilfe-support" className="inline-flex h-10 items-center border border-ink bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-2 rounded-xl">
+              <Link href="/einstellungen/hilfe-support" className="inline-flex h-10 items-center rounded-xl bg-moss px-4 text-sm font-semibold text-paper hover:bg-moss-ink">
                 Support kontaktieren
               </Link>
-              <a href={`mailto:${BRAND.supportEmail}`} className="inline-flex h-10 items-center border border-line-strong px-4 text-sm font-semibold hover:border-ink rounded-xl">
+              <a href={`mailto:${BRAND.supportEmail}`} className="inline-flex h-10 items-center border border-line-strong px-4 text-sm font-semibold hover:border-rule-strong rounded-xl">
                 {BRAND.supportEmail}
               </a>
             </div>

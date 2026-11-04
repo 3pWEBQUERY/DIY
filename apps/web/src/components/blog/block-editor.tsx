@@ -195,7 +195,7 @@ export function BlockEditor({ blocks, onChange, label = "Inhalt" }: { blocks: Ar
         <button
           type="button"
           onClick={() => insertAt(0, { id: blockId(), type: "paragraph", text: "" })}
-          className="block w-full border border-dashed border-line-strong px-6 py-10 text-left font-serif text-xl text-muted hover:border-ink hover:text-ink rounded-2xl"
+          className="block w-full border border-dashed border-line-strong px-6 py-10 text-left font-serif text-xl text-muted hover:border-rule-strong hover:text-ink rounded-2xl"
         >
           Beginne zu schreiben …
           <span className="mt-2 block font-sans text-sm">Tippe <Kbd>/</Kbd> in einem leeren Absatz, um Bilder, Tabellen oder Projektkarten einzufügen.</span>
@@ -216,7 +216,7 @@ export function BlockEditor({ blocks, onChange, label = "Inhalt" }: { blocks: Ar
             onClick={() => setMenu({ mode: "insert", index: blocks.length, active: 0, query: "" })}
             aria-haspopup="listbox"
             aria-expanded={menu?.mode === "insert" && menu.index === blocks.length}
-            className="inline-flex h-9 items-center gap-2 border border-line-strong bg-card px-3 text-sm font-semibold hover:border-ink rounded-xl"
+            className="inline-flex h-9 items-center gap-2 border border-line-strong bg-card px-3 text-sm font-semibold hover:border-rule-strong rounded-xl"
           >
             <Plus size={15} /> Block hinzufügen
           </button>
@@ -283,7 +283,7 @@ function MenuList({ items, active, onPick, id }: { items: MenuItem[]; active: nu
               tabIndex={-1}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(m)}
-              className={cn("flex w-full items-start gap-3 px-3 py-2 text-left", i === active ? "bg-ink text-paper" : "hover:bg-sunken")}
+              className={cn("flex w-full items-start gap-3 px-3 py-2 text-left", i === active ? "bg-moss text-paper" : "hover:bg-sunken")}
             >
               <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center border rounded-xl", i === active ? "border-paper/30" : "border-line-strong")}>{m.icon}</span>
               <span className="min-w-0">
@@ -314,7 +314,7 @@ function InsertMenu({ ctx, index, className }: { ctx: BlockCtx; index: number; c
     ctx.insertAt(index, it.make());
   };
   return (
-    <div ref={ref} className={cn("absolute z-40 w-80 border border-ink bg-card animate-rise rounded-2xl", className)}>
+    <div ref={ref} className={cn("absolute z-40 w-80 border border-rule bg-card animate-rise rounded-2xl", className)}>
       <div className="flex items-center gap-2 border-b border-line px-3">
         <Search size={14} className="text-muted" />
         <input
@@ -366,7 +366,7 @@ function BlockShell({ block, index, count, ctx }: { block: ArticleBlock; index: 
         <span className="font-mono text-[10px] text-muted/80">{pad(index + 1)}</span>
         <span className="mt-0.5 block font-mono text-[9px] uppercase tracking-[0.08em] text-muted/60">{TYPE_LABEL[block.type]}</span>
       </div>
-      <div className="relative min-w-0 border-l border-transparent pl-3 transition-colors focus-within:border-ink group-hover/block:border-line-strong">
+      <div className="relative min-w-0 border-l border-transparent pl-3 transition-colors focus-within:border-moss group-hover/block:border-line-strong">
         <div
           className="absolute -top-3 right-0 z-20 flex items-center border border-line-strong bg-card opacity-100 transition-opacity md:opacity-0 md:group-focus-within/block:opacity-100 md:group-hover/block:opacity-100 rounded-2xl"
           role="toolbar"
@@ -555,7 +555,7 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
         className={cn(proseInput, "min-h-[1.7em] py-1.5")}
       />
       {linkOpen && (
-        <div className="mt-1 flex items-center gap-2 border border-ink bg-card px-2 animate-fade rounded-2xl">
+        <div className="mt-1 flex items-center gap-2 border border-rule bg-card px-2 animate-fade rounded-2xl">
           <Link2 size={13} className="text-muted" />
           <input
             autoFocus
@@ -578,7 +578,7 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
         </div>
       )}
       {slash && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-80 border border-ink bg-card animate-rise rounded-2xl">
+        <div className="absolute left-0 top-full z-40 mt-1 w-80 border border-rule bg-card animate-rise rounded-2xl">
           <p className="spec border-b border-line px-3 py-2">Block einfügen{query ? ` · „${query}“` : ""}</p>
           <MenuList items={items} active={slash.active} onPick={pick} id={listId} />
         </div>
@@ -592,7 +592,7 @@ function HeadingBlock({ b, index, ctx }: { b: Of<"heading">; index: number; ctx:
     <div className="flex items-start gap-2">
       <div className="mt-2 flex shrink-0 border border-line-strong rounded-2xl" role="group" aria-label="Ebene">
         {([2, 3] as const).map((l) => (
-          <button key={l} type="button" aria-pressed={b.level === l} onClick={() => ctx.patch(b.id, { level: l })} className={cn("h-6 px-1.5 font-mono text-[10px]", b.level === l ? "bg-ink text-paper" : "text-muted hover:text-ink")}>
+          <button key={l} type="button" aria-pressed={b.level === l} onClick={() => ctx.patch(b.id, { level: l })} className={cn("h-6 px-1.5 font-mono text-[10px]", b.level === l ? "bg-moss text-paper" : "text-muted hover:text-ink")}>
             H{l}
           </button>
         ))}
@@ -640,10 +640,10 @@ function ListBlock({ b, index, ctx }: { b: Of<"list">; index: number; ctx: Block
   return (
     <div>
       <div className="mb-1 flex gap-1" role="group" aria-label="Listentyp">
-        <button type="button" aria-pressed={!b.ordered} onClick={() => ctx.patch(b.id, { ordered: false })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px]", !b.ordered ? "bg-ink text-paper" : "text-muted hover:text-ink")}>
+        <button type="button" aria-pressed={!b.ordered} onClick={() => ctx.patch(b.id, { ordered: false })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px]", !b.ordered ? "bg-moss text-paper" : "text-muted hover:text-ink")}>
           <List size={12} /> Striche
         </button>
-        <button type="button" aria-pressed={b.ordered} onClick={() => ctx.patch(b.id, { ordered: true })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px]", b.ordered ? "bg-ink text-paper" : "text-muted hover:text-ink")}>
+        <button type="button" aria-pressed={b.ordered} onClick={() => ctx.patch(b.id, { ordered: true })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px]", b.ordered ? "bg-moss text-paper" : "text-muted hover:text-ink")}>
           <ListOrdered size={12} /> Nummeriert
         </button>
       </div>
@@ -717,7 +717,7 @@ function CalloutBlock({ b, ctx }: { b: Of<"callout">; ctx: BlockCtx }) {
     <div className={cn("border-l-2 px-4 py-3", tone.cls)}>
       <div className="mb-1 flex gap-1" role="group" aria-label="Art des Hinweises">
         {TONES.map((t) => (
-          <button key={t.key} type="button" aria-pressed={b.tone === t.key} onClick={() => ctx.patch(b.id, { tone: t.key })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px] font-semibold", b.tone === t.key ? "bg-ink text-paper" : "text-muted hover:text-ink")}>
+          <button key={t.key} type="button" aria-pressed={b.tone === t.key} onClick={() => ctx.patch(b.id, { tone: t.key })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px] font-semibold", b.tone === t.key ? "bg-moss text-paper" : "text-muted hover:text-ink")}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -764,7 +764,7 @@ function UploadDrop({ blockKey, accept, label, onFiles, progress, multiple }: { 
           onFiles(Array.from(e.dataTransfer.files));
         }}
         disabled={progress !== null}
-        className="crop flex h-40 w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong bg-card text-sm text-muted hover:border-ink hover:text-ink rounded-2xl"
+        className="crop flex h-40 w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong bg-card text-sm text-muted hover:border-rule-strong hover:text-ink rounded-2xl"
       >
         {progress !== null ? (
           <>
@@ -813,8 +813,8 @@ function ImageBlock({ b, ctx }: { b: Of<"image">; ctx: BlockCtx }) {
       )}
       {up.error && <p role="alert" className="mt-1 text-xs text-danger">{up.error}</p>}
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <input value={b.alt} maxLength={500} onChange={(e) => ctx.patch(b.id, { alt: e.target.value })} aria-label="Alt-Text" placeholder="Alt-Text: Was ist zu sehen?" className={cn("h-9 border-b bg-transparent text-sm outline-none focus:border-ink", b.mediaId && !b.alt.trim() ? "border-warn" : "border-line")} />
-        <input value={b.caption} maxLength={500} onChange={(e) => ctx.patch(b.id, { caption: e.target.value })} aria-label="Bildunterschrift" placeholder="Bildunterschrift (optional)" className="h-9 border-b border-line bg-transparent text-sm outline-none focus:border-ink" />
+        <input value={b.alt} maxLength={500} onChange={(e) => ctx.patch(b.id, { alt: e.target.value })} aria-label="Alt-Text" placeholder="Alt-Text: Was ist zu sehen?" className={cn("h-9 border-b bg-transparent text-sm outline-none focus:border-moss", b.mediaId && !b.alt.trim() ? "border-warn" : "border-line")} />
+        <input value={b.caption} maxLength={500} onChange={(e) => ctx.patch(b.id, { caption: e.target.value })} aria-label="Bildunterschrift" placeholder="Bildunterschrift (optional)" className="h-9 border-b border-line bg-transparent text-sm outline-none focus:border-moss" />
       </div>
     </figure>
   );
@@ -888,7 +888,7 @@ function VideoBlock({ b, ctx }: { b: Of<"video">; ctx: BlockCtx }) {
         <UploadDrop blockKey={b.id} accept="video/mp4,video/quicktime,video/webm" label="Video hochladen (max. 3 Min.)" onFiles={onFiles} progress={up.progress} />
       )}
       {up.error && <p role="alert" className="mt-1 text-xs text-danger">{up.error}</p>}
-      <input value={b.caption} maxLength={500} onChange={(e) => ctx.patch(b.id, { caption: e.target.value })} aria-label="Videobeschreibung" placeholder="Beschreibung (optional, hilft auch Screenreadern)" className="mt-2 h-9 w-full border-b border-line bg-transparent text-sm outline-none focus:border-ink" />
+      <input value={b.caption} maxLength={500} onChange={(e) => ctx.patch(b.id, { caption: e.target.value })} aria-label="Videobeschreibung" placeholder="Beschreibung (optional, hilft auch Screenreadern)" className="mt-2 h-9 w-full border-b border-line bg-transparent text-sm outline-none focus:border-moss" />
     </figure>
   );
 }
@@ -930,9 +930,9 @@ function TableBlock({ b, ctx }: { b: Of<"table">; ctx: BlockCtx }) {
         </table>
       </div>
       <div className="mt-2 flex flex-wrap gap-2 text-xs">
-        <button type="button" disabled={b.rows.length >= 60} onClick={() => set([...b.rows, Array(cols).fill("")])} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-ink disabled:opacity-40 rounded-xl"><Plus size={12} /> Zeile</button>
-        <button type="button" disabled={cols >= 8} onClick={() => set(b.rows.map((r) => [...r, ""]))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-ink disabled:opacity-40 rounded-xl"><Plus size={12} /> Spalte</button>
-        <button type="button" disabled={cols <= 1} onClick={() => set(b.rows.map((r) => r.slice(0, cols - 1)))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 hover:border-ink disabled:opacity-40 rounded-xl"><Minus size={12} /> Letzte Spalte</button>
+        <button type="button" disabled={b.rows.length >= 60} onClick={() => set([...b.rows, Array(cols).fill("")])} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-rule-strong disabled:opacity-40 rounded-xl"><Plus size={12} /> Zeile</button>
+        <button type="button" disabled={cols >= 8} onClick={() => set(b.rows.map((r) => [...r, ""]))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 font-semibold hover:border-rule-strong disabled:opacity-40 rounded-xl"><Plus size={12} /> Spalte</button>
+        <button type="button" disabled={cols <= 1} onClick={() => set(b.rows.map((r) => r.slice(0, cols - 1)))} className="inline-flex h-7 items-center gap-1 border border-line-strong px-2 hover:border-rule-strong disabled:opacity-40 rounded-xl"><Minus size={12} /> Letzte Spalte</button>
         <span className="self-center text-muted">Erste Zeile = Kopfzeile</span>
       </div>
     </div>
@@ -981,7 +981,7 @@ function EmbedBlock({ kind, id, title, blockKey, onPick }: { kind: "project" | "
   if (!editing && id) {
     return (
       <div className="flex items-center gap-3 border border-line bg-card px-3 py-2.5 rounded-2xl">
-        <span className="h-8 w-px bg-ink" aria-hidden />
+        <span className="h-8 w-px bg-rule-strong" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="spec">{EMBED_LABEL[kind]}karte</p>
           <p className="truncate font-semibold">{title ?? "Ausgewählt"}</p>
@@ -993,7 +993,7 @@ function EmbedBlock({ kind, id, title, blockKey, onPick }: { kind: "project" | "
 
   const list = hits ?? [];
   return (
-    <div className="border border-ink bg-card rounded-2xl">
+    <div className="border border-rule bg-card rounded-2xl">
       <div className="flex items-center gap-2 border-b border-line px-3">
         <Search size={14} className="text-muted" />
         <input

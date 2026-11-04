@@ -40,7 +40,7 @@ export default async function StudioProjects() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-[14px]">
             <thead>
-              <tr className="border-b border-ink text-left">
+              <tr className="border-b border-rule text-left">
                 <th scope="col" className="spec py-2 pr-3 font-normal">Projekt</th>
                 <th scope="col" className="spec py-2 pr-3 font-normal">Status</th>
                 <th scope="col" className="spec py-2 pr-3 font-normal">Sichtbarkeit</th>

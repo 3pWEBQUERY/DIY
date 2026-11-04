@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Link href="/hilfe" className="hover:text-ink">Hilfe</Link>
         </footer>
       </div>
-      <aside className="relative hidden overflow-hidden border-l border-ink bg-sunken lg:block" aria-hidden>
+      <aside className="relative hidden overflow-hidden border-l border-rule bg-sunken lg:block" aria-hidden>
         <div className="grid-paper absolute inset-0 opacity-70" />
         <div className="absolute inset-0 flex flex-col justify-between p-12">
           <div className="flex justify-between spec text-ink">
@@ -33,7 +33,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               <span className="flex items-center gap-2"><span className="size-2 bg-moss rounded-full" />Idee</span>
               <span className="flex items-center gap-2"><span className="size-2 bg-ink rounded-full" />Journal</span>
               <span className="flex items-center gap-2"><span className="size-2 bg-clay rounded-full" />Anleitung</span>
-              <span className="flex items-center gap-2"><span className="size-2 border border-ink rounded-full" />Nachbau</span>
+              <span className="flex items-center gap-2"><span className="size-2 border border-rule rounded-full" />Nachbau</span>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { forwardRef, useId, type ComponentProps, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full bg-card border border-line-strong rounded-xl px-3 text-[15px] text-ink placeholder:text-muted/80 transition-colors hover:border-muted focus:border-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1 aria-[invalid=true]:border-danger disabled:bg-sunken disabled:text-muted";
+  "w-full bg-card border border-line-strong rounded-xl px-3 text-[15px] text-ink placeholder:text-muted/80 transition-colors hover:border-rule-strong focus:border-moss focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1 aria-[invalid=true]:border-danger disabled:bg-sunken disabled:text-muted";
 
 export const Input = forwardRef<HTMLInputElement, ComponentProps<"input">>(function Input({ className, ...p }, ref) {
   return <input ref={ref} className={cn(control, "h-11", className)} {...p} />;
@@ -12,18 +12,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, ComponentProps<"textarea
   return <textarea ref={ref} className={cn(control, "py-2.5 leading-relaxed min-h-24 resize-y", className)} {...p} />;
 });
 
-export const Select = forwardRef<HTMLSelectElement, ComponentProps<"select">>(function Select({ className, children, ...p }, ref) {
-  return (
-    <div className="relative">
-      <select ref={ref} className={cn(control, "h-11 appearance-none pr-9", className)} {...p}>
-        {children}
-      </select>
-      <svg aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" width="12" height="12" viewBox="0 0 12 12">
-        <path d="M2 4.5 6 8l4-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      </svg>
-    </div>
-  );
-});
+/** Eigenes Auswahlfeld (kein natives OS-Dropdown). */
+export { Select } from "./select";
 
 export function Label({ className, ...p }: ComponentProps<"label">) {
   return <label className={cn("block text-[13px] font-semibold text-ink mb-1.5", className)} {...p} />;

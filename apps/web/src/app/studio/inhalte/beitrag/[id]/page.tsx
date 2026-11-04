@@ -29,7 +29,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
       <Link href="/studio/inhalte" className="mb-6 inline-flex items-center gap-2 text-sm text-muted hover:text-ink">
         <ArrowLeft size={15} /> Meine Inhalte
       </Link>
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-ink pb-6">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-6">
         <div>
           <p className="spec">Beitrag · veröffentlicht am {formatDate(post.publishedAt)}{post.editedAt ? ` · zuletzt bearbeitet ${formatDate(post.editedAt)}` : ""}</p>
           <h1 className="display mt-2 text-4xl">Beitrag bearbeiten</h1>

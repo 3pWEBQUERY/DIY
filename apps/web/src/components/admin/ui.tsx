@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -9,9 +10,9 @@ import { cn } from "@/lib/utils";
 
 export function AdminHeader({ n, title, description, actions }: { n?: string; title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-ink pb-4">
+    <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-4">
       <div>
-        {n && <p className="spec mb-2 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />Abschnitt {n}</p>}
+        {n && <p className="spec mb-2 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Abschnitt {n}</p>}
         <h1 className="display text-[2.1rem] sm:text-[2.5rem]">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{description}</p>}
       </div>
@@ -52,12 +53,12 @@ export function Tr({ className, highlight, ...p }: ComponentProps<"tr"> & { high
 /** GET-Filterleiste: Felder werden als Query-Parameter übertragen. */
 export function FilterBar({ children, action, className }: { children: ReactNode; action?: string; className?: string }) {
   return (
-    <form method="get" action={action} role="search" className={cn("mb-5 flex flex-wrap items-end gap-3", className)}>
+    <Form action={action ?? ""} role="search" className={cn("mb-5 flex flex-wrap items-end gap-3", className)}>
       {children}
-      <button type="submit" className="h-9 border border-ink bg-ink px-4 text-[13px] font-semibold text-paper hover:bg-ink-2 rounded-2xl">
+      <button type="submit" className="h-9 rounded-xl bg-moss px-4 text-[13px] font-semibold text-paper transition-colors hover:bg-moss-ink">
         Anwenden
       </button>
-    </form>
+    </Form>
   );
 }
 
@@ -70,7 +71,7 @@ export function FilterField({ label, children, className }: { label: string; chi
   );
 }
 
-export const filterInput = "h-9 min-w-0 border border-line-strong bg-card px-2.5 text-[13.5px] text-ink focus:border-ink focus:outline-none rounded-2xl";
+export const filterInput = "h-9 min-w-0 border border-line-strong bg-card px-2.5 text-[13.5px] text-ink focus:border-moss focus:outline-none rounded-2xl";
 
 /** Segmentierte Status-Links (z.B. Offen · In Prüfung · Entschieden) mit Zählern. */
 export function Segments({ items, active, className }: { items: { key: string; label: string; href: string; count?: number }[]; active: string; className?: string }) {
@@ -99,8 +100,8 @@ export function Pager({ page, pages, href }: { page: number; pages: number; href
         Seite {page} / {pages}
       </span>
       <span className="flex gap-2">
-        {page > 1 ? <Link className="border border-line-strong px-3 py-1.5 hover:border-ink rounded-2xl" href={href(page - 1)}>← Zurück</Link> : <span className="border border-line px-3 py-1.5 text-muted/60 rounded-2xl">← Zurück</span>}
-        {page < pages ? <Link className="border border-line-strong px-3 py-1.5 hover:border-ink rounded-2xl" href={href(page + 1)}>Weiter →</Link> : <span className="border border-line px-3 py-1.5 text-muted/60 rounded-2xl">Weiter →</span>}
+        {page > 1 ? <Link className="border border-line-strong px-3 py-1.5 hover:border-rule-strong rounded-2xl" href={href(page - 1)}>← Zurück</Link> : <span className="border border-line px-3 py-1.5 text-muted/60 rounded-2xl">← Zurück</span>}
+        {page < pages ? <Link className="border border-line-strong px-3 py-1.5 hover:border-rule-strong rounded-2xl" href={href(page + 1)}>Weiter →</Link> : <span className="border border-line px-3 py-1.5 text-muted/60 rounded-2xl">Weiter →</span>}
       </span>
     </nav>
   );

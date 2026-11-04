@@ -28,7 +28,7 @@ export default async function MediaLibraryPage({ searchParams }: { searchParams:
   return (
     <div className="max-w-[1200px]">
       <header className="mb-8">
-        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />{num(lib.count)} Dateien · {bytes(lib.totalBytes)}</p>
+        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{num(lib.count)} Dateien · {bytes(lib.totalBytes)}</p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Medienbibliothek</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
           Alle Fotos, Videos und Dateien, die du hochgeladen hast. Gute Alt-Texte machen deine Projekte für Menschen mit Screenreader zugänglich. Unbenutzte Dateien kannst du hier löschen; verwendete entfernst du im jeweiligen Inhalt.

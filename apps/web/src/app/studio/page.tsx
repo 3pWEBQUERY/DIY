@@ -34,7 +34,7 @@ export default async function StudioOverview() {
     <div className="max-w-[1100px]">
       <header className="mb-10">
         <p className="spec mb-3 flex items-center gap-2">
-          <span className="inline-block h-px w-6 bg-ink" />
+          <span className="inline-block h-px w-6 bg-rule-strong" />
           Letzte {o.periodDays} Tage · im Vergleich zu den {o.periodDays} Tagen davor
         </p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Deine Werkstatt in Zahlen</h1>

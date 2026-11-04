@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +49,7 @@ export function PageHeader({
 }) {
   return (
     <header className={cn("mb-8", className)}>
-      {kicker && <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />{kicker}</p>}
+      {kicker && <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{kicker}</p>}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="display text-[2.4rem] text-balance sm:text-5xl">{title}</h1>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -64,19 +65,20 @@ export function TabLinks({ tabs, active, className }: { tabs: { href: string; la
   return (
     <div role="tablist" className={cn("flex gap-6 overflow-x-auto border-b border-line scrollbar-none", className)}>
       {tabs.map((t) => (
-        <a
+        <Link
           key={t.key}
+          scroll={false}
           role="tab"
           aria-selected={active === t.key}
           href={t.href}
           className={cn(
-            "relative -mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent py-3 text-[14px] text-muted hover:text-ink",
-            active === t.key && "border-ink font-semibold text-ink",
+            "relative -mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent py-3 text-[14px] text-muted transition-colors hover:text-ink",
+            active === t.key && "border-moss font-semibold text-ink",
           )}
         >
           {t.label}
           {t.count != null && <span className="font-mono text-[11px] text-muted">{t.count}</span>}
-        </a>
+        </Link>
       ))}
     </div>
   );

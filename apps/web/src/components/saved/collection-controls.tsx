@@ -129,7 +129,7 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
       <label className="relative flex min-w-0 flex-1 items-center">
         <span className="sr-only">In Sammlung verschieben</span>
         <FolderInput size={13} className="pointer-events-none absolute left-2 text-muted" />
-        <select
+        <Select
           value={value}
           disabled={pending}
           onChange={(e) => {
@@ -147,13 +147,13 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
               }
             });
           }}
-          className="h-8 w-full min-w-0 truncate border border-line bg-card pl-7 pr-2 text-[12px] text-ink-2 hover:border-line-strong rounded-2xl"
+          className="h-8 min-w-0 pl-8 text-[12px] text-ink-2"
         >
           <option value="">Ohne Sammlung</option>
           {collections.map((c) => (
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
-        </select>
+        </Select>
       </label>
       <button
         type="button"

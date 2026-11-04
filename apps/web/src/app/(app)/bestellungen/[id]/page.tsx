@@ -41,7 +41,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         / <span className="font-mono text-ink">{o.number}</span>
       </nav>
 
-      <header className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-ink pb-6">
+      <header className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-rule pb-6">
         <div>
           <p className="spec">Bestellt am {formatDate(o.createdAt)} bei</p>
           <h1 className="display mt-1 text-[2.4rem] sm:text-5xl">
@@ -137,7 +137,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                       <p className="num text-[14.5px] font-semibold">{formatMoney(it.unitMinor * it.quantity, currency)}</p>
                     </div>
                     {it.review ? (
-                      <div className="ml-[80px] mt-3 border-l border-ink pl-3 text-[13.5px]">
+                      <div className="ml-[80px] mt-3 border-l border-rule pl-3 text-[13.5px]">
                         <p className="flex items-center gap-1" aria-label={`Deine Bewertung: ${it.review.productRating} von 5`}>
                           {[1, 2, 3, 4, 5].map((n) => (
                             <Star key={n} size={12} aria-hidden className={n <= it.review!.productRating ? "fill-clay text-clay" : "text-line-strong"} />

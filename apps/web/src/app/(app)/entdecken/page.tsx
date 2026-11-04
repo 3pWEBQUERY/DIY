@@ -72,9 +72,9 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   return (
     <Page width="wide">
       {/* Kopf */}
-      <header className="mb-10 grid gap-8 border-b border-ink pb-10 lg:grid-cols-[1.3fr_1fr] lg:items-end">
+      <header className="mb-10 grid gap-8 border-b border-rule pb-10 lg:grid-cols-[1.3fr_1fr] lg:items-end">
         <div>
-          <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-ink" />{cat ? `Werkstatt ${pad(CATEGORIES.indexOf(cat) + 1)}` : "Entdecken"}</p>
+          <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{cat ? `Werkstatt ${pad(CATEGORIES.indexOf(cat) + 1)}` : "Entdecken"}</p>
           <h1 className="display text-5xl text-balance sm:text-6xl">{cat ? cat.name : <>Was entsteht <em className="italic text-moss">gerade</em>?</>}</h1>
           <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-muted">
             {cat ? `Projekte, Anleitungen und Menschen rund um ${cat.name}.` : "Projekte, Anleitungen und Menschen – kuratiert von der Redaktion und gemischt nach deinen Interessen."}
@@ -93,13 +93,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
       {/* Kategorien */}
       <nav aria-label="Kategorien" className="-mx-4 mb-12 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
-        <Link href="/entdecken" className={cn("flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm", !cat ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}>Alle</Link>
+        <Link href="/entdecken" className={cn("flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm", !cat ? "border-moss bg-moss text-paper" : "border-line hover:border-rule-strong")}>Alle</Link>
         {CATEGORIES.map((c) => (
           <Link
             key={c.slug}
             href={`/entdecken?kategorie=${c.slug}`}
             aria-current={cat?.slug === c.slug ? "page" : undefined}
-            className={cn("flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm", cat?.slug === c.slug ? "border-ink bg-ink text-paper" : "border-line hover:border-ink")}
+            className={cn("flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm", cat?.slug === c.slug ? "border-moss bg-moss text-paper" : "border-line hover:border-rule-strong")}
           >
             <Glyph name={c.glyph} size={16} strokeWidth={1.5} />
             {c.short}
@@ -120,7 +120,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
         {collectionCards.map(({ c, projects, tutorials: tuts }, idx) =>
           projects.length + tuts.length === 0 ? null : (
-            <section key={c.id} className={cn(idx === 0 && "border border-ink bg-card p-6 sm:p-10 rounded-2xl")}>
+            <section key={c.id} className={cn(idx === 0 && "border border-rule bg-card p-6 sm:p-10 rounded-2xl")}>
               <div className="grid gap-8 lg:grid-cols-[1fr_3fr]">
                 <div>
                   <p className="spec text-clay">{c.kicker || "Kollektion"}</p>

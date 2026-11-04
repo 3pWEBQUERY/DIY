@@ -71,7 +71,7 @@ function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUplo
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => input.current?.click()} disabled={progress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-ink hover:text-ink rounded-2xl">
+        <button type="button" onClick={() => input.current?.click()} disabled={progress !== null} className="flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 border border-dashed border-line-strong text-sm text-muted hover:border-rule-strong hover:text-ink rounded-2xl">
           {progress !== null ? <><LoaderCircle size={18} className="animate-spin" /><span className="font-mono text-xs">{Math.round(progress * 100)} %</span></> : <><ImagePlus size={20} strokeWidth={1.5} /> Titelbild hochladen (16:9)</>}
         </button>
       )}
@@ -129,14 +129,14 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
       noValidate
     >
       <section aria-labelledby="f-basics" className="space-y-5">
-        <h2 id="f-basics" className="flex items-baseline gap-3 border-b border-ink pb-2 text-[15px] font-bold"><span className="spec text-ink">01</span>Grundlagen</h2>
+        <h2 id="f-basics" className="flex items-baseline gap-3 border-b border-rule pb-2 text-[15px] font-bold"><span className="spec text-ink">01</span>Grundlagen</h2>
         <Field label="Name" error={a.fields.name}>
           {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required placeholder="z.B. Holzwerkstatt Zürich" />}
         </Field>
         {!editing && (
           <Field label="Adresse" error={a.fields.slug} hint="Kann später nicht mehr geändert werden.">
             {(p) => (
-              <div className="flex items-center border border-line-strong bg-card focus-within:border-ink rounded-2xl">
+              <div className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
                 <span className="pl-3 font-mono text-[12px] text-muted">/c/</span>
                 <input
                   {...p}
@@ -173,12 +173,12 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
       </section>
 
       <section aria-labelledby="f-vis">
-        <h2 id="f-vis" className="mb-4 flex items-baseline gap-3 border-b border-ink pb-2 text-[15px] font-bold"><span className="spec text-ink">02</span>Sichtbarkeit</h2>
+        <h2 id="f-vis" className="mb-4 flex items-baseline gap-3 border-b border-rule pb-2 text-[15px] font-bold"><span className="spec text-ink">02</span>Sichtbarkeit</h2>
         <fieldset>
           <legend className="sr-only">Sichtbarkeit</legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {VIS.map((v) => (
-              <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4 rounded-2xl", visibility === v.key ? "border-ink bg-card" : "border-line hover:border-line-strong")}>
+              <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4 rounded-2xl", visibility === v.key ? "border-rule bg-card" : "border-line hover:border-line-strong")}>
                 <span className="flex items-center gap-2 font-semibold">
                   <input type="radio" name="visibility" value={v.key} checked={visibility === v.key} onChange={() => setVisibility(v.key)} className="accent-[#B64B3A]" />
                   {v.icon} {v.label}
@@ -191,7 +191,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
       </section>
 
       <section aria-labelledby="f-cover">
-        <h2 id="f-cover" className="mb-4 flex items-baseline gap-3 border-b border-ink pb-2 text-[15px] font-bold"><span className="spec text-ink">03</span>Titelbild</h2>
+        <h2 id="f-cover" className="mb-4 flex items-baseline gap-3 border-b border-rule pb-2 text-[15px] font-bold"><span className="spec text-ink">03</span>Titelbild</h2>
         <div className="max-w-md">
           <CoverPicker url={cover.url} onUploaded={(mediaId, url) => setCover({ mediaId, url })} onRemove={() => setCover({ url: null, mediaId: null })} />
         </div>
@@ -199,7 +199,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
 
       {!editing && (
         <section aria-labelledby="f-rules">
-          <h2 id="f-rules" className="mb-4 flex items-baseline gap-3 border-b border-ink pb-2 text-[15px] font-bold"><span className="spec text-ink">04</span>Regeln</h2>
+          <h2 id="f-rules" className="mb-4 flex items-baseline gap-3 border-b border-rule pb-2 text-[15px] font-bold"><span className="spec text-ink">04</span>Regeln</h2>
           <p className="mb-4 text-sm text-muted">Klare Regeln machen Moderation einfach. Du kannst sie jederzeit anpassen.</p>
           <RulesEditor value={rules} onChange={setRules} />
         </section>

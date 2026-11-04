@@ -63,15 +63,15 @@ export function CommunityCard({ community: c, variant = "card", className }: { c
   }
 
   return (
-    <article className={cn("group relative flex flex-col border border-line bg-card transition-colors hover:border-ink rounded-2xl", className)}>
-      <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/9" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="border-b border-line" label={c.name} />
-      {c.isFeatured && <span className="absolute left-3 top-3 bg-ink px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-paper rounded-2xl">Empfohlen</span>}
+    <article className={cn("group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-rule-strong", className)}>
+      <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/9" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="border-b border-line rounded-none" label={c.name} />
+      {c.isFeatured && <span className="absolute left-3 top-3 bg-ink px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-paper rounded-full">Empfohlen</span>}
       <div className="flex flex-1 flex-col p-4">
         {meta}
-        <h3 className="headline mt-1.5 text-[1.3rem]">
+        <h3 className="headline mt-1.5 line-clamp-2 min-h-[2lh] text-[1.3rem]">
           <Link href={`/c/${c.slug}`} className="after:absolute after:inset-0 group-hover:underline">{c.name}</Link>
         </h3>
-        {c.description && <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">{c.description}</p>}
+        <p className="mt-1.5 line-clamp-2 min-h-[2lh] text-sm leading-relaxed text-muted">{c.description}</p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-4">
           <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
             <UserCheck size={14} aria-hidden />

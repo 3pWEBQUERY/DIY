@@ -39,7 +39,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
         <ArrowLeft size={14} aria-hidden /> Warteschlange
       </Link>
 
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-ink pb-4">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-4">
         <div>
           <p className="spec mb-2">
             {TARGET_TYPE_LABEL[c.targetType]} · eingegangen {dateTime(c.createdAt)}
@@ -139,7 +139,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
             {c.actions.length === 0 && c.appeals.length === 0 ? (
               <p className="py-4 text-sm text-muted">Noch keine Entscheidung.</p>
             ) : (
-              <ol className="mt-2 border-l border-ink pl-5">
+              <ol className="mt-2 border-l border-rule pl-5">
                 {[
                   ...c.actions.map((a) => ({ at: a.createdAt, key: a.id, node: (
                     <>
@@ -160,7 +160,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
                 ]
                   .sort((a, b) => a.at.getTime() - b.at.getTime())
                   .map((e) => (
-                    <li key={e.key} className="relative pb-5 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-ink rounded-full">
+                    <li key={e.key} className="relative pb-5 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-rule-strong rounded-full">
                       {e.node}
                     </li>
                   ))}

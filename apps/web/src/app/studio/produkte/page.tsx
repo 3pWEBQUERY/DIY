@@ -64,7 +64,7 @@ export default async function StudioProductsPage({ searchParams }: { searchParam
         <div className="mt-2 overflow-x-auto">
           <table className="w-full min-w-[720px] text-[14px]">
             <thead>
-              <tr className="border-b border-ink text-left">
+              <tr className="border-b border-rule text-left">
                 <th scope="col" className="spec py-3 font-normal">
                   Produkt
                 </th>

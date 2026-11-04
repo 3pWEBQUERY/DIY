@@ -108,7 +108,7 @@ export function BuyBox({
                   }}
                   className={cn(
                     "min-h-10 border px-3.5 text-[14px] transition-colors rounded-2xl",
-                    active ? "border-ink bg-ink text-paper" : "border-line-strong bg-card hover:border-ink",
+                    active ? "border-moss bg-moss text-paper" : "border-line-strong bg-card hover:border-rule-strong",
                     out && "cursor-not-allowed text-muted line-through decoration-1",
                   )}
                 >

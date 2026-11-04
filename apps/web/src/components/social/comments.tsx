@@ -87,7 +87,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit();
           }}
-          className="block min-h-10 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[15px] outline-none field-sizing-content focus:border-ink"
+          className="block min-h-10 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[15px] outline-none field-sizing-content focus:border-moss"
         />
         {body.trim() && (
           <div className="mt-2 flex justify-end">
