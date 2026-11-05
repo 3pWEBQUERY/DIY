@@ -30,8 +30,8 @@ export function PrivacyForm({ dmPolicy, reduceMotion }: { dmPolicy: string; redu
         <fieldset className="space-y-2">
           <legend className="sr-only">Direktnachrichten</legend>
           {DM_POLICIES.map((p) => (
-            <label key={p} className={cn("flex cursor-pointer gap-3 border px-4 py-3 rounded-2xl", dm === p ? "border-rule bg-card" : "border-line-strong hover:border-rule-strong")}>
-              <input type="radio" name="dmPolicy" checked={dm === p} onChange={() => setDm(p)} className="mt-1 accent-[var(--color-ink)]" />
+            <label key={p} className={cn("flex cursor-pointer gap-3 border px-4 py-3 rounded-2xl", dm === p ? "border-moss bg-moss-soft/60" : "border-line-strong bg-card hover:border-rule-strong")}>
+              <input type="radio" name="dmPolicy" checked={dm === p} onChange={() => setDm(p)} className="mt-1 accent-[var(--color-moss)]" />
               <span>
                 <span className="block text-sm font-semibold">{DM_POLICY_LABEL[p]}</span>
                 <span className="block text-xs text-muted">{DM_HINT[p]}</span>

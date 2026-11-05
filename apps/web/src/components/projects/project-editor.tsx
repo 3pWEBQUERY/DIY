@@ -223,7 +223,7 @@ export function ProjectEditor({
             <legend className="spec mb-2">Titelbild</legend>
             <div className="flex flex-wrap gap-2">
               {readyImages.map((m, i) => (
-                <label key={m.id} className={cn("relative size-16 cursor-pointer overflow-hidden border rounded-2xl", effectiveCover === m.id ? "border-rule outline outline-1 outline-ink" : "border-line opacity-70 hover:opacity-100")}>
+                <label key={m.id} className={cn("relative size-16 cursor-pointer overflow-hidden border rounded-2xl", effectiveCover === m.id ? "border-moss outline outline-2 outline-moss" : "border-line opacity-70 hover:opacity-100")}>
                   <input type="radio" name="cover" className="sr-only" checked={effectiveCover === m.id} onChange={() => setCoverId(m.id)} aria-label={`Bild ${i + 1} als Titelbild`} />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={m.preview} alt="" className="h-full w-full object-cover" />
@@ -243,7 +243,7 @@ export function ProjectEditor({
           <legend className="mb-2 text-[13px] font-semibold">Status</legend>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {PROJECT_STATUS.map((s) => (
-              <label key={s} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2.5 text-sm rounded-2xl", status === s ? "border-rule bg-sunken font-semibold" : "border-line hover:border-line-strong")}>
+              <label key={s} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2.5 text-sm rounded-2xl", status === s ? "border-moss bg-moss-soft/60 font-semibold text-moss-ink" : "border-line hover:border-line-strong")}>
                 <input type="radio" name="status" value={s} checked={status === s} onChange={() => setStatus(s)} className="sr-only" />
                 <StatusMark status={s} />
                 {PROJECT_STATUS_LABEL[s]}

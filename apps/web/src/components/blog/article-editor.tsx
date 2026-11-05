@@ -573,12 +573,12 @@ function PublishDialog({
     <Dialog open={open} onClose={onClose} title="Veröffentlichen" description="Dein Artikel wird öffentlich auf deinem Blog und unter /blogs sichtbar.">
       <fieldset className="space-y-2">
         <legend className="sr-only">Zeitpunkt</legend>
-        <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "now" ? "border-rule bg-sunken" : "border-line")}>
+        <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "now" ? "border-moss bg-moss-soft/60" : "border-line")}>
           <input type="radio" name="when" checked={mode === "now"} onChange={() => setMode("now")} className="mt-1 accent-[#B64B3A]" />
           <span><span className="block font-semibold">Jetzt veröffentlichen</span><span className="text-sm text-muted">Sofort sichtbar.</span></span>
         </label>
         {canSchedule && (
-          <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "later" ? "border-rule bg-sunken" : "border-line")}>
+          <label className={cn("flex cursor-pointer items-start gap-3 border px-4 py-3 rounded-2xl", mode === "later" ? "border-moss bg-moss-soft/60" : "border-line")}>
             <input type="radio" name="when" checked={mode === "later"} onChange={() => setMode("later")} className="mt-1 accent-[#B64B3A]" />
             <span className="flex-1">
               <span className="flex items-center gap-1.5 font-semibold"><CalendarClock size={15} /> Planen</span>

@@ -83,7 +83,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
                 <ul className="max-h-64 space-y-1.5 overflow-y-auto">
                   {lists.map((l) => (
                     <li key={l.id}>
-                      <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", target === l.id ? "border-rule bg-sunken" : "border-line hover:border-line-strong")}>
+                      <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", target === l.id ? "border-moss bg-moss-soft/60" : "border-line hover:border-line-strong")}>
                         <input type="radio" name="target" value={l.id} checked={target === l.id} onChange={() => setTarget(l.id)} className="accent-[#B64B3A]" />
                         <span className="min-w-0 flex-1 truncate font-medium">{l.title}</span>
                         <span className="spec shrink-0">{l.total} Pos.</span>
@@ -91,7 +91,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
                     </li>
                   ))}
                   <li>
-                    <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", target === "new" ? "border-rule bg-sunken" : "border-line hover:border-line-strong")}>
+                    <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", target === "new" ? "border-moss bg-moss-soft/60" : "border-line hover:border-line-strong")}>
                       <input type="radio" name="target" value="new" checked={target === "new"} onChange={() => setTarget("new")} className="accent-[#B64B3A]" />
                       <span className="font-medium">Neue Liste anlegen</span>
                     </label>

@@ -90,8 +90,8 @@ export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[
         <fieldset className="grid gap-2 sm:grid-cols-2">
           <legend className="sr-only">E-Mail-Rhythmus</legend>
           {EMAIL_DIGEST.map((d) => (
-            <label key={d} className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", digest === d ? "border-rule bg-card" : "border-line-strong hover:border-rule-strong")}>
-              <input type="radio" name="digest" value={d} checked={digest === d} onChange={() => setDigest(d)} className="accent-[var(--color-ink)]" />
+            <label key={d} className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", digest === d ? "border-moss bg-moss-soft/60" : "border-line-strong bg-card hover:border-rule-strong")}>
+              <input type="radio" name="digest" value={d} checked={digest === d} onChange={() => setDigest(d)} className="accent-[var(--color-moss)]" />
               {EMAIL_DIGEST_LABEL[d]}
             </label>
           ))}

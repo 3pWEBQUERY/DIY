@@ -73,7 +73,7 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
                 onClick={() => setIdx(i)}
                 aria-label={`Bild ${i + 1}${m.alt ? `: ${m.alt}` : ""}`}
                 aria-current={i === idx ? "true" : undefined}
-                className={cn("relative block aspect-square w-full overflow-hidden border transition-colors rounded-2xl", i === idx ? "border-rule" : "border-line opacity-70 hover:opacity-100")}
+                className={cn("relative block aspect-square w-full overflow-hidden border transition-colors rounded-2xl", i === idx ? "border-moss ring-2 ring-moss/25" : "border-line opacity-70 hover:opacity-100")}
               >
                 {m.kind === "VIDEO" ? (
                   <span className="absolute inset-0 grid place-items-center bg-ink font-mono text-[10px] text-paper">VIDEO</span>

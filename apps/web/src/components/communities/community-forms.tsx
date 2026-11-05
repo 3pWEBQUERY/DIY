@@ -178,7 +178,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
           <legend className="sr-only">Sichtbarkeit</legend>
           <div className="grid gap-2 sm:grid-cols-3">
             {VIS.map((v) => (
-              <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4 rounded-2xl", visibility === v.key ? "border-rule bg-card" : "border-line hover:border-line-strong")}>
+              <label key={v.key} className={cn("flex cursor-pointer flex-col gap-1 border p-4 rounded-2xl", visibility === v.key ? "border-moss bg-moss-soft/60" : "border-line bg-card hover:border-line-strong")}>
                 <span className="flex items-center gap-2 font-semibold">
                   <input type="radio" name="visibility" value={v.key} checked={visibility === v.key} onChange={() => setVisibility(v.key)} className="accent-[#B64B3A]" />
                   {v.icon} {v.label}

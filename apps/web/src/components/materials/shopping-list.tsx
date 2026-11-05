@@ -227,7 +227,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
           <ul className="space-y-1.5">
             {otherLists.map((l) => (
               <li key={l.id}>
-                <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", mergeFrom === l.id ? "border-rule bg-sunken" : "border-line hover:border-line-strong")}>
+                <label className={cn("flex cursor-pointer items-center gap-3 border px-3 py-2.5 text-sm rounded-2xl", mergeFrom === l.id ? "border-moss bg-moss-soft/60" : "border-line hover:border-line-strong")}>
                   <input type="radio" name="merge" checked={mergeFrom === l.id} onChange={() => setMergeFrom(l.id)} className="accent-[#B64B3A]" />
                   <span className="min-w-0 flex-1 truncate font-medium">{l.title}</span>
                   <span className="spec">{l.total} Pos.</span>

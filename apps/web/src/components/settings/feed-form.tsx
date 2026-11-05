@@ -35,8 +35,8 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
             <li key={c.slug} className="flex flex-wrap items-center gap-3 py-2.5">
               <Glyph name={c.glyph} size={20} className="text-ink" />
               <span className="min-w-0 flex-1 text-sm font-medium">{c.name}</span>
-              <span role="radiogroup" aria-label={c.name} className="flex border border-line-strong rounded-2xl">
-                {(["interest", "neutral", "hidden"] as const).map((m, i) => (
+              <span role="radiogroup" aria-label={c.name} className="flex gap-0.5 rounded-full border border-line-strong bg-card p-0.5">
+                {(["interest", "neutral", "hidden"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -44,9 +44,13 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
                     aria-checked={modes[c.slug] === m}
                     onClick={() => setModes((s) => ({ ...s, [c.slug]: m }))}
                     className={cn(
-                      "h-8 px-2.5 text-[12.5px] text-ink-2 hover:bg-sunken rounded-2xl",
-                      i > 0 && "border-l border-line-strong",
-                      modes[c.slug] === m && (m === "interest" ? "bg-moss text-paper hover:bg-moss" : m === "hidden" ? "bg-moss text-paper hover:bg-moss-ink" : "bg-sunken font-semibold"),
+                      "h-7 rounded-full px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-moss-soft/60 hover:text-ink",
+                      modes[c.slug] === m &&
+                        (m === "interest"
+                          ? "bg-moss font-semibold text-paper hover:bg-moss hover:text-paper"
+                          : m === "hidden"
+                            ? "bg-moss-ink font-semibold text-paper hover:bg-moss-ink hover:text-paper"
+                            : "bg-moss-soft font-semibold text-moss-ink hover:bg-moss-soft hover:text-moss-ink"),
                     )}
                   >
                     {m === "interest" ? "Interessiert mich" : m === "neutral" ? "Neutral" : "Ausblenden"}
@@ -62,8 +66,8 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
         <fieldset className="flex flex-wrap gap-2">
           <legend className="sr-only">Standard-Feed</legend>
           {FEED_DEFAULTS.map((f) => (
-            <label key={f} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2 text-sm rounded-2xl", def === f ? "border-rule bg-card" : "border-line-strong hover:border-rule-strong")}>
-              <input type="radio" name="feedDefault" checked={def === f} onChange={() => setDef(f)} className="accent-[var(--color-ink)]" />
+            <label key={f} className={cn("flex cursor-pointer items-center gap-2.5 border px-3 py-2 text-sm rounded-2xl", def === f ? "border-moss bg-moss-soft font-semibold text-moss-ink" : "border-line-strong bg-card hover:border-rule-strong")}>
+              <input type="radio" name="feedDefault" checked={def === f} onChange={() => setDef(f)} className="accent-[var(--color-moss)]" />
               {FEED_DEFAULT_LABEL[f]}
             </label>
           ))}

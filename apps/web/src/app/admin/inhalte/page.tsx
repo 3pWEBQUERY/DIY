@@ -46,7 +46,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
         </Select>
       </FilterField>
       <label className="flex h-9 items-center gap-2 text-[13px]">
-        <input type="checkbox" name="hervorgehoben" value="1" defaultChecked={opts.featured} className="accent-[var(--color-ink)]" />
+        <input type="checkbox" name="hervorgehoben" value="1" defaultChecked={opts.featured} className="accent-[var(--color-moss)]" />
         Nur hervorgehobene
       </label>
     </FilterBar>
