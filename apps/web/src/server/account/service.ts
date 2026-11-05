@@ -127,7 +127,7 @@ export async function listSessions(userId: string, currentSessionId: string) {
   return rows.map((s) => ({
     key: s.id.slice(0, 16),
     device: s.deviceLabel ?? "Unbekanntes Gerät",
-    isApp: /WerkraumApp/.test(s.userAgent ?? ""),
+    isApp: /Werk(raum|uno)App/.test(s.userAgent ?? ""),
     lastUsedAt: s.lastUsedAt,
     createdAt: s.createdAt,
     expiresAt: s.expiresAt,

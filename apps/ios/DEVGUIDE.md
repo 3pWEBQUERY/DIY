@@ -1,6 +1,6 @@
-# WERKRAUM iOS – Entwickler-Leitfaden (für alle, die Feature-Bereiche bauen)
+# Werkuno iOS – Entwickler-Leitfaden (für alle, die Feature-Bereiche bauen)
 
-Native SwiftUI-App (iOS 26+, Swift 5-Modus, kein Drittanbieter-Code) für die Web-Plattform WERKRAUM.
+Native SwiftUI-App (iOS 26+, Swift 5-Modus, kein Drittanbieter-Code) für die Web-Plattform (App-Name: Werkuno).
 **Alle Daten kommen live aus dem Backend** – es gibt keine Mock-Daten in der App.
 
 ## 1. Projekt & Build
@@ -8,11 +8,11 @@ Native SwiftUI-App (iOS 26+, Swift 5-Modus, kein Drittanbieter-Code) für die We
 ```bash
 cd apps/ios
 xcodegen generate
-xcodebuild -project Werkraum.xcodeproj -scheme Werkraum \
+xcodebuild -project Werkuno.xcodeproj -scheme Werkuno \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
   -derivedDataPath <eigener Ordner> build 2>&1 | grep -E "error:|BUILD" | sort -u
 ```
-Neue Dateien unter `Werkraum/` werden von XcodeGen automatisch aufgenommen (nach `xcodegen generate`).
+Neue Dateien unter `Werkuno/` werden von XcodeGen automatisch aufgenommen (nach `xcodegen generate`).
 
 ## 2. Backend-API
 
@@ -33,7 +33,7 @@ Neue Dateien unter `Werkraum/` werden von XcodeGen automatisch aufgenommen (nach
 
 ## 3. Architektur-Regeln
 
-- **Nur in deinem Ordner `Werkraum/Features/<Bereich>/` arbeiten.** `App/`, `Core/`, `DesignSystem/`, `Models/`, `ThreeD/` nicht ändern.
+- **Nur in deinem Ordner `Werkuno/Features/<Bereich>/` arbeiten.** `App/`, `Core/`, `DesignSystem/`, `Models/`, `ThreeD/` nicht ändern.
   Fehlt dir etwas Gemeinsames, baue es in deinem Ordner (private/fileprivate oder mit Bereichs-Präfix, z. B. `MarketPriceRow`), damit es keine Namenskollisionen mit anderen Bereichen gibt.
 - Die Platzhalter-Datei `Features/<Bereich>/<Bereich>Stubs.swift` definiert die **exakten öffentlichen View-Namen und Initialisierer**, die `App/MainTabView.swift` aufruft. Ersetze die Stubs durch echte Views mit *gleichen* Namen/Parametern (Datei löschen, Views auf eigene Dateien verteilen).
 - Eigene Modelle in `Features/<Bereich>/<Bereich>Models.swift` (Präfix vermeiden Kollisionen, z. B. `ProjectPage`, `MarketCart`). Gemeinsame Modelle in `Models/Common.swift` wiederverwenden (`PostItem`, `ProjectCard`, `TutorialCard`, `ProductCard`, `CommunityCard`, `ArticleCard`, `UserMini`, `CreatorSuggestion`, `Page<T>`, `MediaItem`, `Category` …).

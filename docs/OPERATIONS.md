@@ -41,7 +41,7 @@ Optional: `STRIPE_*` (Marktplatz), `RESEND_API_KEY` (E-Mail), `APPLE_*` (Anmelde
 ### iOS-App (`apps/ios`)
 | Variable | Service | Zweck |
 |---|---|---|
-| `APPLE_IOS_CLIENT_ID` | web | Bundle-ID der App (`ch.werkraum.app`) – aktiviert „Mit Apple anmelden“ in der App (`POST /api/v1/app/auth/apple`) |
+| `APPLE_IOS_CLIENT_ID` | web | Bundle-ID der App (`ch.werkuno.app`) – aktiviert „Mit Apple anmelden“ in der App (`POST /api/v1/app/auth/apple`) |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID` | worker | iOS-Push. `.p8`-Schlüssel aus developer.apple.com → Certificates, IDs & Profiles → Keys (Apple Push Notifications service). Zeilenumbrüche als `\n`. |
 
 Ablauf Push: Die App meldet ihr Gerätetoken (`PATCH /api/v1/app/devices/push`, an die Sitzung gebunden). Der Worker stellt neue, ungelesene In-App-Benachrichtigungen alle 10 s per APNs zu (`push.deliver`), höchstens 30 Min. alte. Abmelden/Sitzungswiderruf beendet den Versand, ungültige Tokens werden deaktiviert. Ohne `APNS_*` bleibt der Versand still aus.

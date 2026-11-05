@@ -12,7 +12,7 @@ const TOUCH_INTERVAL_MS = 1000 * 60 * 30;
 function deviceLabel(ua: string | null) {
   if (!ua) return "Unbekanntes Gerät";
   const os = /iPhone|iPad/.test(ua) ? "iOS" : /Android/.test(ua) ? "Android" : /Mac OS X/.test(ua) ? "macOS" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "Gerät";
-  const br = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /WerkraumApp/.test(ua) ? "WERKRAUM App" : "Browser";
+  const br = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Werk(raum|uno)App/.test(ua) ? "Werkuno App" : "Browser";
   return `${br} auf ${os}`;
 }
 

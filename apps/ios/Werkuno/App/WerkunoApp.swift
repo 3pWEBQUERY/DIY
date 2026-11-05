@@ -1,0 +1,143 @@
+import SwiftUI
+
+import UserNotifications
+
+/// Push-Vorbereitung (PRD §19.2): Gerätetoken an den Server melden, sobald erlaubt.
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            if s.authorizationStatus == .authorized { DispatchQueue.main.async { application.registerForRemoteNotifications() } }
+        }
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
+        PushRegistration.token = hex
+        Task { await PushRegistration.sync() }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        #if DEBUG
+        print("Push-Registrierung nicht möglich: \(error.localizedDescription)")
+        #endif
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions { [.banner, .badge, .sound] }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if let href = response.notification.request.content.userInfo["href"] as? String, let url = URL(string: "werkuno:/" + href) {
+            await MainActor.run { UIApplication.shared.open(url) }
+        }
+    }
+}
+
+/// Gerätetoken an die aktuelle Sitzung binden bzw. beim Abmelden lösen.
+enum PushRegistration {
+    static var token: String? {
+        get { UserDefaults.standard.string(forKey: "werkuno.pushToken") }
+        set { UserDefaults.standard.set(newValue, forKey: "werkuno.pushToken") }
+    }
+    #if DEBUG
+    static let environment = "sandbox"
+    #else
+    static let environment = "production"
+    #endif
+
+    static func sync() async {
+        guard let token, APIClient.shared.isSignedIn else { return }
+        _ = try? await APIClient.shared.patch("/devices/push", ["token": JSONValue.string(token), "environment": .string(environment)]) as JSONValue
+    }
+
+    static func unregister() async {
+        guard let token, APIClient.shared.isSignedIn else { return }
+        _ = try? await APIClient.shared.send("DELETE", "/devices/push", body: ["token": JSONValue.string(token)]) as JSONValue
+    }
+}
+
+@main
+struct WerkunoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @State private var app = AppState()
+    @State private var router = Router()
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environment(app)
+                .environment(router)
+                .tint(.moss)
+                .onOpenURL { router.handle(url: $0) }
+        }
+    }
+}
+
+struct RootView: View {
+    @Environment(AppState.self) private var app
+
+    var body: some View {
+        ZStack {
+            Color.paper.ignoresSafeArea()
+            switch app.phase {
+            case .launching: LaunchView()
+            case .signedOut: AuthFlowView().transition(.opacity)
+            case .onboarding: OnboardingView().transition(.move(edge: .trailing).combined(with: .opacity))
+            case .ready: MainTabView().transition(.opacity)
+            }
+        }
+        .animation(.smooth(duration: 0.45), value: app.phase)
+        .toastOverlay()
+        .task { await app.launch() }
+    }
+}
+
+/// Startbildschirm: die vier Werkuno-Kacheln setzen sich zusammen, dann erscheint die Wortmarke.
+struct LaunchView: View {
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: 26) {
+            BrandMark(size: 132)
+                .scaleEffect(shown ? 1 : 0.82)
+                .rotationEffect(.degrees(shown ? 0 : -6))
+                .opacity(shown ? 1 : 0)
+            Wordmark(size: 34)
+                .opacity(shown ? 1 : 0)
+                .offset(y: shown ? 0 : 8)
+            YarnSpinner(size: 22)
+        }
+        .onAppear {
+            withAnimation(reduceMotion ? .none : .spring(duration: 0.7, bounce: 0.35)) { shown = true }
+        }
+    }
+}
+
+/// Wortmarke „WERKUNO“ (Nadel, Schere, Knopf). Hell/Dunkel-Variante im Asset-Katalog.
+struct Wordmark: View {
+    /// Höhe in Punkten (entspricht ungefähr der früheren Schriftgrösse)
+    var size: CGFloat = 22
+    var body: some View {
+        Image("Wordmark")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+            .frame(height: size)
+            .accessibilityElement()
+            .accessibilityLabel("Werkuno")
+    }
+}
+
+/// Bildmarke: vier Kacheln – Hammer, Wolle, Schere, Pflanze.
+struct BrandMark: View {
+    var size: CGFloat = 44
+    var body: some View {
+        Image("BrandMark")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}

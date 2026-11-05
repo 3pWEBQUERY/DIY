@@ -59,7 +59,7 @@ export async function deliverPendingPushes(limit = 200) {
       const r = await sendApns(
         d.token,
         {
-          aps: { alert: { title: "WERKRAUM", body: notificationText(n).slice(0, 240) }, badge: unread.get(n.recipientId) ?? 1, sound: "default", "thread-id": n.type },
+          aps: { alert: { title: "Werkuno", body: notificationText(n).slice(0, 240) }, badge: unread.get(n.recipientId) ?? 1, sound: "default", "thread-id": n.type },
           href: notificationHref(n),
           notificationId: n.id,
         },
