@@ -53,14 +53,14 @@ struct TutorialReaderView: View {
         VStack(spacing: 10) {
             HStack(spacing: 12) {
                 Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 30, height: 30)
+                    Image(systemName: "xmark").font(.wr(.body, .semibold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("Lesemodus schliessen")
                 VStack(alignment: .leading, spacing: 1) {
                     SpecLabel(index < steps.count ? "Schritt \(index + 1) von \(steps.count)" : "Abschluss", color: .moss)
-                    Text(page.title).font(.footnote.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(page.title).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Text("\(steps.filter { done.contains($0.stableKey) }.count)/\(steps.count)")
@@ -87,16 +87,16 @@ struct TutorialReaderView: View {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .firstTextBaseline, spacing: 14) {
                     Text(String(format: "%02d", i + 1))
-                        .font(.system(size: 64, weight: .semibold, design: .serif)).monospacedDigit()
+                        .font(.wr(size: 64, weight: .semibold)).monospacedDigit()
                         .foregroundStyle(isDone ? Color.moss : Color.ink)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         if let m = s.minutes, m > 0 { SpecLabel("ca. \(Fmt.minutes(m))") }
-                        if isDone { Label("Erledigt", systemImage: "checkmark.circle.fill").font(.caption.weight(.semibold)).foregroundStyle(Color.moss) }
+                        if isDone { Label("Erledigt", systemImage: "checkmark.circle.fill").font(.wr(.caption, .semibold)).foregroundStyle(Color.moss) }
                     }
                 }
                 Text(s.title)
-                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .font(.wr(.largeTitle, .semibold))
                     .foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
@@ -112,7 +112,7 @@ struct TutorialReaderView: View {
 
                 if let body = s.body?.nilIfEmpty {
                     Text(body)
-                        .font(.title3)
+                        .font(.wr(.title3))
                         .lineSpacing(6)
                         .foregroundStyle(Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -121,8 +121,8 @@ struct TutorialReaderView: View {
 
                 if let tip = s.tip?.nilIfEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("Tipp aus der Werkstatt", systemImage: "lightbulb.fill").font(.caption.weight(.semibold)).foregroundStyle(Color.mossInk)
-                        Text(tip).font(.body).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+                        Label("Tipp aus der Werkstatt", systemImage: "lightbulb.fill").font(.wr(.caption, .semibold)).foregroundStyle(Color.mossInk)
+                        Text(tip).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -146,7 +146,7 @@ struct TutorialReaderView: View {
                     Spacer()
                     if !page.isOwner && page.preview != true {
                         Button { reportStep = s } label: {
-                            Label("Fehler in diesem Schritt melden", systemImage: "flag").font(.caption).foregroundStyle(Color.muted)
+                            Label("Fehler in diesem Schritt melden", systemImage: "flag").font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                         .buttonStyle(.plain)
                         .frame(minHeight: 44)
@@ -170,7 +170,7 @@ struct TutorialReaderView: View {
                     ForEach(kinds, id: \.self) { k in
                         let x = L.safety(k)
                         Label(x.label, systemImage: x.symbol)
-                            .font(.caption.weight(.semibold))
+                            .font(.wr(.caption, .semibold))
                             .foregroundStyle(Color.danger)
                             .padding(.horizontal, 8).padding(.vertical, 4)
                             .overlay(Capsule().strokeBorder(Color.danger.opacity(0.4), lineWidth: 1))
@@ -178,7 +178,7 @@ struct TutorialReaderView: View {
                 }
             }
             if let text = s.safety?.nilIfEmpty {
-                Text(text).font(.body).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(16)
@@ -193,7 +193,7 @@ struct TutorialReaderView: View {
         VStack(alignment: .leading, spacing: 6) {
             SpecLabel(title)
             ForEach(items, id: \.self) { m in
-                Label(m, systemImage: symbol).font(.subheadline).foregroundStyle(Color.ink2)
+                Label(m, systemImage: symbol).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
             }
         }
     }
@@ -209,12 +209,12 @@ struct TutorialReaderView: View {
                     .frame(maxWidth: .infinity)
                 SpecLabel("Ende der Anleitung", color: .ink)
                 Text(completedAt != nil ? "Nachgebaut – stark!" : count == steps.count && !steps.isEmpty ? "Alle Schritte erledigt." : "Fertig gebaut?")
-                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .font(.wr(.largeTitle, .semibold))
                     .foregroundStyle(Color.ink)
                 Text(completedAt != nil ? "Zeig, wie dein Stück geworden ist: Lege ein eigenes Projekt an. Es verweist auf das Original." : "Markiere die Anleitung als nachgebaut und dokumentiere deine Version als Projekt – mit deinen Abweichungen.")
-                    .font(.body).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.body)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
                 if count < steps.count {
-                    Text("Noch offen: \(Fmt.plural(steps.count - count, "Schritt", "Schritte")).").font(.footnote).foregroundStyle(Color.muted)
+                    Text("Noch offen: \(Fmt.plural(steps.count - count, "Schritt", "Schritte")).").font(.wr(.footnote)).foregroundStyle(Color.muted)
                 }
                 VStack(spacing: 10) {
                     if completedAt == nil && !page.isOwner && page.preview != true {
@@ -226,13 +226,13 @@ struct TutorialReaderView: View {
                     }
                     if !page.isOwner {
                         Button { remix() } label: {
-                            Label("Eigenes Nachbauprojekt erstellen", systemImage: "arrow.triangle.branch").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
+                            Label("Eigenes Nachbauprojekt erstellen", systemImage: "arrow.triangle.branch").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.glass)
                         .controlSize(.large)
                     }
                     Button("Zur Übersicht") { dismiss() }
-                        .font(.subheadline.weight(.semibold))
+                        .font(.wr(.subheadline, .semibold))
                         .foregroundStyle(Color.moss)
                         .frame(minHeight: 44)
                 }
@@ -249,7 +249,7 @@ struct TutorialReaderView: View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
                 Button { withAnimation(.snappy) { index = max(0, index - 1) } } label: {
-                    Image(systemName: "chevron.left").font(.body.weight(.semibold)).frame(width: 30, height: 30)
+                    Image(systemName: "chevron.left").font(.wr(.body, .semibold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
@@ -269,7 +269,7 @@ struct TutorialReaderView: View {
                         Label(isDone ? "Erledigt" : "Schritt erledigt", systemImage: isDone ? "checkmark.circle.fill" : "circle")
                             .contentTransition(.symbolEffect(.replace))
                     }
-                    .font(.body.weight(.semibold))
+                    .font(.wr(.body, .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
                     .buttonStyle(.glassProminent)
@@ -284,7 +284,7 @@ struct TutorialReaderView: View {
                 }
 
                 Button { withAnimation(.snappy) { index = min(pageCount - 1, index + 1) } } label: {
-                    Image(systemName: "chevron.right").font(.body.weight(.semibold)).frame(width: 30, height: 30)
+                    Image(systemName: "chevron.right").font(.wr(.body, .semibold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)

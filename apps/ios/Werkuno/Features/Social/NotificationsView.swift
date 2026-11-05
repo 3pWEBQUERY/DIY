@@ -203,13 +203,13 @@ private struct NotificationRow: View {
                 badge
                 VStack(alignment: .leading, spacing: 5) {
                     message
-                        .font(.subheadline)
+                        .font(.wr(.subheadline))
                         .foregroundStyle(item.read ? Color.ink2 : Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                     if let ex = item.excerpt?.nilIfEmpty {
                         Text(ex)
-                            .font(.system(.subheadline, design: .serif))
+                            .font(.wr(.subheadline))
                             .foregroundStyle(Color.muted)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
@@ -265,7 +265,7 @@ private struct NotificationRow: View {
             AvatarView(url: a.avatarUrl, name: a.displayName, size: 40)
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: symbol)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.wr(size: 9, weight: .bold))
                         .foregroundStyle(Color.paper)
                         .frame(width: 20, height: 20)
                         .background(SocialNotificationIcon.tint(item.type), in: Circle())
@@ -276,7 +276,7 @@ private struct NotificationRow: View {
         } else {
             let system = item.group == "system"
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .medium))
+                .font(.wr(size: 16, weight: .medium))
                 .foregroundStyle(system ? Color.paper : SocialNotificationIcon.tint(item.type))
                 .frame(width: 40, height: 40)
                 .background(system ? Color.moss : Color.card, in: .rect(cornerRadius: 12, style: .continuous))

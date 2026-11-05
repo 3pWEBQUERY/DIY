@@ -87,17 +87,17 @@ struct CartView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(o.shop?.name ?? "Bestellung").font(.subheadline.weight(.semibold))
+                            Text(o.shop?.name ?? "Bestellung").font(.wr(.subheadline, .semibold))
                             SpecLabel(o.number)
                         }
                         Spacer()
-                        Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.headline).monospacedDigit()
+                        Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.wr(.headline)).monospacedDigit()
                     }
                     if let items = o.items, !items.isEmpty {
-                        Text(items.map { "\($0.quantity) × \($0.title)" }.joined(separator: ", ")).font(.footnote).foregroundStyle(Color.ink2).lineLimit(2)
+                        Text(items.map { "\($0.quantity) × \($0.title)" }.joined(separator: ", ")).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2)
                     }
                     if let exp = o.reservationExpiresAt {
-                        Label("Reserviert bis \(exp.formatted(date: .omitted, time: .shortened))", systemImage: "clock").font(.caption).foregroundStyle(Color.warn)
+                        Label("Reserviert bis \(exp.formatted(date: .omitted, time: .shortened))", systemImage: "clock").font(.wr(.caption)).foregroundStyle(Color.warn)
                     }
                     HStack(spacing: 10) {
                         AsyncButton { await resume(o) } label: { Label("Bezahlen", systemImage: "creditcard").frame(maxWidth: .infinity) }
@@ -139,9 +139,9 @@ struct CartView: View {
             Button { router.open(.shop(slug: g.shop.slug)) } label: {
                 HStack {
                     Image(systemName: "storefront").foregroundStyle(Color.moss)
-                    Text(g.shop.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                    Text(g.shop.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.muted)
+                    Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 12)
                 .contentShape(.rect)
@@ -154,7 +154,7 @@ struct CartView: View {
                 MarketAmountRow(label: "Versand (kombiniert)", value: g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping))
                 MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(g.fees.total), strong: false)
                 if let d = g.shop.processingDays, g.lines.contains(where: { !$0.isDigital }) {
-                    Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.caption).foregroundStyle(Color.muted).frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.wr(.caption)).foregroundStyle(Color.muted).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding(16)
@@ -174,16 +174,16 @@ struct CartView: View {
                 .buttonStyle(.pressable)
                 .accessibilityLabel("\(l.title) öffnen")
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(l.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2)
-                    if let v = l.variantName?.nilIfEmpty { Text(v).font(.caption).foregroundStyle(Color.muted) }
-                    Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.caption).monospacedDigit().foregroundStyle(Color.muted)
-                    if l.isDigital { Label("Digitaler Download", systemImage: "arrow.down.circle").font(.caption2).foregroundStyle(Color.slate) }
+                    Text(l.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2)
+                    if let v = l.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
+                    Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
+                    if l.isDigital { Label("Digitaler Download", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
                 }
                 Spacer(minLength: 6)
-                Text(Fmt.money(l.lineMinor)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                Text(Fmt.money(l.lineMinor)).font(.wr(.subheadline, .semibold)).monospacedDigit()
             }
             if let p = l.problem {
-                Label(p, systemImage: "exclamationmark.triangle.fill").font(.caption.weight(.medium)).foregroundStyle(Color.danger)
+                Label(p, systemImage: "exclamationmark.triangle.fill").font(.wr(.caption, .medium)).foregroundStyle(Color.danger)
             }
             HStack {
                 if !l.isDigital {
@@ -195,7 +195,7 @@ struct CartView: View {
                 }
                 Spacer()
                 Button(role: .destructive) { Task { await remove(l) } } label: {
-                    Label("Entfernen", systemImage: "trash").font(.footnote)
+                    Label("Entfernen", systemImage: "trash").font(.wr(.footnote))
                 }
                 .buttonStyle(.glass)
                 .controlSize(.small)
@@ -233,12 +233,12 @@ struct CartView: View {
             MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total)
             if c.groups.count > 1 {
                 Label("\(c.groups.count) Shops – du erhältst \(c.groups.count) getrennte Bestellungen, jede mit eigener Zahlung.", systemImage: "square.stack")
-                    .font(.footnote).foregroundStyle(Color.ink2)
+                    .font(.wr(.footnote)).foregroundStyle(Color.ink2)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Gebühren transparent").font(.footnote.weight(.semibold)).foregroundStyle(Color.ink)
+                Text("Gebühren transparent").font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink)
                 Text("Für dich fallen keine weiteren Gebühren an. Die Shops zahlen eine Plattformprovision von \(Fmt.percent(bps: c.feeBps)) auf den Warenwert – sie ist im Preis bereits enthalten.")
-                    .font(.footnote).foregroundStyle(Color.muted)
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -250,8 +250,8 @@ struct CartView: View {
         let blocked = c.hasProblems || c.mode == "disabled"
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(Fmt.money(c.totals.total)).font(.headline).monospacedDigit().contentTransition(.numericText())
-                Text("\(Fmt.plural(c.count, "Artikel", "Artikel")) · inkl. Versand").font(.caption2).foregroundStyle(Color.muted)
+                Text(Fmt.money(c.totals.total)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+                Text("\(Fmt.plural(c.count, "Artikel", "Artikel")) · inkl. Versand").font(.wr(.caption2)).foregroundStyle(Color.muted)
             }
             Spacer()
             Button { router.open(.checkout) } label: { Label("Zur Kasse", systemImage: "lock") }

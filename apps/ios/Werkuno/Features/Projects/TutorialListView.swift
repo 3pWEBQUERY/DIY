@@ -48,8 +48,8 @@ struct TutorialListView: View {
                     if difficulty > 0 {
                         Button { withAnimation(.snappy) { difficulty = 0 } } label: {
                             HStack(spacing: 4) {
-                                Text(L.difficulty[difficulty] ?? "").font(.caption.weight(.semibold))
-                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                                Text(L.difficulty[difficulty] ?? "").font(.wr(.caption, .semibold))
+                                Image(systemName: "xmark").font(.wr(size: 8, weight: .bold))
                             }
                             .foregroundStyle(Color.ink)
                             .padding(.horizontal, 9).padding(.vertical, 5)

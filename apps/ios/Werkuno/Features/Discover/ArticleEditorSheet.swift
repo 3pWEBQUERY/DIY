@@ -291,7 +291,7 @@ struct ArticleEditorSheet: View {
                     DiscoverFieldError(message: fields["title"])
                 }
                 TextField("Unterzeile – worum geht es in zwei Sätzen?", text: $dek, axis: .vertical)
-                    .font(.system(.body, design: .serif).italic())
+                    .font(.wr(.body).italic())
                     .lineLimit(2...5)
                 coverRow
             } header: { Text("Kopf") }
@@ -299,7 +299,7 @@ struct ArticleEditorSheet: View {
             Section {
                 if blocks.isEmpty {
                     Text("Noch keine Blöcke. Füge unten einen Absatz, ein Bild oder eine Projektkarte hinzu.")
-                        .font(.subheadline).foregroundStyle(Color.muted)
+                        .font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 }
                 ForEach($blocks) { $b in
                     BlogBlockEditor(
@@ -336,17 +336,17 @@ struct ArticleEditorSheet: View {
                 .frame(width: 88, height: 66)
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
             VStack(alignment: .leading, spacing: 6) {
-                Text("Titelbild").font(.subheadline.weight(.semibold))
+                Text("Titelbild").font(.wr(.subheadline, .semibold))
                 HStack(spacing: 8) {
                     SingleImagePicker(onUploaded: { id, url in coverMediaId = id; coverURL = url; coverRemoved = false }) {
-                        Text(coverURL == nil || coverRemoved ? "Wählen" : "Ändern").font(.footnote.weight(.semibold))
+                        Text(coverURL == nil || coverRemoved ? "Wählen" : "Ändern").font(.wr(.footnote, .semibold))
                             .padding(.horizontal, 12).padding(.vertical, 6)
                             .glassEffect(.regular.interactive(), in: Capsule())
                     }
                     .buttonStyle(.borderless)
                     if coverURL != nil && !coverRemoved {
                         Button("Entfernen", role: .destructive) { coverRemoved = true; coverMediaId = nil }
-                            .font(.footnote)
+                            .font(.wr(.footnote))
                             .buttonStyle(.borderless)
                     }
                 }
@@ -362,7 +362,7 @@ struct ArticleEditorSheet: View {
             }
         } label: {
             Label("Block hinzufügen", systemImage: "plus")
-                .font(.body.weight(.semibold))
+                .font(.wr(.body, .semibold))
                 .padding(.horizontal, 10)
         }
         .buttonStyle(.glassProminent)
@@ -394,9 +394,9 @@ struct ArticleEditorSheet: View {
         Form {
             Section {
                 HStack(spacing: 2) {
-                    Text("/blog/").font(.body.monospaced()).foregroundStyle(Color.muted)
+                    Text("/blog/").font(.wr(.body).monospaced()).foregroundStyle(Color.muted)
                     TextField("adresse-des-artikels", text: Binding(get: { slug }, set: { slug = Self.slugify($0) }))
-                        .font(.body.monospaced())
+                        .font(.wr(.body).monospaced())
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
@@ -414,8 +414,8 @@ struct ArticleEditorSheet: View {
                     FlowLayout(spacing: 6, lineSpacing: 6) {
                         ForEach(tags, id: \.self) { t in
                             Button { tags.removeAll { $0 == t } } label: {
-                                HStack(spacing: 4) { Text("#\(t)"); Image(systemName: "xmark").font(.caption2) }
-                                    .font(.footnote).foregroundStyle(Color.ink2)
+                                HStack(spacing: 4) { Text("#\(t)"); Image(systemName: "xmark").font(.wr(.caption2)) }
+                                    .font(.wr(.footnote)).foregroundStyle(Color.ink2)
                                     .padding(.horizontal, 9).padding(.vertical, 5)
                                     .background(Color.sunken, in: Capsule())
                             }
@@ -477,13 +477,13 @@ struct ArticleEditorSheet: View {
                         ForEach(revisions) { r in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(r.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                                    Text(r.title).font(.wr(.subheadline, .medium)).lineLimit(1)
                                     Text("\(Fmt.dateTime(r.createdAt)) · \(Fmt.plural(r.blockCount ?? 0, "Block", "Blöcke")) · \(Fmt.plural(r.words ?? 0, "Wort", "Wörter"))")
-                                        .font(.caption).foregroundStyle(Color.muted)
+                                        .font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }
                                 Spacer()
                                 AsyncButton("Wiederherstellen") { await restore(r) }
-                                    .font(.footnote.weight(.semibold))
+                                    .font(.wr(.footnote, .semibold))
                                     .buttonStyle(.borderless)
                             }
                         }
@@ -552,7 +552,7 @@ struct ArticleEditorSheet: View {
     private func counter(_ n: Int, _ max: Int) -> some View {
         HStack {
             Spacer()
-            Text("\(n)/\(max)").font(.caption.monospacedDigit()).foregroundStyle(n > max ? Color.danger : Color.muted)
+            Text("\(n)/\(max)").font(.wr(.caption).monospacedDigit()).foregroundStyle(n > max ? Color.danger : Color.muted)
         }
         .accessibilityLabel("\(n) von \(max) Zeichen")
     }
@@ -589,7 +589,7 @@ struct ArticleEditorSheet: View {
                     Text(title.nilIfEmpty ?? "Ohne Titel").font(.display(32)).foregroundStyle(Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     if let d = dek.nilIfEmpty {
-                        Text(d).font(.system(size: 20, design: .serif).italic()).foregroundStyle(Color.ink2)
+                        Text(d).font(.wr(size: 20).italic()).foregroundStyle(Color.ink2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Rectangle().fill(Color.line).frame(height: 0.75)
@@ -621,7 +621,7 @@ private struct BlogBlockEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: BlogBlock.symbol(block.type)).font(.caption).foregroundStyle(Color.moss)
+                Image(systemName: BlogBlock.symbol(block.type)).font(.wr(.caption)).foregroundStyle(Color.moss)
                 SpecLabel(BlogBlock.label(block.type), color: .moss)
                 Spacer()
                 Menu {
@@ -653,10 +653,10 @@ private struct BlogBlockEditor: View {
             }
             .pickerStyle(.segmented)
             TextField("Überschrift", text: text(\.text), axis: .vertical)
-                .font(block.level == 3 ? .system(.title3, design: .serif).weight(.semibold) : .display(22))
+                .font(block.level == 3 ? .wr(.title3, .semibold) : .display(22))
         case "paragraph":
             TextField("Schreib los …", text: text(\.text), axis: .vertical)
-                .font(.system(.body, design: .serif))
+                .font(.wr(.body))
                 .lineLimit(3...)
         case "list":
             Toggle("Nummeriert", isOn: Binding(get: { block.ordered ?? false }, set: { block.ordered = $0 }))
@@ -664,7 +664,7 @@ private struct BlogBlockEditor: View {
                 .lineLimit(3...)
         case "quote":
             TextField("Zitat", text: text(\.text), axis: .vertical)
-                .font(.system(.body, design: .serif).italic())
+                .font(.wr(.body).italic())
                 .lineLimit(2...)
             TextField("Quelle (optional)", text: text(\.cite))
         case "image":
@@ -692,7 +692,7 @@ private struct BlogBlockEditor: View {
                         .foregroundStyle(chosen ? Color.ink : Color.moss)
                         .fontWeight(chosen ? .semibold : .regular)
                     Spacer()
-                    Text(chosen ? "Ändern" : "").font(.footnote).foregroundStyle(Color.muted)
+                    Text(chosen ? "Ändern" : "").font(.wr(.footnote)).foregroundStyle(Color.muted)
                 }
                 .padding(12)
                 .sunkenSurface()
@@ -714,8 +714,8 @@ private struct BlogBlockEditor: View {
                         RemoteImage(path: u).frame(height: 170).frame(maxWidth: .infinity).clipped()
                     } else {
                         VStack(spacing: 6) {
-                            Image(systemName: "photo.badge.plus").font(.title2)
-                            Text("Bild wählen").font(.footnote.weight(.semibold))
+                            Image(systemName: "photo.badge.plus").font(.wr(.title2))
+                            Text("Bild wählen").font(.wr(.footnote, .semibold))
                         }
                         .foregroundStyle(Color.moss)
                         .frame(maxWidth: .infinity, minHeight: 120)
@@ -741,7 +741,7 @@ private struct BlogBlockEditor: View {
                         TextField("Alt-Text", text: Binding(get: { block.images?[safe: i]?.alt ?? "" }, set: { v in if block.images?.indices.contains(i) == true { block.images?[i].alt = v } }))
                         TextField("Bildunterschrift", text: Binding(get: { block.images?[safe: i]?.caption ?? "" }, set: { v in if block.images?.indices.contains(i) == true { block.images?[i].caption = v } }))
                     }
-                    .font(.footnote)
+                    .font(.wr(.footnote))
                     Button(role: .destructive) { block.images?.remove(at: i) } label: { Image(systemName: "minus.circle.fill") }
                         .buttonStyle(.borderless)
                         .foregroundStyle(Color.danger)
@@ -754,7 +754,7 @@ private struct BlogBlockEditor: View {
                     list.append(BlogMedia(mediaId: id, url: url, alt: "", caption: ""))
                     block.images = list
                 }) {
-                    Label("Bild hinzufügen", systemImage: "plus").font(.footnote.weight(.semibold))
+                    Label("Bild hinzufügen", systemImage: "plus").font(.wr(.footnote, .semibold))
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .glassEffect(.regular.interactive(), in: Capsule())
                 }
@@ -773,7 +773,7 @@ private struct BlogBlockEditor: View {
                         GridRow {
                             ForEach(0..<cols, id: \.self) { c in
                                 TextField(r == 0 ? "Kopf" : "Zelle", text: cell(r, c))
-                                    .font(r == 0 ? .footnote.weight(.semibold) : .footnote)
+                                    .font(r == 0 ? .wr(.footnote, .semibold) : .wr(.footnote))
                                     .padding(.horizontal, 8).padding(.vertical, 7)
                                     .frame(width: 118)
                                     .background(r == 0 ? Color.sunken : Color.paper, in: .rect(cornerRadius: 6))
@@ -792,9 +792,9 @@ private struct BlogBlockEditor: View {
                 Button("− Spalte") { block.rows = (block.rows ?? []).map { $0.count > 1 ? Array($0.dropLast()) : $0 } }
                     .disabled(cols <= 1)
             }
-            .font(.footnote.weight(.semibold))
+            .font(.wr(.footnote, .semibold))
             .buttonStyle(.borderless)
-            Text("Die erste Zeile wird als Kopfzeile dargestellt.").font(.caption).foregroundStyle(Color.muted)
+            Text("Die erste Zeile wird als Kopfzeile dargestellt.").font(.wr(.caption)).foregroundStyle(Color.muted)
         }
     }
 
@@ -845,8 +845,8 @@ struct BlogEmbedPicker: View {
                                     .frame(width: 44, height: 44)
                                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(o.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                                    if let m = o.meta { Text(m).font(.caption).foregroundStyle(Color.muted) }
+                                    Text(o.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                                    if let m = o.meta { Text(m).font(.wr(.caption)).foregroundStyle(Color.muted) }
                                 }
                             }
                         }

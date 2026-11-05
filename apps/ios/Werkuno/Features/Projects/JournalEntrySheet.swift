@@ -31,7 +31,7 @@ struct JournalEntrySheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         SpecLabel("Journal · \(projectTitle)", color: .moss)
                         Text("Was hast du heute geschafft?").font(.display(28)).foregroundStyle(Color.ink)
-                        Text("Auch Fehlversuche helfen anderen weiter.").font(.subheadline).foregroundStyle(Color.muted)
+                        Text("Auch Fehlversuche helfen anderen weiter.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     }
 
                     ProjectsField(label: "Was ist passiert?", error: errors["body"], trailing: "\(text.count)/5000") {
@@ -50,8 +50,8 @@ struct JournalEntrySheet: View {
                     VStack(alignment: .leading, spacing: 14) {
                         Toggle(isOn: $isMilestone.animation(.snappy)) {
                             Label { VStack(alignment: .leading, spacing: 2) {
-                                Text("Meilenstein").font(.subheadline.weight(.semibold))
-                                Text("Erscheint hervorgehoben im Projektfaden.").font(.caption).foregroundStyle(Color.muted)
+                                Text("Meilenstein").font(.wr(.subheadline, .semibold))
+                                Text("Erscheint hervorgehoben im Projektfaden.").font(.wr(.caption)).foregroundStyle(Color.muted)
                             } } icon: { Image(systemName: "flag.fill").foregroundStyle(Color.clay) }
                         }
                         .tint(.clay)
@@ -66,8 +66,8 @@ struct JournalEntrySheet: View {
 
                         Toggle(isOn: $withProblem.animation(.snappy)) {
                             Label { VStack(alignment: .leading, spacing: 2) {
-                                Text("Problem und Lösung dokumentieren").font(.subheadline.weight(.semibold))
-                                Text("Was ging schief – und wie hast du es gelöst?").font(.caption).foregroundStyle(Color.muted)
+                                Text("Problem und Lösung dokumentieren").font(.wr(.subheadline, .semibold))
+                                Text("Was ging schief – und wie hast du es gelöst?").font(.wr(.caption)).foregroundStyle(Color.muted)
                             } } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.ochre) }
                         }
                         .tint(.ochre)
@@ -88,8 +88,8 @@ struct JournalEntrySheet: View {
 
                     Toggle(isOn: $shareToFeed) {
                         Label { VStack(alignment: .leading, spacing: 2) {
-                            Text("Im Feed teilen").font(.subheadline.weight(.semibold))
-                            Text("Deine Follower sehen den Fortschritt auch in ihrer Werkbank.").font(.caption).foregroundStyle(Color.muted)
+                            Text("Im Feed teilen").font(.wr(.subheadline, .semibold))
+                            Text("Deine Follower sehen den Fortschritt auch in ihrer Werkbank.").font(.wr(.caption)).foregroundStyle(Color.muted)
                         } } icon: { Image(systemName: "bubble.left.and.text.bubble.right").foregroundStyle(Color.moss) }
                     }
                     .tint(.moss)

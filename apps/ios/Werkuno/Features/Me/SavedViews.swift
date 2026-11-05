@@ -59,14 +59,14 @@ struct MeSavedEntryCard: View {
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
                         SpecLabel("Produkt\(p.shopName.map { " · \($0)" } ?? "")", color: .clay)
-                        Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
-                            Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.subheadline.weight(.bold)).monospacedDigit().foregroundStyle(Color.ink)
+                            Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
                             if p.soldOut == true { MeStatePill(text: "Ausverkauft", tone: .neutral) }
                         }
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                    Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                 }
                 .padding(12)
                 .cardSurface()
@@ -80,11 +80,11 @@ struct MeSavedEntryCard: View {
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
                         SpecLabel(["Artikel", a.readingMinutes.map { "\($0) Min." }].compactMap { $0 }.joined(separator: " · "), color: .clay)
-                        Text(a.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                        if let n = a.authorName?.nilIfEmpty { Text(n).font(.caption).foregroundStyle(Color.muted) }
+                        Text(a.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        if let n = a.authorName?.nilIfEmpty { Text(n).font(.wr(.caption)).foregroundStyle(Color.muted) }
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                    Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                 }
                 .padding(12)
                 .cardSurface()
@@ -127,9 +127,9 @@ struct SavedView: View {
                 if let f = filter {
                     HStack(spacing: 8) {
                         Image(systemName: "line.3.horizontal.decrease.circle.fill").foregroundStyle(Color.moss)
-                        Text(f == "ohne" ? "Nur ohne Sammlung" : "Sammlung: \(collectionName(f) ?? "…")").font(.subheadline.weight(.medium))
+                        Text(f == "ohne" ? "Nur ohne Sammlung" : "Sammlung: \(collectionName(f) ?? "…")").font(.wr(.subheadline, .medium))
                         Spacer()
-                        Button("Filter aufheben") { withAnimation { filter = nil } }.font(.subheadline)
+                        Button("Filter aufheben") { withAnimation { filter = nil } }.font(.wr(.subheadline))
                     }
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .sunkenSurface()
@@ -189,7 +189,7 @@ struct SavedView: View {
     private var collectionStrip: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader("Sammlungen", subtitle: collections.isEmpty ? "Ordne Gespeichertes thematisch – z. B. „Wohnzimmer“ oder „Geschenke“." : nil) {
-                Button { editor = .new } label: { Label("Neu", systemImage: "plus").font(.subheadline.weight(.semibold)) }
+                Button { editor = .new } label: { Label("Neu", systemImage: "plus").font(.wr(.subheadline, .semibold)) }
                     .buttonStyle(.glass)
                     .controlSize(.small)
             }
@@ -214,12 +214,12 @@ struct SavedView: View {
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     .overlay(alignment: .topTrailing) {
                         Image(systemName: c.visibility == "PUBLIC" ? "globe" : c.visibility == "FOLLOWERS" ? "person.2" : "lock")
-                            .font(.caption2.weight(.semibold)).foregroundStyle(Color.ink2)
+                            .font(.wr(.caption2, .semibold)).foregroundStyle(Color.ink2)
                             .padding(6).background(Color.card.opacity(0.9), in: Circle()).padding(6)
                             .accessibilityLabel(L.visibility(c.visibility))
                     }
-                Text(c.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                Text(Fmt.plural(c.count ?? 0, "Eintrag", "Einträge")).font(.caption).foregroundStyle(Color.muted)
+                Text(c.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(Fmt.plural(c.count ?? 0, "Eintrag", "Einträge")).font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .frame(width: 150, alignment: .leading)
             .padding(10)
@@ -267,8 +267,8 @@ struct SavedView: View {
         let m = meta[e.id]
         return HStack(spacing: 8) {
             Label(collectionName(m?.collectionId) ?? "Ohne Sammlung", systemImage: m?.collectionId == nil ? "tray" : "folder")
-                .font(.caption).foregroundStyle(Color.muted).labelStyle(.compact).lineLimit(1)
-            if let d = m?.savedAt { Text("· \(Fmt.relative(d))").font(.caption).foregroundStyle(Color.muted) }
+                .font(.wr(.caption)).foregroundStyle(Color.muted).labelStyle(.compact).lineLimit(1)
+            if let d = m?.savedAt { Text("· \(Fmt.relative(d))").font(.wr(.caption)).foregroundStyle(Color.muted) }
             Spacer()
             Menu {
                 Menu("In Sammlung verschieben", systemImage: "folder") {
@@ -288,7 +288,7 @@ struct SavedView: View {
                 Divider()
                 Button("Aus Gespeichertem entfernen", systemImage: "bookmark.slash", role: .destructive) { Task { await remove(e) } }
             } label: {
-                Image(systemName: "ellipsis").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink2)
+                Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink2)
                     .frame(width: 44, height: 32).contentShape(.rect)
             }
             .accessibilityLabel("Aktionen für \(e.title)")
@@ -380,7 +380,7 @@ struct MeCollectionEditor: View {
                 Section {
                     TextField("Titel, z. B. „Wohnzimmer“", text: $title)
                         .textInputAutocapitalization(.sentences)
-                    if let e = fieldErrors["title"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+                    if let e = fieldErrors["title"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 } header: { Text("Titel") }
                 Section {
                     TextField("Worum geht es? (optional)", text: $description, axis: .vertical).lineLimit(2...6)
@@ -504,13 +504,13 @@ struct CollectionView: View {
                             Button { router.open(.profile(handle: o.handle)) } label: {
                                 HStack(spacing: 8) {
                                     AvatarView(url: o.avatarUrl, name: o.displayName, size: 26)
-                                    Text(o.displayName).font(.subheadline.weight(.medium)).foregroundStyle(Color.ink)
+                                    Text(o.displayName).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink)
                                 }
                             }
                             .buttonStyle(.plain)
                         }
-                        Text("· \(Fmt.plural(p.total ?? 0, "Eintrag", "Einträge"))").font(.subheadline).foregroundStyle(Color.muted)
-                        if let u = p.updatedAt { Text("· \(Fmt.relative(u))").font(.subheadline).foregroundStyle(Color.muted) }
+                        Text("· \(Fmt.plural(p.total ?? 0, "Eintrag", "Einträge"))").font(.wr(.subheadline)).foregroundStyle(Color.muted)
+                        if let u = p.updatedAt { Text("· \(Fmt.relative(u))").font(.wr(.subheadline)).foregroundStyle(Color.muted) }
                     }
                 }
                 if p.sections.isEmpty {
@@ -579,7 +579,7 @@ struct CollectionPickerSheet: View {
                         AsyncButton {
                             await createAndSave()
                         } label: {
-                            Label("Anlegen und speichern", systemImage: "folder.badge.plus").font(.body.weight(.semibold))
+                            Label("Anlegen und speichern", systemImage: "folder.badge.plus").font(.wr(.body, .semibold))
                         }
                         .disabled(newTitle.trimmed.isEmpty)
                     } header: { Text("Neue Sammlung") }
@@ -606,7 +606,7 @@ struct CollectionPickerSheet: View {
                 Image(systemName: symbol).foregroundStyle(Color.moss).frame(width: 26)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).foregroundStyle(Color.ink)
-                    Text(subtitle).font(.caption).foregroundStyle(Color.muted)
+                    Text(subtitle).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 Spacer()
                 if busy == key { ProgressView().controlSize(.small) }

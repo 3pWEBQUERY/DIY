@@ -166,11 +166,11 @@ struct ProfileView: View {
                         if viewer.followsYou { MeStatePill(text: "folgt dir", tone: .neutral) }
                         if prof.isCreatorPro == true { MeStatePill(text: "Creator Pro", tone: .moss) }
                     }
-                    .font(.subheadline)
+                    .font(.wr(.subheadline))
                 }
                 if let bio = prof.bio?.nilIfEmpty {
                     Text(bio)
-                        .font(.body).foregroundStyle(Color.ink2)
+                        .font(.wr(.body)).foregroundStyle(Color.ink2)
                         .lineLimit(bioExpanded ? nil : 4)
                         .fixedSize(horizontal: false, vertical: true)
                         .onTapGesture { withAnimation(.snappy) { bioExpanded.toggle() } }
@@ -212,7 +212,7 @@ struct ProfileView: View {
                     .foregroundStyle(Color.moss)
                 }
             }
-            .font(.footnote)
+            .font(.wr(.footnote))
             .foregroundStyle(Color.muted)
             .labelStyle(.compact)
         }
@@ -242,19 +242,19 @@ struct ProfileView: View {
             HStack(spacing: 8) {
                 if viewer.isSelf {
                     Button { router.open(.settingsSection(.profile)) } label: {
-                        Label("Profil bearbeiten", systemImage: "pencil").font(.subheadline.weight(.semibold))
+                        Label("Profil bearbeiten", systemImage: "pencil").font(.wr(.subheadline, .semibold))
                     }
                     .buttonStyle(.glass)
                 } else if !(viewer.blocked && !unblocked) {
                     FollowButton(userId: prof.userId, following: viewer.following)
                     Button { router.present(.newConversation(handle: prof.handle)) } label: {
-                        Image(systemName: "bubble.left").font(.subheadline.weight(.semibold)).frame(minWidth: 22, minHeight: 22)
+                        Image(systemName: "bubble.left").font(.wr(.subheadline, .semibold)).frame(minWidth: 22, minHeight: 22)
                     }
                     .buttonStyle(.glass)
                     .accessibilityLabel("Nachricht schreiben")
                 }
                 ShareLink(item: MeLinks.profile(prof.handle)) {
-                    Image(systemName: "square.and.arrow.up").font(.subheadline.weight(.semibold)).frame(minWidth: 22, minHeight: 22)
+                    Image(systemName: "square.and.arrow.up").font(.wr(.subheadline, .semibold)).frame(minWidth: 22, minHeight: 22)
                 }
                 .buttonStyle(.glass)
                 .accessibilityLabel("Profil teilen")
@@ -272,10 +272,10 @@ struct ProfileView: View {
                     await load()
                 }
             } label: {
-                Text("Blockierung aufheben").font(.subheadline.weight(.semibold))
+                Text("Blockierung aufheben").font(.wr(.subheadline, .semibold))
             }
             .buttonStyle(.glass)
-            Text("Hast du nicht selbst blockiert, bleibt die Sperre bestehen.").font(.caption).foregroundStyle(Color.muted)
+            Text("Hast du nicht selbst blockiert, bleibt die Sperre bestehen.").font(.wr(.caption)).foregroundStyle(Color.muted)
         }
         .padding(Space.gutter)
     }
@@ -323,7 +323,7 @@ struct ProfileView: View {
         case .blog:
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader("Blog", subtitle: Fmt.plural(p.articleCount ?? 0, "veröffentlichter Artikel", "veröffentlichte Artikel"))
-                Text("Längere Texte von \(prof.displayName) – Werkstattberichte, Techniken, Hintergründe.").font(.subheadline).foregroundStyle(Color.muted)
+                Text("Längere Texte von \(prof.displayName) – Werkstattberichte, Techniken, Hintergründe.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 Button { router.open(.userBlog(handle: prof.handle)) } label: { Label("Blog öffnen", systemImage: "text.book.closed") }
                     .primaryButton()
             }
@@ -338,12 +338,12 @@ struct ProfileView: View {
                                 .frame(width: 56, height: 56)
                                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(c.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                                if let d = c.description?.nilIfEmpty { Text(d).font(.caption).foregroundStyle(Color.muted).lineLimit(2) }
-                                Text([Fmt.plural(c.itemCount ?? 0, "Eintrag", "Einträge"), L.visibility(c.visibility)].joined(separator: " · ")).font(.caption2).foregroundStyle(Color.muted)
+                                Text(c.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                                if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
+                                Text([Fmt.plural(c.itemCount ?? 0, "Eintrag", "Einträge"), L.visibility(c.visibility)].joined(separator: " · ")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                             }
                             Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                            Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                         }
                         .padding(12)
                         .cardSurface()
@@ -359,7 +359,7 @@ struct ProfileView: View {
     private func about(_ prof: MeProfilePage.Profile) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if let bio = prof.bio?.nilIfEmpty {
-                Text(bio).font(.body).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(bio).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             }
             VStack(spacing: 0) {
                 if let pr = prof.pronouns?.nilIfEmpty { SpecRow(label: "Pronomen", value: pr, symbol: "person") }
@@ -395,11 +395,11 @@ struct ProfileView: View {
             HStack {
                 Image(systemName: "link").foregroundStyle(Color.moss)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                    Text(url.host() ?? url.absoluteString).font(.caption).foregroundStyle(Color.muted)
+                    Text(label).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    Text(url.host() ?? url.absoluteString).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 Spacer()
-                Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(Color.muted)
+                Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(12)
             .sunkenSurface()
@@ -449,9 +449,9 @@ struct FollowListView: View {
                 HStack(spacing: 12) {
                     AvatarView(url: u.avatarUrl, name: u.displayName, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(u.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                        Text("@\(u.handle)").font(.caption).foregroundStyle(Color.muted)
-                        if let b = u.bio?.nilIfEmpty { Text(b).font(.caption).foregroundStyle(Color.ink2).lineLimit(2) }
+                        Text(u.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                        Text("@\(u.handle)").font(.wr(.caption)).foregroundStyle(Color.muted)
+                        if let b = u.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
                     }
                     Spacer(minLength: 0)
                 }

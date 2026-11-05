@@ -122,7 +122,7 @@ struct TutorialDetailView: View {
             SpecLabel("Anleitung · \(app.categoryShort(t.category))", color: CategoryPalette.color(for: t.category))
             Text(t.title).font(.display(32)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
             if let s = t.summary?.nilIfEmpty {
-                Text(s).font(.body).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                Text(s).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
             }
 
             HStack(spacing: 12) {
@@ -131,7 +131,7 @@ struct TutorialDetailView: View {
                         AvatarView(url: t.author.avatarUrl, name: t.author.displayName, size: 38)
                         VStack(alignment: .leading, spacing: 1) {
                             SpecLabel("Geschrieben von")
-                            Text(t.author.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                            Text(t.author.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         }
                     }
                 }
@@ -165,7 +165,7 @@ struct TutorialDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     NoticeView(tone: v.isMajor == true ? .warn : .info, title: "Neue Version \(v.number)", message: v.changeNote?.nilIfEmpty ?? "Die Anleitung wurde seit deinem letzten Besuch überarbeitet. Prüfe deine erledigten Schritte.")
                     Button { Task { await markSeen(t) } } label: {
-                        Label("Verstanden", systemImage: "checkmark").font(.footnote.weight(.semibold))
+                        Label("Verstanden", systemImage: "checkmark").font(.wr(.footnote, .semibold))
                     }
                     .buttonStyle(.glass)
                 }
@@ -180,10 +180,10 @@ struct TutorialDetailView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         SpecLabel("Version \(v.number)", color: .moss)
                         Text([v.changeNote?.nilIfEmpty, Fmt.date(v.publishedAt)].compactMap { $0 }.joined(separator: " · "))
-                            .font(.footnote).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading)
+                            .font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                         if (t.versions?.count ?? 0) > 1 {
-                            Image(systemName: "chevron.down").font(.caption2.weight(.bold)).foregroundStyle(Color.muted).rotationEffect(.degrees(showVersions ? 180 : 0))
+                            Image(systemName: "chevron.down").font(.wr(.caption2, .bold)).foregroundStyle(Color.muted).rotationEffect(.degrees(showVersions ? 180 : 0))
                         }
                     }
                 }
@@ -196,8 +196,8 @@ struct TutorialDetailView: View {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 Text("v\(row.version)").font(.specLarge).foregroundStyle(row.version == v.number ? Color.moss : Color.muted).frame(width: 34, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(row.changeNote?.nilIfEmpty ?? "Ohne Änderungshinweis").font(.footnote).foregroundStyle(Color.ink2)
-                                    Text(Fmt.date(row.publishedAt) + (row.isMajor == true ? " · Grössere Änderung" : "")).font(.caption2).foregroundStyle(Color.muted)
+                                    Text(row.changeNote?.nilIfEmpty ?? "Ohne Änderungshinweis").font(.wr(.footnote)).foregroundStyle(Color.ink2)
+                                    Text(Fmt.date(row.publishedAt) + (row.isMajor == true ? " · Grössere Änderung" : "")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                                 }
                             }
                             .padding(.vertical, 8)
@@ -225,7 +225,7 @@ struct TutorialDetailView: View {
             }
             TutorialProgressThread(steps: t.steps, done: done, current: nil) { i in reader = TutorialReaderStart(index: i) }
             Text(completedAt != nil ? "Nachgebaut – stark!" : count == total && total > 0 ? "Alle Schritte erledigt." : remaining > 0 && count > 0 ? "Noch ca. \(Fmt.minutes(remaining))" : "Gesamt ca. \(Fmt.minutes(t.minutes ?? t.totalStepMinutes))")
-                .font(.footnote).foregroundStyle(Color.muted)
+                .font(.wr(.footnote)).foregroundStyle(Color.muted)
             HStack(spacing: 10) {
                 Button { reader = TutorialReaderStart(index: count == total ? 0 : next) } label: {
                     Label(count == 0 ? "Lesemodus starten" : count == total ? "Nochmal lesen" : "Weiter bei Schritt \(next + 1)", systemImage: "book.pages")
@@ -234,7 +234,7 @@ struct TutorialDetailView: View {
                 .disabled(total == 0)
                 if count > 0 && completedAt == nil && t.preview != true {
                     Button { confirmReset = true } label: {
-                        Image(systemName: "arrow.counterclockwise").font(.body.weight(.semibold)).frame(width: 30, height: 30)
+                        Image(systemName: "arrow.counterclockwise").font(.wr(.body, .semibold)).frame(width: 30, height: 30)
                     }
                     .buttonStyle(.glass)
                     .buttonBorderShape(.circle)
@@ -254,7 +254,7 @@ struct TutorialDetailView: View {
         let tools = t.tools ?? []
         return ProjectsSection(title: "Material & Werkzeug", number: number) {
             if materials.isEmpty && tools.isEmpty {
-                Text("Keine Materialliste hinterlegt.").font(.subheadline).foregroundStyle(Color.muted)
+                Text("Keine Materialliste hinterlegt.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
             } else {
                 if !materials.isEmpty {
                     ProjectsSpecTable(title: "Material", rows: materials.enumerated().map { .init(id: "m\($0.offset)", name: $0.element.name, quantity: $0.element.quantity, note: $0.element.note) })
@@ -264,7 +264,7 @@ struct TutorialDetailView: View {
                         .padding(.top, 6)
                 }
                 Button { router.present(.shoppingListPicker(kind: "TUTORIAL", id: t.id, title: t.title)) } label: {
-                    Label("Auf Einkaufsliste", systemImage: "cart.badge.plus").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
+                    Label("Auf Einkaufsliste", systemImage: "cart.badge.plus").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
                 .controlSize(.large)
@@ -283,11 +283,11 @@ struct TutorialDetailView: View {
                     Button { reader = TutorialReaderStart(index: i) } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text(String(format: "%02d", i + 1))
-                                .font(.system(.title3, design: .serif).weight(.semibold)).monospacedDigit()
+                                .font(.wr(.title3, .semibold)).monospacedDigit()
                                 .foregroundStyle(isDone ? Color.moss : Color.ink)
                                 .frame(width: 34, alignment: .leading)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(s.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
+                                Text(s.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                                 HStack(spacing: 8) {
                                     if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
                                     if !(s.safetyKinds ?? []).isEmpty || s.safety?.nilIfEmpty != nil {
@@ -295,11 +295,11 @@ struct TutorialDetailView: View {
                                     }
                                     if !(s.media ?? []).isEmpty { Label("\(s.media?.count ?? 0)", systemImage: "photo").labelStyle(.compact) }
                                 }
-                                .font(.caption2).foregroundStyle(Color.muted)
+                                .font(.wr(.caption2)).foregroundStyle(Color.muted)
                             }
                             Spacer(minLength: 8)
                             Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
-                                .font(.title3)
+                                .font(.wr(.title3))
                                 .foregroundStyle(isDone ? Color.moss : Color.lineStrong)
                                 .contentTransition(.symbolEffect(.replace))
                         }
@@ -348,7 +348,7 @@ struct TutorialDetailView: View {
             Text(completedAt != nil ? "Nachgebaut – stark!" : count == total && total > 0 ? "Alle Schritte erledigt." : "Fertig gebaut?")
                 .font(.headlineSerif).foregroundStyle(Color.ink)
             Text(completedAt != nil ? "Zeig, wie dein Stück geworden ist: Lege ein eigenes Projekt an. Es verweist auf das Original." : "Markiere die Anleitung als nachgebaut und dokumentiere deine Version als Projekt – mit deinen Abweichungen.")
-                .font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             if completedAt != nil {
                 ThreeCanvas(scene: .knot(color: .moss), celebrateToken: celebrate)
                     .frame(height: 180)
@@ -361,7 +361,7 @@ struct TutorialDetailView: View {
                 }
                 if !t.isOwner {
                     Button { remix(t) } label: {
-                        Label("Eigenes Nachbauprojekt erstellen", systemImage: "arrow.triangle.branch").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
+                        Label("Eigenes Nachbauprojekt erstellen", systemImage: "arrow.triangle.branch").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
                     .controlSize(.large)
@@ -383,7 +383,7 @@ struct TutorialDetailView: View {
                     SaveButton(type: "TUTORIAL", id: t.id, saved: t.viewer?.saved ?? false)
                     if let url = AppConfig.resolve(t.href ?? "/anleitungen/\(t.slug)") {
                         ShareLink(item: url, subject: Text(t.title)) {
-                            Image(systemName: "square.and.arrow.up").font(.subheadline).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
+                            Image(systemName: "square.and.arrow.up").font(.wr(.subheadline)).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
                         }
                         .accessibilityLabel("Teilen")
                     }
@@ -395,7 +395,7 @@ struct TutorialDetailView: View {
                 Spacer(minLength: 0)
                 Button { reader = TutorialReaderStart(index: next ?? 0) } label: {
                     Label(next == nil || next == 0 ? "Lesen" : "Schritt \((next ?? 0) + 1)", systemImage: "book.pages")
-                        .font(.subheadline.weight(.semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                        .font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
                 }
                 .buttonStyle(.glassProminent)
                 .tint(.moss)
@@ -548,12 +548,12 @@ struct TutorialSafetyCard: View {
         HStack(alignment: .center, spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.danger).frame(width: 44, height: 44)
-                Image(systemName: s.symbol).font(.title3.weight(.semibold)).foregroundStyle(Color.paper)
+                Image(systemName: s.symbol).font(.wr(.title3, .semibold)).foregroundStyle(Color.paper)
             }
             VStack(alignment: .leading, spacing: 2) {
                 SpecLabel("Achtung", color: .danger)
-                Text(s.label).font(.headline).foregroundStyle(Color.ink)
-                Text(Self.advice(kind)).font(.caption).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                Text(s.label).font(.wr(.headline)).foregroundStyle(Color.ink)
+                Text(Self.advice(kind)).font(.wr(.caption)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }

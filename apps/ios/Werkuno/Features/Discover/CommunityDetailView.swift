@@ -197,9 +197,9 @@ struct CommunityDetailView: View {
                         Button { router.open(.communityManage(slug: d.community.slug)) } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: "person.badge.clock").foregroundStyle(Color.warn)
-                                Text(Fmt.plural(n, "offene Beitrittsanfrage", "offene Beitrittsanfragen")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                                Text(Fmt.plural(n, "offene Beitrittsanfrage", "offene Beitrittsanfragen")).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                                 Spacer()
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.muted)
+                                Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
                             }
                             .padding(12)
                             .background(Color.warn.opacity(0.1), in: .rect(cornerRadius: Radius.inner, style: .continuous))
@@ -248,7 +248,7 @@ struct CommunityDetailView: View {
                         Image(systemName: visibilitySymbol(c.visibility))
                         Text(L.communityVisibility.first { $0.key == c.visibility }?.label ?? c.visibility)
                     }
-                    .font(.caption.weight(.semibold))
+                    .font(.wr(.caption, .semibold))
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .glassEffect(.regular, in: Capsule())
                     .padding(12)
@@ -262,13 +262,13 @@ struct CommunityDetailView: View {
                     if let r = c.region?.nilIfEmpty { StatCell(value: r, label: "Region") }
                 }
                 if let desc = c.description?.nilIfEmpty {
-                    Text(desc).font(.body).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                    Text(desc).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
                 }
                 if let o = c.owner?.profile, let h = o.handle {
                     Button { router.open(.profile(handle: h)) } label: {
                         HStack(spacing: 8) {
                             AvatarView(url: o.avatarUrl, name: o.displayName ?? h, size: 22)
-                            Text("Gegründet von \(o.displayName ?? h)").font(.footnote).foregroundStyle(Color.muted)
+                            Text("Gegründet von \(o.displayName ?? h)").font(.wr(.footnote)).foregroundStyle(Color.muted)
                         }
                     }
                     .buttonStyle(.plain)
@@ -294,12 +294,12 @@ struct CommunityDetailView: View {
         } else if d.isMember {
             HStack(spacing: 10) {
                 Label(L.communityRoles[d.membership?.role ?? "MEMBER"] ?? "Mitglied", systemImage: "checkmark.seal.fill")
-                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.moss)
+                    .font(.wr(.subheadline, .semibold)).foregroundStyle(Color.moss)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(Color.mossSoft, in: Capsule())
                 if d.isManager || d.isMod {
                     Button { router.open(.communityManage(slug: d.community.slug)) } label: {
-                        Label("Verwalten", systemImage: "slider.horizontal.3").font(.subheadline.weight(.semibold))
+                        Label("Verwalten", systemImage: "slider.horizontal.3").font(.wr(.subheadline, .semibold))
                     }
                     .buttonStyle(.glass)
                 }
@@ -307,7 +307,7 @@ struct CommunityDetailView: View {
             }
         } else if state == "PENDING" {
             HStack {
-                Label("Anfrage gesendet", systemImage: "hourglass").font(.subheadline.weight(.semibold)).foregroundStyle(Color.warn)
+                Label("Anfrage gesendet", systemImage: "hourglass").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.warn)
                 Spacer()
                 AsyncButton("Zurückziehen") { await leave() }.buttonStyle(.glass)
             }
@@ -343,7 +343,7 @@ struct CommunityDetailView: View {
                 SpecLabel(running ? "Challenge · läuft bis \(Fmt.date(end))" : "Challenge · ab \(Fmt.date(start))", color: .clay)
             }
             Text(ch.title).font(.titleSerif).foregroundStyle(Color.ink)
-            if let d = ch.description?.nilIfEmpty { Text(d).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
+            if let d = ch.description?.nilIfEmpty { Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
             if running {
                 GeometryReader { g in
                     ZStack(alignment: .leading) {
@@ -355,7 +355,7 @@ struct CommunityDetailView: View {
                 .accessibilityLabel("Fortschritt der Challenge")
                 .accessibilityValue("\(Int(progress * 100)) Prozent der Zeit vergangen")
                 let days = max(0, Int(ceil(end.timeIntervalSinceNow / 86400)))
-                Text(days == 1 ? "Noch 1 Tag" : "Noch \(days) Tage").font(.caption).foregroundStyle(Color.muted)
+                Text(days == 1 ? "Noch 1 Tag" : "Noch \(days) Tage").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
         }
         .padding(16)
@@ -372,7 +372,7 @@ struct CommunityDetailView: View {
                 ThreadPlate(seed: d.community.id, category: d.community.category, glyph: "ring", showLabel: false, animated: true)
                     .frame(width: 140, height: 140)
                     .clipShape(Circle())
-                Image(systemName: "lock.fill").font(.largeTitle).foregroundStyle(Color.ink)
+                Image(systemName: "lock.fill").font(.wr(.largeTitle)).foregroundStyle(Color.ink)
                     .padding(18)
                     .glassEffect(.regular, in: Circle())
             }
@@ -380,12 +380,12 @@ struct CommunityDetailView: View {
             Text(d.community.visibility == "REQUEST"
                  ? "Beiträge, Projekte und Mitglieder siehst du, sobald die Moderation deine Anfrage angenommen hat."
                  : "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Neue Mitglieder kommen per Einladung dazu.")
-                .font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                .font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
             if let rules = d.community.rules, !rules.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     SpecLabel("Regeln")
                     ForEach(Array(rules.enumerated()), id: \.offset) { i, r in
-                        Text("\(i + 1). \(r.title)").font(.footnote).foregroundStyle(Color.ink2)
+                        Text("\(i + 1). \(r.title)").font(.wr(.footnote)).foregroundStyle(Color.ink2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -432,11 +432,11 @@ struct CommunityDetailView: View {
             PostCardView(post: p, onDelete: { Task { await load() } }, showCommunity: false)
             if d.isMod {
                 HStack(spacing: 8) {
-                    Image(systemName: "shield.lefthalf.filled").font(.caption).foregroundStyle(Color.muted)
+                    Image(systemName: "shield.lefthalf.filled").font(.wr(.caption)).foregroundStyle(Color.muted)
                     modButton(p.isPinned == true ? "Lösen" : "Anheften", p.isPinned == true ? "pin.slash" : "pin") { await moderate(p, "pinned", on: p.isPinned != true) }
                     modButton(p.isAnnouncement == true ? "Keine Ankündigung" : "Ankündigung", "megaphone") { await moderate(p, "announcement", on: p.isAnnouncement != true) }
                     Button { hideTarget = p } label: {
-                        Label("Ausblenden", systemImage: "eye.slash").font(.caption.weight(.semibold))
+                        Label("Ausblenden", systemImage: "eye.slash").font(.wr(.caption, .semibold))
                     }
                     .buttonStyle(.glass).controlSize(.small).tint(.danger)
                     Spacer(minLength: 0)
@@ -447,7 +447,7 @@ struct CommunityDetailView: View {
     }
 
     private func modButton(_ title: String, _ symbol: String, action: @escaping () async -> Void) -> some View {
-        AsyncButton(action: action) { Label(title, systemImage: symbol).font(.caption.weight(.semibold)) }
+        AsyncButton(action: action) { Label(title, systemImage: symbol).font(.wr(.caption, .semibold)) }
             .buttonStyle(.glass)
             .controlSize(.small)
     }
@@ -462,7 +462,7 @@ struct CommunityDetailView: View {
                         }
                     } label: {
                         Label("Eigenes Projekt teilen", systemImage: "plus.square.on.square")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.wr(.subheadline, .semibold))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
@@ -544,8 +544,8 @@ struct CommunityDetailView: View {
                     HStack(alignment: .top, spacing: 14) {
                         Text(String(format: "%02d", i + 1)).font(.specLarge).foregroundStyle(Color.moss)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(r.title).font(.headline).foregroundStyle(Color.ink)
-                            if !r.body.isEmpty { Text(r.body).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
+                            Text(r.title).font(.wr(.headline)).foregroundStyle(Color.ink)
+                            if !r.body.isEmpty { Text(r.body).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
                         }
                         Spacer(minLength: 0)
                     }
@@ -576,7 +576,7 @@ struct CommunityDetailView: View {
             } else {
                 Button { router.present(.composer(communityId: d.community.id)) } label: {
                     Label("Beitrag schreiben", systemImage: "square.and.pencil")
-                        .font(.body.weight(.semibold))
+                        .font(.wr(.body, .semibold))
                         .padding(.horizontal, 10)
                 }
                 .buttonStyle(.glassProminent)
@@ -602,10 +602,10 @@ struct CommunityMemberLine: View {
                     AvatarView(url: member.avatarUrl, name: member.displayName, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(member.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                            if member.isMuted { Image(systemName: "speaker.slash.fill").font(.caption2).foregroundStyle(Color.warn).accessibilityLabel("Stummgeschaltet") }
+                            Text(member.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            if member.isMuted { Image(systemName: "speaker.slash.fill").font(.wr(.caption2)).foregroundStyle(Color.warn).accessibilityLabel("Stummgeschaltet") }
                         }
-                        Text("@\(member.handle)").font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                        Text("@\(member.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     }
                 }
                 .contentShape(.rect)

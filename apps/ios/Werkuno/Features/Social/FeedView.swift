@@ -220,7 +220,7 @@ private struct FeedHeader: View {
                 .foregroundStyle(Color.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Was heute auf den Werkbänken entsteht.")
-                .font(.subheadline)
+                .font(.wr(.subheadline))
                 .foregroundStyle(Color.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -240,7 +240,7 @@ private struct FeedComposerPrompt: View {
                 HStack(spacing: 12) {
                     AvatarView(url: app.me?.profile?.avatarUrl, name: app.me?.profile?.displayName ?? "Du", size: 40)
                     Text("Was entsteht gerade?")
-                        .font(.body)
+                        .font(.wr(.body))
                         .foregroundStyle(Color.muted)
                     Spacer(minLength: 0)
                 }
@@ -251,7 +251,7 @@ private struct FeedComposerPrompt: View {
 
             Button { open() } label: {
                 Image(systemName: "photo.on.rectangle.angled")
-                    .font(.body)
+                    .font(.wr(.body))
                     .foregroundStyle(Color.moss)
                     .frame(width: 44, height: 44)
             }
@@ -277,12 +277,12 @@ private struct FeedNewcomerBanner: View {
         HStack(spacing: 12) {
             Image(systemName: "sparkles").foregroundStyle(Color.moss)
             Text("Folge ein paar Creatorn, damit dein Feed persönlicher wird.")
-                .font(.footnote)
+                .font(.wr(.footnote))
                 .foregroundStyle(Color.ink2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Button("Entdecken") { router.tab = .discover }
-                .font(.footnote.weight(.semibold))
+                .font(.wr(.footnote, .semibold))
                 .buttonStyle(.glass)
                 .controlSize(.small)
         }
@@ -300,10 +300,10 @@ private struct FeedEndNote: View {
                 SpecLabel("Ende des Fadens")
             }
             Text("Dein Feed mischt Frische, deine Interessen und Vielfalt – nicht nur Reichweite.")
-                .font(.footnote)
+                .font(.wr(.footnote))
                 .foregroundStyle(Color.muted)
             Button("Feed anpassen") { router.open(.settingsSection(.feed)) }
-                .font(.footnote.weight(.semibold))
+                .font(.wr(.footnote, .semibold))
                 .foregroundStyle(Color.moss)
                 .buttonStyle(.plain)
         }
@@ -349,13 +349,13 @@ private struct FeedWorkbenchStrip: View {
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
                 Text(p.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.wr(.subheadline, .semibold))
                     .foregroundStyle(Color.ink)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 SpecLabel("\(L.projectStatus(p.status)) · \(Fmt.plural(p.updates, "Eintrag", "Einträge"))")
                     .lineLimit(1)
-                Text(Fmt.relative(p.updatedAt)).font(.caption2).foregroundStyle(Color.muted)
+                Text(Fmt.relative(p.updatedAt)).font(.wr(.caption2)).foregroundStyle(Color.muted)
             }
             Spacer(minLength: 0)
         }
@@ -370,8 +370,8 @@ private struct FeedWorkbenchStrip: View {
             router.present(.projectEditor())
         } label: {
             VStack(spacing: 6) {
-                Image(systemName: "plus").font(.title3.weight(.semibold))
-                Text(projects.isEmpty ? "Projekt starten" : "Neues Projekt").font(.caption.weight(.semibold))
+                Image(systemName: "plus").font(.wr(.title3, .semibold))
+                Text(projects.isEmpty ? "Projekt starten" : "Neues Projekt").font(.wr(.caption, .semibold))
             }
             .foregroundStyle(Color.moss)
             .frame(width: 120, height: 78)
@@ -393,7 +393,7 @@ private struct FeedCreatorCarousel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.m) {
             SectionHeader("Creator für dich", subtitle: "Aus deinen Interessen") {
-                Image(systemName: "sparkles").font(.footnote).foregroundStyle(Color.moss)
+                Image(systemName: "sparkles").font(.wr(.footnote)).foregroundStyle(Color.moss)
             }
             .padding(.horizontal, Space.gutter)
             ScrollView(.horizontal, showsIndicators: false) {
@@ -419,11 +419,11 @@ private struct FeedCreatorCarousel: View {
                         SpecLabel(Fmt.plural(c.projectCount ?? 0, "Projekt", "Projekte"), color: tint)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(c.displayName).font(.headline).foregroundStyle(Color.ink).lineLimit(1)
-                        Text("@\(c.handle)").font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(c.displayName).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(1)
+                        Text("@\(c.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     }
                     Text(c.bio?.nilIfEmpty ?? (c.categories ?? []).map { app.categoryName($0) }.joined(separator: " · "))
-                        .font(.footnote)
+                        .font(.wr(.footnote))
                         .foregroundStyle(Color.ink2)
                         .lineLimit(3, reservesSpace: true)
                         .multilineTextAlignment(.leading)
@@ -434,7 +434,7 @@ private struct FeedCreatorCarousel: View {
             .accessibilityElement(children: .combine)
             .accessibilityHint("Profil öffnen")
             HStack {
-                Text(Fmt.plural(c.followerCount ?? 0, "Follower", "Follower")).font(.caption2).foregroundStyle(Color.muted)
+                Text(Fmt.plural(c.followerCount ?? 0, "Follower", "Follower")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                 Spacer()
                 FollowButton(userId: c.userId, following: c.following ?? false, compact: true)
             }
@@ -457,7 +457,7 @@ private struct FeedTrendingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             SectionHeader("Gerade viel gemerkt", subtitle: "Die meistgespeicherten Projekte der letzten zwei Wochen") {
-                Image(systemName: "bookmark").font(.footnote).foregroundStyle(Color.moss)
+                Image(systemName: "bookmark").font(.wr(.footnote)).foregroundStyle(Color.moss)
             }
             .padding(.bottom, 8)
             ForEach(Array(projects.enumerated()), id: \.element.id) { i, p in
@@ -470,8 +470,8 @@ private struct FeedTrendingCard: View {
                             .foregroundStyle(Color.moss)
                             .frame(width: 24, alignment: .leading)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                            Text("von \(p.owner?.displayName ?? p.ownerHandle ?? "")").font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                            Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            Text("von \(p.owner?.displayName ?? p.ownerHandle ?? "")").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                         }
                         Spacer(minLength: 0)
                         CoverView(url: p.coverUrl, seed: p.id, category: p.category, showLabel: false)
@@ -502,7 +502,7 @@ private struct FeedCommunityShelf: View {
         VStack(alignment: .leading, spacing: Space.m) {
             SectionHeader("Communities für dich", subtitle: "Gemeinsam an Projekten dranbleiben") {
                 Button("Alle") { router.open(.communities) }
-                    .font(.footnote.weight(.semibold))
+                    .font(.wr(.footnote, .semibold))
                     .buttonStyle(.glass)
                     .controlSize(.small)
             }

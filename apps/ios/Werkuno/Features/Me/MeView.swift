@@ -40,7 +40,7 @@ struct MeView: View {
                 }
                 Button(role: .destructive) { confirmSignOut = true } label: {
                     Label("Abmelden", systemImage: "rectangle.portrait.and.arrow.right")
-                        .font(.body.weight(.semibold))
+                        .font(.wr(.body, .semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
@@ -97,12 +97,12 @@ struct MeView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(p?.displayName ?? "Mein Profil").font(.display(26)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
-                            Text("@\(p?.handle ?? "")").font(.subheadline).foregroundStyle(Color.muted)
+                            Text("@\(p?.handle ?? "")").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                             if p?.isCreatorPro == true { Pill(text: "Creator Pro", symbol: "seal.fill", tint: .moss) }
                         }
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color.lineStrong)
+                    Image(systemName: "chevron.right").font(.wr(.footnote, .semibold)).foregroundStyle(Color.lineStrong)
                 }
                 HStack(spacing: 0) {
                     headerCount(counts?.followerCount, "Follower")
@@ -142,7 +142,7 @@ struct MeView: View {
                             _ = try await APIClient.shared.post("/auth/resend-verification") as JSONValue
                         }
                     } label: {
-                        Label("Link erneut senden", systemImage: "envelope.arrow.triangle.branch").font(.subheadline.weight(.semibold))
+                        Label("Link erneut senden", systemImage: "envelope.arrow.triangle.branch").font(.wr(.subheadline, .semibold))
                     }
                     .buttonStyle(.glass)
                 }
@@ -167,17 +167,17 @@ struct MeView: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Image(systemName: symbol).font(.title3).foregroundStyle(tint)
+                    Image(systemName: symbol).font(.wr(.title3)).foregroundStyle(tint)
                     Spacer()
                     if badge > 0 {
                         Text(badge > 99 ? "99+" : "\(badge)")
-                            .font(.caption.weight(.bold)).monospacedDigit()
+                            .font(.wr(.caption, .bold)).monospacedDigit()
                             .foregroundStyle(Color.paper)
                             .padding(.horizontal, 7).padding(.vertical, 2)
                             .background(Color.clay, in: Capsule())
                     }
                 }
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.8)
+                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.8)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,7 +191,7 @@ struct MeView: View {
     private var footer: some View {
         VStack(spacing: 4) {
             Wordmark(size: 18)
-            Text("\(appVersion) · \(AppConfig.environment.label)").font(.caption2).foregroundStyle(Color.muted)
+            Text("\(appVersion) · \(AppConfig.environment.label)").font(.wr(.caption2)).foregroundStyle(Color.muted)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)

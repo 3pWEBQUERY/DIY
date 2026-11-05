@@ -104,7 +104,7 @@ struct CommunityEditorSheet: View {
                             coverRemoved = false
                         }) {
                             Label(coverURL == nil || coverRemoved ? "Titelbild wählen" : "Ändern", systemImage: "photo")
-                                .font(.footnote.weight(.semibold))
+                                .font(.wr(.footnote, .semibold))
                                 .padding(.horizontal, 12).padding(.vertical, 8)
                                 .glassEffect(.regular.interactive(), in: Capsule())
                         }
@@ -120,9 +120,9 @@ struct CommunityEditorSheet: View {
                 DiscoverFieldError(message: fields["name"])
                 if !isEdit {
                     HStack(spacing: 2) {
-                        Text("/c/").foregroundStyle(Color.muted).font(.body.monospaced())
+                        Text("/c/").foregroundStyle(Color.muted).font(.wr(.body).monospaced())
                         TextField("adresse", text: Binding(get: { slugText }, set: { slugText = Self.slugify($0, keepTrailingDash: true); slugTouched = true }))
-                            .font(.body.monospaced())
+                            .font(.wr(.body).monospaced())
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
@@ -157,8 +157,8 @@ struct CommunityEditorSheet: View {
             Section {
                 ForEach($rules) { $r in
                     VStack(alignment: .leading, spacing: 6) {
-                        TextField("Regel", text: $r.title).font(.headline)
-                        TextField("Erläuterung (optional)", text: $r.body, axis: .vertical).font(.subheadline).lineLimit(1...4)
+                        TextField("Regel", text: $r.title).font(.wr(.headline))
+                        TextField("Erläuterung (optional)", text: $r.body, axis: .vertical).font(.wr(.subheadline)).lineLimit(1...4)
                     }
                 }
                 .onDelete { rules.remove(atOffsets: $0) }

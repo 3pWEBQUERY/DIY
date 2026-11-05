@@ -128,7 +128,7 @@ struct ArticleReaderView: View {
                         }
                         CommentsSection(type: "ARTICLE", id: a.id, allowComments: a.commentsEnabled ?? true)
                         if a.commentsEnabled == false {
-                            Text("Die Kommentare sind für diesen Artikel geschlossen.").font(.footnote).foregroundStyle(Color.muted)
+                            Text("Die Kommentare sind für diesen Artikel geschlossen.").font(.wr(.footnote)).foregroundStyle(Color.muted)
                         }
                     }
                     .padding(.horizontal, Space.gutter)
@@ -153,7 +153,7 @@ struct ArticleReaderView: View {
                 .accessibilityAddTraits(.isHeader)
             if let dek = a.dek?.nilIfEmpty {
                 Text(dek)
-                    .font(.system(size: 20, weight: .regular, design: .serif).italic())
+                    .font(.wr(size: 20, weight: .regular).italic())
                     .foregroundStyle(Color.ink2)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -164,8 +164,8 @@ struct ArticleReaderView: View {
                         HStack(spacing: 10) {
                             AvatarView(url: au.avatarUrl, name: au.displayName, size: 36)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(au.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                                Text(a.publishedAt.map { Fmt.date($0, style: .long) } ?? "Entwurf").font(.caption).foregroundStyle(Color.muted)
+                                Text(au.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                                Text(a.publishedAt.map { Fmt.date($0, style: .long) } ?? "Entwurf").font(.wr(.caption)).foregroundStyle(Color.muted)
                             }
                         }
                     }
@@ -185,10 +185,10 @@ struct ArticleReaderView: View {
             Button { withAnimation(.snappy) { showTOC.toggle() } } label: {
                 HStack {
                     Image(systemName: "list.bullet.indent").foregroundStyle(Color.moss)
-                    Text("Inhalt").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                    Text("\(hs.count) Abschnitte").font(.caption).foregroundStyle(Color.muted)
+                    Text("Inhalt").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    Text("\(hs.count) Abschnitte").font(.wr(.caption)).foregroundStyle(Color.muted)
                     Spacer()
-                    Image(systemName: "chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Color.muted)
+                    Image(systemName: "chevron.down").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
                         .rotationEffect(.degrees(showTOC ? 180 : 0))
                 }
                 .frame(minHeight: 44)
@@ -202,7 +202,7 @@ struct ArticleReaderView: View {
                         Button { withAnimation(.snappy) { proxy.scrollTo(b.id, anchor: .top) } } label: {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 Text(String(format: "%02d", i + 1)).font(.specLarge).foregroundStyle(Color.moss)
-                                Text(b.text ?? "").font(.system(.subheadline, design: .serif)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
+                                Text(b.text ?? "").font(.wr(.subheadline)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
                             }
                             .padding(.vertical, 9)
@@ -244,7 +244,7 @@ struct ArticleReaderView: View {
                 Text("Aktualisiert \(Fmt.date(u))")
             }
         }
-        .font(.footnote)
+        .font(.wr(.footnote))
         .foregroundStyle(Color.muted)
     }
 
@@ -255,11 +255,11 @@ struct ArticleReaderView: View {
                 AvatarView(url: au.avatarUrl, name: au.displayName, size: 52)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(au.displayName).font(.titleSerif).foregroundStyle(Color.ink)
-                    Text("@\(au.handle) · \(Fmt.plural(au.followerCount ?? 0, "Follower", "Follower"))").font(.caption).foregroundStyle(Color.muted)
+                    Text("@\(au.handle) · \(Fmt.plural(au.followerCount ?? 0, "Follower", "Follower"))").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 Spacer(minLength: 0)
             }
-            if let b = au.bio?.nilIfEmpty { Text(b).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
+            if let b = au.bio?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
             HStack(spacing: 10) {
                 if d.isAuthor != true { FollowButton(userId: au.userId, following: d.viewer?.following ?? false) }
                 Button("Alle Artikel") { router.open(.userBlog(handle: au.handle)) }.buttonStyle(.glass)
@@ -276,11 +276,11 @@ struct ArticleReaderView: View {
                 LikeButton(type: "ARTICLE", id: a.id, liked: d.viewer?.liked ?? false, count: a.likeCount ?? 0)
                 SaveButton(type: "ARTICLE", id: a.id, saved: d.viewer?.saved ?? false)
                 ShareLink(item: AppConfig.webURL("/u/\(h)/blog/\(a.slug)")) {
-                    Image(systemName: "square.and.arrow.up").font(.subheadline).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
+                    Image(systemName: "square.and.arrow.up").font(.wr(.subheadline)).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
                 }
                 .accessibilityLabel("Teilen")
                 Button { withAnimation(.snappy) { proxy.scrollTo("top", anchor: .top) } } label: {
-                    Image(systemName: "arrow.up").font(.subheadline).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
+                    Image(systemName: "arrow.up").font(.wr(.subheadline)).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Zum Anfang")

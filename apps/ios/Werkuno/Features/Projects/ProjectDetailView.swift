@@ -122,7 +122,7 @@ struct ProjectDetailView: View {
                     RemoteImage(path: m.displayURL) { ThreadPlate(seed: p.id, category: p.category) }
                         .frame(maxWidth: .infinity)
                         .clipped()
-                        .overlay { if m.isVideo { Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white.opacity(0.9)) } }
+                        .overlay { if m.isVideo { Image(systemName: "play.circle.fill").font(.wr(size: 54)).foregroundStyle(.white.opacity(0.9)) } }
                         .contentShape(.rect)
                         .onTapGesture { viewerMedia = m }
                         .accessibilityLabel(m.alt?.nilIfEmpty ?? "Projektbild \(i + 1) von \(media.count)")
@@ -135,7 +135,7 @@ struct ProjectDetailView: View {
             .overlay(alignment: .bottomTrailing) {
                 if media.count > 1 {
                     Text("\(heroIndex + 1) / \(media.count)")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced)).monospacedDigit()
+                        .font(.wr(size: 11, weight: .semibold)).monospacedDigit()
                         .foregroundStyle(Color.ink)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .glassEffect(.regular, in: Capsule())
@@ -159,7 +159,7 @@ struct ProjectDetailView: View {
                     Spacer()
                     Text(app.categoryShort(p.category).uppercased())
                 }
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .font(.wr(size: 10, weight: .semibold))
                 .tracking(1)
                 .foregroundStyle(color)
                 .padding(.horizontal, Space.gutter)
@@ -189,9 +189,9 @@ struct ProjectDetailView: View {
             if let r = p.remixOf {
                 Button { router.open(href: r.href) } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.branch").font(.caption.weight(.semibold))
+                        Image(systemName: "arrow.triangle.branch").font(.wr(.caption, .semibold))
                         Text("Nachbau von «\(r.title)»\(r.ownerName.map { " · \($0)" } ?? "")")
-                            .font(.footnote.weight(.medium))
+                            .font(.wr(.footnote, .medium))
                             .multilineTextAlignment(.leading)
                     }
                     .foregroundStyle(Color.moss)
@@ -205,9 +205,9 @@ struct ProjectDetailView: View {
                         AvatarView(url: p.owner.avatarUrl, name: p.owner.displayName, size: 40)
                         VStack(alignment: .leading, spacing: 1) {
                             SpecLabel("Gebaut von")
-                            Text(p.owner.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                            Text(p.owner.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                             if let c = p.contributors, !c.isEmpty {
-                                Text("mit " + c.map(\.displayName).joined(separator: ", ")).font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                                Text("mit " + c.map(\.displayName).joined(separator: ", ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                             }
                         }
                     }
@@ -247,10 +247,10 @@ struct ProjectDetailView: View {
     private func ideaSection(_ p: ProjectPage) -> some View {
         ProjectsSection(title: "Idee & Beschreibung", number: number(.idea, in: p)) {
             if let d = p.description?.nilIfEmpty {
-                Text(d).font(.body).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(d).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
             } else {
                 Text(p.isOwner ? "Noch keine Beschreibung. Erzähle, was dich zu diesem Projekt gebracht hat." : "Keine Beschreibung.")
-                    .font(.subheadline).foregroundStyle(Color.muted)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted)
             }
             if let tags = p.tags, !tags.isEmpty { TagList(tags: tags) }
         }
@@ -263,8 +263,8 @@ struct ProjectDetailView: View {
             VStack(spacing: 0) {
                 if let d = p.difficulty {
                     HStack(spacing: 10) {
-                        Image(systemName: "gauge.with.dots.needle.33percent").font(.footnote).foregroundStyle(Color.muted).frame(width: 18)
-                        Text("Schwierigkeit").font(.subheadline).foregroundStyle(Color.muted)
+                        Image(systemName: "gauge.with.dots.needle.33percent").font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 18)
+                        Text("Schwierigkeit").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                         Spacer(minLength: 12)
                         DifficultyMeter(level: d)
                     }
@@ -324,7 +324,7 @@ struct ProjectDetailView: View {
 
                 if !p.journal.isEmpty {
                     Text("Tippe auf einen Knoten, um zum Eintrag zu springen. Ziehen dreht den Faden.")
-                        .font(.caption).foregroundStyle(Color.muted)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -333,7 +333,7 @@ struct ProjectDetailView: View {
             if p.isOwner {
                 Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
                     Label("Fortschritt eintragen", systemImage: "plus")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.wr(.subheadline, .semibold))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
@@ -342,7 +342,7 @@ struct ProjectDetailView: View {
 
             if p.journal.isEmpty {
                 Text(p.isOwner ? "Halte hier deine Arbeitsschritte fest – mit Fotos, Zeit und auch mit dem, was nicht geklappt hat." : "Noch keine Journaleinträge.")
-                    .font(.subheadline).foregroundStyle(Color.muted)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     .padding(.vertical, 4)
             }
             ProjectThreadTimeline(
@@ -374,7 +374,7 @@ struct ProjectDetailView: View {
     private func legendItem(_ label: String, @ViewBuilder mark: () -> some View) -> some View {
         HStack(spacing: 4) {
             mark()
-            Text(label).font(.system(size: 10, weight: .medium, design: .monospaced)).foregroundStyle(Color.ink2)
+            Text(label).font(.wr(size: 10, weight: .medium)).foregroundStyle(Color.ink2)
         }
     }
 
@@ -386,7 +386,7 @@ struct ProjectDetailView: View {
         return ProjectsSection(title: "Material & Werkzeug", number: number(.materials, in: p), subtitle: materials.isEmpty && tools.isEmpty ? nil : "\(Fmt.plural(materials.count, "Material", "Materialien")) · \(Fmt.plural(tools.count, "Werkzeug", "Werkzeuge"))") {
             if materials.isEmpty && tools.isEmpty {
                 Text(p.isOwner ? "Noch keine Materialliste. Ergänze sie über «Bearbeiten», damit andere direkt einkaufen können." : "Keine Materialliste hinterlegt.")
-                    .font(.subheadline).foregroundStyle(Color.muted)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted)
             } else {
                 if !materials.isEmpty {
                     ProjectsSpecTable(title: "Material", rows: materials.map { .init(id: $0.id, name: $0.name, quantity: $0.quantity, note: $0.note, safety: $0.safetyInfo) })
@@ -397,13 +397,13 @@ struct ProjectDetailView: View {
                 }
                 VStack(spacing: 10) {
                     Button { router.present(.shoppingListPicker(kind: "PROJECT", id: p.id, title: p.title)) } label: {
-                        Label("Auf Einkaufsliste", systemImage: "cart.badge.plus").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
+                        Label("Auf Einkaufsliste", systemImage: "cart.badge.plus").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
                     .controlSize(.large)
                     if !p.isOwner && !materials.isEmpty {
                         Button { router.present(.projectEditor(remixOf: p.id)) } label: {
-                            Label("Nachbau mit dieser Materialliste starten", systemImage: "arrow.triangle.branch").font(.footnote.weight(.semibold)).foregroundStyle(Color.moss)
+                            Label("Nachbau mit dieser Materialliste starten", systemImage: "arrow.triangle.branch").font(.wr(.footnote, .semibold)).foregroundStyle(Color.moss)
                         }
                         .buttonStyle(.plain)
                         .frame(minHeight: 36)
@@ -461,10 +461,10 @@ struct ProjectDetailView: View {
 
     private func ownerHint(title: String, text: String, action: String, symbol: String, perform: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-            Text(text).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+            Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+            Text(text).font(.wr(.footnote)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             Button(action: perform) {
-                Label(action, systemImage: symbol).font(.footnote.weight(.semibold))
+                Label(action, systemImage: symbol).font(.wr(.footnote, .semibold))
             }
             .buttonStyle(.glass)
         }
@@ -486,7 +486,7 @@ struct ProjectDetailView: View {
                     if let dev = (r.deviations?.nilIfEmpty ?? p.remixNote?.nilIfEmpty) {
                         VStack(alignment: .leading, spacing: 4) {
                             SpecLabel("Abweichungen zum Original")
-                            Text(dev).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                            Text(dev).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -498,7 +498,7 @@ struct ProjectDetailView: View {
 
             if remixes.isEmpty {
                 Text(p.isOwner ? "Noch hat niemand dein Projekt nachgebaut. Nachbauten erscheinen hier und verweisen auf dein Original." : "Noch keine Nachbauten. Baust du es nach? Dein Projekt verweist dann auf dieses Original – Texte und Dateien werden nicht kopiert.")
-                    .font(.subheadline).foregroundStyle(Color.muted)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -507,7 +507,7 @@ struct ProjectDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ProjectCardView(project: r.card, style: .tile)
                                 if let d = r.deviations?.nilIfEmpty {
-                                    Text(d).font(.caption).foregroundStyle(Color.muted).lineLimit(3)
+                                    Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3)
                                 }
                             }
                             .frame(width: 168)
@@ -520,7 +520,7 @@ struct ProjectDetailView: View {
             }
             if !p.isOwner {
                 Button { router.present(.projectEditor(remixOf: p.id)) } label: {
-                    Label("Eigenen Nachbau starten", systemImage: "arrow.triangle.branch").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
+                    Label("Eigenen Nachbau starten", systemImage: "arrow.triangle.branch").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
                 .controlSize(.large)
@@ -539,7 +539,7 @@ struct ProjectDetailView: View {
                     if !p.isOwner {
                         Button { Task { await toggleFollowProject(p) } } label: {
                             Image(systemName: followingProject ? "bell.fill" : "bell")
-                                .font(.subheadline)
+                                .font(.wr(.subheadline))
                                 .foregroundStyle(followingProject ? Color.moss : Color.ink2)
                                 .symbolEffect(.bounce, value: followingProject)
                                 .frame(minWidth: 32, minHeight: 32)
@@ -551,7 +551,7 @@ struct ProjectDetailView: View {
                     }
                     if let url = shareURL(p) {
                         ShareLink(item: url, subject: Text(p.title)) {
-                            Image(systemName: "square.and.arrow.up").font(.subheadline).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
+                            Image(systemName: "square.and.arrow.up").font(.wr(.subheadline)).foregroundStyle(Color.ink2).frame(minWidth: 32, minHeight: 32)
                         }
                         .accessibilityLabel("Teilen")
                     }
@@ -565,7 +565,7 @@ struct ProjectDetailView: View {
 
                 if p.isOwner {
                     Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
-                        Label("Eintrag", systemImage: "plus").font(.subheadline.weight(.semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                        Label("Eintrag", systemImage: "plus").font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
                     }
                     .buttonStyle(.glassProminent)
                     .tint(.moss)
@@ -573,7 +573,7 @@ struct ProjectDetailView: View {
                     .accessibilityLabel("Journal-Eintrag hinzufügen")
                 } else {
                     Button { router.present(.projectEditor(remixOf: p.id)) } label: {
-                        Label("Nachbauen", systemImage: "arrow.triangle.branch").font(.subheadline.weight(.semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                        Label("Nachbauen", systemImage: "arrow.triangle.branch").font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
                     }
                     .buttonStyle(.glassProminent)
                     .tint(.moss)

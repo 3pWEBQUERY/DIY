@@ -23,15 +23,15 @@ struct ProjectCardView: View {
                     .aspectRatio(4 / 5, contentMode: .fit)
                     .overlay(alignment: .topLeading) { StatusBadge(status: project.status).padding(8) }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(project.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(project.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
                         AvatarView(url: project.owner.avatarUrl, name: project.owner.displayName, size: 18)
-                        Text(project.owner.displayName).font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(project.owner.displayName).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     }
                     HStack(spacing: 10) {
                         if let d = project.difficulty { DifficultyMeter(level: d, showLabel: false) }
                         Spacer(minLength: 0)
-                        Label(Fmt.number(project.counts?.saves), systemImage: "bookmark").font(.caption2).foregroundStyle(Color.muted).labelStyle(.compact)
+                        Label(Fmt.number(project.counts?.saves), systemImage: "bookmark").font(.wr(.caption2)).foregroundStyle(Color.muted).labelStyle(.compact)
                     }
                 }
                 .padding(10)
@@ -50,7 +50,7 @@ struct ProjectCardView: View {
                     Text(project.title).font(.titleSerif).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                     HStack(spacing: 8) {
                         AvatarView(url: project.owner.avatarUrl, name: project.owner.displayName, size: 22)
-                        Text(project.owner.displayName).font(.footnote).foregroundStyle(Color.ink2)
+                        Text(project.owner.displayName).font(.wr(.footnote)).foregroundStyle(Color.ink2)
                         Spacer()
                         countsRow
                     }
@@ -65,12 +65,12 @@ struct ProjectCardView: View {
                     .frame(width: 64, height: 64)
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(project.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    Text("\(L.projectStatus(project.status)) · \(project.owner.displayName)").font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                    Text(project.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text("\(L.projectStatus(project.status)) · \(project.owner.displayName)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     if let d = project.difficulty { DifficultyMeter(level: d, showLabel: false) }
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
             }
             .contentShape(.rect)
         }
@@ -89,7 +89,7 @@ struct ProjectCardView: View {
             Label(Fmt.number(project.counts?.updates), systemImage: "point.3.connected.trianglepath.dotted")
             if (project.counts?.remixes ?? 0) > 0 { Label(Fmt.number(project.counts?.remixes), systemImage: "arrow.triangle.branch") }
         }
-        .font(.caption2).foregroundStyle(Color.muted).labelStyle(.compact)
+        .font(.wr(.caption2)).foregroundStyle(Color.muted).labelStyle(.compact)
     }
 }
 
@@ -109,18 +109,18 @@ struct TutorialCardView: View {
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                     .overlay(alignment: .bottomLeading) {
                         if let steps = tutorial.steps {
-                            Text("\(steps) Schritte").font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(.white)
+                            Text("\(steps) Schritte").font(.wr(size: 9, weight: .semibold)).foregroundStyle(.white)
                                 .padding(.horizontal, 6).padding(.vertical, 3).background(.black.opacity(0.45), in: Capsule()).padding(6)
                         }
                     }
                 VStack(alignment: .leading, spacing: 6) {
                     SpecLabel("Anleitung · \(app.categoryShort(tutorial.category))", color: .moss)
-                    Text(tutorial.title).font(compact ? .subheadline.weight(.semibold) : .headline).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    if !compact, let s = tutorial.summary?.nilIfEmpty { Text(s).font(.footnote).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                    Text(tutorial.title).font(compact ? .wr(.subheadline, .semibold) : .wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    if !compact, let s = tutorial.summary?.nilIfEmpty { Text(s).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
                     HStack(spacing: 10) {
                         if let d = tutorial.difficulty { DifficultyMeter(level: d, showLabel: false) }
-                        Label(Fmt.minutes(tutorial.minutes), systemImage: "clock").font(.caption2).foregroundStyle(Color.muted).labelStyle(.compact)
-                        if !(tutorial.safetyKinds ?? []).isEmpty { Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(Color.warn).accessibilityLabel("Sicherheitshinweise") }
+                        Label(Fmt.minutes(tutorial.minutes), systemImage: "clock").font(.wr(.caption2)).foregroundStyle(Color.muted).labelStyle(.compact)
+                        if !(tutorial.safetyKinds ?? []).isEmpty { Image(systemName: "exclamationmark.triangle.fill").font(.wr(.caption2)).foregroundStyle(Color.warn).accessibilityLabel("Sicherheitshinweise") }
                     }
                 }
                 Spacer(minLength: 0)
@@ -151,13 +151,13 @@ struct ProductCardView: View {
                         else if product.kind == "UNIQUE" { Pill(text: "Einzelstück", tint: .clay, filled: true).padding(8) }
                     }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(product.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    if let shop = product.shop?.name { Text(shop).font(.caption).foregroundStyle(Color.muted).lineLimit(1) }
+                    Text(product.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    if let shop = product.shop?.name { Text(shop).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1) }
                     HStack {
-                        Text(Fmt.money(product.priceMinor, currency: product.currency)).font(.subheadline.weight(.bold)).monospacedDigit().foregroundStyle(Color.ink)
+                        Text(Fmt.money(product.priceMinor, currency: product.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
                         Spacer()
                         if let r = product.ratingAvg, (product.ratingCount ?? 0) > 0 {
-                            Label(String(format: "%.1f", r), systemImage: "star.fill").font(.caption2).foregroundStyle(Color.ochre).labelStyle(.compact)
+                            Label(String(format: "%.1f", r), systemImage: "star.fill").font(.wr(.caption2)).foregroundStyle(Color.ochre).labelStyle(.compact)
                         }
                     }
                 }
@@ -186,12 +186,12 @@ struct CommunityCardView: View {
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(community.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                        if community.visibility == "PRIVATE" { Image(systemName: "lock.fill").font(.caption2).foregroundStyle(Color.muted) }
-                        if community.visibility == "REQUEST" { Image(systemName: "person.badge.clock").font(.caption2).foregroundStyle(Color.muted) }
+                        Text(community.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                        if community.visibility == "PRIVATE" { Image(systemName: "lock.fill").font(.wr(.caption2)).foregroundStyle(Color.muted) }
+                        if community.visibility == "REQUEST" { Image(systemName: "person.badge.clock").font(.wr(.caption2)).foregroundStyle(Color.muted) }
                     }
-                    Text([app.categoryShort(community.category), community.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(Color.muted).lineLimit(1)
-                    Text(Fmt.plural(community.memberCount ?? 0, "Mitglied", "Mitglieder")).font(.caption2).foregroundStyle(Color.muted)
+                    Text([app.categoryShort(community.category), community.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                    Text(Fmt.plural(community.memberCount ?? 0, "Mitglied", "Mitglieder")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                 }
                 Spacer(minLength: 0)
                 if community.viewerState == "ACTIVE" { Pill(text: "Mitglied", symbol: "checkmark", tint: .moss) }
@@ -222,12 +222,12 @@ struct ArticleCardView: View {
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 SpecLabel([article.category?.name, article.readingMinutes.map { "\($0) Min. Lesezeit" }].compactMap { $0 }.joined(separator: " · "), color: .clay)
                 Text(article.title).font(large ? .display(24) : .titleSerif).foregroundStyle(Color.ink).lineLimit(3).multilineTextAlignment(.leading)
-                if let dek = article.dek?.nilIfEmpty { Text(dek).font(.subheadline).foregroundStyle(Color.muted).lineLimit(large ? 3 : 2).multilineTextAlignment(.leading) }
+                if let dek = article.dek?.nilIfEmpty { Text(dek).font(.wr(.subheadline)).foregroundStyle(Color.muted).lineLimit(large ? 3 : 2).multilineTextAlignment(.leading) }
                 if let a = article.author {
                     HStack(spacing: 8) {
                         AvatarView(url: a.avatarUrl, name: a.displayName, size: 20)
-                        Text(a.displayName).font(.caption).foregroundStyle(Color.ink2)
-                        Text(Fmt.date(article.publishedAt)).font(.caption).foregroundStyle(Color.muted)
+                        Text(a.displayName).font(.wr(.caption)).foregroundStyle(Color.ink2)
+                        Text(Fmt.date(article.publishedAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
             }
@@ -251,9 +251,9 @@ struct CreatorRowView: View {
                 HStack(spacing: 12) {
                     AvatarView(url: creator.avatarUrl, name: creator.displayName, size: 44, category: creator.categories?.first)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(creator.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                        Text(creator.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         Text((creator.categories ?? []).prefix(2).map { app.categoryShort($0) }.joined(separator: " · ") + " · \(Fmt.plural(creator.projectCount ?? 0, "Projekt", "Projekte"))")
-                            .font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     }
                 }
             }

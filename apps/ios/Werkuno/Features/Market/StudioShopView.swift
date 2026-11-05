@@ -56,7 +56,7 @@ struct StudioShopView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(s.name).font(.display(26))
-                    Text("/markt/\(s.slug)").font(.footnote.monospaced()).foregroundStyle(Color.muted)
+                    Text("/markt/\(s.slug)").font(.wr(.footnote).monospaced()).foregroundStyle(Color.muted)
                 }
                 Spacer()
                 MarketStatusPill.shop(s.status)
@@ -90,7 +90,7 @@ struct StudioShopView: View {
                 SpecRow(label: "Zahlungen annehmen", value: s.chargesEnabled == true ? "Aktiv" : "Ausstehend", symbol: "arrow.down.circle")
                 SpecRow(label: "Auszahlungen", value: s.payoutsEnabled == true ? "Aktiv" : "Ausstehend", symbol: "banknote")
             }
-            if let n = s.verification?.notes?.nilIfEmpty { Text(n).font(.caption).foregroundStyle(Color.muted).padding(.top, 8) }
+            if let n = s.verification?.notes?.nilIfEmpty { Text(n).font(.wr(.caption)).foregroundStyle(Color.muted).padding(.top, 8) }
             VStack(spacing: 10) {
                 if s.status == "DRAFT" || s.status == "PENDING_VERIFICATION" {
                     Button { router.present(.shopWizard) } label: { Label(s.status == "DRAFT" ? "Antrag fertigstellen" : "Verifizierung fortsetzen", systemImage: "arrow.right.circle").frame(maxWidth: .infinity) }
@@ -108,7 +108,7 @@ struct StudioShopView: View {
         if s.status == "ACTIVE" || s.status == "PAUSED" {
             MarketSection("Verfügbarkeit", number: "02") {
                 Text(s.status == "PAUSED" ? "Dein Shop ist pausiert. Produkte sind sichtbar, aber nicht bestellbar." : "Dein Shop nimmt Bestellungen an. Pausiere ihn z. B. während Ferien.")
-                    .font(.subheadline).foregroundStyle(Color.ink2)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.ink2)
                 if s.status == "PAUSED" {
                     AsyncButton { await setPaused(false) } label: { Label("Shop wieder öffnen", systemImage: "play.circle").frame(maxWidth: .infinity) }
                         .primaryButton().padding(.top, 12)
@@ -179,13 +179,13 @@ struct MarketStudioLink: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: symbol).font(.body).foregroundStyle(Color.moss).frame(width: 36, height: 36).background(Color.mossSoft, in: Circle())
+                Image(systemName: symbol).font(.wr(.body)).foregroundStyle(Color.moss).frame(width: 36, height: 36).background(Color.mossSoft, in: Circle())
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                    Text(subtitle).font(.caption).foregroundStyle(Color.muted)
+                    Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    Text(subtitle).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.muted)
+                Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(12)
             .cardSurface(radius: Radius.inner)
@@ -254,8 +254,8 @@ struct StudioRevenueView: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 SpecLabel("Netto im Zeitraum")
-                Text(Fmt.money(r.net, currency: cur)).font(.system(size: 34, weight: .semibold, design: .rounded)).monospacedDigit().contentTransition(.numericText())
-                Text("Aus \(Fmt.plural(r.orderCount, "bezahlter Bestellung", "bezahlten Bestellungen"))").font(.footnote).foregroundStyle(Color.muted)
+                Text(Fmt.money(r.net, currency: cur)).font(.wr(size: 34, weight: .semibold)).monospacedDigit().contentTransition(.numericText())
+                Text("Aus \(Fmt.plural(r.orderCount, "bezahlter Bestellung", "bezahlten Bestellungen"))").font(.wr(.footnote)).foregroundStyle(Color.muted)
             }
             Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 14) {
                 GridRow {
@@ -268,7 +268,7 @@ struct StudioRevenueView: View {
                 }
             }
             if let p = r.pendingRefunds, p > 0 {
-                Label("\(Fmt.money(p, currency: cur)) Erstattungen in Bearbeitung – noch nicht abgezogen.", systemImage: "clock").font(.caption).foregroundStyle(Color.warn)
+                Label("\(Fmt.money(p, currency: cur)) Erstattungen in Bearbeitung – noch nicht abgezogen.", systemImage: "clock").font(.wr(.caption)).foregroundStyle(Color.warn)
             }
         }
         .padding(16)
@@ -278,31 +278,31 @@ struct StudioRevenueView: View {
         if !r.rows.isEmpty { chart(r) }
 
         VStack(alignment: .leading, spacing: 6) {
-            Text("So rechnen wir").font(.footnote.weight(.semibold))
+            Text("So rechnen wir").font(.wr(.footnote, .semibold))
             Text("Umsatz brutto = bezahlte Bestellungen inkl. Versand. Erstattungen = bestätigte Rückzahlungen. Plattformgebühr = \(Fmt.percent(bps: r.feeBps ?? app.feeBps)) Provision auf den Warenwert, bei Erstattungen anteilig zurückgerechnet. Netto = Brutto − Erstattungen − Plattformgebühr. Gebühren des Zahlungsanbieters zieht Stripe separat ab; sie sind hier nicht enthalten.")
-                .font(.caption).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                .font(.wr(.caption)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .sunkenSurface()
 
         MarketSection("Bestellungen", number: "01", subtitle: r.rows.count >= 100 ? "Die letzten 100" : nil) {
             if r.rows.isEmpty {
-                Text("Im gewählten Zeitraum gibt es keine bezahlten Bestellungen.").font(.footnote).foregroundStyle(Color.muted)
+                Text("Im gewählten Zeitraum gibt es keine bezahlten Bestellungen.").font(.wr(.footnote)).foregroundStyle(Color.muted)
             }
             ForEach(r.rows) { row in
                 Button { router.open(.sellerOrder(id: row.id)) } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text(row.number).font(.footnote.monospaced().weight(.semibold)).foregroundStyle(Color.ink)
+                            Text(row.number).font(.wr(.footnote).monospaced().weight(.semibold)).foregroundStyle(Color.ink)
                             Spacer()
-                            Text(Fmt.money(row.net, currency: row.currency ?? cur)).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                            Text(Fmt.money(row.net, currency: row.currency ?? cur)).font(.wr(.subheadline, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                         }
                         HStack(spacing: 6) {
                             Text(Fmt.date(row.paidAt)).foregroundStyle(Color.muted)
                             Text("· Brutto \(Fmt.money(row.totalMinor, currency: row.currency ?? cur)) · Gebühr \(Fmt.money(row.fee, currency: row.currency ?? cur))\(row.refunded > 0 ? " · Erstattet \(Fmt.money(row.refunded, currency: row.currency ?? cur))" : "")")
                                 .foregroundStyle(Color.muted)
                         }
-                        .font(.caption).monospacedDigit().lineLimit(2)
+                        .font(.wr(.caption)).monospacedDigit().lineLimit(2)
                         MarketStatusPill.order(row.status)
                     }
                     .padding(.vertical, 10)
@@ -318,11 +318,11 @@ struct StudioRevenueView: View {
                 ForEach(payouts) { p in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(p.status == "paid" ? "Ausgezahlt" : p.status == "pending" || p.status == "in_transit" ? "Unterwegs" : p.status == "failed" ? "Fehlgeschlagen" : p.status).font(.subheadline)
-                            Text(Fmt.date(p.arrivalAt ?? p.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                            Text(p.status == "paid" ? "Ausgezahlt" : p.status == "pending" || p.status == "in_transit" ? "Unterwegs" : p.status == "failed" ? "Fehlgeschlagen" : p.status).font(.wr(.subheadline))
+                            Text(Fmt.date(p.arrivalAt ?? p.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                         Spacer()
-                        Text(Fmt.money(p.amountMinor, currency: p.currency ?? cur)).font(.subheadline.weight(.medium)).monospacedDigit()
+                        Text(Fmt.money(p.amountMinor, currency: p.currency ?? cur)).font(.wr(.subheadline, .medium)).monospacedDigit()
                     }
                     .padding(.vertical, 8)
                     .hairline()

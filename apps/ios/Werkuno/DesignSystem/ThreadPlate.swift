@@ -190,7 +190,7 @@ struct ThreadPlate: View {
                     VStack {
                         HStack {
                             Text(String(format: "Nº %03d", Int(hash % 997)))
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .font(.wr(size: 9, weight: .medium))
                                 .foregroundStyle(color.opacity(0.8))
                             Spacer()
                         }
@@ -198,7 +198,7 @@ struct ThreadPlate: View {
                         HStack {
                             Spacer()
                             Text(app.categoryShort(category).uppercased())
-                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .font(.wr(size: 9, weight: .semibold))
                                 .tracking(1)
                                 .foregroundStyle(color.opacity(0.8))
                         }

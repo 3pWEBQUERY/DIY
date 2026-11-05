@@ -49,7 +49,7 @@ struct StudioView: View {
                 // 01 Reichweite & Resonanz
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeader("Reichweite & Resonanz", number: "01") {
-                        Button("Je Inhalt") { router.open(.studioSection(.stats)) }.font(.subheadline)
+                        Button("Je Inhalt") { router.open(.studioSection(.stats)) }.font(.wr(.subheadline))
                     }
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                         MeKPI(label: "Profilaufrufe", value: Fmt.number(o.profileViews.cur), cur: o.profileViews.cur, prev: o.profileViews.prev, symbol: "person.crop.circle")
@@ -58,9 +58,9 @@ struct StudioView: View {
                         MeKPI(label: "Interaktionen", value: Fmt.number(o.interactions.cur.total), cur: o.interactions.cur.total, prev: o.interactions.prev.total, symbol: "heart")
                     }
                     Text("\(Fmt.number(o.interactions.cur.likes)) Gefällt-mir · \(Fmt.number(o.interactions.cur.comments)) Kommentare · \(Fmt.number(o.interactions.cur.saves)) gemerkt")
-                        .font(.footnote).foregroundStyle(Color.muted)
+                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
                     Text("Aufrufe (geschätzt, ohne Mehrfachzählung binnen 30 Min., ohne eigene Aufrufe) – keine eindeutigen Besucher.")
-                        .font(.caption).foregroundStyle(Color.muted)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
 
                 // 02 Follower
@@ -79,7 +79,7 @@ struct StudioView: View {
                 if let shop = o.shop, let rev = o.revenue {
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader("Shop · \(shop.name ?? "")", number: "04") {
-                            Button("Einnahmen") { router.open(.studioSection(.revenue)) }.font(.subheadline)
+                            Button("Einnahmen") { router.open(.studioSection(.revenue)) }.font(.wr(.subheadline))
                         }
                         revenue(rev)
                     }
@@ -98,7 +98,7 @@ struct StudioView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     SpecLabel("So zählen wir", color: .ink)
                     Text("Aufrufe sind Seitenaufrufe, keine eindeutigen Personen. Wiederholte Aufrufe derselben Person innerhalb von 30 Minuten zählen einmal, eigene Aufrufe nie. Interaktionen umfassen Gefällt-mir, Kommentare und Merken anderer Personen auf deinen Beiträgen, Projekten, Anleitungen und Artikeln. Umsätze sind Bruttowerte vor Gebühren des Zahlungsdienstleisters; massgeblich ist die Abrechnung unter Einnahmen.")
-                        .font(.caption).foregroundStyle(Color.muted)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 .padding(.top, 8)
                 .hairline(.top)
@@ -130,9 +130,9 @@ struct StudioView: View {
         let gained = series.reduce(0, +)
         return HStack(alignment: .bottom, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(Fmt.number(f.total)).font(.system(.largeTitle, design: .rounded).weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                Text(Fmt.number(f.total)).font(.wr(.largeTitle, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                 SpecLabel("Follower gesamt")
-                Text(gained > 0 ? "+\(Fmt.number(gained)) in 12 Wochen" : "Keine neuen in 12 Wochen").font(.caption).foregroundStyle(gained > 0 ? Color.moss : Color.muted)
+                Text(gained > 0 ? "+\(Fmt.number(gained)) in 12 Wochen" : "Keine neuen in 12 Wochen").font(.wr(.caption)).foregroundStyle(gained > 0 ? Color.moss : Color.muted)
             }
             Spacer(minLength: 0)
             if !series.isEmpty {
@@ -160,12 +160,12 @@ struct StudioView: View {
                 .background(Color.sunken)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("\(h.activeDays ?? 0) Tage aktiv in 12 Wochen").font(.headline).foregroundStyle(Color.ink)
+                    Text("\(h.activeDays ?? 0) Tage aktiv in 12 Wochen").font(.wr(.headline)).foregroundStyle(Color.ink)
                     Spacer()
-                    Text(Fmt.plural(h.total ?? 0, "Veröffentlichung", "Veröffentlichungen")).font(.subheadline).foregroundStyle(Color.muted)
+                    Text(Fmt.plural(h.total ?? 0, "Veröffentlichung", "Veröffentlichungen")).font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 }
                 Text("Jede Säule ist ein Tag – je höher, desto mehr hast du veröffentlicht: Beiträge, Journal-Einträge, Projekte, Anleitungen und Artikel.\(meaningful > 0 ? " \(Fmt.number(meaningful)) Aktionen zählen als bedeutsame kreative Aktivität." : "")")
-                    .font(.caption).foregroundStyle(Color.muted)
+                    .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(14)
         }
@@ -191,7 +191,7 @@ struct StudioView: View {
                         .foregroundStyle(Color.clay)
                 }
                 .chartXAxis(.hidden)
-                .chartYAxis { AxisMarks(position: .trailing) { AxisValueLabel().font(.caption2) } }
+                .chartYAxis { AxisMarks(position: .trailing) { AxisValueLabel().font(.wr(.caption2)) } }
                 .frame(height: 80)
                 .padding(14)
                 .cardSurface(radius: Radius.inner + 4)
@@ -270,15 +270,15 @@ struct StudioContentView: View {
             Button { if let h = r.href { router.open(href: h) } else { edit(r) } } label: {
                 HStack(spacing: 12) {
                     Image(systemName: t.symbol)
-                        .font(.subheadline).foregroundStyle(Color.moss)
+                        .font(.wr(.subheadline)).foregroundStyle(Color.moss)
                         .frame(width: 34, height: 34)
                         .background(Color.mossSoft, in: .rect(cornerRadius: 10, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(r.title.nilIfEmpty ?? "Ohne Titel").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(r.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             MeStatePill(text: r.stateLabel ?? r.state, tone: r.state == "published" ? .moss : r.state == "draft" ? .warn : .neutral)
                             Text([t.label, r.meta, Fmt.relative(r.updatedAt)].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                                .font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                                .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                         }
                     }
                     Spacer(minLength: 0)
@@ -287,7 +287,7 @@ struct StudioContentView: View {
             }
             .buttonStyle(.plain)
             Button { edit(r) } label: {
-                Image(systemName: "pencil").font(.subheadline).frame(width: 40, height: 40).contentShape(.rect)
+                Image(systemName: "pencil").font(.wr(.subheadline)).frame(width: 40, height: 40).contentShape(.rect)
             }
             .buttonStyle(.glass)
             .accessibilityLabel("\(r.title) bearbeiten")
@@ -360,7 +360,7 @@ struct StudioProjectsView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(p.title).font(.headline).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             StatusBadge(status: p.status)
                             if let v = p.visibility { MeStatePill(text: L.visibility(v), tone: v == "PUBLIC" ? .moss : .neutral) }
@@ -384,15 +384,15 @@ struct StudioProjectsView: View {
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
                     Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
-                        Label("Journal-Eintrag", systemImage: "plus.bubble").font(.footnote.weight(.semibold))
+                        Label("Journal-Eintrag", systemImage: "plus.bubble").font(.wr(.footnote, .semibold))
                     }
                     .buttonStyle(.glassProminent).tint(.moss)
                     Button { router.present(.projectEditor(handle: app.handle, slug: p.slug)) } label: {
-                        Label("Bearbeiten", systemImage: "pencil").font(.footnote.weight(.semibold))
+                        Label("Bearbeiten", systemImage: "pencil").font(.wr(.footnote, .semibold))
                     }
                     .buttonStyle(.glass)
                     Spacer()
-                    if let u = p.updatedAt { Text(Fmt.relative(u)).font(.caption).foregroundStyle(Color.muted) }
+                    if let u = p.updatedAt { Text(Fmt.relative(u)).font(.wr(.caption)).foregroundStyle(Color.muted) }
                 }
             }
         }
@@ -463,7 +463,7 @@ struct StudioTutorialsView: View {
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(t.title).font(.headline).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(t.title).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             MeStatePill(text: MeLabels.tutorialState(t.state), tone: t.state == "PUBLISHED" ? .moss : t.state == "HIDDEN" ? .danger : .warn)
                             if let v = t.currentVersion?.version { MeStatePill(text: "Version \(v)", tone: .slate) }
@@ -483,13 +483,13 @@ struct StudioTutorialsView: View {
                 Spacer(minLength: 0)
             }
             HStack(spacing: 8) {
-                Button { router.present(.tutorialEditor(id: t.id)) } label: { Label("Bearbeiten", systemImage: "pencil").font(.footnote.weight(.semibold)) }
+                Button { router.present(.tutorialEditor(id: t.id)) } label: { Label("Bearbeiten", systemImage: "pencil").font(.wr(.footnote, .semibold)) }
                     .buttonStyle(.glass)
                 if t.state == "PUBLISHED" {
-                    AsyncButton { await setPublished(t, false) } label: { Label("Zurückziehen", systemImage: "eye.slash").font(.footnote.weight(.semibold)) }
+                    AsyncButton { await setPublished(t, false) } label: { Label("Zurückziehen", systemImage: "eye.slash").font(.wr(.footnote, .semibold)) }
                         .buttonStyle(.glass)
                 } else if t.state == "DRAFT" && t.currentVersion != nil {
-                    AsyncButton { await setPublished(t, true) } label: { Label("Veröffentlichen", systemImage: "paperplane").font(.footnote.weight(.semibold)) }
+                    AsyncButton { await setPublished(t, true) } label: { Label("Veröffentlichen", systemImage: "paperplane").font(.wr(.footnote, .semibold)) }
                         .buttonStyle(.glassProminent).tint(.moss)
                 }
                 Spacer()
@@ -500,7 +500,7 @@ struct StudioTutorialsView: View {
                 .accessibilityLabel("Weitere Aktionen")
             }
             if t.state == "DRAFT" && t.currentVersion == nil {
-                Text("Noch nie veröffentlicht – öffne den Editor, um eine erste Version zu veröffentlichen.").font(.caption).foregroundStyle(Color.muted)
+                Text("Noch nie veröffentlicht – öffne den Editor, um eine erste Version zu veröffentlichen.").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
         }
         .padding(14)
@@ -570,8 +570,8 @@ struct StudioArticlesView: View {
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {
                         SpecLabel([a.category?.name, a.readingMinutes.map { "\($0) Min." }].compactMap { $0 }.joined(separator: " · "), color: .clay)
-                        Text(a.title.nilIfEmpty ?? "Ohne Titel").font(.headline).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                        if let d = a.dek?.nilIfEmpty { Text(d).font(.caption).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                        Text(a.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        if let d = a.dek?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
                     }
                     Spacer(minLength: 0)
                 }
@@ -580,7 +580,7 @@ struct StudioArticlesView: View {
             .buttonStyle(.plain)
             HStack(spacing: 8) {
                 MeStatePill(text: MeLabels.articleState(a.state), tone: a.state == "PUBLISHED" ? .moss : a.state == "SCHEDULED" ? .slate : a.state == "HIDDEN" ? .danger : .warn)
-                if a.state == "SCHEDULED", let p = a.publishedAt { Text("am \(Fmt.dateTime(p))").font(.caption).foregroundStyle(Color.muted) }
+                if a.state == "SCHEDULED", let p = a.publishedAt { Text("am \(Fmt.dateTime(p))").font(.wr(.caption)).foregroundStyle(Color.muted) }
                 MeCountLabel(symbol: "eye", value: a.viewCount, label: "Aufrufe")
                 MeCountLabel(symbol: "heart", value: a.likeCount, label: "Gefällt-mir")
                 MeCountLabel(symbol: "bubble.left", value: a.commentCount, label: "Kommentare")
@@ -636,7 +636,7 @@ struct StudioMediaView: View {
                         }
                         if filter == "all" || filter == "unused" {
                             Text("Tippe auf ein Medium, um den Alt-Text zu bearbeiten. Ungenutzte Uploads kannst du löschen, um Speicher freizugeben.")
-                                .font(.caption).foregroundStyle(Color.muted).padding(.top, 6)
+                                .font(.wr(.caption)).foregroundStyle(Color.muted).padding(.top, 6)
                         }
                     }
                 }
@@ -667,15 +667,15 @@ struct StudioMediaView: View {
                     if let p = m.preview {
                         RemoteImage(path: p)
                     } else {
-                        Image(systemName: m.kind == "VIDEO" ? "film" : m.kind == "FILE" ? "doc" : "photo").font(.title2).foregroundStyle(Color.muted)
+                        Image(systemName: m.kind == "VIDEO" ? "film" : m.kind == "FILE" ? "doc" : "photo").font(.wr(.title2)).foregroundStyle(Color.muted)
                     }
                 }
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 .overlay(alignment: .bottomLeading) {
                     HStack(spacing: 3) {
-                        if m.attached != true { Text("UNBENUTZT").font(.system(size: 8, weight: .bold, design: .monospaced)).padding(.horizontal, 5).padding(.vertical, 2).background(Color.clay, in: Capsule()).foregroundStyle(.white) }
-                        if m.alt?.nilIfEmpty != nil { Text("ALT").font(.system(size: 8, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(.black.opacity(0.55), in: Capsule()).foregroundStyle(.white) }
-                        if m.isPrivate == true { Image(systemName: "lock.fill").font(.system(size: 8)).padding(4).background(.black.opacity(0.55), in: Circle()).foregroundStyle(.white) }
+                        if m.attached != true { Text("UNBENUTZT").font(.wr(size: 8, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(Color.clay, in: Capsule()).foregroundStyle(.white) }
+                        if m.alt?.nilIfEmpty != nil { Text("ALT").font(.wr(size: 8, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(.black.opacity(0.55), in: Capsule()).foregroundStyle(.white) }
+                        if m.isPrivate == true { Image(systemName: "lock.fill").font(.wr(size: 8)).padding(4).background(.black.opacity(0.55), in: Circle()).foregroundStyle(.white) }
                     }
                     .padding(5)
                 }
@@ -702,7 +702,7 @@ private struct MeMediaDetailSheet: View {
                         Spacer()
                         Group {
                             if let p = item.preview { RemoteImage(path: p, contentMode: .fit) { Color.sunken } }
-                            else { Image(systemName: item.kind == "VIDEO" ? "film" : "doc").font(.largeTitle).foregroundStyle(Color.muted).frame(height: 120) }
+                            else { Image(systemName: item.kind == "VIDEO" ? "film" : "doc").font(.wr(.largeTitle)).foregroundStyle(Color.muted).frame(height: 120) }
                         }
                         .frame(maxHeight: 240)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
@@ -817,14 +817,14 @@ struct StudioStatsView: View {
                     BarMark(x: .value("Aufrufe", b.value), y: .value("Inhalt", b.title))
                         .foregroundStyle(by: .value("Art", b.kind))
                         .annotation(position: .trailing, alignment: .leading) {
-                            Text(Fmt.number(b.value)).font(.caption2).monospacedDigit().foregroundStyle(Color.muted)
+                            Text(Fmt.number(b.value)).font(.wr(.caption2)).monospacedDigit().foregroundStyle(Color.muted)
                         }
                         .clipShape(.rect(cornerRadius: 4))
                 }
                 .chartForegroundStyleScale(["Projekt": Color.moss, "Anleitung": Color.slate, "Artikel": Color.clay, "Produkt": Color.ochre])
                 .chartXAxis(.hidden)
                 .chartYAxis {
-                    AxisMarks { _ in AxisValueLabel(horizontalSpacing: 6).font(.caption) }
+                    AxisMarks { _ in AxisValueLabel(horizontalSpacing: 6).font(.wr(.caption)) }
                 }
                 .chartLegend(position: .bottom, alignment: .leading)
                 .frame(height: CGFloat(top.count) * 34 + 40)
@@ -843,9 +843,9 @@ struct StudioStatsView: View {
                     ForEach(rows) { r in
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .firstTextBaseline) {
-                                Text(r.label).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2)
+                                Text(r.label).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2)
                                 Spacer(minLength: 8)
-                                if let p = r.publishedAt { Text(Fmt.date(p)).font(.caption).foregroundStyle(Color.muted) }
+                                if let p = r.publishedAt { Text(Fmt.date(p)).font(.wr(.caption)).foregroundStyle(Color.muted) }
                             }
                             GeometryReader { geo in
                                 let v = CGFloat(r[keyPath: columns[0].2] ?? 0) / CGFloat(maxFirst)

@@ -69,19 +69,19 @@ struct MarketOrderRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(seller ? (order.buyer?.profile?.displayName ?? "Käufer:in") : (order.shop?.name ?? "Shop"))
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            .font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
                         Spacer(minLength: 6)
-                        Text(Fmt.money(order.totalMinor, currency: order.currency)).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                        Text(Fmt.money(order.totalMinor, currency: order.currency)).font(.wr(.subheadline, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                     }
                     Text((order.items ?? []).map { "\($0.quantity) × \($0.title)\($0.variantName.map { " (\($0))" } ?? "")" }.joined(separator: ", "))
-                        .font(.footnote).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                        .font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
                     HStack(spacing: 8) {
                         MarketStatusPill.order(order.status)
                         SpecLabel("\(order.number) · \(Fmt.date(order.createdAt))")
                     }
                     .padding(.top, 2)
                     if let s = order.shipments?.first, let c = s.carrier {
-                        Label([c, s.trackingNo].compactMap { $0?.nilIfEmpty }.joined(separator: " · "), systemImage: "shippingbox").font(.caption).foregroundStyle(Color.muted)
+                        Label([c, s.trackingNo].compactMap { $0?.nilIfEmpty }.joined(separator: " · "), systemImage: "shippingbox").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
             }
@@ -189,7 +189,7 @@ struct OrderDetailView: View {
                     if let n = o.buyerNote?.nilIfEmpty {
                         VStack(alignment: .leading, spacing: 3) {
                             SpecLabel("Deine Nachricht an den Shop")
-                            Text(n).font(.footnote).foregroundStyle(Color.ink2)
+                            Text(n).font(.wr(.footnote)).foregroundStyle(Color.ink2)
                         }
                         .padding(.top, 12)
                     }
@@ -211,11 +211,11 @@ struct OrderDetailView: View {
             Text(o.shop.name).font(.display(30)).accessibilityAddTraits(.isHeader)
             HStack(spacing: 10) {
                 MarketStatusPill.order(o.status)
-                Text(o.number).font(.footnote.monospaced()).foregroundStyle(Color.muted).textSelection(.enabled)
+                Text(o.number).font(.wr(.footnote).monospaced()).foregroundStyle(Color.muted).textSelection(.enabled)
                 Spacer()
-                Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.headline).monospacedDigit()
+                Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.wr(.headline)).monospacedDigit()
             }
-            Text(statusExplanation(o)).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true).padding(.top, 4)
+            Text(statusExplanation(o)).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true).padding(.top, 4)
         }
     }
 
@@ -293,20 +293,20 @@ struct OrderDetailView: View {
                 .buttonStyle(.pressable)
                 .accessibilityLabel("\(i.title) öffnen")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(i.title).font(.subheadline.weight(.semibold))
-                    if let v = i.variantName?.nilIfEmpty { Text(v).font(.caption).foregroundStyle(Color.muted) }
-                    Text("\(i.quantity) × \(Fmt.money(i.unitMinor, currency: o.currency))").font(.caption).monospacedDigit().foregroundStyle(Color.muted)
+                    Text(i.title).font(.wr(.subheadline, .semibold))
+                    if let v = i.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
+                    Text("\(i.quantity) × \(Fmt.money(i.unitMinor, currency: o.currency))").font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
                 }
                 Spacer()
-                Text(Fmt.money(i.unitMinor * i.quantity, currency: o.currency)).font(.subheadline).monospacedDigit()
+                Text(Fmt.money(i.unitMinor * i.quantity, currency: o.currency)).font(.wr(.subheadline)).monospacedDigit()
             }
             if let r = i.review {
                 HStack(spacing: 6) {
                     MarketStars(rating: Double(r.productRating), size: 10)
-                    Text("Deine Bewertung").font(.caption).foregroundStyle(Color.muted)
+                    Text("Deine Bewertung").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                if let b = r.body?.nilIfEmpty { Text(b).font(.caption).foregroundStyle(Color.ink2).lineLimit(3) }
-                if let reply = r.sellerReply?.nilIfEmpty { Text("Antwort des Shops: \(reply)").font(.caption).foregroundStyle(Color.muted) }
+                if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(3) }
+                if let reply = r.sellerReply?.nilIfEmpty { Text("Antwort des Shops: \(reply)").font(.wr(.caption)).foregroundStyle(Color.muted) }
             } else if o.canReview {
                 Button { reviewItem = i } label: { Label("Bewerten", systemImage: "star") }
                     .buttonStyle(.glass).controlSize(.small)
@@ -322,7 +322,7 @@ struct OrderDetailView: View {
                 let title = o.items.first { $0.id == e.orderItemId }?.title ?? "Datei"
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(title).font(.subheadline.weight(.semibold))
+                        Text(title).font(.wr(.subheadline, .semibold))
                         Spacer()
                         if e.revokedAt == nil {
                             Button { router.present(.web(url: AppConfig.webURL("/api/v1/downloads/\(e.id)"))) } label: { Label("Laden", systemImage: "arrow.down.circle") }
@@ -332,7 +332,7 @@ struct OrderDetailView: View {
                         }
                     }
                     if let lim = e.downloadLimit { SpecLabel("\(e.downloadCount ?? 0) von \(lim) Downloads") }
-                    if let l = e.licenseText?.nilIfEmpty { Text(l).font(.caption).foregroundStyle(Color.muted) }
+                    if let l = e.licenseText?.nilIfEmpty { Text(l).font(.wr(.caption)).foregroundStyle(Color.muted) }
                 }
                 .padding(.vertical, 8)
             }
@@ -359,12 +359,12 @@ struct MarketShipmentList: View {
         ForEach(shipments) { s in
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Label(s.carrier ?? "Versand", systemImage: "shippingbox").font(.subheadline.weight(.semibold))
+                    Label(s.carrier ?? "Versand", systemImage: "shippingbox").font(.wr(.subheadline, .semibold))
                     Spacer()
                     if s.deliveredAt != nil { Pill(text: "Zugestellt", symbol: "checkmark", tint: .moss) }
                 }
-                if let t = s.trackingNo?.nilIfEmpty { Text("Sendungsnummer \(t)").font(.footnote.monospaced()).foregroundStyle(Color.ink2).textSelection(.enabled) }
-                Text("Versendet am \(Fmt.dateTime(s.shippedAt))").font(.caption).foregroundStyle(Color.muted)
+                if let t = s.trackingNo?.nilIfEmpty { Text("Sendungsnummer \(t)").font(.wr(.footnote).monospaced()).foregroundStyle(Color.ink2).textSelection(.enabled) }
+                Text("Versendet am \(Fmt.dateTime(s.shippedAt))").font(.wr(.caption)).foregroundStyle(Color.muted)
                 if let u = s.trackingUrl?.nilIfEmpty, let url = URL(string: u) {
                     Button { router.present(.web(url: url)) } label: { Label("Sendung verfolgen", systemImage: "location") }
                         .buttonStyle(.glass).controlSize(.small).padding(.top, 2)
@@ -381,18 +381,18 @@ struct MarketPaymentList: View {
     var currency: String?
     var body: some View {
         if payments.isEmpty {
-            Text("Noch keine Zahlung.").font(.footnote).foregroundStyle(Color.muted)
+            Text("Noch keine Zahlung.").font(.wr(.footnote)).foregroundStyle(Color.muted)
         }
         ForEach(payments) { p in
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
                     MarketStatusPill.payment(p.status)
                     Text([p.provider == "simulated" ? "Testmodus" : p.provider == "stripe" ? "Stripe" : p.provider, Optional(Fmt.dateTime(p.createdAt))].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(Color.muted)
-                    if let f = p.failureReason?.nilIfEmpty { Text(f).font(.caption).foregroundStyle(Color.danger) }
+                        .font(.wr(.caption)).foregroundStyle(Color.muted)
+                    if let f = p.failureReason?.nilIfEmpty { Text(f).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 }
                 Spacer()
-                Text(Fmt.money(p.amountMinor, currency: p.currency ?? currency)).font(.subheadline.weight(.medium)).monospacedDigit()
+                Text(Fmt.money(p.amountMinor, currency: p.currency ?? currency)).font(.wr(.subheadline, .medium)).monospacedDigit()
             }
             .padding(.vertical, 6)
         }
@@ -401,12 +401,12 @@ struct MarketPaymentList: View {
             ForEach(refunds) { r in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(r.reason?.nilIfEmpty ?? "Erstattung").font(.footnote).foregroundStyle(Color.ink2)
+                        Text(r.reason?.nilIfEmpty ?? "Erstattung").font(.wr(.footnote)).foregroundStyle(Color.ink2)
                         Text("\(r.status == "SUCCEEDED" ? "Bestätigt" : r.status == "PENDING" ? "In Bearbeitung" : r.status == "FAILED" ? "Fehlgeschlagen" : r.status) · \(Fmt.date(r.createdAt))")
-                            .font(.caption).foregroundStyle(r.status == "FAILED" ? Color.danger : Color.muted)
+                            .font(.wr(.caption)).foregroundStyle(r.status == "FAILED" ? Color.danger : Color.muted)
                     }
                     Spacer()
-                    Text("− " + Fmt.money(r.amountMinor, currency: currency)).font(.footnote.weight(.medium)).monospacedDigit()
+                    Text("− " + Fmt.money(r.amountMinor, currency: currency)).font(.wr(.footnote, .medium)).monospacedDigit()
                 }
                 .padding(.vertical, 4)
             }

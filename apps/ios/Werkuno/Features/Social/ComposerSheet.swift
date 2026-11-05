@@ -48,12 +48,12 @@ struct SocialPostEditor: View {
                     MediaPickerField(items: $draft.media, maxCount: 10, allowVideo: true, title: "Bilder & Videos")
                     if draft.missingAlt {
                         Label("Tipp: Beschreibe deine Bilder kurz – tippe auf ein Bild für den Alt-Text. Das hilft Menschen mit Screenreader.", systemImage: "text.below.photo")
-                            .font(.caption)
+                            .font(.wr(.caption))
                             .foregroundStyle(Color.warn)
                     }
                     if draft.hasFailedUploads {
                         Label("Ein Upload ist fehlgeschlagen. Entferne das Medium oder füge es erneut hinzu.", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
+                            .font(.wr(.caption))
                             .foregroundStyle(Color.danger)
                     }
                 }
@@ -79,12 +79,12 @@ struct SocialPostEditor: View {
             HStack(spacing: 10) {
                 AvatarView(url: app.me?.profile?.avatarUrl, name: app.me?.profile?.displayName ?? "Du", size: 36)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(app.me?.profile?.displayName ?? "Du").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                    if let h = app.handle { Text("@\(h)").font(.caption).foregroundStyle(Color.muted) }
+                    Text(app.me?.profile?.displayName ?? "Du").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    if let h = app.handle { Text("@\(h)").font(.wr(.caption)).foregroundStyle(Color.muted) }
                 }
             }
             TextField(placeholder, text: $draft.body, axis: .vertical)
-                .font(.system(.title3, design: .serif))
+                .font(.wr(.title3))
                 .foregroundStyle(Color.ink)
                 .lineLimit(5...16)
                 .focused($focused)
@@ -146,8 +146,8 @@ struct SocialPostEditor: View {
 
     private func settingRow<C: View>(symbol: String, label: String, last: Bool = false, @ViewBuilder control: () -> C) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol).font(.footnote).foregroundStyle(Color.muted).frame(width: 20)
-            Text(label).font(.subheadline).foregroundStyle(Color.ink2)
+            Image(systemName: symbol).font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 20)
+            Text(label).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
             Spacer(minLength: 8)
             control()
                 .pickerStyle(.menu)
@@ -168,11 +168,11 @@ struct SocialPostEditor: View {
             } label: {
                 HStack {
                     Label("Vorschau", systemImage: showPreview ? "eye.fill" : "eye")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.wr(.subheadline, .semibold))
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(showPreview ? 180 : 0))
-                        .font(.caption.weight(.semibold))
+                        .font(.wr(.caption, .semibold))
                 }
                 .foregroundStyle(Color.ink)
                 .padding(.horizontal, 16)
@@ -192,7 +192,7 @@ struct SocialPostEditor: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 } else {
                     Text("Schreib etwas oder füge ein Bild hinzu, um die Vorschau zu sehen.")
-                        .font(.footnote)
+                        .font(.wr(.footnote))
                         .foregroundStyle(Color.muted)
                         .padding(.horizontal, 4)
                 }

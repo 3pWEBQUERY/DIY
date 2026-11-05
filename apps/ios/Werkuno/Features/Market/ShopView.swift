@@ -70,7 +70,7 @@ struct ShopView: View {
                     }
                     actions(s)
                     if let d = s.description?.nilIfEmpty {
-                        Text(d).font(.body).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                        Text(d).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
                     }
                     productSection(s)
                     policies(s)
@@ -103,7 +103,7 @@ struct ShopView: View {
             VStack(alignment: .leading, spacing: 6) {
                 SpecLabel("Shop · \(L.country(s.country))", color: .moss)
                 Text(s.name).font(.display(30)).foregroundStyle(Color.ink).accessibilityAddTraits(.isHeader)
-                if let t = s.tagline?.nilIfEmpty { Text(t).font(.subheadline).foregroundStyle(Color.muted) }
+                if let t = s.tagline?.nilIfEmpty { Text(t).font(.wr(.subheadline)).foregroundStyle(Color.muted) }
                 HStack(spacing: 14) {
                     StatCell(value: Fmt.number(s.count?.products ?? products.count), label: "Arbeiten")
                     StatCell(value: Fmt.number(s.salesCount ?? 0), label: "Verkäufe")
@@ -170,18 +170,18 @@ struct ShopView: View {
                         HStack(spacing: 12) {
                             AvatarView(url: s.owner?.profile?.avatarUrl, name: s.owner?.displayName ?? s.name, size: 44)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(s.owner?.displayName ?? "").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                                Text(s.owner?.displayName ?? "").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                                 Text(["@\(h)", s.owner?.profile?.region, s.owner?.profile?.followerCount.map { Fmt.plural($0, "Follower", "Follower") }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                                    .font(.caption).foregroundStyle(Color.muted)
+                                    .font(.wr(.caption)).foregroundStyle(Color.muted)
                             }
                             Spacer()
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.muted)
+                            Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                     }
                     .buttonStyle(.pressable)
                     .accessibilityHint("Profil öffnen")
                 }
-                if let bio = s.owner?.profile?.bio?.nilIfEmpty { Text(bio).font(.footnote).foregroundStyle(Color.ink2) }
+                if let bio = s.owner?.profile?.bio?.nilIfEmpty { Text(bio).font(.wr(.footnote)).foregroundStyle(Color.ink2) }
                 HStack(spacing: 8) {
                     Pill(text: L.sellerType.first { $0.key == s.sellerType }?.label ?? "Privatperson", symbol: s.sellerType == "BUSINESS" ? "building.2" : "person", tint: .slate)
                     if s.verification?.state == "VERIFIED" { Pill(text: "Verifiziert", symbol: "checkmark.seal", tint: .moss) }
@@ -190,7 +190,7 @@ struct ShopView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         SpecLabel("Anbieterangaben")
                         ForEach([v.businessName, v.legalName, v.addressLine, [v.postalCode, v.city].compactMap { $0 }.joined(separator: " ").nilIfEmpty, v.vatId.map { "MWST \($0)" }].compactMap { $0?.nilIfEmpty }, id: \.self) {
-                            Text($0).font(.caption).foregroundStyle(Color.ink2)
+                            Text($0).font(.wr(.caption)).foregroundStyle(Color.ink2)
                         }
                     }
                 }
@@ -207,7 +207,7 @@ struct ShopView: View {
             }
             let list = s.reviews ?? []
             if list.isEmpty {
-                Text("Noch keine Bewertungen.").font(.footnote).foregroundStyle(Color.muted).padding(.vertical, 6)
+                Text("Noch keine Bewertungen.").font(.wr(.footnote)).foregroundStyle(Color.muted).padding(.vertical, 6)
             } else {
                 ForEach(list) { r in MarketReviewRow(review: r) }
             }

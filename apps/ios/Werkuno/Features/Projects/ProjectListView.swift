@@ -114,8 +114,8 @@ struct ProjectListView: View {
     private func removablePill(_ text: String, remove: @escaping () -> Void) -> some View {
         Button { withAnimation(.snappy) { remove() } } label: {
             HStack(spacing: 4) {
-                Text(text).font(.caption.weight(.semibold))
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                Text(text).font(.wr(.caption, .semibold))
+                Image(systemName: "xmark").font(.wr(size: 8, weight: .bold))
             }
             .foregroundStyle(Color.ink)
             .padding(.horizontal, 9).padding(.vertical, 5)

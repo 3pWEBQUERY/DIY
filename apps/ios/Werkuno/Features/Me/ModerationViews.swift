@@ -54,7 +54,7 @@ struct AppealView: View {
                 if let note = c.decision?.publicNote?.nilIfEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         SpecLabel("Begründung des Moderationsteams")
-                        Text(note).font(.body).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+                        Text(note).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -65,7 +65,7 @@ struct AppealView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader("Dein Einspruch", subtitle: a.createdAt.map { "eingereicht \(Fmt.dateTime($0))" })
                         MeStatePill(text: MeLabels.appealStatus(a.status), tone: a.status == "OVERTURNED" ? .moss : a.status == "UPHELD" ? .clay : .slate)
-                        if let s = a.statement { Text(s).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
+                        if let s = a.statement { Text(s).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
                         if let d = a.decision?.nilIfEmpty {
                             NoticeView(tone: a.status == "OVERTURNED" ? .success : .info, title: a.status == "OVERTURNED" ? "Massnahme aufgehoben" : "Entscheidung bestätigt", message: d)
                         } else if a.status == "OPEN" {
@@ -91,7 +91,7 @@ struct AppealView: View {
                         } label: { Text("Einspruch senden") }
                         .primaryButton()
                         .disabled(statement.trimmed.count < 30 || statement.count > 3000)
-                        Text("Ein Einspruch pro Fall. Er wird von einer anderen Person geprüft als der, die entschieden hat.").font(.caption).foregroundStyle(Color.muted)
+                        Text("Ein Einspruch pro Fall. Er wird von einer anderen Person geprüft als der, die entschieden hat.").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 } else {
                     NoticeView(tone: .info, message: c.deadline.map { $0 < Date() ? "Die Einspruchsfrist von 14 Tagen ist abgelaufen." : "Gegen diesen Fall ist derzeit kein Einspruch möglich." } ?? "Gegen diesen Fall ist kein Einspruch möglich.")
@@ -266,7 +266,7 @@ private struct MeModQueueList: View {
                                 Text(label(s))
                                 if let n = count(s), n > 0 { Text("\(n)").monospacedDigit().opacity(0.7) }
                             }
-                            .font(.footnote.weight(on ? .semibold : .regular))
+                            .font(.wr(.footnote).weight(on ? .semibold : .regular))
                             .foregroundStyle(on ? Color.paper : Color.ink)
                             .padding(.horizontal, 12).padding(.vertical, 7)
                             .background(on ? Color.ink : Color.sunken, in: Capsule())
@@ -299,7 +299,7 @@ private struct MeModQueueList: View {
                     }
                 } label: {
                     Image(systemName: assignee.isEmpty && targetType.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                        .font(.title3).frame(width: 44, height: 44)
+                        .font(.wr(.title3)).frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Filter")
             }
@@ -308,7 +308,7 @@ private struct MeModQueueList: View {
                     EmptyStateView(symbol: "checkmark.shield", title: "Keine Fälle", message: "In dieser Ansicht ist nichts offen.")
                 } else {
                     LazyVStack(spacing: 10) {
-                        Text("\(Fmt.plural(total, "Fall", "Fälle")) · sortiert nach Risiko, dann Alter").font(.caption).foregroundStyle(Color.muted)
+                        Text("\(Fmt.plural(total, "Fall", "Fälle")) · sortiert nach Risiko, dann Alter").font(.wr(.caption)).foregroundStyle(Color.muted)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         ForEach(rows) { c in MeCaseRow(c: c) { router.open(.moderationCase(id: c.id)) } }
                         LoadMoreTrigger(hasMore: page < pages) { await load(reset: false) }
@@ -350,21 +350,21 @@ private struct MeCaseRow: View {
                     MeStatePill(text: MeLabels.caseStatus(c.status), tone: c.status == "OPEN" ? .clay : c.status == "IN_REVIEW" ? .slate : c.status == "APPEALED" ? .warn : .neutral)
                     MeStatePill(text: "\(risk.label) · \(c.riskScore ?? 0)", tone: risk.tone == .danger ? .danger : risk.tone == .warn ? .warn : .neutral)
                     Spacer()
-                    Text(Fmt.relative(c.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                    Text(Fmt.relative(c.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                Text(c.title ?? MeLabels.targetType(c.targetType)).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(c.title ?? MeLabels.targetType(c.targetType)).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
                     Text([MeLabels.targetType(c.targetType), MeLabels.reason(c.primaryReason), Fmt.plural(c._count?.reports ?? c.reportCount ?? 1, "Meldung", "Meldungen")].joined(separator: " · "))
                     Spacer(minLength: 0)
                 }
-                .font(.caption).foregroundStyle(Color.muted)
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
                 HStack(spacing: 10) {
                     if let h = c.subjectUser?.handle { Label("@\(h)", systemImage: "person").labelStyle(.compact) }
                     if let a = c.assignee?.handle { Label("bei @\(a)", systemImage: "person.badge.shield.checkmark").labelStyle(.compact) }
                     else { Label("nicht zugewiesen", systemImage: "tray").labelStyle(.compact) }
                     if (c._count?.appeals ?? 0) > 0 { Label("Einspruch", systemImage: "arrow.uturn.backward").labelStyle(.compact).foregroundStyle(Color.warn) }
                 }
-                .font(.caption).foregroundStyle(Color.ink2)
+                .font(.wr(.caption)).foregroundStyle(Color.ink2)
             }
             .padding(14)
             .cardSurface()
@@ -418,20 +418,20 @@ private struct MeModAppealsList: View {
                 if let n = a.case?.number { Text("Nº \(n)").font(.specLarge).foregroundStyle(Color.moss) }
                 MeStatePill(text: MeLabels.appealStatus(a.status), tone: a.status == "OPEN" ? .warn : a.status == "OVERTURNED" ? .moss : .neutral)
                 Spacer()
-                Text(Fmt.relative(a.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                Text(Fmt.relative(a.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
             }
-            if let t = a.case?.title { Text(t).font(.subheadline.weight(.semibold)).lineLimit(2) }
+            if let t = a.case?.title { Text(t).font(.wr(.subheadline, .semibold)).lineLimit(2) }
             Text([a.user?.handle.map { "@\($0)" }, MeLabels.targetType(a.case?.targetType), original.map { "Massnahme: \(MeLabels.action($0.action))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                .font(.caption).foregroundStyle(Color.muted)
-            Text(a.statement).font(.subheadline).foregroundStyle(Color.ink2).lineLimit(6).padding(10).frame(maxWidth: .infinity, alignment: .leading).sunkenSurface()
-            if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.caption).foregroundStyle(Color.ink2) }
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
+            Text(a.statement).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(6).padding(10).frame(maxWidth: .infinity, alignment: .leading).sunkenSurface()
+            if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.wr(.caption)).foregroundStyle(Color.ink2) }
             HStack {
                 if let cid = a.case?.id ?? a.caseId {
-                    Button("Fall ansehen") { router.open(.moderationCase(id: cid)) }.buttonStyle(.glass).font(.footnote.weight(.semibold))
+                    Button("Fall ansehen") { router.open(.moderationCase(id: cid)) }.buttonStyle(.glass).font(.wr(.footnote, .semibold))
                 }
                 Spacer()
                 if a.status == "OPEN" {
-                    Button("Entscheiden") { deciding = a }.buttonStyle(.glassProminent).tint(.moss).font(.footnote.weight(.semibold))
+                    Button("Entscheiden") { deciding = a }.buttonStyle(.glassProminent).tint(.moss).font(.wr(.footnote, .semibold))
                 }
             }
         }
@@ -452,12 +452,12 @@ private struct MeAppealDecisionSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(appeal.statement).font(.subheadline)
+                    Text(appeal.statement).font(.wr(.subheadline))
                 } header: { Text("Begründung von \(appeal.user?.handle.map { "@\($0)" } ?? "der Person")") }
                 if let o = appeal.case?.actions?.first {
                     Section("Ursprüngliche Entscheidung") {
                         LabeledContent("Massnahme", value: MeLabels.action(o.action))
-                        if let r = o.reason?.nilIfEmpty { Text(r).font(.caption).foregroundStyle(Color.muted) }
+                        if let r = o.reason?.nilIfEmpty { Text(r).font(.wr(.caption)).foregroundStyle(Color.muted) }
                         if let h = o.moderator?.handle { LabeledContent("Von", value: "@\(h)") }
                     }
                 }
@@ -512,7 +512,7 @@ private struct MeModReportsList: View {
                 }
             }
             .scrollClipDisabled()
-            Text("Zähler: letzte 30 Tage").font(.caption).foregroundStyle(Color.muted)
+            Text("Zähler: letzte 30 Tage").font(.wr(.caption)).foregroundStyle(Color.muted)
             MePhase(value: rows, error: error, retry: { await load(reset: true) }) { rows in
                 if rows.isEmpty {
                     EmptyStateView(symbol: "flag", title: "Keine Meldungen")
@@ -522,13 +522,13 @@ private struct MeModReportsList: View {
                             Button { if let id = r.case?.id ?? r.caseId { router.open(.moderationCase(id: id)) } } label: {
                                 VStack(alignment: .leading, spacing: 5) {
                                     HStack {
-                                        Text(MeLabels.reason(r.reason)).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                                        Text(MeLabels.reason(r.reason)).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                                         Spacer()
-                                        Text(Fmt.relative(r.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                                        Text(Fmt.relative(r.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                                     }
                                     Text([MeLabels.targetType(r.targetType), r.reporter?.handle.map { "von @\($0)" }, r.case.map { "Fall Nº \($0.number ?? 0) · \(MeLabels.caseStatus($0.status ?? ""))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                                        .font(.caption).foregroundStyle(Color.muted)
-                                    if let d = r.details?.nilIfEmpty { Text(d).font(.caption).foregroundStyle(Color.ink2).lineLimit(3) }
+                                        .font(.wr(.caption)).foregroundStyle(Color.muted)
+                                    if let d = r.details?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(3) }
                                 }
                                 .padding(14)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -553,7 +553,7 @@ private struct MeModReportsList: View {
                 Text(label)
                 if let n, n > 0 { Text("\(n)").monospacedDigit().opacity(0.7) }
             }
-            .font(.footnote.weight(on ? .semibold : .regular))
+            .font(.wr(.footnote).weight(on ? .semibold : .regular))
             .foregroundStyle(on ? Color.paper : Color.ink)
             .padding(.horizontal, 12).padding(.vertical, 7)
             .background(on ? Color.ink : Color.sunken, in: Capsule())
@@ -611,11 +611,11 @@ private struct MeAdminUsersList: View {
                     }
                 } label: {
                     Image(systemName: status.isEmpty && role.isEmpty ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                        .font(.title3).frame(width: 44, height: 44)
+                        .font(.wr(.title3)).frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Filter")
             }
-            Text("E-Mail-Suche nur als exakter Treffer – keine Teilstring-Suche.").font(.caption).foregroundStyle(Color.muted)
+            Text("E-Mail-Suche nur als exakter Treffer – keine Teilstring-Suche.").font(.wr(.caption)).foregroundStyle(Color.muted)
             MePhase(value: rows, error: error, retry: { await load(reset: true) }) { rows in
                 if rows.isEmpty {
                     EmptyStateView(symbol: "person.crop.circle.badge.questionmark", title: "Niemand gefunden")
@@ -627,15 +627,15 @@ private struct MeAdminUsersList: View {
                                     AvatarView(url: u.profile?.avatarUrl, name: u.profile?.displayName ?? u.email ?? "?", size: 40)
                                     VStack(alignment: .leading, spacing: 2) {
                                         HStack(spacing: 6) {
-                                            Text(u.profile?.displayName ?? "Ohne Profil").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                                            Text(u.profile?.displayName ?? "Ohne Profil").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                                             if u.role != "MEMBER" { MeStatePill(text: L.roles[u.role] ?? u.role, tone: .slate) }
                                             if u.status != "ACTIVE" { MeStatePill(text: MeLabels.accountStatus(u.status), tone: .danger) }
                                         }
                                         Text([u.profile?.handle.map { "@\($0)" }, u.email, (u._count?.moderationSubject ?? 0) > 0 ? "\(u._count?.moderationSubject ?? 0) Fälle" : nil].compactMap { $0 }.joined(separator: " · "))
-                                            .font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                                     }
                                     Spacer(minLength: 0)
-                                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                                    Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                                 }
                                 .padding(12)
                                 .contentShape(.rect)
@@ -646,7 +646,7 @@ private struct MeAdminUsersList: View {
                         LoadMoreTrigger(hasMore: page < pages) { await load(reset: false) }
                     }
                     .cardSurface()
-                    Text(Fmt.plural(total, "Konto", "Konten")).font(.caption).foregroundStyle(Color.muted)
+                    Text(Fmt.plural(total, "Konto", "Konten")).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
             }
         }
@@ -716,14 +716,14 @@ struct ModerationCaseView: View {
                     }
                     HStack(spacing: 8) {
                         Label(c.assignee?.handle.map { "Zugewiesen an @\($0)" } ?? "Nicht zugewiesen", systemImage: "person.badge.shield.checkmark")
-                            .font(.footnote).foregroundStyle(Color.ink2)
+                            .font(.wr(.footnote)).foregroundStyle(Color.ink2)
                         Spacer()
                         if open {
                             AsyncButton {
                                 if await app.run(mine ? "Fall freigegeben." : "Fall übernommen.", {
                                     _ = try await APIClient.shared.post("/admin/cases/\(id)/assign", ["assign": JSONValue.bool(!mine)]) as JSONValue
                                 }) { await load() }
-                            } label: { Text(mine ? "Freigeben" : "Übernehmen").font(.footnote.weight(.semibold)) }
+                            } label: { Text(mine ? "Freigeben" : "Übernehmen").font(.wr(.footnote, .semibold)) }
                             .buttonStyle(mine ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
                             .tint(.moss)
                         }
@@ -741,9 +741,9 @@ struct ModerationCaseView: View {
                             Button { router.open(.moderationCase(id: old.id)) } label: {
                                 HStack {
                                     Text("Nº \(old.number)").font(.specLarge).foregroundStyle(Color.moss)
-                                    Text("\(MeLabels.targetType(old.targetType)) · \(MeLabels.reason(old.primaryReason))").font(.subheadline).foregroundStyle(Color.ink)
+                                    Text("\(MeLabels.targetType(old.targetType)) · \(MeLabels.reason(old.primaryReason))").font(.wr(.subheadline)).foregroundStyle(Color.ink)
                                     Spacer()
-                                    Text(old.actions?.first.map { MeLabels.action($0.action) } ?? MeLabels.caseStatus(old.status)).font(.caption).foregroundStyle(Color.muted)
+                                    Text(old.actions?.first.map { MeLabels.action($0.action) } ?? MeLabels.caseStatus(old.status)).font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }
                                 .padding(.vertical, 8)
                                 .hairline()
@@ -762,13 +762,13 @@ struct ModerationCaseView: View {
     private func preview(_ p: MeModPreview) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader("Gemeldeter Inhalt", number: "01") {
-                if let h = p.href { Button("Öffnen") { router.open(href: h) }.font(.subheadline) }
+                if let h = p.href { Button("Öffnen") { router.open(href: h) }.font(.wr(.subheadline)) }
             }
             VStack(alignment: .leading, spacing: 10) {
                 if !p.exists { NoticeView(tone: .warn, message: "Der Inhalt existiert nicht mehr.") }
                 if let img = p.imageUrl { RemoteImage(path: img).frame(height: 180).frame(maxWidth: .infinity).clipShape(.rect(cornerRadius: Radius.inner)) }
-                Text(p.title ?? "–").font(.headline)
-                if let b = p.body?.nilIfEmpty { Text(b).font(.subheadline).foregroundStyle(Color.ink2).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+                Text(p.title ?? "–").font(.wr(.headline))
+                if let b = p.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
                 if let s = p.state { SpecLabel("Zustand: \(s)") }
                 if let meta = p.meta, !meta.isEmpty {
                     VStack(spacing: 0) { ForEach(meta, id: \.self) { SpecRow(label: $0.label, value: $0.value) } }
@@ -787,17 +787,17 @@ struct ModerationCaseView: View {
                     AvatarView(url: s.profile?.avatarUrl, name: s.name, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(s.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                            Text(s.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                             if let st = s.status, st != "ACTIVE" { MeStatePill(text: MeLabels.accountStatus(st), tone: .danger) }
                             if let r = s.role, r != "MEMBER" { MeStatePill(text: L.roles[r] ?? r, tone: .slate) }
                         }
                         Text([s.handle.map { "@\($0)" }, s.createdAt.map { "seit \(Fmt.date($0))" }, s.profile?.followerCount.map { "\($0) Follower" }].compactMap { $0 }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(Color.muted)
-                        if let u = s.suspendedUntil { Text("Gesperrt bis \(Fmt.dateTime(u))").font(.caption).foregroundStyle(Color.danger) }
-                        if let u = s.messagingRestrictedUntil { Text("Nachrichten eingeschränkt bis \(Fmt.dateTime(u))").font(.caption).foregroundStyle(Color.warn) }
+                            .font(.wr(.caption)).foregroundStyle(Color.muted)
+                        if let u = s.suspendedUntil { Text("Gesperrt bis \(Fmt.dateTime(u))").font(.wr(.caption)).foregroundStyle(Color.danger) }
+                        if let u = s.messagingRestrictedUntil { Text("Nachrichten eingeschränkt bis \(Fmt.dateTime(u))").font(.wr(.caption)).foregroundStyle(Color.warn) }
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                    Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                 }
                 .padding(12)
                 .cardSurface()
@@ -813,13 +813,13 @@ struct ModerationCaseView: View {
                 ForEach(c.reports ?? []) { r in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text(MeLabels.reason(r.reason)).font(.subheadline.weight(.semibold))
+                            Text(MeLabels.reason(r.reason)).font(.wr(.subheadline, .semibold))
                             Spacer()
-                            Text(Fmt.relative(r.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                            Text(Fmt.relative(r.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                         let n = r.reporterId.flatMap { stats[$0] } ?? 0
-                        Text("@\(r.reporter?.handle ?? "unbekannt")\(n > 1 ? " · \(n) Meldungen insgesamt" : "")").font(.caption).foregroundStyle(n > 10 ? Color.warn : Color.muted)
-                        if let d = r.details?.nilIfEmpty { Text(d).font(.caption).foregroundStyle(Color.ink2) }
+                        Text("@\(r.reporter?.handle ?? "unbekannt")\(n > 1 ? " · \(n) Meldungen insgesamt" : "")").font(.wr(.caption)).foregroundStyle(n > 10 ? Color.warn : Color.muted)
+                        if let d = r.details?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2) }
                     }
                     .padding(12)
                     .hairline()
@@ -835,9 +835,9 @@ struct ModerationCaseView: View {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(c.actions ?? [], id: \.stableId) { a in
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("\(MeLabels.action(a.action)) · @\(a.moderator?.handle ?? "Team")").font(.subheadline.weight(.semibold))
-                        if let r = a.reason?.nilIfEmpty { Text(r).font(.caption).foregroundStyle(Color.ink2) }
-                        if let n = a.publicNote?.nilIfEmpty { Text("An die Person: \(n)").font(.caption).foregroundStyle(Color.muted) }
+                        Text("\(MeLabels.action(a.action)) · @\(a.moderator?.handle ?? "Team")").font(.wr(.subheadline, .semibold))
+                        if let r = a.reason?.nilIfEmpty { Text(r).font(.wr(.caption)).foregroundStyle(Color.ink2) }
+                        if let n = a.publicNote?.nilIfEmpty { Text("An die Person: \(n)").font(.wr(.caption)).foregroundStyle(Color.muted) }
                         Text([Fmt.dateTime(a.createdAt), a.until.map { "bis \(Fmt.dateTime($0))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).specStyle()
                     }
                     .padding(.leading, 12)
@@ -845,9 +845,9 @@ struct ModerationCaseView: View {
                 }
                 ForEach(c.appeals ?? []) { a in
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Einspruch · \(MeLabels.appealStatus(a.status))").font(.subheadline.weight(.semibold))
-                        if let s = a.statement { Text(s).font(.caption).foregroundStyle(Color.ink2).lineLimit(5) }
-                        if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.caption).foregroundStyle(Color.muted) }
+                        Text("Einspruch · \(MeLabels.appealStatus(a.status))").font(.wr(.subheadline, .semibold))
+                        if let s = a.statement { Text(s).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(5) }
+                        if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.wr(.caption)).foregroundStyle(Color.muted) }
                         Text(Fmt.dateTime(a.createdAt)).specStyle()
                     }
                     .padding(.leading, 12)
@@ -875,7 +875,7 @@ struct ModerationCaseView: View {
                     .padding(10).sunkenSurface()
                 TextField(needsNote ? "Nachricht an die Person (erforderlich)" : "Nachricht an die Person (optional)", text: $publicNote, axis: .vertical).lineLimit(2...6)
                     .padding(10).sunkenSurface()
-                Text("Die Nachricht an die Person ist Teil der Begründung, die sie sieht – inklusive Einspruchsmöglichkeit innerhalb von 14 Tagen.").font(.caption).foregroundStyle(Color.muted)
+                Text("Die Nachricht an die Person ist Teil der Begründung, die sie sieht – inklusive Einspruchsmöglichkeit innerhalb von 14 Tagen.").font(.wr(.caption)).foregroundStyle(Color.muted)
                 Button { confirmDecide = true } label: { Text("Entscheidung treffen") }
                     .primaryButton()
                     .disabled(reason.trimmed.count < 10 || (needsNote && publicNote.trimmed.isEmpty))
@@ -938,7 +938,7 @@ struct AdminUserView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(u.profile?.displayName ?? "Ohne Profil").font(.display(24))
                         if let h = u.profile?.handle {
-                            Button("@\(h)") { router.open(.profile(handle: h)) }.font(.subheadline).foregroundStyle(Color.moss)
+                            Button("@\(h)") { router.open(.profile(handle: h)) }.font(.wr(.subheadline)).foregroundStyle(Color.moss)
                         }
                         HStack(spacing: 6) {
                             MeStatePill(text: MeLabels.accountStatus(u.status), tone: u.status == "ACTIVE" ? .moss : .danger)
@@ -1009,9 +1009,9 @@ struct AdminUserView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(audit.enumerated()), id: \.offset) { _, a in
                                 HStack {
-                                    Text(a.action).font(.system(.caption, design: .monospaced))
+                                    Text(a.action).font(.wr(.caption))
                                     Spacer()
-                                    Text([a.actor?.handle.map { "@\($0)" }, Fmt.relative(a.createdAt)].compactMap { $0 }.joined(separator: " · ")).font(.caption).foregroundStyle(Color.muted)
+                                    Text([a.actor?.handle.map { "@\($0)" }, Fmt.relative(a.createdAt)].compactMap { $0 }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }
                                 .padding(.vertical, 8)
                                 .hairline()

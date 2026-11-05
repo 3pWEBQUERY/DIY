@@ -250,12 +250,12 @@ struct ProductEditorSheet: View {
                 Divider()
                 MarketAmountRow(label: "Du erhältst ca.", value: Fmt.money(p + shippingMinor - fee), strong: true)
                 Text("Die Provision fällt nur auf den Warenwert und nur bei abgeschlossenen Verkäufen an. Gebühren von Stripe werden separat abgezogen.")
-                    .font(.caption).foregroundStyle(Color.muted)
+                    .font(.wr(.caption)).foregroundStyle(Color.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 4)
         } else {
-            Text("Gib einen Preis ein, um deine Auszahlung zu sehen.").font(.footnote).foregroundStyle(Color.muted)
+            Text("Gib einen Preis ein, um deine Auszahlung zu sehen.").font(.wr(.footnote)).foregroundStyle(Color.muted)
         }
     }
 
@@ -270,10 +270,10 @@ struct ProductEditorSheet: View {
                             .accessibilityLabel("Variante entfernen")
                     }
                     HStack(spacing: 10) {
-                        Text("Aufpreis CHF").font(.footnote).foregroundStyle(Color.muted)
+                        Text("Aufpreis CHF").font(.wr(.footnote)).foregroundStyle(Color.muted)
                         TextField("0.00", text: $v.delta).keyboardType(.numbersAndPunctuation).frame(maxWidth: 80)
                         Spacer()
-                        Text("Bestand").font(.footnote).foregroundStyle(Color.muted)
+                        Text("Bestand").font(.wr(.footnote)).foregroundStyle(Color.muted)
                         TextField("0", text: $v.stock).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(maxWidth: 60)
                     }
                 }

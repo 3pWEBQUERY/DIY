@@ -24,7 +24,7 @@ struct CommentsSection: View {
             if !loaded {
                 YarnSpinner(size: 22).frame(maxWidth: .infinity).padding()
             } else if comments.isEmpty {
-                Text("Noch keine Kommentare. Stell die erste Frage oder teile deine Erfahrung.").font(.subheadline).foregroundStyle(Color.muted).padding(.vertical, 8)
+                Text("Noch keine Kommentare. Stell die erste Frage oder teile deine Erfahrung.").font(.wr(.subheadline)).foregroundStyle(Color.muted).padding(.vertical, 8)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(comments) { c in
@@ -52,7 +52,7 @@ struct CommentsSection: View {
         VStack(alignment: .leading, spacing: 6) {
             if let r = replyTo {
                 HStack {
-                    Text("Antwort an \(r.author.displayName)").font(.caption).foregroundStyle(Color.muted)
+                    Text("Antwort an \(r.author.displayName)").font(.wr(.caption)).foregroundStyle(Color.muted)
                     Button { replyTo = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.muted) }.buttonStyle(.plain)
                 }
             }
@@ -66,7 +66,7 @@ struct CommentsSection: View {
                 AsyncButton {
                     await send()
                 } label: {
-                    Image(systemName: "arrow.up").font(.subheadline.weight(.bold)).frame(width: 34, height: 34)
+                    Image(systemName: "arrow.up").font(.wr(.subheadline, .bold)).frame(width: 34, height: 34)
                 }
                 .buttonStyle(.glassProminent)
                 .tint(.moss)
@@ -114,16 +114,16 @@ struct CommentRow: View {
             }.buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(comment.author.displayName).font(.footnote.weight(.semibold)).foregroundStyle(Color.ink)
-                    Text(Fmt.relative(comment.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                    Text(comment.author.displayName).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink)
+                    Text(Fmt.relative(comment.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                     if comment.isQuestion == true { Pill(text: "Frage", tint: .slate) }
                     if comment.isAnswer == true { Pill(text: "Antwort", symbol: "checkmark", tint: .moss) }
                 }
-                Text(comment.body).font(.subheadline).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(comment.body).font(.wr(.subheadline)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                 HStack(spacing: 16) {
                     LikeButton(type: "COMMENT", id: comment.id, liked: comment.liked ?? false, count: comment.likeCount ?? 0)
-                        .font(.caption)
-                    if app.isSignedIn { Button("Antworten", action: onReply).font(.caption.weight(.semibold)).foregroundStyle(Color.muted).buttonStyle(.plain) }
+                        .font(.wr(.caption))
+                    if app.isSignedIn { Button("Antworten", action: onReply).font(.wr(.caption, .semibold)).foregroundStyle(Color.muted).buttonStyle(.plain) }
                     Spacer()
                     Menu {
                         if comment.author.id == app.me?.id || app.me?.isModerator == true {
@@ -132,7 +132,7 @@ struct CommentRow: View {
                             }
                         }
                         Button("Melden …", systemImage: "flag") { router.present(.report(targetType: "COMMENT", targetId: comment.id)) }
-                    } label: { Image(systemName: "ellipsis").font(.caption).foregroundStyle(Color.muted).frame(width: 28, height: 24) }
+                    } label: { Image(systemName: "ellipsis").font(.wr(.caption)).foregroundStyle(Color.muted).frame(width: 28, height: 24) }
                 }
             }
         }

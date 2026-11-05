@@ -13,7 +13,7 @@ struct AvatarView: View {
             ZStack {
                 Circle().fill(CategoryPalette.color(for: category ?? seedCategory).opacity(0.16))
                 Text(name.initials)
-                    .font(.system(size: size * 0.38, weight: .semibold, design: .serif))
+                    .font(.wr(size: size * 0.38, weight: .semibold))
                     .foregroundStyle(CategoryPalette.color(for: category ?? seedCategory))
             }
         }
@@ -54,7 +54,7 @@ struct SectionHeader<Trailing: View>: View {
             if let number { Text(number).font(.specLarge).foregroundStyle(Color.moss) }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.titleSerif).foregroundStyle(Color.ink)
-                if let subtitle { Text(subtitle).font(.footnote).foregroundStyle(Color.muted) }
+                if let subtitle { Text(subtitle).font(.wr(.footnote)).foregroundStyle(Color.muted) }
             }
             Spacer(minLength: 8)
             trailing()
@@ -70,7 +70,7 @@ struct StatCell: View {
     var label: String
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(value).font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink).contentTransition(.numericText())
+            Text(value).font(.wr(.title3, .semibold)).monospacedDigit().foregroundStyle(Color.ink).contentTransition(.numericText())
             SpecLabel(label)
         }
         .accessibilityElement(children: .combine)
@@ -84,10 +84,10 @@ struct SpecRow: View {
     var symbol: String? = nil
     var body: some View {
         HStack(spacing: 10) {
-            if let symbol { Image(systemName: symbol).font(.footnote).foregroundStyle(Color.muted).frame(width: 18) }
-            Text(label).font(.subheadline).foregroundStyle(Color.muted)
+            if let symbol { Image(systemName: symbol).font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 18) }
+            Text(label).font(.wr(.subheadline)).foregroundStyle(Color.muted)
             Spacer(minLength: 12)
-            Text(value).font(.subheadline.weight(.medium)).foregroundStyle(Color.ink).multilineTextAlignment(.trailing)
+            Text(value).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink).multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 10)
         .hairline()
@@ -106,7 +106,7 @@ struct DifficultyMeter: View {
                     Capsule().fill(i <= level ? Color.ink : Color.lineStrong).frame(width: 9, height: 3.5)
                 }
             }
-            if showLabel { Text(L.difficulty[level] ?? "").font(.caption).foregroundStyle(Color.muted) }
+            if showLabel { Text(L.difficulty[level] ?? "").font(.wr(.caption)).foregroundStyle(Color.muted) }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Schwierigkeit: \(L.difficulty[level] ?? "\(level)") (\(level) von 5)")
@@ -119,7 +119,7 @@ struct StatusBadge: View {
         let (fg, bg) = colors
         HStack(spacing: 5) {
             Circle().fill(fg).frame(width: 6, height: 6)
-            Text(L.projectStatus(status)).font(.caption.weight(.semibold)).foregroundStyle(fg)
+            Text(L.projectStatus(status)).font(.wr(.caption, .semibold)).foregroundStyle(fg)
         }
         .padding(.horizontal, 9).padding(.vertical, 4)
         .background(bg, in: Capsule())
@@ -142,8 +142,8 @@ struct Pill: View {
     var filled = false
     var body: some View {
         HStack(spacing: 4) {
-            if let symbol { Image(systemName: symbol).font(.caption2.weight(.semibold)) }
-            Text(text).font(.caption.weight(.semibold))
+            if let symbol { Image(systemName: symbol).font(.wr(.caption2, .semibold)) }
+            Text(text).font(.wr(.caption, .semibold))
         }
         .foregroundStyle(filled ? Color.paper : tint)
         .padding(.horizontal, 9).padding(.vertical, 4)
@@ -167,7 +167,7 @@ struct ChipBar<T: Hashable>: View {
                             withAnimation(.snappy) { selection = item.value }
                         } label: {
                             Text(item.label)
-                                .font(.subheadline.weight(on ? .semibold : .regular))
+                                .font(.wr(.subheadline).weight(on ? .semibold : .regular))
                                 .foregroundStyle(on ? Color.paper : Color.ink)
                                 .padding(.horizontal, 14).padding(.vertical, 8)
                         }
@@ -215,7 +215,7 @@ struct TagList: View {
     var body: some View {
         FlowLayout {
             ForEach(tags, id: \.self) { t in
-                Text("#\(t)").font(.footnote).foregroundStyle(Color.ink2)
+                Text("#\(t)").font(.wr(.footnote)).foregroundStyle(Color.ink2)
                     .padding(.horizontal, 9).padding(.vertical, 4)
                     .background(Color.sunken, in: Capsule())
             }
@@ -260,7 +260,7 @@ struct LoadingView: View {
     var body: some View {
         VStack(spacing: 12) {
             YarnSpinner(size: 36)
-            if let text { Text(text).font(.footnote).foregroundStyle(Color.muted) }
+            if let text { Text(text).font(.wr(.footnote)).foregroundStyle(Color.muted) }
         }
         .frame(maxWidth: .infinity, minHeight: 220)
     }
@@ -277,10 +277,10 @@ struct EmptyStateView: View {
         VStack(spacing: 12) {
             ZStack {
                 Circle().fill(Color.mossSoft).frame(width: 64, height: 64)
-                Image(systemName: symbol).font(.title2).foregroundStyle(Color.moss)
+                Image(systemName: symbol).font(.wr(.title2)).foregroundStyle(Color.moss)
             }
             Text(title).font(.titleSerif).foregroundStyle(Color.ink).multilineTextAlignment(.center)
-            if let message { Text(message).font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.center) }
+            if let message { Text(message).font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center) }
             if let actionTitle, let action {
                 Button(actionTitle, action: action).buttonStyle(.glassProminent).tint(.moss).padding(.top, 4)
             }
@@ -295,9 +295,9 @@ struct ErrorStateView: View {
     var retry: (() async -> Void)?
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "wifi.exclamationmark").font(.title).foregroundStyle(Color.clay)
+            Image(systemName: "wifi.exclamationmark").font(.wr(.title)).foregroundStyle(Color.clay)
             Text("Das hat nicht geklappt").font(.titleSerif)
-            Text(message).font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+            Text(message).font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
             if let retry {
                 Button("Erneut versuchen") { Task { await retry() } }.buttonStyle(.glass)
             }
@@ -319,8 +319,8 @@ struct NoticeView: View {
             Image(systemName: tone == .danger ? "exclamationmark.octagon.fill" : tone == .warn ? "exclamationmark.triangle.fill" : tone == .success ? "checkmark.seal.fill" : "info.circle.fill")
                 .foregroundStyle(c)
             VStack(alignment: .leading, spacing: 3) {
-                if let title { Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink) }
-                Text(message).font(.footnote).foregroundStyle(Color.ink2)
+                if let title { Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink) }
+                Text(message).font(.wr(.footnote)).foregroundStyle(Color.ink2)
             }
             Spacer(minLength: 0)
         }
@@ -367,7 +367,7 @@ extension AsyncButton where Label == Text {
 struct PrimaryButtonStyleModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.body.weight(.semibold))
+            .font(.wr(.body, .semibold))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
             .buttonStyle(.glassProminent)
@@ -389,7 +389,7 @@ struct ToastOverlay: ViewModifier {
             if let t = app.toast {
                 HStack(spacing: 10) {
                     Image(systemName: icon(t.style)).foregroundStyle(color(t.style))
-                    Text(t.message).font(.subheadline.weight(.medium)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
+                    Text(t.message).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 12)
                 .glassEffect(.regular, in: Capsule())
@@ -425,7 +425,7 @@ struct PageTitle: View {
         VStack(alignment: .leading, spacing: 6) {
             if let kicker { SpecLabel(kicker, color: .moss) }
             Text(title).font(.display(32)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
-            if let subtitle { Text(subtitle).font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true) }
+            if let subtitle { Text(subtitle).font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)

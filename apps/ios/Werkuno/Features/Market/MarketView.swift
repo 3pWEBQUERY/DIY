@@ -129,7 +129,7 @@ struct MarketView: View {
                 .contentTransition(.opacity)
                 .accessibilityAddTraits(.isHeader)
             Text("Einzelstücke, Kleinserien, DIY-Materialsets und Anleitungen – direkt aus der Community. Viele Arbeiten zeigen ihr Projekt: Du siehst, wie sie entstanden sind.")
-                .font(.subheadline)
+                .font(.wr(.subheadline))
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -152,8 +152,8 @@ struct MarketView: View {
                             withAnimation(.snappy) { c.clear() }
                         } label: {
                             HStack(spacing: 5) {
-                                Text(c.label).font(.footnote.weight(.medium))
-                                Image(systemName: "xmark").font(.caption2.weight(.bold)).foregroundStyle(Color.muted)
+                                Text(c.label).font(.wr(.footnote, .medium))
+                                Image(systemName: "xmark").font(.wr(.caption2, .bold)).foregroundStyle(Color.muted)
                             }
                             .foregroundStyle(Color.ink)
                             .padding(.horizontal, 10).padding(.vertical, 6)
@@ -229,9 +229,9 @@ struct MarketView: View {
 
     private var footerNote: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Transparent einkaufen").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+            Text("Transparent einkaufen").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
             Text("Du zahlst den angezeigten Endpreis plus Versand – keine Zusatzgebühren für Käufer:innen. Shops geben eine Plattformprovision von \(Fmt.percent(bps: payments?.feeBps ?? app.feeBps)) auf den Warenwert ab. Bezahlt wird über einen geprüften Zahlungsanbieter.")
-                .font(.footnote).foregroundStyle(Color.muted)
+                .font(.wr(.footnote)).foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
             if app.hasActiveShop {
                 Button { router.open(.studioSection(.products)) } label: { Label("Meine Produkte verwalten", systemImage: "tag") }

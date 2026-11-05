@@ -161,28 +161,28 @@ private struct ConversationRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(item.other?.displayName ?? "Unterhaltung")
-                            .font(.subheadline.weight(unread ? .bold : .semibold))
+                            .font(.wr(.subheadline).weight(unread ? .bold : .semibold))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
                         Spacer(minLength: 4)
                         Text(Fmt.relative(item.lastMessageAt))
-                            .font(.caption)
+                            .font(.wr(.caption))
                             .monospacedDigit()
                             .foregroundStyle(unread ? Color.clay : Color.muted)
                     }
                     if let ctx = contextLabel {
                         Label(ctx.0, systemImage: ctx.1)
-                            .font(.caption2.weight(.semibold))
+                            .font(.wr(.caption2, .semibold))
                             .foregroundStyle(Color.clayInk)
                             .labelStyle(.compact)
                     }
                     HStack(alignment: .top, spacing: 6) {
                         if item.flagged == true {
-                            Image(systemName: "exclamationmark.shield.fill").font(.caption).foregroundStyle(Color.warn)
+                            Image(systemName: "exclamationmark.shield.fill").font(.wr(.caption)).foregroundStyle(Color.warn)
                                 .accessibilityLabel("Warnung: möglicher Zahlungslink")
                         }
                         Text(previewText)
-                            .font(.subheadline)
+                            .font(.wr(.subheadline))
                             .foregroundStyle(unread ? Color.ink : Color.muted)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)

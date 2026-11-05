@@ -54,7 +54,7 @@ struct ProjectThreadTimeline: View {
             ZStack {
                 if let symbol {
                     Circle().fill(done ? Color.moss : Color.sunken).frame(width: 24, height: 24)
-                    Image(systemName: symbol).font(.system(size: 10, weight: .bold)).foregroundStyle(done ? Color.paper : Color.muted)
+                    Image(systemName: symbol).font(.wr(size: 10, weight: .bold)).foregroundStyle(done ? Color.paper : Color.muted)
                 } else {
                     Circle().fill(Color.paper).frame(width: 16, height: 16)
                     Circle().strokeBorder(done ? color : Color.lineStrong, style: StrokeStyle(lineWidth: 2, dash: done ? [] : [3, 3])).frame(width: 16, height: 16)
@@ -62,8 +62,8 @@ struct ProjectThreadTimeline: View {
             }
             .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(last && !done ? Color.muted : Color.ink)
-                if let detail, !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(Color.muted) }
+                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(last && !done ? Color.muted : Color.ink)
+                if let detail, !detail.isEmpty { Text(detail).font(.wr(.caption)).foregroundStyle(Color.muted) }
             }
             .padding(.top, 4)
             Spacer(minLength: 0)
@@ -100,7 +100,7 @@ private struct ProjectThreadEntryRow: View {
                         Menu {
                             Button("Eintrag löschen", systemImage: "trash", role: .destructive, action: onDelete)
                         } label: {
-                            Image(systemName: "ellipsis").font(.footnote.weight(.semibold)).foregroundStyle(Color.muted).frame(width: 32, height: 28).contentShape(.rect)
+                            Image(systemName: "ellipsis").font(.wr(.footnote, .semibold)).foregroundStyle(Color.muted).frame(width: 32, height: 28).contentShape(.rect)
                         }
                         .accessibilityLabel("Aktionen zum Eintrag")
                     }
@@ -114,16 +114,16 @@ private struct ProjectThreadEntryRow: View {
                 if showAuthor, let a = entry.author {
                     HStack(spacing: 6) {
                         AvatarView(url: a.avatarUrl, name: a.displayName ?? "", size: 18)
-                        Text(a.displayName ?? "").font(.caption.weight(.medium)).foregroundStyle(Color.ink2)
+                        Text(a.displayName ?? "").font(.wr(.caption, .medium)).foregroundStyle(Color.ink2)
                     }
                 }
-                Text(entry.body).font(.body).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(entry.body).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                 if let p = entry.problem?.nilIfEmpty {
                     callout(label: "Problem", text: p, tint: .ochre, symbol: "exclamationmark.triangle.fill")
                     if let s = entry.solution?.nilIfEmpty {
                         callout(label: "Lösung", text: s, tint: .moss, symbol: "checkmark.circle.fill")
                     } else {
-                        Text("Noch offen – weisst du Rat? Schreib es in die Fragen.").font(.caption).foregroundStyle(Color.muted)
+                        Text("Noch offen – weisst du Rat? Schreib es in die Fragen.").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 } else if let s = entry.solution?.nilIfEmpty {
                     callout(label: "Lösung", text: s, tint: .moss, symbol: "checkmark.circle.fill")
@@ -133,7 +133,7 @@ private struct ProjectThreadEntryRow: View {
                 }
                 if let pid = entry.postId {
                     Button { onOpenPost(pid) } label: {
-                        Label("Im Feed geteilt", systemImage: "bubble.left.and.text.bubble.right").font(.caption.weight(.semibold)).foregroundStyle(Color.moss)
+                        Label("Im Feed geteilt", systemImage: "bubble.left.and.text.bubble.right").font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
                     }
                     .buttonStyle(.plain)
                     .frame(minHeight: 32)
@@ -166,7 +166,7 @@ private struct ProjectThreadEntryRow: View {
             switch entry.nodeKind {
             case "milestone":
                 Circle().fill(Color.clay).frame(width: 24, height: 24)
-                Image(systemName: "flag.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(Color.paper)
+                Image(systemName: "flag.fill").font(.wr(size: 10, weight: .bold)).foregroundStyle(Color.paper)
             case "problem":
                 Circle().fill(Color.paper).frame(width: 20, height: 20)
                 Circle().strokeBorder(Color.ochre, lineWidth: 3).frame(width: 20, height: 20)
@@ -183,8 +183,8 @@ private struct ProjectThreadEntryRow: View {
 
     private func callout(label: String, text: String, tint: Color, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(label, systemImage: symbol).font(.caption.weight(.semibold)).foregroundStyle(tint)
-            Text(text).font(.subheadline).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+            Label(label, systemImage: symbol).font(.wr(.caption, .semibold)).foregroundStyle(tint)
+            Text(text).font(.wr(.subheadline)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)

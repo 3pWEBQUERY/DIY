@@ -15,7 +15,7 @@ struct GuestFeedView: View {
                     SpecLabel("Werkuno · Gastzugang", color: .moss)
                     Text("Sieh dich um.").font(.display(36))
                     Text("Projekte, Anleitungen und Menschen, die mit den Händen arbeiten. Mit einem Konto kannst du folgen, speichern und selbst dokumentieren.")
-                        .font(.subheadline).foregroundStyle(Color.muted)
+                        .font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     Button { app.requestSignIn() } label: { Text("Anmelden oder registrieren").frame(maxWidth: .infinity) }
                         .primaryButton()
                 }
@@ -60,7 +60,7 @@ struct GuestMeView: View {
                 VStack(spacing: 0) {
                     ForEach([("Hilfe", "/hilfe"), ("Community-Richtlinien", "/richtlinien/community"), ("Datenschutz", "/rechtliches/datenschutz"), ("AGB", "/rechtliches/agb"), ("Impressum", "/rechtliches/impressum")], id: \.1) { item in
                         Button { router.open(.web(path: item.1)) } label: {
-                            HStack { Text(item.0).foregroundStyle(Color.ink); Spacer(); Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(Color.muted) }
+                            HStack { Text(item.0).foregroundStyle(Color.ink); Spacer(); Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.muted) }
                                 .padding(.vertical, 14).contentShape(.rect)
                         }
                         .buttonStyle(.plain)
@@ -80,9 +80,9 @@ struct GuestAccessory: View {
         Button { app.requestSignIn() } label: {
             HStack {
                 Image(systemName: "person.crop.circle.badge.plus")
-                Text("Konto erstellen oder anmelden").font(.subheadline.weight(.semibold))
+                Text("Konto erstellen oder anmelden").font(.wr(.subheadline, .semibold))
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption)
+                Image(systemName: "chevron.right").font(.wr(.caption))
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 44)

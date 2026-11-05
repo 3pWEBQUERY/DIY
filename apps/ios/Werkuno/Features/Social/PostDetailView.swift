@@ -69,11 +69,11 @@ struct PostDetailView: View {
                 HStack(spacing: 12) {
                     AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 46, category: post.category)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(post.author.displayName).font(.headline).foregroundStyle(Color.ink)
-                        Text("@\(post.author.handle)").font(.footnote).foregroundStyle(Color.muted)
+                        Text(post.author.displayName).font(.wr(.headline)).foregroundStyle(Color.ink)
+                        Text("@\(post.author.handle)").font(.wr(.footnote)).foregroundStyle(Color.muted)
                     }
                     Spacer(minLength: 0)
-                    if post.isPinned == true { Image(systemName: "pin.fill").font(.caption).foregroundStyle(Color.muted).accessibilityLabel("Angeheftet") }
+                    if post.isPinned == true { Image(systemName: "pin.fill").font(.wr(.caption)).foregroundStyle(Color.muted).accessibilityLabel("Angeheftet") }
                 }
                 .contentShape(.rect)
             }
@@ -94,7 +94,7 @@ struct PostDetailView: View {
 
             if !post.body.isEmpty {
                 Text(post.body)
-                    .font(.system(.title3, design: .serif))
+                    .font(.wr(.title3))
                     .lineSpacing(3)
                     .foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
@@ -111,7 +111,7 @@ struct PostDetailView: View {
                 Text(Fmt.dateTime(post.publishedAt))
                 if post.editedAt != nil { Text("· bearbeitet") }
             }
-            .font(.caption)
+            .font(.wr(.caption))
             .foregroundStyle(Color.muted)
         }
         .padding(18)
@@ -123,15 +123,15 @@ struct PostDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 if let a = r.author {
                     HStack(spacing: 8) {
-                        Image(systemName: "arrow.2.squarepath").font(.caption2)
+                        Image(systemName: "arrow.2.squarepath").font(.wr(.caption2))
                         AvatarView(url: a.avatarUrl, name: a.displayName, size: 20)
-                        Text(a.displayName).font(.caption.weight(.semibold))
-                        Text(Fmt.relative(r.publishedAt)).font(.caption)
+                        Text(a.displayName).font(.wr(.caption, .semibold))
+                        Text(Fmt.relative(r.publishedAt)).font(.wr(.caption))
                     }
                     .foregroundStyle(Color.muted)
                 }
                 if let b = r.body?.nilIfEmpty {
-                    Text(b).font(.subheadline).foregroundStyle(Color.ink2).lineLimit(6).multilineTextAlignment(.leading)
+                    Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(6).multilineTextAlignment(.leading)
                 }
                 if let m = r.media, !m.isEmpty {
                     SpecLabel(Fmt.plural(m.count, "Bild", "Bilder"))
@@ -198,7 +198,7 @@ struct PostDetailView: View {
                 .id("save-\(post.id)-\(post.viewer?.saved ?? false)")
             ShareLink(item: AppConfig.webURL("/beitrag/\(post.id)")) {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.subheadline)
+                    .font(.wr(.subheadline))
                     .foregroundStyle(Color.ink2)
                     .frame(minWidth: 32, minHeight: 32)
                     .contentShape(.rect)

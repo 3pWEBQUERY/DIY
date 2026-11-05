@@ -122,7 +122,7 @@ struct ProjectEditorSheet: View {
         ProjectsEditorBar {
             if step > 0 {
                 Button { withAnimation(.snappy) { step -= 1 } } label: {
-                    Image(systemName: "chevron.left").font(.body.weight(.semibold)).frame(width: 30, height: 30)
+                    Image(systemName: "chevron.left").font(.wr(.body, .semibold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.glass)
                 .controlSize(.large)
@@ -170,7 +170,7 @@ struct ProjectEditorSheet: View {
                         SpecLabel("Nachbau", color: .moss)
                     }
                     Text("Dein Projekt verweist auf «\(remixTitle ?? "das Original")»\(remixOwner.map { " von \($0)" } ?? ""). Texte und Bilder werden nicht kopiert – nur die Materialliste kannst du übernehmen.")
-                        .font(.footnote).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                        .font(.wr(.footnote)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -179,7 +179,7 @@ struct ProjectEditorSheet: View {
 
             ProjectsField(label: "Titel", error: errors["title"], trailing: "\(title.count)/120") {
                 TextField("Wie heisst dein Projekt?", text: $title, axis: .vertical)
-                    .font(.system(.title3, design: .serif).weight(.semibold))
+                    .font(.wr(.title3, .semibold))
                     .lineLimit(1...3)
                     .focused($titleFocused)
                     .projectsInput(error: errors["title"] != nil)
@@ -216,10 +216,10 @@ struct ProjectEditorSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Galerie & Titelbild").font(.headlineSerif)
                 Text("Zeig dein Projekt – Skizzen, Zwischenstände, das fertige Stück. Ohne Bilder bekommt es eine eigene Faden-Tafel.")
-                    .font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
             MediaPickerField(items: $media, maxCount: 30, title: "Bilder", coverHint: true)
-            if let e = errors["media"] ?? errors["coverMediaId"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+            if let e = errors["media"] ?? errors["coverMediaId"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
             if media.isEmpty {
                 ThreadPlate(seed: projectId ?? title.nilIfEmpty ?? "neu", category: category.nilIfEmpty, animated: true)
                     .frame(height: 180)
@@ -228,7 +228,7 @@ struct ProjectEditorSheet: View {
                         SpecLabel("Vorschau ohne Foto").padding(12)
                     }
             }
-            Text("Tipp: Beschreibe jedes Bild mit einem Alt-Text – tippe dazu auf ein Bild.").font(.caption).foregroundStyle(Color.muted)
+            Text("Tipp: Beschreibe jedes Bild mit einem Alt-Text – tippe dazu auf ein Bild.").font(.wr(.caption)).foregroundStyle(Color.muted)
         }
     }
 
@@ -255,7 +255,7 @@ struct ProjectEditorSheet: View {
             }
             ProjectsField(label: "Budget", hint: "Ungefähre Materialkosten.", error: errors["budgetMinor"]) {
                 HStack(spacing: 8) {
-                    Text("CHF").font(.subheadline.weight(.semibold)).foregroundStyle(Color.muted)
+                    Text("CHF").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted)
                     TextField("0.00", text: $budget).keyboardType(.decimalPad).monospacedDigit()
                 }
                 .projectsInput(error: errors["budgetMinor"] != nil)
@@ -278,7 +278,7 @@ struct ProjectEditorSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Material & Werkzeug").font(.headlineSerif)
                 Text("Mit einer Materialliste können andere direkt eine Einkaufsliste erstellen. Bekannte Materialien schlagen wir dir beim Tippen vor.")
-                    .font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader("Material", subtitle: materials.isEmpty ? nil : Fmt.plural(materials.count, "Position", "Positionen"))
@@ -435,14 +435,14 @@ struct ProjectsStepThread: View {
                             Circle().fill(i <= current ? Color.moss : Color.paper).frame(width: 22, height: 22)
                             Circle().strokeBorder(errorSteps.contains(i) ? Color.danger : (i <= current ? Color.moss : Color.lineStrong), lineWidth: 1.5).frame(width: 22, height: 22)
                             if errorSteps.contains(i) {
-                                Image(systemName: "exclamationmark").font(.system(size: 10, weight: .heavy)).foregroundStyle(i <= current ? Color.paper : Color.danger)
+                                Image(systemName: "exclamationmark").font(.wr(size: 10, weight: .heavy)).foregroundStyle(i <= current ? Color.paper : Color.danger)
                             } else if i < current {
-                                Image(systemName: "checkmark").font(.system(size: 9, weight: .heavy)).foregroundStyle(Color.paper)
+                                Image(systemName: "checkmark").font(.wr(size: 9, weight: .heavy)).foregroundStyle(Color.paper)
                             } else {
-                                Text("\(i + 1)").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(i == current ? Color.paper : Color.muted)
+                                Text("\(i + 1)").font(.wr(size: 10, weight: .bold)).foregroundStyle(i == current ? Color.paper : Color.muted)
                             }
                         }
-                        Text(s).font(.caption2.weight(i == current ? .semibold : .regular)).foregroundStyle(i == current ? Color.ink : Color.muted)
+                        Text(s).font(.wr(.caption2).weight(i == current ? .semibold : .regular)).foregroundStyle(i == current ? Color.ink : Color.muted)
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(.rect)

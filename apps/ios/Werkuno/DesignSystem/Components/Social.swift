@@ -58,7 +58,7 @@ struct LikeButton: View {
                     .symbolEffect(.bounce, value: liked)
                 if showCount { Text(Fmt.number(count)).monospacedDigit().contentTransition(.numericText()).foregroundStyle(Color.ink2) }
             }
-            .font(.subheadline)
+            .font(.wr(.subheadline))
             .frame(minHeight: 32)
             .contentShape(.rect)
         }
@@ -92,7 +92,7 @@ struct SaveButton: View {
                 Label(saved ? "Gespeichert" : "Speichern", systemImage: saved ? "bookmark.fill" : "bookmark")
             } else {
                 Image(systemName: saved ? "bookmark.fill" : "bookmark")
-                    .font(.subheadline)
+                    .font(.wr(.subheadline))
                     .foregroundStyle(saved ? Color.moss : Color.ink2)
                     .frame(minWidth: 32, minHeight: 32)
                     .contentShape(.rect)
@@ -126,7 +126,7 @@ struct FollowButton: View {
                 }
             } label: {
                 Text(following ? "Folge ich" : "Folgen")
-                    .font((compact ? Font.footnote : .subheadline).weight(.semibold))
+                    .font(compact ? Font.wr(.footnote, .semibold) : .wr(.subheadline, .semibold))
                     .padding(.horizontal, compact ? 4 : 8)
             }
             .buttonStyle(following ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
@@ -195,9 +195,9 @@ struct ReportSheet: View {
                 if let caseNumber {
                     Section {
                         VStack(alignment: .leading, spacing: 8) {
-                            Image(systemName: "checkmark.seal.fill").font(.largeTitle).foregroundStyle(Color.moss)
+                            Image(systemName: "checkmark.seal.fill").font(.wr(.largeTitle)).foregroundStyle(Color.moss)
                             Text("Danke für deine Meldung").font(.titleSerif)
-                            Text("Fallnummer \(caseNumber). Unser Moderationsteam prüft den Inhalt nach den Community-Richtlinien.").font(.subheadline).foregroundStyle(Color.muted)
+                            Text("Fallnummer \(caseNumber). Unser Moderationsteam prüft den Inhalt nach den Community-Richtlinien.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                         }.padding(.vertical, 8)
                     }
                 } else {
@@ -248,10 +248,10 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             if let label = kindLabel {
-                Label(label.0, systemImage: label.1).font(.caption.weight(.semibold)).foregroundStyle(Color.moss)
+                Label(label.0, systemImage: label.1).font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
             }
             if !post.body.isEmpty {
-                Text(post.body).font(.body).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+                Text(post.body).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
             if !post.media.isEmpty { MediaStrip(media: post.media) }
@@ -276,14 +276,14 @@ struct PostCardView: View {
                 HStack(spacing: 10) {
                     AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 38, category: post.category)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(post.author.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                        Text(post.author.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         HStack(spacing: 4) {
                             Text("@\(post.author.handle)")
                             Text("·")
                             Text(Fmt.relative(post.publishedAt))
                             if post.editedAt != nil { Text("· bearbeitet") }
                         }
-                        .font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     }
                 }
             }
@@ -291,7 +291,7 @@ struct PostCardView: View {
             Spacer(minLength: 0)
             if post.isCommercial == true { Pill(text: "Verkauf", symbol: "tag", tint: .clay) }
             if post.isAnnouncement == true { Pill(text: "Ankündigung", symbol: "megaphone", tint: .moss) }
-            if post.isPinned == true { Image(systemName: "pin.fill").font(.caption).foregroundStyle(Color.muted) }
+            if post.isPinned == true { Image(systemName: "pin.fill").font(.wr(.caption)).foregroundStyle(Color.muted) }
             Menu {
                 if post.viewer?.isAuthor == true {
                     Button("Bearbeiten", systemImage: "pencil") { router.present(.editPost(id: post.id)) }
@@ -300,7 +300,7 @@ struct PostCardView: View {
                 }
                 SafetyMenuItems(targetType: "POST", targetId: post.id, authorId: post.author.id, authorName: post.author.displayName, allowHide: post.viewer?.isAuthor != true, shareURL: AppConfig.webURL("/beitrag/\(post.id)"))
             } label: {
-                Image(systemName: "ellipsis").font(.subheadline).foregroundStyle(Color.muted).frame(width: 32, height: 32).contentShape(.rect)
+                Image(systemName: "ellipsis").font(.wr(.subheadline)).foregroundStyle(Color.muted).frame(width: 32, height: 32).contentShape(.rect)
             }
             .accessibilityLabel("Weitere Aktionen")
         }
@@ -321,12 +321,12 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let a = r.author {
                 HStack(spacing: 6) {
-                    Image(systemName: "arrow.2.squarepath").font(.caption2)
-                    Text(a.displayName).font(.caption.weight(.semibold))
-                    Text(Fmt.relative(r.publishedAt)).font(.caption)
+                    Image(systemName: "arrow.2.squarepath").font(.wr(.caption2))
+                    Text(a.displayName).font(.wr(.caption, .semibold))
+                    Text(Fmt.relative(r.publishedAt)).font(.wr(.caption))
                 }.foregroundStyle(Color.muted)
             }
-            if let b = r.body?.nilIfEmpty { Text(b).font(.subheadline).foregroundStyle(Color.ink2).lineLimit(5) }
+            if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(5) }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -353,7 +353,7 @@ struct PostCardView: View {
         HStack(spacing: 18) {
             LikeButton(type: "POST", id: post.id, liked: post.viewer?.liked ?? false, count: post.counts.likes ?? 0)
             Button { router.open(.post(id: post.id)) } label: {
-                Label(Fmt.number(post.counts.comments), systemImage: "bubble.left").font(.subheadline).foregroundStyle(Color.ink2).labelStyle(.compact)
+                Label(Fmt.number(post.counts.comments), systemImage: "bubble.left").font(.wr(.subheadline)).foregroundStyle(Color.ink2).labelStyle(.compact)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(post.counts.comments ?? 0) Kommentare")
@@ -381,10 +381,10 @@ struct LinkedThreadRow: View {
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     SpecLabel(kicker, color: .moss)
-                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(Color.muted)
+                Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(.leading, 12)
             .overlay(alignment: .leading) { Capsule().fill(Color.moss).frame(width: 2) }
@@ -401,7 +401,7 @@ struct RepostButton: View {
 
     var body: some View {
         Button { showing = true } label: {
-            Label(Fmt.number(post.counts.reposts), systemImage: "arrow.2.squarepath").font(.subheadline).foregroundStyle(Color.ink2).labelStyle(.compact)
+            Label(Fmt.number(post.counts.reposts), systemImage: "arrow.2.squarepath").font(.wr(.subheadline)).foregroundStyle(Color.ink2).labelStyle(.compact)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Teilen mit Einordnung")
@@ -439,7 +439,7 @@ struct MediaStrip: View {
     private func tile(_ m: MediaItem) -> some View {
         RemoteImage(path: m.displayURL) { Color.sunken }
             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
-            .overlay { if m.isVideo { Image(systemName: "play.circle.fill").font(.largeTitle).foregroundStyle(.white.opacity(0.9)) } }
+            .overlay { if m.isVideo { Image(systemName: "play.circle.fill").font(.wr(.largeTitle)).foregroundStyle(.white.opacity(0.9)) } }
             .contentShape(.rect)
             .onTapGesture { selected = m }
             .accessibilityLabel(m.alt?.nilIfEmpty ?? "Bild")
@@ -462,13 +462,13 @@ struct MediaViewer: View {
                         Spacer()
                         RemoteImage(path: m.displayURL, contentMode: .fit) { ProgressView().tint(.white) }
                         Spacer()
-                        if let alt = m.alt?.nilIfEmpty { Text(alt).font(.footnote).foregroundStyle(.white.opacity(0.8)).padding() }
+                        if let alt = m.alt?.nilIfEmpty { Text(alt).font(.wr(.footnote)).foregroundStyle(.white.opacity(0.8)).padding() }
                     }
                     .tag(m.id)
                 }
             }
             .tabViewStyle(.page)
-            Button { dismiss() } label: { Image(systemName: "xmark").font(.headline).padding(12) }
+            Button { dismiss() } label: { Image(systemName: "xmark").font(.wr(.headline)).padding(12) }
                 .buttonStyle(.glass)
                 .padding()
                 .accessibilityLabel("Schliessen")

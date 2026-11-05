@@ -28,7 +28,7 @@ struct BlogHomeView: View {
                 }
                 if let tag {
                     HStack {
-                        Text("#\(tag)").font(.subheadline.weight(.semibold))
+                        Text("#\(tag)").font(.wr(.subheadline, .semibold))
                         Button { withAnimation { self.tag = nil } } label: { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.plain).foregroundStyle(Color.muted)
                             .accessibilityLabel("Schlagwort entfernen")
@@ -107,7 +107,7 @@ struct BlogHomeView: View {
                 .foregroundStyle(Color.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Erfahrungsberichte, Techniken und Gedanken von Menschen, die mit den Händen denken.")
-                .font(.system(.subheadline, design: .serif).italic())
+                .font(.wr(.subheadline).italic())
                 .foregroundStyle(Color.ink2)
             Rectangle().fill(Color.ink).frame(height: 1.5).padding(.top, 6)
             Rectangle().fill(Color.ink).frame(height: 0.5)
@@ -188,7 +188,7 @@ struct BlogHomeView: View {
                     .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
                     .overlay(alignment: .topLeading) {
                         if a.isFeatured == true {
-                            Label("Empfohlen", systemImage: "star.fill").font(.caption.weight(.semibold))
+                            Label("Empfohlen", systemImage: "star.fill").font(.wr(.caption, .semibold))
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .glassEffect(.regular, in: Capsule())
                                 .padding(12)
@@ -198,14 +198,14 @@ struct BlogHomeView: View {
                 Text(a.title).font(.display(30)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 if let dek = a.dek?.nilIfEmpty {
-                    Text(dek).font(.system(.body, design: .serif)).foregroundStyle(Color.ink2).multilineTextAlignment(.leading)
+                    Text(dek).font(.wr(.body)).foregroundStyle(Color.ink2).multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let au = a.author {
                     HStack(spacing: 8) {
                         AvatarView(url: au.avatarUrl, name: au.displayName, size: 26)
-                        Text(au.displayName).font(.footnote.weight(.semibold)).foregroundStyle(Color.ink)
-                        Text("· \(Fmt.date(a.publishedAt))").font(.footnote).foregroundStyle(Color.muted)
+                        Text(au.displayName).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink)
+                        Text("· \(Fmt.date(a.publishedAt))").font(.wr(.footnote)).foregroundStyle(Color.muted)
                     }
                 }
             }
@@ -223,8 +223,8 @@ struct BlogHomeView: View {
                     .frame(maxWidth: .infinity)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 if let c = a.category?.name { SpecLabel(c, color: .clay) }
-                Text(a.title).font(.system(.headline, design: .serif)).foregroundStyle(Color.ink).lineLimit(4).multilineTextAlignment(.leading)
-                if let au = a.author { Text(au.displayName).font(.caption).foregroundStyle(Color.muted) }
+                Text(a.title).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(4).multilineTextAlignment(.leading)
+                if let au = a.author { Text(au.displayName).font(.wr(.caption)).foregroundStyle(Color.muted) }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
@@ -236,8 +236,8 @@ struct BlogHomeView: View {
         Button { router.open(.userBlog(handle: a.handle)) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 AvatarView(url: a.avatarUrl, name: a.displayName, size: 48)
-                Text(a.displayName).font(.system(.headline, design: .serif)).foregroundStyle(Color.ink)
-                if let b = a.bio?.nilIfEmpty { Text(b).font(.caption).foregroundStyle(Color.muted).lineLimit(3).multilineTextAlignment(.leading) }
+                Text(a.displayName).font(.wr(.headline)).foregroundStyle(Color.ink)
+                if let b = a.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3).multilineTextAlignment(.leading) }
                 Spacer(minLength: 0)
                 SpecLabel(Fmt.plural(a.articles ?? 0, "Artikel", "Artikel"), color: .moss)
             }
@@ -282,7 +282,7 @@ struct UserBlogView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(author?.displayName ?? "@\(h)").font(.display(26)).foregroundStyle(Color.ink)
                             Button("@\(h) · Profil ansehen") { router.open(.profile(handle: h)) }
-                                .font(.footnote).foregroundStyle(Color.moss)
+                                .font(.wr(.footnote)).foregroundStyle(Color.moss)
                         }
                     }
                     Rectangle().fill(Color.ink).frame(height: 1).padding(.top, 4)

@@ -16,16 +16,16 @@ struct ProjectsField<Content: View>: View {
             HStack(alignment: .firstTextBaseline) {
                 SpecLabel(label, color: error == nil ? .muted : .danger)
                 Spacer(minLength: 8)
-                if let trailing { Text(trailing).font(.caption2).monospacedDigit().foregroundStyle(Color.muted) }
+                if let trailing { Text(trailing).font(.wr(.caption2)).monospacedDigit().foregroundStyle(Color.muted) }
             }
             content()
             if let error {
                 Label(error, systemImage: "exclamationmark.circle.fill")
-                    .font(.caption)
+                    .font(.wr(.caption))
                     .foregroundStyle(Color.danger)
                     .accessibilityLabel("Fehler: \(error)")
             } else if let hint {
-                Text(hint).font(.caption).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                Text(hint).font(.wr(.caption)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
         }
         .accessibilityElement(children: .contain)
@@ -69,8 +69,8 @@ struct ProjectsChoiceChips<T: Hashable>: View {
                     withAnimation(.snappy) { selection = item.value }
                 } label: {
                     HStack(spacing: 6) {
-                        if let s = item.symbol { Image(systemName: s).font(.caption.weight(.semibold)) }
-                        Text(item.label).font(.subheadline.weight(on ? .semibold : .regular))
+                        if let s = item.symbol { Image(systemName: s).font(.wr(.caption, .semibold)) }
+                        Text(item.label).font(.wr(.subheadline).weight(on ? .semibold : .regular))
                     }
                     .foregroundStyle(on ? Color.paper : Color.ink)
                     .padding(.horizontal, 14).padding(.vertical, 9)
@@ -102,8 +102,8 @@ struct ProjectsCategoryPicker: View {
                     withAnimation(.snappy) { selection = c.slug }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: CategoryPalette.symbol(for: c.glyph)).font(.caption.weight(.semibold))
-                        Text(c.short).font(.subheadline.weight(on ? .semibold : .regular))
+                        Image(systemName: CategoryPalette.symbol(for: c.glyph)).font(.wr(.caption, .semibold))
+                        Text(c.short).font(.wr(.subheadline).weight(on ? .semibold : .regular))
                     }
                     .foregroundStyle(on ? Color.paper : color)
                     .padding(.horizontal, 13).padding(.vertical, 9)
@@ -150,7 +150,7 @@ struct ProjectsDifficultyPicker: View {
             HStack(spacing: 6) {
                 Text(L.difficulty[level] ?? "").font(.headlineSerif).foregroundStyle(Color.ink).contentTransition(.opacity)
                 Spacer()
-                Text(difficultyHint).font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.trailing)
+                Text(difficultyHint).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.trailing)
             }
         }
     }
@@ -186,7 +186,7 @@ struct ProjectsDurationField: View {
     private func unitField(_ text: Binding<String>, unit: String, label: String) -> some View {
         HStack(spacing: 6) {
             TextField("0", text: text).keyboardType(.numberPad).monospacedDigit()
-            Text(unit).font(.footnote).foregroundStyle(Color.muted)
+            Text(unit).font(.wr(.footnote)).foregroundStyle(Color.muted)
         }
         .projectsInput()
         .accessibilityLabel(label)
@@ -221,8 +221,8 @@ struct ProjectsTagField: View {
                     ForEach(tags, id: \.self) { t in
                         Button { withAnimation(.snappy) { tags.removeAll { $0 == t } } } label: {
                             HStack(spacing: 4) {
-                                Text("#\(t)").font(.footnote.weight(.medium))
-                                Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Color.muted)
+                                Text("#\(t)").font(.wr(.footnote, .medium))
+                                Image(systemName: "xmark").font(.wr(size: 9, weight: .bold)).foregroundStyle(Color.muted)
                             }
                             .foregroundStyle(Color.ink2)
                             .padding(.horizontal, 10).padding(.vertical, 6)
@@ -236,7 +236,7 @@ struct ProjectsTagField: View {
             }
             if tags.count < max {
                 HStack {
-                    Image(systemName: "number").font(.footnote).foregroundStyle(Color.muted)
+                    Image(systemName: "number").font(.wr(.footnote)).foregroundStyle(Color.muted)
                     TextField(tags.isEmpty ? "z. B. arve, hocker, leinöl" : "Weiteres Schlagwort", text: $text)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -245,7 +245,7 @@ struct ProjectsTagField: View {
                         .onSubmit { commit(); focused = true }
                         .onChange(of: text) { _, v in if v.contains(",") { commit() } }
                     if !text.trimmed.isEmpty {
-                        Button("Hinzufügen") { commit() }.font(.footnote.weight(.semibold)).foregroundStyle(Color.moss)
+                        Button("Hinzufügen") { commit() }.font(.wr(.footnote, .semibold)).foregroundStyle(Color.moss)
                     }
                 }
                 .projectsInput()
@@ -308,7 +308,7 @@ struct ProjectsLineEditor: View {
                 withAnimation(.snappy) { lines.append(ProjectsLineDraft()) }
             } label: {
                 Label(kind == .material ? "Material hinzufügen" : "Werkzeug hinzufügen", systemImage: "plus")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.wr(.subheadline, .semibold))
                     .foregroundStyle(Color.moss)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(Color.mossSoft.opacity(0.6), in: .rect(cornerRadius: Radius.inner, style: .continuous))
@@ -347,19 +347,19 @@ private struct ProjectsLineRow: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         TextField(kind == .material ? "Material, z. B. Merinowolle" : "Werkzeug, z. B. Japansäge", text: $line.name)
-                            .font(.body.weight(.medium))
+                            .font(.wr(.body, .medium))
                             .focused($nameFocused)
                             .submitLabel(.next)
                         if kind == .material {
                             TextField("Menge", text: $line.quantity)
                                 .multilineTextAlignment(.trailing)
                                 .frame(maxWidth: 92)
-                                .font(.subheadline.monospacedDigit())
+                                .font(.wr(.subheadline).monospacedDigit())
                                 .accessibilityLabel("Menge")
                         }
                     }
                     TextField("Notiz (optional)", text: $line.note)
-                        .font(.footnote)
+                        .font(.wr(.footnote))
                         .foregroundStyle(Color.ink2)
                 }
                 Menu {
@@ -367,12 +367,12 @@ private struct ProjectsLineRow: View {
                     Button("Nach unten", systemImage: "arrow.down") { move(1) }
                     Button("Entfernen", systemImage: "trash", role: .destructive, action: remove)
                 } label: {
-                    Image(systemName: "ellipsis").font(.subheadline.weight(.semibold)).foregroundStyle(Color.muted).frame(width: 36, height: 36).contentShape(.rect)
+                    Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted).frame(width: 36, height: 36).contentShape(.rect)
                 }
                 .accessibilityLabel("Zeile \(index + 1) bearbeiten")
             }
             if line.materialId != nil {
-                Label("Aus dem Materialkatalog", systemImage: "checkmark.seal.fill").font(.caption2).foregroundStyle(Color.moss).padding(.leading, 32)
+                Label("Aus dem Materialkatalog", systemImage: "checkmark.seal.fill").font(.wr(.caption2)).foregroundStyle(Color.moss).padding(.leading, 32)
             }
             if nameFocused && !hits.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -387,8 +387,8 @@ private struct ProjectsLineRow: View {
                                 Haptics.selection()
                             } label: {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(h.name).font(.footnote.weight(.semibold)).foregroundStyle(Color.ink)
-                                    if let c = h.category ?? h.type { Text(c).font(.caption2).foregroundStyle(Color.muted) }
+                                    Text(h.name).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink)
+                                    if let c = h.category ?? h.type { Text(c).font(.wr(.caption2)).foregroundStyle(Color.muted) }
                                 }
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .background(Color.card, in: .rect(cornerRadius: Radius.small, style: .continuous))
@@ -401,7 +401,7 @@ private struct ProjectsLineRow: View {
                 }
                 .transition(.opacity)
             }
-            if let error { Text(error).font(.caption).foregroundStyle(Color.danger).padding(.leading, 32) }
+            if let error { Text(error).font(.wr(.caption)).foregroundStyle(Color.danger).padding(.leading, 32) }
         }
         .padding(12)
         .background(Color.sunken, in: .rect(cornerRadius: Radius.inner, style: .continuous))
@@ -448,15 +448,15 @@ struct ProjectsSpecTable: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(String(format: "%02d", i + 1)).font(.specLarge).foregroundStyle(Color.muted).frame(width: 34, alignment: .leading)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(r.name).font(.subheadline.weight(.medium)).foregroundStyle(Color.ink)
-                        if let n = r.note?.nilIfEmpty { Text(n).font(.caption).foregroundStyle(Color.muted) }
+                        Text(r.name).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink)
+                        if let n = r.note?.nilIfEmpty { Text(n).font(.wr(.caption)).foregroundStyle(Color.muted) }
                         if let s = r.safety?.nilIfEmpty {
-                            Label(s, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Color.warn)
+                            Label(s, systemImage: "exclamationmark.triangle.fill").font(.wr(.caption)).foregroundStyle(Color.warn)
                         }
                     }
                     Spacer(minLength: 12)
                     if showQuantity, let q = r.quantity?.nilIfEmpty {
-                        Text(q).font(.subheadline.monospacedDigit()).foregroundStyle(Color.ink2)
+                        Text(q).font(.wr(.subheadline).monospacedDigit()).foregroundStyle(Color.ink2)
                     }
                 }
                 .padding(.vertical, 11)

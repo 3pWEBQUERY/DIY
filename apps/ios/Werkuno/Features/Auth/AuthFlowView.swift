@@ -28,7 +28,7 @@ struct AuthFlowView: View {
                     Spacer()
                     Button("Anmelden") { sheet = .signIn }
                         .buttonStyle(.glass)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.wr(.subheadline, .semibold))
                 }
                 .padding(.horizontal, Space.gutter)
                 .padding(.top, 8)
@@ -65,11 +65,11 @@ struct AuthFlowView: View {
                         .clipShape(Capsule())
                     }
                     Button("Erst einmal umsehen") { app.browseAsGuest() }
-                        .font(.subheadline.weight(.semibold))
+                        .font(.wr(.subheadline, .semibold))
                         .foregroundStyle(Color.moss)
                         .padding(.vertical, 4)
                     Text("Ab 18 Jahren. Mit der Registrierung akzeptierst du die Nutzungsbedingungen und die Datenschutzerklärung.")
-                        .font(.caption2).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                        .font(.wr(.caption2)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, Space.gutter)
                 .padding(.bottom, 12)
@@ -100,7 +100,7 @@ struct AuthFlowView: View {
         VStack(alignment: .leading, spacing: 10) {
             SpecLabel(c.kicker, color: .moss)
             Text(c.title).font(.display(38)).foregroundStyle(Color.ink)
-            Text(c.text).font(.body).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+            Text(c.text).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 ForEach(c.spec, id: \.self) { s in
                     Text(s).font(.spec).foregroundStyle(Color.muted)
@@ -192,7 +192,7 @@ struct SignInSheet: View {
                         Spacer()
                         Button("Neu hier? Registrieren", action: onSignUp)
                     }
-                    .font(.footnote.weight(.semibold))
+                    .font(.wr(.footnote, .semibold))
                     .foregroundStyle(Color.moss)
                 }
                 .padding(Space.gutter)
@@ -245,9 +245,9 @@ struct SignUpSheet: View {
                                 .onChange(of: handle) { _, v in handleTouched = true; handle = v.lowercased().replacingOccurrences(of: " ", with: "") }
                             if let s = handleState, error?.fields?["handle"] == nil {
                                 Label(s.text, systemImage: s.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .font(.caption).foregroundStyle(s.ok ? Color.moss : Color.danger)
+                                    .font(.wr(.caption)).foregroundStyle(s.ok ? Color.moss : Color.danger)
                             }
-                            Text("Dein Profil: werkuno/u/\(handle.isEmpty ? "name" : handle)").font(.caption2).foregroundStyle(Color.muted)
+                            Text("Dein Profil: werkuno/u/\(handle.isEmpty ? "name" : handle)").font(.wr(.caption2)).foregroundStyle(Color.muted)
                         }
                         AuthField(title: "E-Mail", text: $email, error: error?.fields?["email"], keyboard: .emailAddress, content: .emailAddress)
                         VStack(alignment: .leading, spacing: 6) {
@@ -256,15 +256,15 @@ struct SignUpSheet: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 12) {
-                        Toggle(isOn: $adult) { Text("Ich bin mindestens 18 Jahre alt.").font(.subheadline) }
+                        Toggle(isOn: $adult) { Text("Ich bin mindestens 18 Jahre alt.").font(.wr(.subheadline)) }
                         Toggle(isOn: $terms) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Ich akzeptiere die Nutzungsbedingungen und habe die Datenschutzerklärung gelesen.").font(.subheadline)
+                                Text("Ich akzeptiere die Nutzungsbedingungen und habe die Datenschutzerklärung gelesen.").font(.wr(.subheadline))
                                 HStack(spacing: 12) {
                                     Button("AGB") { legal = AppConfig.webURL("/rechtliches/agb") }
                                     Button("Datenschutz") { legal = AppConfig.webURL("/rechtliches/datenschutz") }
                                 }
-                                .font(.caption.weight(.semibold)).foregroundStyle(Color.moss)
+                                .font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
                             }
                         }
                     }
@@ -275,7 +275,7 @@ struct SignUpSheet: View {
                     AsyncButton { await submit() } label: { Text("Konto erstellen").frame(maxWidth: .infinity) }
                         .primaryButton()
                         .disabled(!adult || !terms || email.trimmed.isEmpty || password.count < 10 || displayName.trimmed.isEmpty || handle.count < 3)
-                    Button("Schon dabei? Anmelden", action: onSignIn).font(.footnote.weight(.semibold)).foregroundStyle(Color.moss).frame(maxWidth: .infinity)
+                    Button("Schon dabei? Anmelden", action: onSignIn).font(.wr(.footnote, .semibold)).foregroundStyle(Color.moss).frame(maxWidth: .infinity)
                 }
                 .padding(Space.gutter)
             }
@@ -326,7 +326,7 @@ struct PasswordStrength: View {
         if !password.isEmpty {
             HStack(spacing: 4) {
                 ForEach(0..<4, id: \.self) { i in Capsule().fill(i < score ? (score >= 3 ? Color.moss : Color.warn) : Color.line).frame(height: 3) }
-                Text(password.count < 10 ? "Mind. 10 Zeichen" : score >= 3 ? "Stark" : "Ziffer oder Sonderzeichen ergänzen").font(.caption2).foregroundStyle(Color.muted).fixedSize()
+                Text(password.count < 10 ? "Mind. 10 Zeichen" : score >= 3 ? "Stark" : "Ziffer oder Sonderzeichen ergänzen").font(.wr(.caption2)).foregroundStyle(Color.muted).fixedSize()
             }
             .animation(.snappy, value: score)
         }
@@ -382,7 +382,7 @@ struct AuthField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Color.muted)
+            Text(title).font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
             HStack(spacing: 4) {
                 if let prefix { Text(prefix).foregroundStyle(Color.muted) }
                 Group {
@@ -398,11 +398,11 @@ struct AuthField: View {
                         .accessibilityLabel(reveal ? "Passwort verbergen" : "Passwort anzeigen")
                 }
             }
-            .font(.body)
+            .font(.wr(.body))
             .padding(.horizontal, 14).padding(.vertical, 13)
             .background(Color.card, in: .rect(cornerRadius: Radius.inner, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(error == nil ? Color.line : Color.danger, lineWidth: error == nil ? 0.75 : 1.2))
-            if let error { Text(error).font(.caption).foregroundStyle(Color.danger) }
+            if let error { Text(error).font(.wr(.caption)).foregroundStyle(Color.danger) }
         }
         .accessibilityElement(children: .contain)
     }

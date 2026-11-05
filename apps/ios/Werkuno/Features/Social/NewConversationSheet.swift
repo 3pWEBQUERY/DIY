@@ -90,14 +90,14 @@ struct NewConversationSheet: View {
                             HStack(spacing: 12) {
                                 AvatarView(url: h.cover, name: h.title, size: 40)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(h.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                                    Text("@\(h.handle)").font(.caption).foregroundStyle(Color.muted)
+                                    Text(h.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                                    Text("@\(h.handle)").font(.wr(.caption)).foregroundStyle(Color.muted)
                                     if let bio = h.meta?.bio?.nilIfEmpty {
-                                        Text(bio).font(.caption).foregroundStyle(Color.ink2).lineLimit(1)
+                                        Text(bio).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(1)
                                     }
                                 }
                                 Spacer(minLength: 0)
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                                Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                             }
                             .padding(.vertical, 10)
                             .contentShape(.rect)
@@ -113,10 +113,10 @@ struct NewConversationSheet: View {
                 .cardSurface()
             } else if query.trimmed.count >= 2 && !searching {
                 Text("Niemand gefunden. Prüfe die Schreibweise oder gib das genaue @handle ein.")
-                    .font(.footnote).foregroundStyle(Color.muted)
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted)
             } else {
                 Text("Schreib Creatorn, Verkäufer:innen oder Menschen aus deinen Communities. Bezahle nie ausserhalb des Werkuno-Checkouts.")
-                    .font(.footnote).foregroundStyle(Color.muted)
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted)
             }
         }
     }
@@ -159,16 +159,16 @@ struct NewConversationSheet: View {
                 if let r = prep?.recipient {
                     AvatarView(url: r.avatarUrl, name: r.displayName, size: 48)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(r.displayName).font(.headline).foregroundStyle(Color.ink)
-                        Text("@\(r.handle)").font(.caption).foregroundStyle(Color.muted)
-                        if let bio = r.bio?.nilIfEmpty { Text(bio).font(.caption).foregroundStyle(Color.ink2).lineLimit(2) }
+                        Text(r.displayName).font(.wr(.headline)).foregroundStyle(Color.ink)
+                        Text("@\(r.handle)").font(.wr(.caption)).foregroundStyle(Color.muted)
+                        if let bio = r.bio?.nilIfEmpty { Text(bio).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
                     }
                 } else if preparing {
                     YarnSpinner(size: 24)
-                    Text("@\(selectedHandle ?? "")").font(.subheadline).foregroundStyle(Color.muted)
+                    Text("@\(selectedHandle ?? "")").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 } else {
-                    Image(systemName: "person.crop.circle.badge.questionmark").font(.title2).foregroundStyle(Color.muted)
-                    Text("@\(selectedHandle ?? "")").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                    Image(systemName: "person.crop.circle.badge.questionmark").font(.wr(.title2)).foregroundStyle(Color.muted)
+                    Text("@\(selectedHandle ?? "")").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                 }
                 Spacer(minLength: 0)
                 if handle == nil {
@@ -176,7 +176,7 @@ struct NewConversationSheet: View {
                         withAnimation(.snappy) { selectedHandle = nil; prep = nil; prepError = nil }
                         focus = .search
                     }
-                    .font(.footnote.weight(.semibold))
+                    .font(.wr(.footnote, .semibold))
                     .buttonStyle(.glass)
                     .controlSize(.small)
                 }
@@ -186,7 +186,7 @@ struct NewConversationSheet: View {
 
             if let c = prep?.context {
                 Label(c.label, systemImage: c.orderId != nil ? "shippingbox" : "tag")
-                    .font(.footnote.weight(.semibold))
+                    .font(.wr(.footnote, .semibold))
                     .foregroundStyle(Color.clayInk)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(Color.claySoft, in: Capsule())
@@ -210,7 +210,7 @@ struct NewConversationSheet: View {
                 NoticeView(tone: .info, title: "Ihr schreibt euch bereits", message: "Deine Nachricht wird in eurer bestehenden Unterhaltung ergänzt.")
                 if let cid = p.conversationId {
                     Button("Unterhaltung öffnen") { openConversation(cid) }
-                        .font(.footnote.weight(.semibold))
+                        .font(.wr(.footnote, .semibold))
                         .buttonStyle(.glass)
                 }
             }
@@ -259,7 +259,7 @@ struct NewConversationSheet: View {
                 .padding(16)
                 .cardSurface()
             Label("Zahlungen nur über den Werkuno-Checkout – nur dann gilt der Käuferschutz. Teile keine Zugangsdaten.", systemImage: "lock.shield")
-                .font(.caption)
+                .font(.wr(.caption))
                 .foregroundStyle(Color.muted)
         }
         .transition(.opacity.combined(with: .move(edge: .bottom)))

@@ -5,11 +5,28 @@ import UserNotifications
 /// Push-Vorbereitung (PRD §19.2): Gerätetoken an den Server melden, sobald erlaubt.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Self.applyManropeToUIKit()
         UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().getNotificationSettings { s in
             if s.authorizationStatus == .authorized { DispatchQueue.main.async { application.registerForRemoteNotifications() } }
         }
         return true
+    }
+
+    /// UIKit-Leisten (Navigationstitel, Segmente, Tab-Beschriftungen) ebenfalls in Manrope
+    private static func applyManropeToUIKit() {
+        let nav = UINavigationBar.appearance()
+        nav.titleTextAttributes = [.font: Manrope.uiFont(size: 17, weight: .bold, relativeTo: .headline)]
+        nav.largeTitleTextAttributes = [.font: Manrope.uiFont(size: 34, weight: .bold, relativeTo: .largeTitle)]
+        UIBarButtonItem.appearance().setTitleTextAttributes([.font: Manrope.uiFont(size: 17, weight: .medium)], for: .normal)
+        let seg = UISegmentedControl.appearance()
+        seg.setTitleTextAttributes([.font: Manrope.uiFont(size: 13, weight: .medium, relativeTo: .footnote)], for: .normal)
+        seg.setTitleTextAttributes([.font: Manrope.uiFont(size: 13, weight: .bold, relativeTo: .footnote)], for: .selected)
+        let tab = Manrope.uiFont(size: 10, weight: .semibold, relativeTo: .caption2)
+        UITabBarItem.appearance().setTitleTextAttributes([.font: tab], for: .normal)
+        UITabBarItem.appearance().setTitleTextAttributes([.font: tab], for: .selected)
+        UITextField.appearance().font = Manrope.uiFont(size: 17)
+        UITextView.appearance().font = Manrope.uiFont(size: 17)
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -68,6 +85,7 @@ struct WerkunoApp: App {
                 .environment(app)
                 .environment(router)
                 .tint(.moss)
+                .font(.wr(.body))
                 .onOpenURL { router.handle(url: $0) }
         }
     }

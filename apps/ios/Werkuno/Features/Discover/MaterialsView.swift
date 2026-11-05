@@ -86,20 +86,20 @@ struct MaterialsView: View {
             } label: {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: symbol(m.category?.slug))
-                        .font(.title3)
+                        .font(.wr(.title3))
                         .foregroundStyle(Color.slate)
                         .frame(width: 44, height: 44)
                         .background(Color.slate.opacity(0.1), in: .rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
-                            Text(m.name).font(.headline).foregroundStyle(Color.ink)
+                            Text(m.name).font(.wr(.headline)).foregroundStyle(Color.ink)
                             if m.safetyInfo?.nilIfEmpty != nil {
-                                Image(systemName: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Color.warn)
+                                Image(systemName: "exclamationmark.triangle.fill").font(.wr(.caption)).foregroundStyle(Color.warn)
                                     .accessibilityLabel("Mit Sicherheitshinweis")
                             }
                         }
                         Text([m.type, m.brand, m.category?.name].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(Color.muted).lineLimit(2)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2)
                         HStack(spacing: 10) {
                             if let u = m.unit?.nilIfEmpty { SpecLabel("Einheit \(u)") }
                             if let n = m.usedIn, n > 0 { SpecLabel("in \(Fmt.plural(n, "Projekt", "Projekten"))", color: .moss) }
@@ -107,7 +107,7 @@ struct MaterialsView: View {
                     }
                     Spacer(minLength: 0)
                     if hasDetails {
-                        Image(systemName: "chevron.down").font(.caption.weight(.semibold)).foregroundStyle(Color.muted)
+                        Image(systemName: "chevron.down").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
                             .rotationEffect(.degrees(open ? 180 : 0))
                     }
                 }
@@ -120,7 +120,7 @@ struct MaterialsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(props, id: \.key) { k, v in SpecRow(label: propertyLabel(k), value: v.discoverText) }
                     if let notes = m.notes?.nilIfEmpty {
-                        Text(notes).font(.subheadline).foregroundStyle(Color.ink2).padding(.vertical, 10)
+                        Text(notes).font(.wr(.subheadline)).foregroundStyle(Color.ink2).padding(.vertical, 10)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if let s = m.safetyInfo?.nilIfEmpty {

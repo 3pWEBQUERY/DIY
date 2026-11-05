@@ -29,7 +29,7 @@ struct SettingsView: View {
                 }
                 VStack(spacing: 4) {
                     Wordmark(size: 18)
-                    Text(MeAppInfo.version).font(.caption2).foregroundStyle(Color.muted)
+                    Text(MeAppInfo.version).font(.wr(.caption2)).foregroundStyle(Color.muted)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 6)
@@ -135,17 +135,17 @@ private struct MeProfileSettings: View {
                         .padding(.bottom, 24)
                     HStack(spacing: 8) {
                         SingleImagePicker(onUploaded: { id, url in avatarId = id; avatarURL = url; removeAvatar = false }) {
-                            Label("Profilbild", systemImage: "person.crop.circle.badge.plus").font(.subheadline.weight(.semibold))
+                            Label("Profilbild", systemImage: "person.crop.circle.badge.plus").font(.wr(.subheadline, .semibold))
                         }
                         .buttonStyle(.glass)
                         SingleImagePicker(onUploaded: { id, url in coverId = id; coverURL = url; removeCover = false }) {
-                            Label("Titelbild", systemImage: "photo.badge.plus").font(.subheadline.weight(.semibold))
+                            Label("Titelbild", systemImage: "photo.badge.plus").font(.wr(.subheadline, .semibold))
                         }
                         .buttonStyle(.glass)
                     }
                     HStack(spacing: 16) {
-                        if avatarURL != nil && !removeAvatar { Button("Profilbild entfernen", role: .destructive) { avatarId = nil; removeAvatar = true }.font(.caption) }
-                        if coverURL != nil && !removeCover { Button("Titelbild entfernen", role: .destructive) { coverId = nil; removeCover = true }.font(.caption) }
+                        if avatarURL != nil && !removeAvatar { Button("Profilbild entfernen", role: .destructive) { avatarId = nil; removeAvatar = true }.font(.wr(.caption)) }
+                        if coverURL != nil && !removeCover { Button("Titelbild entfernen", role: .destructive) { coverId = nil; removeCover = true }.font(.wr(.caption)) }
                     }
                     .buttonStyle(.borderless)
                 }
@@ -165,7 +165,7 @@ private struct MeProfileSettings: View {
                 }
                 if let s = handleStatus {
                     Label(s.text, systemImage: s.ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                        .font(.caption).foregroundStyle(s.ok ? Color.moss : Color.danger)
+                        .font(.wr(.caption)).foregroundStyle(s.ok ? Color.moss : Color.danger)
                 }
                 if let e = fields["handle"] { fieldError(e) }
             } header: { Text("Name & Handle") } footer: {
@@ -199,7 +199,7 @@ private struct MeProfileSettings: View {
                         }
                         TextField("https://…", text: $l.url)
                             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .font(.subheadline)
+                            .font(.wr(.subheadline))
                     }
                 }
                 if links.count < 6 {
@@ -216,7 +216,7 @@ private struct MeProfileSettings: View {
         .meFormStyle()
     }
 
-    private func fieldError(_ e: String) -> some View { Text(e).font(.caption).foregroundStyle(Color.danger) }
+    private func fieldError(_ e: String) -> some View { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
 
     private func load() async {
         do {
@@ -296,7 +296,7 @@ private struct MeAccountSettings: View {
         Form {
             Section {
                 HStack {
-                    Text(a.email).font(.system(.subheadline, design: .monospaced)).textSelection(.enabled)
+                    Text(a.email).font(.wr(.subheadline)).textSelection(.enabled)
                     Spacer()
                     MeStatePill(text: a.emailVerifiedAt == nil ? "Nicht bestätigt" : "Bestätigt", tone: a.emailVerifiedAt == nil ? .warn : .moss)
                 }
@@ -305,7 +305,7 @@ private struct MeAccountSettings: View {
                         await app.run("Wir haben dir einen neuen Bestätigungslink geschickt.") { _ = try await APIClient.shared.post("/auth/resend-verification") as JSONValue }
                     } label: { Label("Bestätigungslink erneut senden", systemImage: "envelope") }
                 }
-                if (a.providers ?? []).contains("apple") { Text("Du meldest dich (auch) mit Apple an.").font(.caption).foregroundStyle(Color.muted) }
+                if (a.providers ?? []).contains("apple") { Text("Du meldest dich (auch) mit Apple an.").font(.wr(.caption)).foregroundStyle(Color.muted) }
                 if let c = a.createdAt { LabeledContent("Mitglied seit", value: Fmt.date(c, style: .long)) }
             } header: { Text("E-Mail-Adresse") } footer: {
                 Text("An diese Adresse senden wir Sicherheitshinweise, Bestellbestätigungen und – falls aktiviert – Benachrichtigungen. Sie ist nie öffentlich sichtbar.")
@@ -314,12 +314,12 @@ private struct MeAccountSettings: View {
             Section {
                 if a.hasPassword {
                     SecureField("Aktuelles Passwort", text: $current).textContentType(.password)
-                    if let e = pwErrors["current"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+                    if let e = pwErrors["current"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 }
                 SecureField("Neues Passwort", text: $next).textContentType(.newPassword)
-                if let e = pwErrors["next"] ?? pwErrors["password"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+                if let e = pwErrors["next"] ?? pwErrors["password"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 SecureField("Neues Passwort wiederholen", text: $confirm).textContentType(.newPassword)
-                if !confirm.isEmpty && confirm != next { Text("Stimmt nicht überein").font(.caption).foregroundStyle(Color.danger) }
+                if !confirm.isEmpty && confirm != next { Text("Stimmt nicht überein").font(.wr(.caption)).foregroundStyle(Color.danger) }
                 AsyncButton { await changePassword(a) } label: { Text(a.hasPassword ? "Passwort ändern" : "Passwort festlegen").fontWeight(.semibold) }
                     .disabled(next.count < 10 || next != confirm || (a.hasPassword && current.isEmpty))
             } header: { Text(a.hasPassword ? "Passwort ändern" : "Passwort festlegen") } footer: {
@@ -330,7 +330,7 @@ private struct MeAccountSettings: View {
             Section {
                 if let exportURL {
                     ShareLink(item: exportURL) { Label("Export sichern oder teilen", systemImage: "square.and.arrow.up") }
-                    Text(exportURL.lastPathComponent).font(.caption).foregroundStyle(Color.muted)
+                    Text(exportURL.lastPathComponent).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 AsyncButton { await export() } label: {
                     Label(exportURL == nil ? "Datenexport erstellen (JSON)" : "Neu erstellen", systemImage: "arrow.down.doc")
@@ -433,7 +433,7 @@ private struct MeDeleteAccountSheet: View {
     }
 
     private func bullet(_ t: String) -> some View {
-        Label(t, systemImage: "circle.fill").labelStyle(MeBulletStyle()).font(.subheadline).foregroundStyle(Color.ink2)
+        Label(t, systemImage: "circle.fill").labelStyle(MeBulletStyle()).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
     }
 
     private func delete() async {
@@ -448,7 +448,7 @@ private struct MeDeleteAccountSheet: View {
 private struct MeBulletStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            configuration.icon.font(.system(size: 5)).foregroundStyle(Color.muted)
+            configuration.icon.font(.wr(size: 5)).foregroundStyle(Color.muted)
             configuration.title
         }
     }
@@ -479,19 +479,19 @@ private struct MeSecuritySettings: View {
                 ForEach(d.sessions) { s in
                     HStack(spacing: 12) {
                         Image(systemName: s.isApp == true || s.device.contains("iOS") ? "iphone" : s.device.contains("Android") ? "smartphone" : "desktopcomputer")
-                            .font(.title3).foregroundStyle(Color.ink2).frame(width: 34)
+                            .font(.wr(.title3)).foregroundStyle(Color.ink2).frame(width: 34)
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 6) {
-                                Text(s.device).font(.subheadline.weight(.semibold))
+                                Text(s.device).font(.wr(.subheadline, .semibold))
                                 if s.current == true { MeStatePill(text: "Dieses Gerät", tone: .moss) }
                             }
-                            Text("Zuletzt aktiv \(Fmt.relative(s.lastUsedAt)) · seit \(Fmt.date(s.createdAt))").font(.caption).foregroundStyle(Color.muted)
+                            Text("Zuletzt aktiv \(Fmt.relative(s.lastUsedAt)) · seit \(Fmt.date(s.createdAt))").font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                         Spacer(minLength: 4)
                         if s.current != true {
                             AsyncButton {
                                 if await app.run("Sitzung beendet.", { _ = try await APIClient.shared.delete("/settings/sessions/\(s.key)") as JSONValue }) { await load() }
-                            } label: { Text("Beenden").font(.footnote.weight(.semibold)) }
+                            } label: { Text("Beenden").font(.wr(.footnote, .semibold)) }
                             .buttonStyle(.glass)
                             .controlSize(.small)
                             .accessibilityLabel("Sitzung \(s.device) beenden")
@@ -513,7 +513,7 @@ private struct MeSecuritySettings: View {
                 } else {
                     ForEach(d.events) { e in
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(e.text).font(.subheadline)
+                            Text(e.text).font(.wr(.subheadline))
                             Text(Fmt.relative(e.createdAt)).specStyle()
                         }
                         .padding(.vertical, 2)
@@ -537,7 +537,7 @@ private struct MeSecuritySettings: View {
     }
 
     private func tip(_ t: String) -> some View {
-        Label { Text(t).font(.subheadline) } icon: { Image(systemName: "checkmark.shield").foregroundStyle(Color.moss) }
+        Label { Text(t).font(.wr(.subheadline)) } icon: { Image(systemName: "checkmark.shield").foregroundStyle(Color.moss) }
     }
 
     private func load() async {
@@ -610,8 +610,8 @@ private struct MeNotificationSettingsView: View {
                     let isLocked = locked.contains(type)
                     HStack {
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(label).font(.subheadline)
-                            if isLocked { Text("Immer in der App").font(.caption2).foregroundStyle(Color.muted) }
+                            Text(label).font(.wr(.subheadline))
+                            if isLocked { Text("Immer in der App").font(.wr(.caption2)).foregroundStyle(Color.muted) }
                         }
                         Spacer()
                         Toggle(label + " in der App", isOn: binding(type, \.inApp))
@@ -795,15 +795,15 @@ private struct MeRelationRow: View {
                 HStack(spacing: 10) {
                     AvatarView(url: p?.avatarUrl, name: p?.displayName ?? "?", size: 34)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(p?.displayName ?? "Unbekannt").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                        Text(p?.displayName ?? "Unbekannt").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         Text([p?.handle.map { "@\($0)" }, entry.createdAt.map { "seit \(Fmt.date($0))" }].compactMap { $0 }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(Color.muted)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
             }
             .buttonStyle(.plain)
             Spacer()
-            AsyncButton { await perform() } label: { Text(action).font(.footnote.weight(.semibold)) }
+            AsyncButton { await perform() } label: { Text(action).font(.wr(.footnote, .semibold)) }
                 .buttonStyle(.glass)
                 .controlSize(.small)
         }
@@ -901,10 +901,10 @@ private struct MeSupportView: View {
                     ForEach(L.supportTopics, id: \.key) { Text($0.label).tag($0.key) }
                 }
                 TextField("Betreff", text: $subject)
-                if let e = fields["subject"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+                if let e = fields["subject"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 TextField("Beschreibe dein Anliegen", text: $message, axis: .vertical).lineLimit(5...14)
                 MeCharCounter(count: message.trimmed.count, min: 20, max: 5000)
-                if let e = fields["body"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+                if let e = fields["body"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 AsyncButton { await submit() } label: { Text("Anfrage senden").fontWeight(.semibold) }
                     .disabled(subject.trimmed.count < 4 || message.trimmed.count < 20 || message.count > 5000)
             } header: { Text("Neue Anfrage") } footer: {
@@ -919,9 +919,9 @@ private struct MeSupportView: View {
                         ForEach(tickets) { t in
                             HStack(alignment: .firstTextBaseline) {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(t.subject).font(.subheadline.weight(.semibold))
+                                    Text(t.subject).font(.wr(.subheadline, .semibold))
                                     Text([L.supportTopics.first { $0.key == t.topic }?.label, Fmt.date(t.createdAt), "#\(t.id.suffix(6).uppercased())"].compactMap { $0 }.joined(separator: " · "))
-                                        .font(.caption).foregroundStyle(Color.muted)
+                                        .font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }
                                 Spacer()
                                 MeStatePill(text: L.supportStatus[t.status ?? ""] ?? (t.status ?? ""), tone: t.status == "CLOSED" ? .neutral : t.status == "WAITING" ? .warn : .moss)
@@ -980,8 +980,8 @@ private struct MeDeveloperSettings: View {
                 .labelsHidden()
             } header: { Text("Server-Umgebung") } footer: { Text("Beim Wechsel wirst du abgemeldet, weil Konten je Server getrennt sind.") }
             Section {
-                LabeledContent("Basis-URL") { Text(AppConfig.baseURL.absoluteString).font(.system(.footnote, design: .monospaced)).textSelection(.enabled) }
-                LabeledContent("App-API") { Text("/api/v1/app").font(.system(.footnote, design: .monospaced)) }
+                LabeledContent("Basis-URL") { Text(AppConfig.baseURL.absoluteString).font(.wr(.footnote)).textSelection(.enabled) }
+                LabeledContent("App-API") { Text("/api/v1/app").font(.wr(.footnote)) }
                 LabeledContent("App", value: MeAppInfo.version)
             } header: { Text("Verbindung") }
             Section {

@@ -54,9 +54,9 @@ struct ConversationView: View {
                         HStack(spacing: 8) {
                             AvatarView(url: other.avatarUrl, name: other.displayName, size: 28)
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(other.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                                Text(other.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
                                 Text(thread?.kind == "ORDER" ? "@\(other.handle) · Bestellung" : "@\(other.handle)")
-                                    .font(.caption2).foregroundStyle(Color.muted).lineLimit(1)
+                                    .font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(1)
                             }
                         }
                     }
@@ -94,7 +94,7 @@ struct ConversationView: View {
                     }
                     if hasMore {
                         Button { Task { await loadOlder() } } label: {
-                            if loadingOlder { ProgressView().controlSize(.small) } else { Text("Ältere Nachrichten laden").font(.footnote.weight(.semibold)) }
+                            if loadingOlder { ProgressView().controlSize(.small) } else { Text("Ältere Nachrichten laden").font(.wr(.footnote, .semibold)) }
                         }
                         .buttonStyle(.glass)
                         .frame(maxWidth: .infinity)
@@ -102,7 +102,7 @@ struct ConversationView: View {
                         .disabled(loadingOlder)
                     }
                     if messages.isEmpty {
-                        Text("Noch keine Nachrichten.").font(.subheadline).foregroundStyle(Color.muted)
+                        Text("Noch keine Nachrichten.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                             .frame(maxWidth: .infinity).padding(.top, 40)
                     }
                     ForEach(Array(messages.enumerated()), id: \.element.id) { i, m in
@@ -123,7 +123,7 @@ struct ConversationView: View {
                         .id(m.id)
                         if m.id == lastMine?.id {
                             Text(receipt)
-                                .font(.caption2)
+                                .font(.wr(.caption2))
                                 .foregroundStyle(Color.muted)
                                 .frame(maxWidth: .infinity, alignment: .trailing)
                                 .contentTransition(.opacity)
@@ -187,7 +187,7 @@ struct ConversationView: View {
                 requestBanner(other)
             } else if otherPending, let q = t.requestQuotaLeft {
                 Text("Deine Nachricht wurde als Kontaktanfrage zugestellt. Bis \(t.other?.displayName ?? "die Person") annimmt, kannst du \(q > 0 ? "noch höchstens \(Fmt.plural(q, "Nachricht", "Nachrichten"))" : "keine weiteren Nachrichten") senden.")
-                    .font(.caption)
+                    .font(.wr(.caption))
                     .foregroundStyle(Color.muted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Space.gutter)
@@ -196,7 +196,7 @@ struct ConversationView: View {
                 composer(t)
             } else {
                 Label(disabledReason(t), systemImage: "lock")
-                    .font(.footnote)
+                    .font(.wr(.footnote))
                     .foregroundStyle(Color.ink2)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 12)
@@ -218,19 +218,19 @@ struct ConversationView: View {
     private func requestBanner(_ other: SocialThread.Other) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("**\(other.displayName)** möchte dir schreiben. \(other.displayName) sieht nicht, ob du die Nachricht gelesen hast, bis du annimmst.")
-                .font(.footnote)
+                .font(.wr(.footnote))
                 .foregroundStyle(Color.ink2)
                 .fixedSize(horizontal: false, vertical: true)
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
-                    Button { Task { await respond(true) } } label: { Text("Annehmen").font(.subheadline.weight(.semibold)).padding(.horizontal, 6) }
+                    Button { Task { await respond(true) } } label: { Text("Annehmen").font(.wr(.subheadline, .semibold)).padding(.horizontal, 6) }
                         .buttonStyle(.glassProminent)
                         .tint(.moss)
-                    Button { Task { await respond(false) } } label: { Text("Ablehnen").font(.subheadline).padding(.horizontal, 6) }
+                    Button { Task { await respond(false) } } label: { Text("Ablehnen").font(.wr(.subheadline)).padding(.horizontal, 6) }
                         .buttonStyle(.glass)
                     Spacer(minLength: 0)
                     Button { router.present(.report(targetType: "USER", targetId: other.id, title: "\(other.displayName) melden")) } label: {
-                        Label("Melden", systemImage: "flag").font(.subheadline)
+                        Label("Melden", systemImage: "flag").font(.wr(.subheadline))
                     }
                     .buttonStyle(.glass)
                 }
@@ -248,7 +248,7 @@ struct ConversationView: View {
             HStack(alignment: .bottom, spacing: 8) {
                 PhotosPicker(selection: $picks, maxSelectionCount: max(1, Self.maxImages - attachments.count), matching: .images) {
                     Image(systemName: "photo")
-                        .font(.body)
+                        .font(.wr(.body))
                         .foregroundStyle(attachments.count >= Self.maxImages ? Color.muted : Color.ink2)
                         .frame(width: 36, height: 36)
                         .contentShape(.circle)
@@ -265,7 +265,7 @@ struct ConversationView: View {
                 Button { Task { await send() } } label: {
                     ZStack {
                         if sending { ProgressView().tint(Color.paper).controlSize(.small) }
-                        else { Image(systemName: "arrow.up").font(.subheadline.weight(.bold)) }
+                        else { Image(systemName: "arrow.up").font(.wr(.subheadline, .bold)) }
                     }
                     .frame(width: 36, height: 36)
                 }
@@ -302,7 +302,7 @@ struct ConversationView: View {
                             }
                         }
                         Button { withAnimation(.snappy) { attachments.removeAll { $0.id == a.id } } } label: {
-                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
+                            Image(systemName: "xmark").font(.wr(size: 9, weight: .bold)).foregroundStyle(.white)
                                 .frame(width: 20, height: 20).background(.black.opacity(0.6), in: Circle())
                         }
                         .padding(3)
@@ -513,7 +513,7 @@ private struct SocialMessageBubble: View {
             }
             if showTime {
                 Text(SocialFmt.time(m.createdAt))
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.wr(size: 10))
                     .foregroundStyle(Color.muted)
                     .padding(.horizontal, 6)
             }
@@ -535,7 +535,7 @@ private struct SocialMessageBubble: View {
         )
         if m.isRemoved {
             Text("Diese Nachricht wurde entfernt.")
-                .font(.subheadline.italic())
+                .font(.wr(.subheadline).italic())
                 .foregroundStyle(Color.muted)
                 .padding(.horizontal, 14).padding(.vertical, 9)
                 .overlay(shape.strokeBorder(Color.lineStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -544,7 +544,7 @@ private struct SocialMessageBubble: View {
                 if !m.media.isEmpty { images }
                 if !m.body.isEmpty {
                     Text(m.body)
-                        .font(.body)
+                        .font(.wr(.body))
                         .foregroundStyle(m.mine ? Color.paper : Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
@@ -605,7 +605,7 @@ private struct SocialPaymentWarning: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.shield.fill").foregroundStyle(Color.warn)
             Text("**Vorsicht:** Diese Nachricht erwähnt eine Zahlung ausserhalb von Werkuno (z. B. TWINT, IBAN, PayPal-Link oder Kurzlink). Bezahle nur über den Checkout – nur dann bist du geschützt. Teile keine Zugangsdaten.")
-                .font(.caption)
+                .font(.wr(.caption))
                 .foregroundStyle(Color.ink2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -626,7 +626,7 @@ struct SocialThreadContextCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 if context.isOrder { order } else { product }
                 Text("Zahlungen nur über den Werkuno-Checkout – nur dann gilt der Käuferschutz.")
-                    .font(.caption2)
+                    .font(.wr(.caption2))
                     .foregroundStyle(Color.clayInk)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -659,12 +659,12 @@ struct SocialThreadContextCard: View {
                             .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.paper, lineWidth: 1.5))
                     }
                 }
-                Text(itemsLine).font(.footnote).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(itemsLine).font(.wr(.footnote)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(Fmt.money(context.totalMinor, currency: context.currency)).font(.footnote.weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                    Text(Fmt.money(context.totalMinor, currency: context.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                     if let r = context.role {
-                        Label(r == "seller" ? "Verwalten" : "Details", systemImage: "arrow.up.right").font(.caption2.weight(.semibold)).labelStyle(.compact).foregroundStyle(Color.clayInk)
+                        Label(r == "seller" ? "Verwalten" : "Details", systemImage: "arrow.up.right").font(.wr(.caption2, .semibold)).labelStyle(.compact).foregroundStyle(Color.clayInk)
                     }
                 }
             }
@@ -677,11 +677,11 @@ struct SocialThreadContextCard: View {
             thumb(context.coverUrl, seed: context.title ?? "p").frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 SpecLabel("Anfrage zu Produkt · \(context.shop?.name ?? "")", color: .clayInk)
-                Text(context.title ?? "Produkt").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(context.title ?? "Produkt").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
             }
             Spacer(minLength: 4)
-            Text(Fmt.money(context.priceMinor, currency: context.currency)).font(.footnote.weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
-            Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(Color.clayInk)
+            Text(Fmt.money(context.priceMinor, currency: context.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
+            Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.clayInk)
         }
         .padding(12)
     }

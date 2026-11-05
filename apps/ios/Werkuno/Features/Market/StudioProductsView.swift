@@ -87,10 +87,10 @@ struct StudioProductsView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 8) {
                             MarketStatusPill.product(p.status)
-                            Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.footnote.weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink2)
+                            Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink2)
                         }
                         HStack(spacing: 10) {
                             if p.kind != "DIGITAL" {
@@ -101,7 +101,7 @@ struct StudioProductsView: View {
                             Label(Fmt.number(p.saveCount), systemImage: "bookmark").labelStyle(.compact).accessibilityLabel("\(p.saveCount ?? 0) Mal gemerkt")
                             Label(Fmt.number(p.sold), systemImage: "bag").labelStyle(.compact).accessibilityLabel("\(p.sold) verkauft")
                         }
-                        .font(.caption).foregroundStyle(Color.muted)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
                 .contentShape(.rect)
@@ -157,7 +157,7 @@ struct MarketNoShopCTA: View {
                 .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
             Text("Verkaufe, was du machst.").font(.display(24))
             Text("Eröffne deinen Shop in wenigen Schritten. Du zahlst keine Grundgebühr – nur eine Provision von \(Fmt.percent(bps: app.feeBps)) auf den Warenwert, wenn etwas verkauft wird.")
-                .font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
             Button { router.present(.shopWizard) } label: { Label("Shop eröffnen", systemImage: "storefront") }
                 .primaryButton()
         }

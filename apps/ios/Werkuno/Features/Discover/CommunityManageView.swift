@@ -177,9 +177,9 @@ struct CommunityManageView: View {
                         .frame(width: 54, height: 54)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(p.community.name).font(.headline)
+                        Text(p.community.name).font(.wr(.headline))
                         Text("\(L.communityVisibility.first { $0.key == p.community.visibility }?.label ?? "") · \(Fmt.plural(p.community.memberCount ?? 0, "Mitglied", "Mitglieder"))")
-                            .font(.caption).foregroundStyle(Color.muted)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
                 if isManager {
@@ -197,7 +197,7 @@ struct CommunityManageView: View {
                 ForEach(m.requests) { r in
                     VStack(alignment: .leading, spacing: 8) {
                         CommunityMemberLine(member: r)
-                        if let b = r.bio?.nilIfEmpty { Text(b).font(.caption).foregroundStyle(Color.muted).lineLimit(2) }
+                        if let b = r.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
                         HStack {
                             AsyncButton { await decide(r, approve: true) } label: { Text("Annehmen").frame(maxWidth: .infinity) }
                                 .buttonStyle(.glassProminent).tint(.moss)
@@ -250,8 +250,8 @@ struct CommunityManageView: View {
                 Section {
                     ForEach($rules) { $r in
                         VStack(alignment: .leading, spacing: 6) {
-                            TextField("Titel der Regel", text: $r.title).font(.headline)
-                            TextField("Erläuterung (optional)", text: $r.body, axis: .vertical).font(.subheadline).lineLimit(1...5)
+                            TextField("Titel der Regel", text: $r.title).font(.wr(.headline))
+                            TextField("Erläuterung (optional)", text: $r.body, axis: .vertical).font(.wr(.subheadline)).lineLimit(1...5)
                         }
                         .onChange(of: r) { rulesDirty = true }
                     }
@@ -272,10 +272,10 @@ struct CommunityManageView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
                             AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 24)
-                            Text(post.author.displayName).font(.subheadline.weight(.semibold))
-                            Text(Fmt.relative(post.publishedAt)).font(.caption).foregroundStyle(Color.muted)
+                            Text(post.author.displayName).font(.wr(.subheadline, .semibold))
+                            Text(Fmt.relative(post.publishedAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
-                        Text(post.body.nilIfEmpty ?? "Medienbeitrag").font(.subheadline).foregroundStyle(Color.ink2).lineLimit(4)
+                        Text(post.body.nilIfEmpty ?? "Medienbeitrag").font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(4)
                         AsyncButton("Wiederherstellen") { await restore(post) }.buttonStyle(.glass)
                     }
                 }
@@ -285,11 +285,11 @@ struct CommunityManageView: View {
                 ForEach(m.challenges) { c in
                     VStack(alignment: .leading, spacing: 3) {
                         HStack {
-                            Text(c.title).font(.headline)
+                            Text(c.title).font(.wr(.headline))
                             if c.isRunning { Pill(text: "Läuft", tint: .clay) }
                         }
-                        Text("\(Fmt.date(c.startsAt)) – \(Fmt.date(c.endsAt))").font(.caption).foregroundStyle(Color.muted)
-                        if let d = c.description?.nilIfEmpty { Text(d).font(.caption).foregroundStyle(Color.ink2).lineLimit(2) }
+                        Text("\(Fmt.date(c.startsAt)) – \(Fmt.date(c.endsAt))").font(.wr(.caption)).foregroundStyle(Color.muted)
+                        if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
                     }
                     .swipeActions { Button("Löschen", role: .destructive) { Task { await deleteChallenge(c) } } }
                     .contextMenu { Button("Challenge löschen", systemImage: "trash", role: .destructive) { Task { await deleteChallenge(c) } } }
@@ -302,17 +302,17 @@ struct CommunityManageView: View {
                 ForEach(m.log) { e in
                     VStack(alignment: .leading, spacing: 3) {
                         HStack {
-                            Text(e.label).font(.subheadline.weight(.semibold))
-                            if let d = e.detail?.nilIfEmpty { Text(L.communityRoles[d] ?? L.communityVisibility.first { $0.key == d }?.label ?? d).font(.caption).foregroundStyle(Color.muted) }
+                            Text(e.label).font(.wr(.subheadline, .semibold))
+                            if let d = e.detail?.nilIfEmpty { Text(L.communityRoles[d] ?? L.communityVisibility.first { $0.key == d }?.label ?? d).font(.wr(.caption)).foregroundStyle(Color.muted) }
                             Spacer()
-                            Text(Fmt.relative(e.at)).font(.caption).foregroundStyle(Color.muted)
+                            Text(Fmt.relative(e.at)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
-                        if let t = e.target?.nilIfEmpty { Text(t).font(.caption).foregroundStyle(Color.ink2).lineLimit(2) }
+                        if let t = e.target?.nilIfEmpty { Text(t).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
                         HStack(spacing: 4) {
                             if let mod = e.moderator?.displayName { Text("von \(mod)") }
                             if let r = e.reason?.nilIfEmpty { Text("· „\(r)“") }
                         }
-                        .font(.caption2).foregroundStyle(Color.muted)
+                        .font(.wr(.caption2)).foregroundStyle(Color.muted)
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -364,7 +364,7 @@ struct CommunityManageView: View {
                     Button("Sperren …", systemImage: "hand.raised", role: .destructive) { removeTarget = (mem, true) }
                 }
             } label: {
-                Image(systemName: "ellipsis.circle").font(.title3).foregroundStyle(Color.muted).frame(width: 44, height: 44)
+                Image(systemName: "ellipsis.circle").font(.wr(.title3)).foregroundStyle(Color.muted).frame(width: 44, height: 44)
             }
             .accessibilityLabel("Aktionen für \(mem.displayName)")
         ))

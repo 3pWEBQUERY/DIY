@@ -190,11 +190,11 @@ struct ShopWizardSheet: View {
             MarketWizardField(title: "Name des Shops", text: $name, error: fields["name"], prompt: "z. B. Lenas Maschen")
                 .onChange(of: name) { _, v in if !slugTouched && !slugLocked { slug = MarketSlug.make(v) } }
             VStack(alignment: .leading, spacing: 6) {
-                Text("Shop-Adresse").font(.subheadline.weight(.semibold))
+                Text("Shop-Adresse").font(.wr(.subheadline, .semibold))
                 HStack(spacing: 0) {
-                    Text("werkuno …/markt/").font(.subheadline.monospaced()).foregroundStyle(Color.muted)
+                    Text("werkuno …/markt/").font(.wr(.subheadline).monospaced()).foregroundStyle(Color.muted)
                     TextField("dein-shop", text: $slug)
-                        .font(.subheadline.monospaced())
+                        .font(.wr(.subheadline).monospaced())
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .disabled(slugLocked)
@@ -203,10 +203,10 @@ struct ShopWizardSheet: View {
                 .padding(12)
                 .cardSurface(radius: Radius.inner)
                 if slugLocked {
-                    Text("Die Adresse bleibt nach der Einreichung stabil, damit geteilte Links nicht brechen.").font(.caption).foregroundStyle(Color.muted)
+                    Text("Die Adresse bleibt nach der Einreichung stabil, damit geteilte Links nicht brechen.").font(.wr(.caption)).foregroundStyle(Color.muted)
                 } else if let s = slugState {
                     Label(s.message ?? (s.ok ? "Verfügbar" : "Nicht verfügbar"), systemImage: s.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .font(.caption).foregroundStyle(s.ok ? Color.moss : Color.danger)
+                        .font(.wr(.caption)).foregroundStyle(s.ok ? Color.moss : Color.danger)
                 }
                 MarketFieldError(text: fields["slug"])
             }
@@ -220,13 +220,13 @@ struct ShopWizardSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Angaben für Käufer:innen und Zahlungsanbieter.").font(.display(24))
             VStack(alignment: .leading, spacing: 6) {
-                Text("Du verkaufst als").font(.subheadline.weight(.semibold))
+                Text("Du verkaufst als").font(.wr(.subheadline, .semibold))
                 Picker("Verkäufertyp", selection: $sellerType) {
                     ForEach(L.sellerType, id: \.key) { Text($0.label).tag($0.key) }
                 }
                 .pickerStyle(.segmented)
                 Text(sellerType == "BUSINESS" ? "Gewerbliche Shops weisen Firmenname und – falls vorhanden – MWST-Nummer aus." : "Als Privatperson verkaufst du gelegentlich eigene Arbeiten.")
-                    .font(.caption).foregroundStyle(Color.muted)
+                    .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             MarketWizardField(title: "Rechtlicher Name", text: $legalName, error: fields["legalName"], prompt: "Vor- und Nachname")
             if sellerType == "BUSINESS" {
@@ -239,14 +239,14 @@ struct ShopWizardSheet: View {
                 MarketWizardField(title: "Ort", text: $city, error: fields["city"], prompt: "Zürich")
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("Land").font(.subheadline.weight(.semibold))
+                Text("Land").font(.wr(.subheadline, .semibold))
                 Picker("Land", selection: $country) {
                     ForEach(L.shipCountries, id: \.key) { Text($0.label).tag($0.key) }
                 }
                 .pickerStyle(.segmented)
             }
             Text("Diese Angaben werden für die Verifizierung genutzt. Öffentlich sichtbar sind bei gewerblichen Shops Firmenname, Adresse und MWST-Nummer.")
-                .font(.caption).foregroundStyle(Color.muted)
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
         }
     }
 
@@ -258,12 +258,12 @@ struct ShopWizardSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Stepper(value: $processingDays, in: 0...120) {
                     HStack {
-                        Text("Bearbeitungszeit").font(.subheadline.weight(.semibold))
+                        Text("Bearbeitungszeit").font(.wr(.subheadline, .semibold))
                         Spacer()
-                        Text(Fmt.plural(processingDays, "Werktag", "Werktage")).font(.subheadline).monospacedDigit().foregroundStyle(Color.ink2)
+                        Text(Fmt.plural(processingDays, "Werktag", "Werktage")).font(.wr(.subheadline)).monospacedDigit().foregroundStyle(Color.ink2)
                     }
                 }
-                Text("So lange brauchst du in der Regel bis zum Versand.").font(.caption).foregroundStyle(Color.muted)
+                Text("So lange brauchst du in der Regel bis zum Versand.").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(14)
             .cardSurface(radius: Radius.inner)
@@ -285,7 +285,7 @@ struct ShopWizardSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionHeader("Provision – transparent", subtitle: "Bevor du etwas verkaufst, sollst du wissen, was es kostet.")
                 Text("Werkuno behält eine Plattformprovision von \(Fmt.percent(bps: fee)) auf den Warenwert ein – nur bei abgeschlossenen Verkäufen, nicht auf den Versand. Gebühren des Zahlungsanbieters (Stripe) kommen separat dazu. Es gibt keine Grundgebühr und keine bezahlten Platzierungen.")
-                    .font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
                 let example = 5000
                 let f = MarketFee.platformFee(subtotal: example, bps: fee)
                 VStack(spacing: 6) {
@@ -300,7 +300,7 @@ struct ShopWizardSheet: View {
                 NoticeView(tone: .warn, title: "E-Mail bestätigen", message: "Bitte bestätige zuerst deine E-Mail-Adresse. Du kannst den Shop bis dahin als Entwurf speichern.")
             }
             Text("Mit dem Einreichen bestätigst du die Verkäuferbedingungen und die Marktplatz-Richtlinien. Nach der Verifizierung ist dein Shop öffentlich.")
-                .font(.caption).foregroundStyle(Color.muted)
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
         }
     }
 
@@ -309,18 +309,18 @@ struct ShopWizardSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             if verified {
                 VStack(alignment: .leading, spacing: 10) {
-                    Image(systemName: "checkmark.seal.fill").font(.system(size: 44)).foregroundStyle(Color.moss)
+                    Image(systemName: "checkmark.seal.fill").font(.wr(size: 44)).foregroundStyle(Color.moss)
                     Text("Dein Shop ist aktiv.").font(.display(26))
-                    Text("Du kannst jetzt Produkte veröffentlichen. Lege dein erstes Angebot im Creator Studio unter „Produkte“ an.").font(.subheadline).foregroundStyle(Color.ink2)
+                    Text("Du kannst jetzt Produkte veröffentlichen. Lege dein erstes Angebot im Creator Studio unter „Produkte“ an.").font(.wr(.subheadline)).foregroundStyle(Color.ink2)
                 }
                 Button { dismiss() } label: { Text("Fertig").frame(maxWidth: .infinity) }.primaryButton()
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Verifizierung").font(.display(26))
                     Text("Damit Käufer:innen dir vertrauen können und Auszahlungen sicher ankommen, prüfen wir deine Angaben. Erst danach ist dein Shop öffentlich.")
-                        .font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                        .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
                 }
-                if let s = shop { HStack { Text("Status").font(.subheadline).foregroundStyle(Color.muted); Spacer(); MarketStatusPill.shop(s.status) } }
+                if let s = shop { HStack { Text("Status").font(.wr(.subheadline)).foregroundStyle(Color.muted); Spacer(); MarketStatusPill.shop(s.status) } }
                 if let n = shop?.verification?.notes?.nilIfEmpty { NoticeView(tone: .info, message: n) }
                 switch mode {
                 case "simulated":
@@ -329,7 +329,7 @@ struct ShopWizardSheet: View {
                         .primaryButton()
                 case "stripe":
                     Text("Die Verifizierung läuft über Stripe Connect: Identität, Bankkonto und – bei gewerblichen Shops – Firmenangaben. Das dauert meist wenige Minuten.")
-                        .font(.footnote).foregroundStyle(Color.muted)
+                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
                     AsyncButton { await startStripe() } label: { Label(shop?.stripeAccountId == nil ? "Mit Stripe verifizieren" : "Stripe-Onboarding fortsetzen", systemImage: "lock.shield") }
                         .primaryButton()
                     if shop?.stripeAccountId != nil {
@@ -484,7 +484,7 @@ struct MarketWizardField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.subheadline.weight(.semibold))
+            Text(title).font(.wr(.subheadline, .semibold))
             TextField(prompt, text: $text, axis: axis)
                 .lineLimit(axis == .vertical ? 3...10 : 1...1)
                 .padding(12)

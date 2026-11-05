@@ -165,8 +165,8 @@ struct SearchView: View {
             withAnimation(.snappy) { type = t }
         } label: {
             HStack(spacing: 5) {
-                Text(label).font(.subheadline.weight(on ? .semibold : .regular))
-                if let count, response != nil { Text("\(count)").font(.caption.monospacedDigit()).opacity(0.7) }
+                Text(label).font(.wr(.subheadline).weight(on ? .semibold : .regular))
+                if let count, response != nil { Text("\(count)").font(.wr(.caption).monospacedDigit()).opacity(0.7) }
             }
             .foregroundStyle(on ? Color.paper : Color.ink)
             .padding(.horizontal, 13).padding(.vertical, 8)
@@ -244,9 +244,9 @@ struct SearchView: View {
     private var activeFilterBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "line.3.horizontal.decrease.circle.fill").foregroundStyle(Color.clay)
-            Text(Fmt.plural(filters.activeCount, "Filter aktiv", "Filter aktiv")).font(.footnote.weight(.medium))
+            Text(Fmt.plural(filters.activeCount, "Filter aktiv", "Filter aktiv")).font(.wr(.footnote, .medium))
             Spacer()
-            Button("Zurücksetzen") { withAnimation { filters = DiscoverSearchFilters() } }.font(.footnote.weight(.semibold))
+            Button("Zurücksetzen") { withAnimation { filters = DiscoverSearchFilters() } }.font(.wr(.footnote, .semibold))
         }
         .padding(12)
         .background(Color.claySoft, in: .rect(cornerRadius: Radius.inner, style: .continuous))
@@ -285,7 +285,7 @@ struct SearchView: View {
     private func tip(_ symbol: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: symbol).foregroundStyle(Color.moss).frame(width: 20)
-            Text(text).font(.footnote).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+            Text(text).font(.wr(.footnote)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -296,7 +296,7 @@ struct SearchView: View {
             if !recent.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     SectionHeader("Zuletzt gesucht") {
-                        Button("Löschen") { withAnimation { recentRaw = "" } }.font(.footnote.weight(.semibold)).foregroundStyle(Color.muted)
+                        Button("Löschen") { withAnimation { recentRaw = "" } }.font(.wr(.footnote, .semibold)).foregroundStyle(Color.muted)
                     }
                     VStack(spacing: 0) {
                         ForEach(recent, id: \.self) { term in
@@ -315,7 +315,7 @@ struct SearchView: View {
                                 .buttonStyle(.plain)
                                 Button {
                                     withAnimation { recentRaw = recent.filter { $0 != term }.joined(separator: "\n") }
-                                } label: { Image(systemName: "xmark").font(.caption).foregroundStyle(Color.muted).frame(width: 44, height: 44) }
+                                } label: { Image(systemName: "xmark").font(.wr(.caption)).foregroundStyle(Color.muted).frame(width: 44, height: 44) }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel("\(term) entfernen")
                             }
@@ -339,7 +339,7 @@ struct SearchView: View {
             }
             .padding(.horizontal, Space.gutter)
             if q.count == 1 {
-                Text("Tippe mindestens zwei Zeichen, damit wir suchen können.").font(.footnote).foregroundStyle(Color.muted)
+                Text("Tippe mindestens zwei Zeichen, damit wir suchen können.").font(.wr(.footnote)).foregroundStyle(Color.muted)
                     .padding(.horizontal, Space.gutter)
             }
         }
@@ -355,7 +355,7 @@ struct SearchView: View {
                             Image(systemName: CategoryPalette.symbol(for: c.glyph)).foregroundStyle(CategoryPalette.color(for: c.slug))
                             Text(c.short).foregroundStyle(Color.ink)
                         }
-                        .font(.subheadline)
+                        .font(.wr(.subheadline))
                         .padding(.horizontal, 12).padding(.vertical, 9)
                         .background(CategoryPalette.soft(for: c.slug), in: Capsule())
                     }
@@ -371,7 +371,7 @@ struct SearchView: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: symbol).foregroundStyle(Color.moss).frame(width: 22)
-                Text(title).font(.subheadline.weight(.medium)).foregroundStyle(Color.ink)
+                Text(title).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
@@ -394,14 +394,14 @@ struct DiscoverSearchHitRow: View {
             HStack(spacing: 12) {
                 thumb
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(hit.title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    if let s = subtitle { Text(s).font(.caption).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                    Text(hit.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    if let s = subtitle { Text(s).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
                 }
                 Spacer(minLength: 0)
                 if let price = hit.meta?["priceMinor"]?.int {
-                    Text(Fmt.money(price, currency: hit.meta?["currency"]?.string)).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                    Text(Fmt.money(price, currency: hit.meta?["currency"]?.string)).font(.wr(.subheadline, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                 } else {
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.lineStrong)
+                    Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
                 }
             }
             .padding(.vertical, 10)
@@ -416,7 +416,7 @@ struct DiscoverSearchHitRow: View {
         case "user":
             AvatarView(url: hit.cover, name: hit.title, size: 46)
         case "post":
-            Image(systemName: "text.bubble").font(.title3).foregroundStyle(Color.moss)
+            Image(systemName: "text.bubble").font(.wr(.title3)).foregroundStyle(Color.moss)
                 .frame(width: 46, height: 46).background(Color.mossSoft, in: .rect(cornerRadius: Radius.small, style: .continuous))
         default:
             CoverView(url: hit.cover, seed: hit.id, category: hit.category, showLabel: false)

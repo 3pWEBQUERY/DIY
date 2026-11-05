@@ -73,7 +73,7 @@ struct ProductDetailView: View {
                     if needsVariant(p) { variantPicker(p) }
                     if !p.isDigital && !(p.isOwner ?? false) && (p.purchasable ?? false) { quantityRow(p) }
                     if let d = p.description?.nilIfEmpty {
-                        Text(d).font(.body).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                        Text(d).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
                     }
                     dataSheet(p)
                     if let s = p.safetyInfo?.nilIfEmpty {
@@ -134,24 +134,24 @@ struct ProductDetailView: View {
             Text(p.title).font(.display(30)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(Fmt.money(unitPrice(p), currency: p.currency)).font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                Text(Fmt.money(unitPrice(p), currency: p.currency)).font(.wr(.title2, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                     .contentTransition(.numericText())
                 if !p.isDigital {
                     Text((p.shippingMinor ?? 0) == 0 ? "Versand kostenlos" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand")
-                        .font(.footnote).foregroundStyle(Color.muted)
+                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
                 }
             }
             HStack(spacing: 12) {
                 if let n = p.ratingCount, n > 0, let r = p.ratingAvg {
                     HStack(spacing: 5) {
                         MarketStars(rating: r)
-                        Text("\(String(format: "%.1f", r)) · \(Fmt.plural(n, "Bewertung", "Bewertungen"))").font(.caption).foregroundStyle(Color.muted)
+                        Text("\(String(format: "%.1f", r)) · \(Fmt.plural(n, "Bewertung", "Bewertungen"))").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
                 Button { router.open(.shop(slug: p.shop.slug)) } label: {
                     HStack(spacing: 6) {
                         AvatarView(url: p.shop.owner?.profile?.avatarUrl, name: p.shop.owner?.displayName ?? p.shop.name, size: 20)
-                        Text(p.shop.name).font(.footnote.weight(.semibold)).foregroundStyle(Color.ink2)
+                        Text(p.shop.name).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink2)
                     }
                 }
                 .buttonStyle(.plain)
@@ -195,9 +195,9 @@ struct ProductDetailView: View {
                         withAnimation(.snappy) { variantId = v.id; quantity = min(quantity, max(1, v.available)) }
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(v.name).font(.subheadline.weight(on ? .semibold : .regular))
+                            Text(v.name).font(.wr(.subheadline).weight(on ? .semibold : .regular))
                             Text(out ? "ausverkauft" : v.priceDeltaMinor == 0 ? "\(v.available) verfügbar" : "\(v.priceDeltaMinor > 0 ? "+" : "−")\(Fmt.money(abs(v.priceDeltaMinor), currency: p.currency))")
-                                .font(.caption2).foregroundStyle(on ? Color.paper.opacity(0.85) : Color.muted)
+                                .font(.wr(.caption2)).foregroundStyle(on ? Color.paper.opacity(0.85) : Color.muted)
                         }
                         .foregroundStyle(on ? Color.paper : out ? Color.muted : Color.ink)
                         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -219,8 +219,8 @@ struct ProductDetailView: View {
         let maxQty = min(99, availableNow(p) ?? 99)
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Menge").font(.subheadline.weight(.semibold))
-                if let a = availableNow(p) { Text(a == 1 ? "Nur noch 1 Stück" : "\(a) verfügbar").font(.caption).foregroundStyle(a <= 2 ? Color.clay : Color.muted) }
+                Text("Menge").font(.wr(.subheadline, .semibold))
+                if let a = availableNow(p) { Text(a == 1 ? "Nur noch 1 Stück" : "\(a) verfügbar").font(.wr(.caption)).foregroundStyle(a <= 2 ? Color.clay : Color.muted) }
             }
             Spacer()
             MarketQuantityStepper(value: $quantity, range: 1...max(1, maxQty))
@@ -293,12 +293,12 @@ struct ProductDetailView: View {
                     HStack(spacing: 12) {
                         AvatarView(url: s.owner?.profile?.avatarUrl, name: s.owner?.displayName ?? s.name, size: 48, category: p.category)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(s.name).font(.headline).foregroundStyle(Color.ink)
-                            Text([s.owner?.displayName, s.owner?.profile?.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(Color.muted)
-                            if let t = s.tagline?.nilIfEmpty { Text(t).font(.footnote).foregroundStyle(Color.ink2).lineLimit(2) }
+                            Text(s.name).font(.wr(.headline)).foregroundStyle(Color.ink)
+                            Text([s.owner?.displayName, s.owner?.profile?.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted)
+                            if let t = s.tagline?.nilIfEmpty { Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2) }
                         }
                         Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.muted)
+                        Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                 }
                 .buttonStyle(.pressable)
@@ -311,7 +311,7 @@ struct ProductDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         SpecLabel("Anbieterangaben")
                         Text([v.businessName ?? v.legalName, v.addressLine, [v.postalCode, v.city].compactMap { $0 }.joined(separator: " ").nilIfEmpty, v.vatId.map { "MWST \($0)" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(Color.ink2)
+                            .font(.wr(.caption)).foregroundStyle(Color.ink2)
                     }
                 }
                 HStack(spacing: 10) {
@@ -339,7 +339,7 @@ struct ProductDetailView: View {
             let list = p.reviews ?? []
             if list.isEmpty {
                 Text("Noch keine Bewertungen. Wer diese Arbeit kauft, kann sie nach dem Versand bewerten.")
-                    .font(.footnote).foregroundStyle(Color.muted)
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted)
                     .padding(.vertical, 6)
             } else {
                 ForEach(list) { r in MarketReviewRow(review: r) }
@@ -351,7 +351,7 @@ struct ProductDetailView: View {
         if let more = p.moreFromShop, !more.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader("Mehr aus dem Shop", number: "06") {
-                    Button("Alle") { router.open(.shop(slug: p.shop.slug)) }.font(.subheadline.weight(.semibold))
+                    Button("Alle") { router.open(.shop(slug: p.shop.slug)) }.font(.wr(.subheadline, .semibold))
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 12) {
@@ -390,8 +390,8 @@ struct ProductDetailView: View {
         let price = unitPrice(p) * (p.isDigital ? 1 : quantity)
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(Fmt.money(price, currency: p.currency)).font(.headline).monospacedDigit().contentTransition(.numericText())
-                Text(barSubtitle(p)).font(.caption2).foregroundStyle(Color.muted).lineLimit(2)
+                Text(Fmt.money(price, currency: p.currency)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+                Text(barSubtitle(p)).font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(2)
             }
             .layoutPriority(1)
             Spacer(minLength: 4)
@@ -476,7 +476,7 @@ struct MarketQuantityStepper: View {
             Button { set(value - 1) } label: { Image(systemName: "minus").frame(width: 40, height: 40).contentShape(.rect) }
                 .disabled(value <= range.lowerBound)
                 .accessibilityLabel("Weniger")
-            Text("\(value)").font(.body.weight(.semibold)).monospacedDigit().frame(minWidth: 28).contentTransition(.numericText())
+            Text("\(value)").font(.wr(.body, .semibold)).monospacedDigit().frame(minWidth: 28).contentTransition(.numericText())
                 .accessibilityHidden(true)
             Button { set(value + 1) } label: { Image(systemName: "plus").frame(width: 40, height: 40).contentShape(.rect) }
                 .disabled(value >= range.upperBound)
@@ -513,13 +513,13 @@ struct MarketPolicyBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: symbol).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-            Text(text).font(.footnote).foregroundStyle(Color.ink2)
+            Label(title, systemImage: symbol).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+            Text(text).font(.wr(.footnote)).foregroundStyle(Color.ink2)
                 .lineLimit(expanded ? nil : 4)
                 .fixedSize(horizontal: false, vertical: true)
             if text.count > 220 {
                 Button(expanded ? "Weniger" : "Mehr lesen") { withAnimation(.snappy) { expanded.toggle() } }
-                    .font(.footnote.weight(.semibold))
+                    .font(.wr(.footnote, .semibold))
             }
         }
         .padding(14)

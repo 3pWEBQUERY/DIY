@@ -72,9 +72,9 @@ struct MediaPickerField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(title).font(.subheadline.weight(.semibold))
+                Text(title).font(.wr(.subheadline, .semibold))
                 Spacer()
-                Text("\(items.count)/\(maxCount)").font(.caption).monospacedDigit().foregroundStyle(Color.muted)
+                Text("\(items.count)/\(maxCount)").font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -84,8 +84,8 @@ struct MediaPickerField: View {
                     if items.count < maxCount {
                         PhotosPicker(selection: $picks, maxSelectionCount: maxCount - items.count, matching: allowVideo ? .any(of: [.images, .videos]) : .images) {
                             VStack(spacing: 6) {
-                                Image(systemName: "plus").font(.title3.weight(.semibold))
-                                Text("Hinzufügen").font(.caption)
+                                Image(systemName: "plus").font(.wr(.title3, .semibold))
+                                Text("Hinzufügen").font(.wr(.caption))
                             }
                             .foregroundStyle(Color.moss)
                             .frame(width: 96, height: 96)
@@ -97,7 +97,7 @@ struct MediaPickerField: View {
                 }
                 .padding(.vertical, 2)
             }
-            if coverHint && !items.isEmpty { Text("Das erste Bild ist das Titelbild. Halte ein Bild gedrückt, um es zu verschieben.").font(.caption).foregroundStyle(Color.muted) }
+            if coverHint && !items.isEmpty { Text("Das erste Bild ist das Titelbild. Halte ein Bild gedrückt, um es zu verschieben.").font(.wr(.caption)).foregroundStyle(Color.muted) }
         }
         .onChange(of: picks) { _, new in
             guard !new.isEmpty else { return }
@@ -129,13 +129,13 @@ struct MediaPickerField: View {
             }
             .overlay(alignment: .bottomLeading) {
                 HStack(spacing: 4) {
-                    if index == 0 && coverHint { Text("Titel").font(.system(size: 9, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(Color.moss, in: Capsule()).foregroundStyle(.white) }
-                    if !m.alt.isEmpty { Text("ALT").font(.system(size: 9, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(.black.opacity(0.55), in: Capsule()).foregroundStyle(.white) }
-                    if m.isVideo { Image(systemName: "video.fill").font(.system(size: 9)).padding(4).background(.black.opacity(0.55), in: Capsule()).foregroundStyle(.white) }
+                    if index == 0 && coverHint { Text("Titel").font(.wr(size: 9, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(Color.moss, in: Capsule()).foregroundStyle(.white) }
+                    if !m.alt.isEmpty { Text("ALT").font(.wr(size: 9, weight: .bold)).padding(.horizontal, 5).padding(.vertical, 2).background(.black.opacity(0.55), in: Capsule()).foregroundStyle(.white) }
+                    if m.isVideo { Image(systemName: "video.fill").font(.wr(size: 9)).padding(4).background(.black.opacity(0.55), in: Capsule()).foregroundStyle(.white) }
                 }.padding(5)
             }
             Button { withAnimation(.snappy) { items.removeAll { $0.id == m.id } } } label: {
-                Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(.white).frame(width: 22, height: 22).background(.black.opacity(0.6), in: Circle())
+                Image(systemName: "xmark").font(.wr(size: 10, weight: .bold)).foregroundStyle(.white).frame(width: 22, height: 22).background(.black.opacity(0.6), in: Circle())
             }
             .padding(4)
             .accessibilityLabel("Bild entfernen")

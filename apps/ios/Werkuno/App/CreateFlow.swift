@@ -16,7 +16,7 @@ struct WorkbenchAccessory: View {
         HStack(spacing: 12) {
             Button { router.present(.createMenu) } label: {
                 Label("Erstellen", systemImage: "plus")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.wr(.subheadline, .semibold))
                     .labelStyle(placement == .inline ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(.rect)
@@ -29,15 +29,15 @@ struct WorkbenchAccessory: View {
                     HStack(spacing: 8) {
                         Circle().fill(CategoryPalette.color(for: p.category)).frame(width: 7, height: 7)
                         VStack(alignment: .leading, spacing: 0) {
-                            if placement != .inline { Text("Auf der Werkbank").font(.system(size: 9, weight: .semibold, design: .monospaced)).textCase(.uppercase).foregroundStyle(Color.muted) }
-                            Text(p.title).font(.footnote.weight(.semibold)).lineLimit(1)
+                            if placement != .inline { Text("Auf der Werkbank").font(.wr(size: 9, weight: .semibold)).textCase(.uppercase).foregroundStyle(Color.muted) }
+                            Text(p.title).font(.wr(.footnote, .semibold)).lineLimit(1)
                         }
                     }
                 }
                 .buttonStyle(.plain)
                 Spacer(minLength: 0)
                 Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
-                    Image(systemName: "point.3.connected.trianglepath.dotted").font(.subheadline.weight(.semibold))
+                    Image(systemName: "point.3.connected.trianglepath.dotted").font(.wr(.subheadline, .semibold))
                         .frame(width: 44, height: 44).contentShape(.rect)
                 }
                 .buttonStyle(.plain)
@@ -106,11 +106,11 @@ struct CreateMenuSheet: View {
                                     Task { try? await Task.sleep(for: .milliseconds(380)); router.present(item.sheet) }
                                 } label: {
                                     VStack(alignment: .leading, spacing: 10) {
-                                        Image(systemName: item.symbol).font(.title2).foregroundStyle(item.tint)
+                                        Image(systemName: item.symbol).font(.wr(.title2)).foregroundStyle(item.tint)
                                             .frame(width: 44, height: 44)
                                             .background(item.tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
-                                        Text(item.title).font(.headline).foregroundStyle(Color.ink)
-                                        Text(item.subtitle).font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.leading).lineLimit(2)
+                                        Text(item.title).font(.wr(.headline)).foregroundStyle(Color.ink)
+                                        Text(item.subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.leading).lineLimit(2)
                                     }
                                     .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
                                     .padding(14)
@@ -126,11 +126,11 @@ struct CreateMenuSheet: View {
                             HStack {
                                 Image(systemName: "storefront").foregroundStyle(Color.clay)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Shop eröffnen").font(.subheadline.weight(.semibold))
-                                    Text("Verkaufe Einzelstücke, Kleinserien und Materialsets.").font(.caption).foregroundStyle(Color.muted)
+                                    Text("Shop eröffnen").font(.wr(.subheadline, .semibold))
+                                    Text("Verkaufe Einzelstücke, Kleinserien und Materialsets.").font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }
                                 Spacer()
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.muted)
+                                Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
                             }
                             .padding(14)
                             .cardSurface()

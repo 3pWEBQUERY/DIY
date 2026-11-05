@@ -136,7 +136,7 @@ private struct DiscoverPageContent: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .contentTransition(.opacity)
                 if let s = heroSubtitle {
-                    Text(s).font(.subheadline).foregroundStyle(Color.ink2)
+                    Text(s).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -257,7 +257,7 @@ private struct DiscoverPageContent: View {
                         VStack(alignment: .leading, spacing: 6) {
                             CreatorRowView(creator: c)
                             if let bio = c.bio?.nilIfEmpty {
-                                Text(bio).font(.footnote).foregroundStyle(Color.muted).lineLimit(2).padding(.leading, 56)
+                                Text(bio).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).padding(.leading, 56)
                             }
                         }
                         if c.id != p.creators.last?.id { Divider().overlay(Color.line) }
@@ -305,8 +305,8 @@ private struct DiscoverPageContent: View {
     private func quick(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: symbol).font(.title3).foregroundStyle(Color.moss)
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
+                Image(systemName: symbol).font(.wr(.title3)).foregroundStyle(Color.moss)
+                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
             }
             .padding(14)
             .frame(minWidth: 116, alignment: .leading)
@@ -354,14 +354,14 @@ private struct DiscoverPageContent: View {
         return VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Image(systemName: seasonal ? seasonSymbol(col.season) : "bookmark.square").font(.caption.weight(.semibold))
+                    Image(systemName: seasonal ? seasonSymbol(col.season) : "bookmark.square").font(.wr(.caption, .semibold))
                     SpecLabel([col.kicker, col.season.map(seasonName)].compactMap { $0?.nilIfEmpty }.removingDuplicates().joined(separator: " · "), color: tint)
                 }
                 .foregroundStyle(tint)
                 Text(col.title).font(.display(seasonal ? 28 : 22)).foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 if let d = col.description?.nilIfEmpty {
-                    Text(d).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                    Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
                 }
                 SpecLabel([col.projects.isEmpty ? nil : Fmt.plural(col.projects.count, "Projekt", "Projekte"), col.tutorials.isEmpty ? nil : Fmt.plural(col.tutorials.count, "Anleitung", "Anleitungen")].compactMap { $0 }.joined(separator: " · "))
             }
@@ -392,9 +392,9 @@ private struct DiscoverPageContent: View {
     private func moreCard(_ title: String, text: String, symbol: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: symbol).font(.title2).foregroundStyle(tint)
+                Image(systemName: symbol).font(.wr(.title2)).foregroundStyle(tint)
                 Text(title).font(.titleSerif).foregroundStyle(Color.ink)
-                Text(text).font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
+                Text(text).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }

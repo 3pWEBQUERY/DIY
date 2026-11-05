@@ -28,7 +28,7 @@ struct BlogBlocksView: View {
 /// Fliesstext-Stil (Serif, grosszügiger Zeilenabstand)
 extension View {
     func blogBodyStyle() -> some View {
-        font(.system(size: 18, weight: .regular, design: .serif))
+        font(.wr(size: 18, weight: .regular))
             .lineSpacing(5)
             .foregroundStyle(Color.ink)
             .tint(Color.moss)
@@ -86,7 +86,7 @@ struct BlogBlockView: View {
         case "heading":
             if block.level == 3 {
                 Text(block.text ?? "")
-                    .font(.system(.title3, design: .serif).weight(.semibold))
+                    .font(.wr(.title3, .semibold))
                     .foregroundStyle(Color.ink)
                     .padding(.top, 4)
                     .accessibilityAddTraits(.isHeader)
@@ -106,7 +106,7 @@ struct BlogBlockView: View {
                 ForEach(Array((block.items ?? []).enumerated()), id: \.offset) { i, item in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(block.ordered == true ? "\(i + 1)." : "•")
-                            .font(.system(size: 17, weight: .semibold, design: .serif))
+                            .font(.wr(size: 17, weight: .semibold))
                             .foregroundStyle(Color.moss)
                             .frame(minWidth: 18, alignment: .trailing)
                         BlogInlineText(text: item).blogBodyStyle()
@@ -116,12 +116,12 @@ struct BlogBlockView: View {
         case "quote":
             VStack(alignment: .leading, spacing: 8) {
                 Text(block.text ?? "")
-                    .font(.system(size: 22, weight: .regular, design: .serif).italic())
+                    .font(.wr(size: 22, weight: .regular).italic())
                     .foregroundStyle(Color.ink)
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
                 if let c = block.cite?.nilIfEmpty {
-                    Text("— \(c)").font(.subheadline).foregroundStyle(Color.muted)
+                    Text("— \(c)").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 }
             }
             .padding(.leading, 16)
@@ -139,7 +139,7 @@ struct BlogBlockView: View {
                 } else {
                     NoticeView(tone: .info, message: "Das Video wird noch verarbeitet.")
                 }
-                if let c = block.caption?.nilIfEmpty { Text(c).font(.footnote).foregroundStyle(Color.muted) }
+                if let c = block.caption?.nilIfEmpty { Text(c).font(.wr(.footnote)).foregroundStyle(Color.muted) }
             }
         case "table":
             BlogTable(rows: block.rows ?? [])
@@ -200,7 +200,7 @@ struct BlogFigure: View {
             .accessibilityLabel(alt?.nilIfEmpty ?? caption?.nilIfEmpty ?? "Bild")
             .accessibilityAddTraits(.isImage)
             if let c = caption?.nilIfEmpty {
-                Text(c).font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                Text(c).font(.wr(.footnote)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
         }
         .fullScreenCover(isPresented: $fullscreen) {
@@ -227,7 +227,7 @@ struct BlogGallery: View {
                             .onTapGesture { selected = items.first { $0.id == img.mediaId } }
                             .accessibilityLabel(img.alt?.nilIfEmpty ?? "Bild")
                             .accessibilityAddTraits(.isImage)
-                        if let c = img.caption?.nilIfEmpty { Text(c).font(.caption).foregroundStyle(Color.muted).lineLimit(3) }
+                        if let c = img.caption?.nilIfEmpty { Text(c).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3) }
                     }
                     .containerRelativeFrame(.horizontal, count: 6, span: 5, spacing: 10)
                 }
@@ -264,7 +264,7 @@ struct BlogTable: View {
                     GridRow {
                         ForEach(0..<cols, id: \.self) { c in
                             Text(BlogInlineText.attributed(row[safe: c] ?? ""))
-                                .font(r == 0 ? .subheadline.weight(.semibold) : .subheadline)
+                                .font(r == 0 ? .wr(.subheadline, .semibold) : .wr(.subheadline))
                                 .foregroundStyle(Color.ink)
                                 .padding(.horizontal, 12).padding(.vertical, 9)
                                 .frame(minWidth: 90, alignment: .leading)

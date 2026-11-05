@@ -28,7 +28,7 @@ struct ShoppingListsView: View {
                     }
                     Button { router.open(.materials) } label: {
                         Label("Materialdatenbank durchsuchen", systemImage: "shippingbox")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.wr(.subheadline, .semibold))
                     }
                     .buttonStyle(.glass)
                     .frame(maxWidth: .infinity)
@@ -70,17 +70,17 @@ struct ShoppingListsView: View {
         return Button { router.open(.shoppingList(id: l.id)) } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(l.title).font(.headline).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
-                    if l.shared == true { Image(systemName: "link").font(.caption).foregroundStyle(Color.moss).accessibilityLabel("Geteilt") }
+                    Text(l.title).font(.wr(.headline)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
+                    if l.shared == true { Image(systemName: "link").font(.wr(.caption)).foregroundStyle(Color.moss).accessibilityLabel("Geteilt") }
                     Spacer()
-                    Text("\(done)/\(total)").font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(done == total && total > 0 ? Color.moss : Color.ink2)
+                    Text("\(done)/\(total)").font(.wr(.subheadline, .semibold)).monospacedDigit().foregroundStyle(done == total && total > 0 ? Color.moss : Color.ink2)
                 }
                 ProgressView(value: total == 0 ? 0 : Double(done), total: Double(max(total, 1)))
                     .tint(.moss)
                     .accessibilityLabel("\(done) von \(total) erledigt")
                 HStack(spacing: 6) {
                     if let s = l.sources, !s.isEmpty {
-                        Image(systemName: "point.3.connected.trianglepath.dotted").font(.caption2)
+                        Image(systemName: "point.3.connected.trianglepath.dotted").font(.wr(.caption2))
                         Text(s.joined(separator: " · ")).lineLimit(1)
                     } else {
                         Text(Fmt.plural(total, "Position", "Positionen"))
@@ -88,7 +88,7 @@ struct ShoppingListsView: View {
                     Spacer()
                     if let u = l.updatedAt { Text(Fmt.relative(u)) }
                 }
-                .font(.caption).foregroundStyle(Color.muted)
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(14)
             .cardSurface()
@@ -221,9 +221,9 @@ struct ShoppingListView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     PageTitle(kicker: "Einkaufsliste", title: l.title, subtitle: nil)
                     HStack {
-                        Text("\(done.count) von \(l.items.count) erledigt").font(.subheadline).foregroundStyle(Color.muted)
+                        Text("\(done.count) von \(l.items.count) erledigt").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                         Spacer()
-                        if l.shareToken != nil { Label("Geteilt", systemImage: "link").font(.caption.weight(.semibold)).foregroundStyle(Color.moss) }
+                        if l.shareToken != nil { Label("Geteilt", systemImage: "link").font(.wr(.caption, .semibold)).foregroundStyle(Color.moss) }
                     }
                     ProgressView(value: Double(done.count), total: Double(max(l.items.count, 1))).tint(.moss)
                     if !sources.isEmpty {
@@ -231,7 +231,7 @@ struct ShoppingListView: View {
                             Image(systemName: "point.3.connected.trianglepath.dotted").foregroundStyle(Color.moss)
                             Text("Aus: \(sources.joined(separator: ", "))").fixedSize(horizontal: false, vertical: true)
                         }
-                        .font(.caption).foregroundStyle(Color.ink2)
+                        .font(.wr(.caption)).foregroundStyle(Color.ink2)
                     }
                 }
                 .listRowBackground(Color.clear)
@@ -263,7 +263,7 @@ struct ShoppingListView: View {
                 Task { await patch(it, ["purchased": .bool(!it.purchased)]) }
             } label: {
                 Image(systemName: it.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
+                    .font(.wr(.title3))
                     .foregroundStyle(it.isDone ? Color.moss : Color.lineStrong)
                     .symbolEffect(.bounce, value: it.isDone)
                     .frame(width: 44, height: 44)
@@ -273,16 +273,16 @@ struct ShoppingListView: View {
             .accessibilityLabel(it.purchased ? "Als nicht gekauft markieren" : "Als gekauft abhaken")
             VStack(alignment: .leading, spacing: 2) {
                 Text(it.name)
-                    .font(.body)
+                    .font(.wr(.body))
                     .strikethrough(it.isDone, color: Color.muted)
                     .foregroundStyle(it.isDone ? Color.muted : Color.ink)
                 let sub = [it.haveIt ? "Habe ich schon" : nil, it.category, it.sourceTitle].compactMap { $0?.nilIfEmpty }
-                if !sub.isEmpty { Text(sub.joined(separator: " · ")).font(.caption).foregroundStyle(Color.muted).lineLimit(1) }
+                if !sub.isEmpty { Text(sub.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1) }
             }
             Spacer(minLength: 8)
             Button { qtyText = it.quantity ?? ""; editingQty = it } label: {
                 Text(it.quantity?.nilIfEmpty ?? "Menge")
-                    .font(.subheadline.weight(.medium)).monospacedDigit()
+                    .font(.wr(.subheadline, .medium)).monospacedDigit()
                     .foregroundStyle(it.quantity?.nilIfEmpty == nil ? Color.muted : Color.ink2)
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(Color.sunken, in: Capsule())
@@ -324,8 +324,8 @@ struct ShoppingListView: View {
                                 suggestions = []
                             } label: {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(m.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                                    Text([m.category, m.unit].compactMap { $0 }.joined(separator: " · ")).font(.caption2).foregroundStyle(Color.muted)
+                                    Text(m.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                                    Text([m.category, m.unit].compactMap { $0 }.joined(separator: " · ")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                                 }
                                 .padding(.horizontal, 12).padding(.vertical, 6)
                             }
@@ -348,7 +348,7 @@ struct ShoppingListView: View {
                     .frame(width: 76)
                     .onSubmit { Task { await addItem() } }
                 Button { Task { await addItem() } } label: {
-                    Image(systemName: "plus").font(.body.weight(.bold)).frame(width: 30, height: 30)
+                    Image(systemName: "plus").font(.wr(.body, .bold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.glassProminent)
                 .tint(.moss)
@@ -448,7 +448,7 @@ struct SharedShoppingListView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         PageTitle(kicker: "Geteilte Einkaufsliste", title: l.title, subtitle: l.owner?.displayName.map { "von \($0)" })
-                        Text("\(l.items.filter(\.isDone).count) von \(l.items.count) erledigt · nur lesen").font(.subheadline).foregroundStyle(Color.muted)
+                        Text("\(l.items.filter(\.isDone).count) von \(l.items.count) erledigt · nur lesen").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -462,10 +462,10 @@ struct SharedShoppingListView: View {
                                 Image(systemName: it.isDone ? "checkmark.circle.fill" : "circle").foregroundStyle(it.isDone ? Color.moss : Color.lineStrong)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(it.name).strikethrough(it.isDone, color: Color.muted).foregroundStyle(it.isDone ? Color.muted : Color.ink)
-                                    if let s = it.sourceTitle?.nilIfEmpty { Text(s).font(.caption).foregroundStyle(Color.muted) }
+                                    if let s = it.sourceTitle?.nilIfEmpty { Text(s).font(.wr(.caption)).foregroundStyle(Color.muted) }
                                 }
                                 Spacer()
-                                if let q = it.quantity?.nilIfEmpty { Text(q).font(.subheadline).monospacedDigit().foregroundStyle(Color.ink2) }
+                                if let q = it.quantity?.nilIfEmpty { Text(q).font(.wr(.subheadline)).monospacedDigit().foregroundStyle(Color.ink2) }
                             }
                             .accessibilityElement(children: .combine)
                             .listRowBackground(Color.card)
@@ -540,7 +540,7 @@ struct ShoppingListPickerSheet: View {
                     Image(systemName: kind == "TUTORIAL" ? "list.number" : "hammer").foregroundStyle(Color.moss).frame(width: 26)
                     VStack(alignment: .leading, spacing: 2) {
                         SpecLabel(kind == "TUTORIAL" ? "Anleitung" : "Projekt", color: .moss)
-                        Text(title).font(.subheadline.weight(.semibold))
+                        Text(title).font(.wr(.subheadline, .semibold))
                     }
                 }
             } footer: { Text("Alle Materialien werden übernommen. Was schon auf der Liste steht, wird zusammengezählt.") }
@@ -570,9 +570,9 @@ struct ShoppingListPickerSheet: View {
     private func success(_ r: MeAddSourceResult) -> some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "checklist.checked").font(.system(size: 44)).foregroundStyle(Color.moss).symbolEffect(.bounce, value: r.listId)
+            Image(systemName: "checklist.checked").font(.wr(size: 44)).foregroundStyle(Color.moss).symbolEffect(.bounce, value: r.listId)
             Text("Auf der Liste").font(.display(26))
-            Text("\(Fmt.plural(r.added ?? 0, "Position", "Positionen")) neu, \(r.merged ?? 0) zusammengefasst.").font(.subheadline).foregroundStyle(Color.muted)
+            Text("\(Fmt.plural(r.added ?? 0, "Position", "Positionen")) neu, \(r.merged ?? 0) zusammengefasst.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
             Button {
                 dismiss()
                 let target = r.listId

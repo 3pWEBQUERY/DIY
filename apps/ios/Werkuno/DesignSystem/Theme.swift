@@ -56,23 +56,72 @@ extension UIColor {
     }
 }
 
-// MARK: - Typografie (PRD §28.3): New York für redaktionelle Titel, SF für UI, SF Mono für Datenblätter
+// MARK: - Typografie: Manrope ist die einzige Schrift (wie im Web: --font-sans/--font-serif/--font-mono)
+//
+// Statische Schnitte (Regular … ExtraBold) liegen in Resources/Fonts und sind in Info.plist
+// (UIAppFonts) registriert. Alle Grössen skalieren mit Dynamic Type über `relativeTo:`.
+
+enum Manrope {
+    static func name(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .ultraLight, .thin, .light, .regular: "Manrope-Regular"
+        case .medium: "Manrope-Medium"
+        case .semibold: "Manrope-SemiBold"
+        case .bold: "Manrope-Bold"
+        default: "Manrope-ExtraBold" // heavy, black
+        }
+    }
+
+    /// Standardgrössen der iOS-Textstile (Grösse „Large“)
+    static func base(_ style: Font.TextStyle) -> (size: CGFloat, weight: Font.Weight) {
+        switch style {
+        case .largeTitle: (34, .bold)
+        case .title: (28, .bold)
+        case .title2: (22, .bold)
+        case .title3: (20, .semibold)
+        case .headline: (17, .semibold)
+        case .body: (17, .regular)
+        case .callout: (16, .regular)
+        case .subheadline: (15, .regular)
+        case .footnote: (13, .regular)
+        case .caption: (12, .regular)
+        case .caption2: (11, .regular)
+        @unknown default: (17, .regular)
+        }
+    }
+
+    static func uiFont(size: CGFloat, weight: Font.Weight = .regular, relativeTo style: UIFont.TextStyle = .body) -> UIFont {
+        let f = UIFont(name: name(weight), size: size) ?? .systemFont(ofSize: size)
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: f)
+    }
+}
 
 extension Font {
-    /// Grosser redaktioneller Titel (Serif)
-    static func display(_ size: CGFloat = 34, weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+    /// Manrope in einem iOS-Textstil (mit Dynamic Type); ohne `weight` gilt das Standardgewicht des Stils
+    static func wr(_ style: Font.TextStyle, _ weight: Font.Weight? = nil) -> Font {
+        let b = Manrope.base(style)
+        return .custom(Manrope.name(weight ?? b.weight), size: b.size, relativeTo: style)
     }
-    static let headlineSerif = Font.system(.title2, design: .serif).weight(.semibold)
-    static let titleSerif = Font.system(.title3, design: .serif).weight(.semibold)
-    /// Datenblatt-Label: Mono, klein, Versalien (per .specStyle())
-    static let spec = Font.system(size: 11, weight: .medium, design: .monospaced)
-    static let specLarge = Font.system(size: 13, weight: .medium, design: .monospaced)
-    static let num = Font.system(.body, design: .rounded).monospacedDigit()
+
+    /// Manrope in fester Grösse (skaliert relativ zu `relativeTo`)
+    static func wr(size: CGFloat, weight: Font.Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
+        .custom(Manrope.name(weight), size: size, relativeTo: style)
+    }
+
+    /// Grosser Titel
+    static func display(_ size: CGFloat = 34, weight: Font.Weight = .bold) -> Font {
+        wr(size: size, weight: weight == .semibold ? .bold : weight, relativeTo: .largeTitle)
+    }
+    static let headlineSerif = Font.wr(.title2, .bold)
+    static let titleSerif = Font.wr(.title3, .bold)
+    /// Label-/Zahlenschrift: Manrope statt Monospace (wie im Web)
+    static let spec = Font.wr(size: 11, weight: .semibold, relativeTo: .caption2)
+    static let specLarge = Font.wr(size: 13, weight: .semibold, relativeTo: .footnote)
+    static let num = Font.wr(.body).monospacedDigit()
 }
 
 extension View {
-    /// Mono-Versalien für Metadaten („Datenblatt“-Look)
+    /// Versalien-Label für Metadaten („Datenblatt“-Look)
     func specStyle(_ color: Color = .muted) -> some View {
         font(.spec).textCase(.uppercase).tracking(0.8).foregroundStyle(color)
     }

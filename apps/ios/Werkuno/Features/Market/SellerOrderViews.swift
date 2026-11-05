@@ -143,9 +143,9 @@ struct SellerOrderDetailView: View {
                     Text(o.buyer?.displayName ?? "Käufer:in").font(.display(30)).accessibilityAddTraits(.isHeader)
                     HStack(spacing: 10) {
                         MarketStatusPill.order(o.status)
-                        Text(o.number).font(.footnote.monospaced()).foregroundStyle(Color.muted).textSelection(.enabled)
+                        Text(o.number).font(.wr(.footnote).monospaced()).foregroundStyle(Color.muted).textSelection(.enabled)
                         Spacer()
-                        Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.headline).monospacedDigit()
+                        Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.wr(.headline)).monospacedDigit()
                     }
                 }
                 nextSteps(o)
@@ -156,13 +156,13 @@ struct SellerOrderDetailView: View {
                                 .frame(width: 48, height: 48)
                                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(i.title).font(.subheadline.weight(.semibold))
-                                if let v = i.variantName?.nilIfEmpty { Text("Variante: \(v)").font(.caption).foregroundStyle(Color.muted) }
-                                Text("\(i.quantity) × \(Fmt.money(i.unitMinor, currency: o.currency))").font(.caption).monospacedDigit().foregroundStyle(Color.muted)
-                                if i.isDigital { Label("Digital", systemImage: "arrow.down.circle").font(.caption2).foregroundStyle(Color.slate) }
+                                Text(i.title).font(.wr(.subheadline, .semibold))
+                                if let v = i.variantName?.nilIfEmpty { Text("Variante: \(v)").font(.wr(.caption)).foregroundStyle(Color.muted) }
+                                Text("\(i.quantity) × \(Fmt.money(i.unitMinor, currency: o.currency))").font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
+                                if i.isDigital { Label("Digital", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
                             }
                             Spacer()
-                            Text(Fmt.money(i.unitMinor * i.quantity, currency: o.currency)).font(.subheadline).monospacedDigit()
+                            Text(Fmt.money(i.unitMinor * i.quantity, currency: o.currency)).font(.wr(.subheadline)).monospacedDigit()
                         }
                         .padding(.vertical, 8)
                         .hairline()
@@ -174,7 +174,7 @@ struct SellerOrderDetailView: View {
                     if let n = o.buyerNote?.nilIfEmpty {
                         VStack(alignment: .leading, spacing: 3) {
                             SpecLabel("Nachricht der Käuferin bzw. des Käufers")
-                            Text(n).font(.subheadline).foregroundStyle(Color.ink2)
+                            Text(n).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -235,7 +235,7 @@ struct SellerOrderDetailView: View {
                         Button(role: .destructive) { action = .cancel } label: { Label("Stornieren", systemImage: "xmark.circle") }.buttonStyle(.glass)
                     }
                 }
-                Text("Jeder Schritt wird protokolliert; die Käuferin bzw. der Käufer wird benachrichtigt.").font(.caption).foregroundStyle(Color.muted)
+                Text("Jeder Schritt wird protokolliert; die Käuferin bzw. der Käufer wird benachrichtigt.").font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(16)
             .cardSurface()

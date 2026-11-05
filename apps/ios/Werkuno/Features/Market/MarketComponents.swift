@@ -58,7 +58,7 @@ struct MarketStatusPill: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(tint).frame(width: 6, height: 6)
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(tint)
+            Text(label).font(.wr(.caption, .semibold)).foregroundStyle(tint)
         }
         .padding(.horizontal, 9).padding(.vertical, 4)
         .background(tint.opacity(0.12), in: Capsule())
@@ -82,7 +82,7 @@ struct MarketStars: View {
             ForEach(1...5, id: \.self) { i in
                 let d = Double(i)
                 Image(systemName: rating >= d ? "star.fill" : rating >= d - 0.5 ? "star.leadinghalf.filled" : "star")
-                    .font(.system(size: size))
+                    .font(.wr(size: size))
                     .foregroundStyle(rating >= d - 0.5 ? Color.ochre : Color.lineStrong)
             }
         }
@@ -96,7 +96,7 @@ struct MarketStarPicker: View {
     @Binding var rating: Int
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.subheadline.weight(.semibold))
+            Text(title).font(.wr(.subheadline, .semibold))
             HStack(spacing: 6) {
                 ForEach(1...5, id: \.self) { i in
                     Button {
@@ -104,7 +104,7 @@ struct MarketStarPicker: View {
                         rating = i
                     } label: {
                         Image(systemName: i <= rating ? "star.fill" : "star")
-                            .font(.title2)
+                            .font(.wr(.title2))
                             .foregroundStyle(i <= rating ? Color.ochre : Color.lineStrong)
                             .frame(width: 44, height: 44)
                             .contentShape(.rect)
@@ -127,20 +127,20 @@ struct MarketReviewRow: View {
             HStack(spacing: 10) {
                 AvatarView(url: review.author?.profile?.avatarUrl, name: review.author?.displayName ?? "?", size: 30)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(review.author?.displayName ?? "Mitglied").font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                    Text(Fmt.date(review.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                    Text(review.author?.displayName ?? "Mitglied").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    Text(Fmt.date(review.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 Spacer()
                 MarketStars(rating: Double(review.productRating))
             }
             if let p = review.product?.title { SpecLabel(p, color: .moss) }
             if let v = review.orderItem?.variantName?.nilIfEmpty { SpecLabel("Variante: \(v)") }
-            if let b = review.body?.nilIfEmpty { Text(b).font(.subheadline).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
-            if let s = review.sellerRating { HStack(spacing: 6) { Text("Shop").font(.caption).foregroundStyle(Color.muted); MarketStars(rating: Double(s), size: 10) } }
+            if let b = review.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
+            if let s = review.sellerRating { HStack(spacing: 6) { Text("Shop").font(.wr(.caption)).foregroundStyle(Color.muted); MarketStars(rating: Double(s), size: 10) } }
             if let reply = review.sellerReply?.nilIfEmpty {
                 VStack(alignment: .leading, spacing: 3) {
                     SpecLabel("Antwort des Shops")
-                    Text(reply).font(.footnote).foregroundStyle(Color.ink2)
+                    Text(reply).font(.wr(.footnote)).foregroundStyle(Color.ink2)
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -164,9 +164,9 @@ struct MarketAmountRow: View {
     var muted = false
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(label).font(strong ? .body.weight(.semibold) : .subheadline).foregroundStyle(muted ? Color.muted : Color.ink2)
+            Text(label).font(strong ? .wr(.body, .semibold) : .wr(.subheadline)).foregroundStyle(muted ? Color.muted : Color.ink2)
             Spacer(minLength: 12)
-            Text(value).font(strong ? .title3.weight(.semibold) : .subheadline.weight(.medium)).monospacedDigit().foregroundStyle(muted ? Color.muted : Color.ink)
+            Text(value).font(strong ? .wr(.title3, .semibold) : .wr(.subheadline, .medium)).monospacedDigit().foregroundStyle(muted ? Color.muted : Color.ink)
         }
         .accessibilityElement(children: .combine)
     }
@@ -231,11 +231,11 @@ struct MarketThreadTimeline: View {
                     .frame(width: 14)
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text(L.orderStatus[e.to] ?? e.to).font(.subheadline.weight(last ? .semibold : .medium)).foregroundStyle(Color.ink)
+                            Text(L.orderStatus[e.to] ?? e.to).font(.wr(.subheadline).weight(last ? .semibold : .medium)).foregroundStyle(Color.ink)
                             Spacer(minLength: 8)
-                            Text(Fmt.dateTime(e.createdAt)).font(.caption).foregroundStyle(Color.muted)
+                            Text(Fmt.dateTime(e.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
-                        if let n = e.note?.nilIfEmpty { Text(n).font(.footnote).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
+                        if let n = e.note?.nilIfEmpty { Text(n).font(.wr(.footnote)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
                     }
                     .padding(.bottom, last ? 0 : 18)
                 }
@@ -273,7 +273,7 @@ struct MarketAddressBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(address?.lines ?? ["Keine Adresse hinterlegt"], id: \.self) { l in
-                Text(l).font(.subheadline).foregroundStyle(Color.ink2)
+                Text(l).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
             }
         }
         .textSelection(.enabled)
@@ -284,7 +284,7 @@ struct MarketFieldError: View {
     var text: String?
     var body: some View {
         if let text {
-            Label(text, systemImage: "exclamationmark.circle.fill").font(.caption).foregroundStyle(Color.danger)
+            Label(text, systemImage: "exclamationmark.circle.fill").font(.wr(.caption)).foregroundStyle(Color.danger)
         }
     }
 }
@@ -306,7 +306,7 @@ struct MarketCartToolbarButton: View {
                 .overlay(alignment: .topTrailing) {
                     if app.cartCount > 0 {
                         Text("\(min(app.cartCount, 99))")
-                            .font(.system(size: 10, weight: .bold)).monospacedDigit()
+                            .font(.wr(size: 10, weight: .bold)).monospacedDigit()
                             .foregroundStyle(Color.paper)
                             .padding(.horizontal, 4).frame(minWidth: 16, minHeight: 16)
                             .background(Color.clay, in: Capsule())
@@ -343,12 +343,12 @@ struct MarketShopCardView: View {
                 HStack(spacing: 8) {
                     AvatarView(url: shop.owner?.avatarUrl, name: shop.owner?.displayName ?? shop.name, size: 26)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(shop.name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text(shop.owner?.displayName ?? "").font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(shop.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                        Text(shop.owner?.displayName ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     }
                 }
                 if let t = shop.tagline?.nilIfEmpty {
-                    Text(t).font(.footnote).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer(minLength: 0)
@@ -470,15 +470,15 @@ struct MarketReceiptSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     SpecLabel("Beleg · \(o.number)", color: .moss)
                     Text(o.shop.name).font(.display(28))
-                    Text("Bezahlt am \(Fmt.dateTime(o.paidAt))").font(.subheadline).foregroundStyle(Color.muted)
+                    Text("Bezahlt am \(Fmt.dateTime(o.paidAt))").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     SpecLabel("Verkäufer:in")
                     let v = o.shop.verification
                     ForEach([v?.businessName ?? v?.legalName, v?.addressLine, [v?.postalCode, v?.city].compactMap { $0 }.joined(separator: " ").nilIfEmpty, v?.country.map { L.country($0) }, v?.vatId.map { "MWST: \($0)" }].compactMap { $0?.nilIfEmpty }, id: \.self) {
-                        Text($0).font(.subheadline).foregroundStyle(Color.ink2)
+                        Text($0).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
                     }
-                    Text(o.shop.sellerType == "BUSINESS" ? "Gewerbliche:r Verkäufer:in" : "Privatperson").font(.caption).foregroundStyle(Color.muted)
+                    Text(o.shop.sellerType == "BUSINESS" ? "Gewerbliche:r Verkäufer:in" : "Privatperson").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     SpecLabel(o.isDigitalOnly ? "Rechnungsadresse" : "Lieferadresse")
@@ -488,11 +488,11 @@ struct MarketReceiptSheet: View {
                     ForEach(o.items) { i in
                         HStack(alignment: .firstTextBaseline) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(i.quantity) × \(i.title)").font(.subheadline).foregroundStyle(Color.ink)
-                                if let v = i.variantName?.nilIfEmpty { Text(v).font(.caption).foregroundStyle(Color.muted) }
+                                Text("\(i.quantity) × \(i.title)").font(.wr(.subheadline)).foregroundStyle(Color.ink)
+                                if let v = i.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
                             }
                             Spacer()
-                            Text(Fmt.money(i.unitMinor * i.quantity, currency: o.currency)).font(.subheadline).monospacedDigit()
+                            Text(Fmt.money(i.unitMinor * i.quantity, currency: o.currency)).font(.wr(.subheadline)).monospacedDigit()
                         }
                         .padding(.vertical, 10)
                         .hairline()
@@ -505,7 +505,7 @@ struct MarketReceiptSheet: View {
                     }
                     Text("Vertragspartner ist der oben genannte Verkäufer. Werkuno vermittelt den Kauf und wickelt die Zahlung über Stripe ab. Dieser Beleg ist keine Rechnung im mehrwertsteuerrechtlichen Sinn, sofern der Verkäufer keine MWST-Nummer ausweist.")
                 }
-                .font(.caption).foregroundStyle(Color.muted)
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(Space.gutter)
         }

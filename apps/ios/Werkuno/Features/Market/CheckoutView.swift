@@ -132,7 +132,7 @@ struct CheckoutView: View {
                         .padding(.horizontal, 14).padding(.vertical, 6)
                     }
                     .cardSurface(radius: Radius.inner)
-                    Text("Versand derzeit innerhalb der Schweiz, nach Deutschland, Österreich und Liechtenstein.").font(.caption).foregroundStyle(Color.muted)
+                    Text("Versand derzeit innerhalb der Schweiz, nach Deutschland, Österreich und Liechtenstein.").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
 
                 // Notiz
@@ -152,21 +152,21 @@ struct CheckoutView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(c.groups) { g in
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(g.shop.name).font(.subheadline.weight(.semibold))
+                                Text(g.shop.name).font(.wr(.subheadline, .semibold))
                                 ForEach(g.lines) { l in
                                     HStack(alignment: .firstTextBaseline) {
-                                        Text("\(l.quantity) × \(l.title)\(l.variantName.map { " (\($0))" } ?? "")").font(.footnote).foregroundStyle(Color.ink2)
+                                        Text("\(l.quantity) × \(l.title)\(l.variantName.map { " (\($0))" } ?? "")").font(.wr(.footnote)).foregroundStyle(Color.ink2)
                                         Spacer(minLength: 8)
-                                        Text(Fmt.money(l.lineMinor)).font(.footnote).monospacedDigit()
+                                        Text(Fmt.money(l.lineMinor)).font(.wr(.footnote)).monospacedDigit()
                                     }
                                 }
                                 HStack {
-                                    Text("Versand").font(.caption).foregroundStyle(Color.muted)
+                                    Text("Versand").font(.wr(.caption)).foregroundStyle(Color.muted)
                                     Spacer()
-                                    Text(g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping)).font(.caption).monospacedDigit().foregroundStyle(Color.muted)
+                                    Text(g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
                                 }
                                 if let d = g.shop.processingDays, !g.lines.allSatisfy(\.isDigital) {
-                                    Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.caption2).foregroundStyle(Color.muted)
+                                    Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.wr(.caption2)).foregroundStyle(Color.muted)
                                 }
                             }
                             .padding(16)
@@ -174,7 +174,7 @@ struct CheckoutView: View {
                         }
                         VStack(alignment: .leading, spacing: 8) {
                             MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total)
-                            Text("Endpreis. Keine Zusatzgebühren für Käufer:innen.").font(.caption).foregroundStyle(Color.muted)
+                            Text("Endpreis. Keine Zusatzgebühren für Käufer:innen.").font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                         .padding(16)
                     }
@@ -193,7 +193,7 @@ struct CheckoutView: View {
                 }
 
                 Text("Mit der Bestellung akzeptierst du die Marktplatz-Richtlinien und die Rückgabebedingungen der Shops.")
-                    .font(.caption).foregroundStyle(Color.muted)
+                    .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(.horizontal, Space.gutter)
             .padding(.bottom, 120)
@@ -235,7 +235,7 @@ struct CheckoutView: View {
                     Text(submitting ? "Einen Moment …" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total))")
                         .monospacedDigit()
                 }
-                .font(.body.weight(.semibold))
+                .font(.wr(.body, .semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
             }
@@ -334,7 +334,7 @@ struct CheckoutView: View {
                         SpecLabel("Bestellung bestätigt", color: .moss)
                         Text("Danke – der Faden ist geknüpft.").font(.display(28)).multilineTextAlignment(.center)
                         Text(ids.count > 1 ? "Deine \(ids.count) Bestellungen sind bezahlt. Die Shops wurden informiert und melden sich, sobald es losgeht." : "Deine Bestellung ist bezahlt. Der Shop wurde informiert und meldet sich, sobald sie unterwegs ist.")
-                            .font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                            .font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
                     }
                     VStack(spacing: 10) {
                         ForEach(Array(ids.enumerated()), id: \.element) { i, id in
@@ -347,10 +347,10 @@ struct CheckoutView: View {
                             .buttonStyle(.glass).controlSize(.large)
                     }
                 case .failed(let ids):
-                    Image(systemName: "xmark.octagon").font(.system(size: 52)).foregroundStyle(Color.danger).padding(.top, 50)
+                    Image(systemName: "xmark.octagon").font(.wr(size: 52)).foregroundStyle(Color.danger).padding(.top, 50)
                     VStack(spacing: 8) {
                         Text("Zahlung nicht abgeschlossen").font(.display(26)).multilineTextAlignment(.center)
-                        Text("Es wurde nichts belastet. Die Reservierung ist freigegeben – du kannst es erneut versuchen.").font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                        Text("Es wurde nichts belastet. Die Reservierung ist freigegeben – du kannst es erneut versuchen.").font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
                     }
                     Button { router.open(.cart) } label: { Text("Zurück zum Warenkorb").frame(maxWidth: .infinity) }.primaryButton()
                     if let id = ids.first {
@@ -360,7 +360,7 @@ struct CheckoutView: View {
                     YarnSpinner(size: 56).padding(.top, 50)
                     VStack(spacing: 8) {
                         Text("Zahlung wird geprüft").font(.display(26)).multilineTextAlignment(.center)
-                        Text("Sobald der Zahlungsanbieter die Zahlung bestätigt, ist deine Bestellung verbindlich. Offene Zahlungen findest du im Warenkorb.").font(.subheadline).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                        Text("Sobald der Zahlungsanbieter die Zahlung bestätigt, ist deine Bestellung verbindlich. Offene Zahlungen findest du im Warenkorb.").font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
                     }
                     if let id = ids.first {
                         Button { router.open(.order(id: id)) } label: { Text("Bestellung ansehen").frame(maxWidth: .infinity) }.primaryButton()

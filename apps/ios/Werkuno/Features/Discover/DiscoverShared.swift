@@ -61,9 +61,9 @@ struct DiscoverMoreButton: View {
         Button(action: action) {
             HStack(spacing: 3) {
                 Text(title)
-                Image(systemName: "chevron.right").font(.caption2.weight(.bold))
+                Image(systemName: "chevron.right").font(.wr(.caption2, .bold))
             }
-            .font(.footnote.weight(.semibold))
+            .font(.wr(.footnote, .semibold))
             .foregroundStyle(Color.moss)
             .frame(minHeight: 44)
             .contentShape(.rect)
@@ -101,7 +101,7 @@ struct DiscoverCategoryTile: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top) {
                 Image(systemName: CategoryPalette.symbol(for: category.glyph))
-                    .font(.title3.weight(.medium))
+                    .font(.wr(.title3, .medium))
                     .foregroundStyle(color)
                     .frame(width: 40, height: 40)
                     .background(Color.card.opacity(0.85), in: Circle())
@@ -112,7 +112,7 @@ struct DiscoverCategoryTile: View {
             }
             Spacer(minLength: 14)
             Text(category.name)
-                .font(.system(.subheadline, design: .serif).weight(.semibold))
+                .font(.wr(.subheadline, .semibold))
                 .foregroundStyle(Color.ink)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -162,8 +162,8 @@ struct DiscoverCategoryChips: View {
             withAnimation(.snappy) { selection = slug }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: symbol).font(.footnote.weight(.semibold))
-                Text(label).font(.subheadline.weight(on ? .semibold : .regular))
+                Image(systemName: symbol).font(.wr(.footnote, .semibold))
+                Text(label).font(.wr(.subheadline).weight(on ? .semibold : .regular))
             }
             .foregroundStyle(on ? Color.paper : Color.ink)
             .padding(.horizontal, 13).padding(.vertical, 9)
@@ -190,19 +190,19 @@ struct BlogMagazineRow: View {
                 VStack(alignment: .leading, spacing: 6) {
                     if let c = article.category?.name { SpecLabel(c, color: .clay) }
                     Text(article.title)
-                        .font(.system(.headline, design: .serif))
+                        .font(.wr(.headline))
                         .foregroundStyle(Color.ink)
                         .multilineTextAlignment(.leading)
                         .lineLimit(3)
                     if let dek = article.dek?.nilIfEmpty {
-                        Text(dek).font(.footnote).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(dek).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading)
                     }
                     HStack(spacing: 6) {
                         if showAuthor, let a = article.author { Text(a.displayName).foregroundStyle(Color.ink2) }
                         if let m = article.readingMinutes { Text("\(m) Min.") }
                         Text(Fmt.date(article.publishedAt))
                     }
-                    .font(.caption)
+                    .font(.wr(.caption))
                     .foregroundStyle(Color.muted)
                 }
                 Spacer(minLength: 0)
@@ -227,7 +227,7 @@ struct DiscoverBadge: View {
     var body: some View {
         if count > 0 {
             Text("\(count)")
-                .font(.caption2.weight(.bold)).monospacedDigit()
+                .font(.wr(.caption2, .bold)).monospacedDigit()
                 .foregroundStyle(Color.paper)
                 .frame(minWidth: 16, minHeight: 16)
                 .background(Color.clay, in: Circle())
@@ -241,7 +241,7 @@ struct DiscoverFieldError: View {
     var message: String?
     var body: some View {
         if let message {
-            Text(message).font(.caption).foregroundStyle(Color.danger)
+            Text(message).font(.wr(.caption)).foregroundStyle(Color.danger)
         }
     }
 }

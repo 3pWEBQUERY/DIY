@@ -62,7 +62,7 @@ struct OnboardingView: View {
             .accessibilityLabel("Schritt \(step + 1) von \(steps.count)")
             Spacer()
             Button("Überspringen") { Task { await skip() } }
-                .font(.footnote.weight(.semibold))
+                .font(.wr(.footnote, .semibold))
                 .buttonStyle(.glass)
         }
         .padding(.horizontal, Space.gutter)
@@ -124,13 +124,13 @@ struct OnboardingView: View {
                         } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: CategoryPalette.symbol(for: c.glyph))
-                                    .font(.body)
+                                    .font(.wr(.body))
                                     .foregroundStyle(on ? Color.paper : CategoryPalette.color(for: c.slug))
                                     .frame(width: 34, height: 34)
                                     .background(on ? CategoryPalette.color(for: c.slug) : CategoryPalette.soft(for: c.slug), in: .rect(cornerRadius: 10, style: .continuous))
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(c.short).font(.subheadline.weight(.semibold)).foregroundStyle(Color.ink)
-                                    if c.focus == true { Text("Schwerpunkt").font(.caption2).foregroundStyle(Color.moss) }
+                                    Text(c.short).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                                    if c.focus == true { Text("Schwerpunkt").font(.wr(.caption2)).foregroundStyle(Color.moss) }
                                 }
                                 Spacer(minLength: 0)
                                 Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Color.moss : Color.lineStrong)
@@ -157,23 +157,23 @@ struct OnboardingView: View {
                     SingleImagePicker(onUploaded: { _, path in avatarPath = path }) {
                         ZStack(alignment: .bottomTrailing) {
                             AvatarView(url: avatarPath, name: displayName.isEmpty ? "Du" : displayName, size: 84, category: interests.first)
-                            Image(systemName: "camera.fill").font(.caption).foregroundStyle(.white).padding(7).background(Color.moss, in: Circle())
+                            Image(systemName: "camera.fill").font(.wr(.caption)).foregroundStyle(.white).padding(7).background(Color.moss, in: Circle())
                         }
                     }
                     .accessibilityLabel("Profilbild wählen")
                     VStack(alignment: .leading, spacing: 2) {
                         Text(displayName.isEmpty ? "Dein Name" : displayName).font(.titleSerif)
-                        Text("@\(handle)").font(.footnote).foregroundStyle(Color.muted)
+                        Text("@\(handle)").font(.wr(.footnote)).foregroundStyle(Color.muted)
                     }
                 }
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Kurzbiografie").font(.caption.weight(.semibold)).foregroundStyle(Color.muted)
+                    Text("Kurzbiografie").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
                     TextField("Was machst du gern mit deinen Händen?", text: $bio, axis: .vertical)
                         .lineLimit(3...6)
                         .padding(14)
                         .background(Color.card, in: .rect(cornerRadius: Radius.inner, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Color.line, lineWidth: 0.75))
-                    Text("\(bio.count)/300").font(.caption2).foregroundStyle(bio.count > 300 ? Color.danger : Color.muted)
+                    Text("\(bio.count)/300").font(.wr(.caption2)).foregroundStyle(bio.count > 300 ? Color.danger : Color.muted)
                 }
                 AuthField(title: "Region (optional)", text: $region, error: nil, content: .addressCity)
             }
@@ -193,8 +193,8 @@ struct OnboardingView: View {
                                 HStack(spacing: 12) {
                                     AvatarView(url: c.avatarUrl, name: c.displayName, size: 44, category: c.categories?.first)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(c.displayName).font(.subheadline.weight(.semibold))
-                                        Text(c.bio ?? "").font(.caption).foregroundStyle(Color.muted).lineLimit(2)
+                                        Text(c.displayName).font(.wr(.subheadline, .semibold))
+                                        Text(c.bio ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2)
                                     }
                                     Spacer(minLength: 0)
                                     toggleButton(on: followed.contains(c.userId), onTitle: "Folge ich", offTitle: "Folgen") {
@@ -214,8 +214,8 @@ struct OnboardingView: View {
                                 HStack(spacing: 12) {
                                     CoverView(url: c.coverUrl, seed: c.id, category: c.category, showLabel: false).frame(width: 44, height: 44).clipShape(.rect(cornerRadius: 12, style: .continuous))
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(c.name).font(.subheadline.weight(.semibold))
-                                        Text(Fmt.plural(c.memberCount ?? 0, "Mitglied", "Mitglieder")).font(.caption).foregroundStyle(Color.muted)
+                                        Text(c.name).font(.wr(.subheadline, .semibold))
+                                        Text(Fmt.plural(c.memberCount ?? 0, "Mitglied", "Mitglieder")).font(.wr(.caption)).foregroundStyle(Color.muted)
                                     }
                                     Spacer(minLength: 0)
                                     toggleButton(on: joined.contains(c.id), onTitle: "Dabei", offTitle: "Beitreten") {
@@ -244,7 +244,7 @@ struct OnboardingView: View {
 
     private func toggleButton(on: Bool, onTitle: String, offTitle: String, action: @escaping () -> Void) -> some View {
         Button { Haptics.tap(); withAnimation(.snappy) { action() } } label: {
-            Text(on ? onTitle : offTitle).font(.footnote.weight(.semibold))
+            Text(on ? onTitle : offTitle).font(.wr(.footnote, .semibold))
         }
         .buttonStyle(on ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
         .tint(on ? nil : .ink)

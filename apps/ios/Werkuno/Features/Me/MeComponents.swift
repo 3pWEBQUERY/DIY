@@ -41,7 +41,7 @@ struct MeGroup<Content: View>: View {
                 }
             }
             .cardSurface()
-            if let footer { Text(footer).font(.caption).foregroundStyle(Color.muted).padding(.horizontal, 6) }
+            if let footer { Text(footer).font(.wr(.caption)).foregroundStyle(Color.muted).padding(.horizontal, 6) }
         }
     }
 }
@@ -61,26 +61,26 @@ struct MeNavRow: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.wr(size: 16, weight: .medium))
                     .foregroundStyle(tint)
                     .frame(width: 30, height: 30)
                     .background(tint.opacity(0.09), in: .rect(cornerRadius: 9, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.body).foregroundStyle(tint == .danger ? Color.danger : Color.ink)
-                    if let subtitle { Text(subtitle).font(.caption).foregroundStyle(Color.muted).lineLimit(2) }
+                    Text(title).font(.wr(.body)).foregroundStyle(tint == .danger ? Color.danger : Color.ink)
+                    if let subtitle { Text(subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
                 }
                 Spacer(minLength: 8)
                 if badge > 0 {
                     Text(badge > 99 ? "99+" : "\(badge)")
-                        .font(.caption.weight(.bold)).monospacedDigit()
+                        .font(.wr(.caption, .bold)).monospacedDigit()
                         .foregroundStyle(Color.paper)
                         .padding(.horizontal, 7).padding(.vertical, 2)
                         .background(Color.clay, in: Capsule())
                         .accessibilityLabel("\(badge) neu")
                 }
-                if let trailing { Text(trailing).font(.subheadline).foregroundStyle(Color.muted) }
+                if let trailing { Text(trailing).font(.wr(.subheadline)).foregroundStyle(Color.muted) }
                 Image(systemName: external ? "arrow.up.right" : "chevron.right")
-                    .font(.caption.weight(.semibold)).foregroundStyle(Color.lineStrong)
+                    .font(.wr(.caption, .semibold)).foregroundStyle(Color.lineStrong)
             }
             .padding(.horizontal, 14).padding(.vertical, 11)
             .frame(minHeight: 52)
@@ -98,7 +98,7 @@ struct MeDelta: View {
         let (text, color, symbol) = info
         Label(text, systemImage: symbol)
             .labelStyle(.compact)
-            .font(.caption.weight(.semibold)).monospacedDigit()
+            .font(.wr(.caption, .semibold)).monospacedDigit()
             .foregroundStyle(color)
             .accessibilityLabel("Vorperiode: \(Fmt.number(prev))")
     }
@@ -122,19 +122,19 @@ struct MeKPI: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                if let symbol { Image(systemName: symbol).font(.caption).foregroundStyle(Color.moss) }
+                if let symbol { Image(systemName: symbol).font(.wr(.caption)).foregroundStyle(Color.moss) }
                 SpecLabel(label)
             }
             Text(value)
-                .font(.system(.title2, design: .rounded).weight(.semibold)).monospacedDigit()
+                .font(.wr(.title2, .semibold)).monospacedDigit()
                 .foregroundStyle(Color.ink)
                 .contentTransition(.numericText())
             HStack(spacing: 6) {
                 if let cur, let prev {
                     MeDelta(cur: cur, prev: prev)
-                    Text("vs. \(Fmt.number(prev))").font(.caption).foregroundStyle(Color.muted)
+                    Text("vs. \(Fmt.number(prev))").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                if let caption { Text(caption).font(.caption).foregroundStyle(Color.muted).lineLimit(2) }
+                if let caption { Text(caption).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,9 +160,9 @@ struct MeTabSwitcher<T: Hashable>: View {
                         withAnimation(.snappy(duration: 0.3)) { selection = item.value }
                     } label: {
                         HStack(spacing: 5) {
-                            Text(item.label).font(.subheadline.weight(on ? .semibold : .regular))
+                            Text(item.label).font(.wr(.subheadline).weight(on ? .semibold : .regular))
                             if let c = item.count, c > 0 {
-                                Text(Fmt.number(c)).font(.caption.weight(.medium)).monospacedDigit().opacity(0.7)
+                                Text(Fmt.number(c)).font(.wr(.caption, .medium)).monospacedDigit().opacity(0.7)
                             }
                         }
                         .foregroundStyle(on ? Color.paper : Color.ink)
@@ -200,7 +200,7 @@ struct MeStatePill: View {
         case .slate: .slate
         }
         Text(text)
-            .font(.caption2.weight(.semibold))
+            .font(.wr(.caption2, .semibold))
             .foregroundStyle(c)
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(c.opacity(0.12), in: Capsule())
@@ -215,7 +215,7 @@ struct MeCountLabel: View {
     var body: some View {
         Label(Fmt.number(value), systemImage: symbol)
             .labelStyle(.compact)
-            .font(.caption).monospacedDigit()
+            .font(.wr(.caption)).monospacedDigit()
             .foregroundStyle(Color.muted)
             .accessibilityLabel("\(value ?? 0) \(label)")
     }
@@ -229,9 +229,9 @@ struct MeCharCounter: View {
     var body: some View {
         let tooShort = (min ?? 0) > count
         HStack {
-            if let min, tooShort { Text("Noch mindestens \(min - count) Zeichen").font(.caption).foregroundStyle(Color.muted) }
+            if let min, tooShort { Text("Noch mindestens \(min - count) Zeichen").font(.wr(.caption)).foregroundStyle(Color.muted) }
             Spacer()
-            Text("\(count)/\(max)").font(.caption).monospacedDigit().foregroundStyle(count > max ? Color.danger : Color.muted)
+            Text("\(count)/\(max)").font(.wr(.caption)).monospacedDigit().foregroundStyle(count > max ? Color.danger : Color.muted)
         }
     }
 }
@@ -255,8 +255,8 @@ struct MeCategoryPicker: View {
                     }
                 } label: {
                     HStack(spacing: 5) {
-                        Image(systemName: on ? "checkmark" : CategoryPalette.symbol(for: c.glyph)).font(.caption2.weight(.bold))
-                        Text(c.short.isEmpty ? c.name : c.short).font(.subheadline)
+                        Image(systemName: on ? "checkmark" : CategoryPalette.symbol(for: c.glyph)).font(.wr(.caption2, .bold))
+                        Text(c.short.isEmpty ? c.name : c.short).font(.wr(.subheadline))
                     }
                     .foregroundStyle(on ? Color.paper : Color.ink)
                     .padding(.horizontal, 11).padding(.vertical, 7)

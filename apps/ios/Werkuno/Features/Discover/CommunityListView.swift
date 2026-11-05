@@ -52,7 +52,7 @@ struct CommunityListView: View {
             if app.isSignedIn {
                 Button { router.present(.communityEditor()) } label: {
                     Label("Community gründen", systemImage: "person.3.sequence")
-                        .font(.body.weight(.semibold))
+                        .font(.wr(.body, .semibold))
                         .padding(.horizontal, 10)
                 }
                 .buttonStyle(.glassProminent)
@@ -175,9 +175,9 @@ struct CommunityListView: View {
                 CoverView(url: c.coverUrl, seed: c.id, category: c.category)
                     .frame(height: 120)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(c.name).font(.headline).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(c.name).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(1)
                     Text([app.categoryShort(c.category), c.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(Color.muted).lineLimit(1)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
                     SpecLabel(Fmt.plural(c.memberCount ?? 0, "Mitglied", "Mitglieder"))
                 }
                 .padding(12)

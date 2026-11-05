@@ -123,7 +123,7 @@ struct TutorialEditorSheet: View {
         ProjectsEditorBar {
             if section > 0 {
                 Button { withAnimation(.snappy) { section -= 1 } } label: {
-                    Image(systemName: "chevron.left").font(.body.weight(.semibold)).frame(width: 30, height: 30)
+                    Image(systemName: "chevron.left").font(.wr(.body, .semibold)).frame(width: 30, height: 30)
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
@@ -137,7 +137,7 @@ struct TutorialEditorSheet: View {
                 .primaryButton()
             } else {
                 AsyncButton { await save(publish: false) } label: { Text("Entwurf speichern") }
-                    .font(.body.weight(.semibold))
+                    .font(.wr(.body, .semibold))
                     .buttonStyle(.glass)
                     .controlSize(.large)
                     .disabled(saving || uploading)
@@ -168,7 +168,7 @@ struct TutorialEditorSheet: View {
         VStack(alignment: .leading, spacing: 24) {
             ProjectsField(label: "Titel", error: errors["title"], trailing: "\(title.count)/140") {
                 TextField("Was baut man mit deiner Anleitung?", text: $title, axis: .vertical)
-                    .font(.system(.title3, design: .serif).weight(.semibold))
+                    .font(.wr(.title3, .semibold))
                     .lineLimit(1...3)
                     .projectsInput(error: errors["title"] != nil)
             }
@@ -197,7 +197,7 @@ struct TutorialEditorSheet: View {
                         Image(systemName: "point.3.connected.trianglepath.dotted").foregroundStyle(Color.moss)
                         Text(projectOptions.first { $0.id == projectId }?.title ?? "Kein Projekt").foregroundStyle(Color.ink).lineLimit(1)
                         Spacer()
-                        Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(Color.muted)
+                        Image(systemName: "chevron.up.chevron.down").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
                     .projectsInput()
                 }
@@ -209,14 +209,14 @@ struct TutorialEditorSheet: View {
                             .frame(width: 120, height: 90)
                             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                             .overlay(alignment: .bottomTrailing) {
-                                Image(systemName: "camera.fill").font(.caption).foregroundStyle(Color.paper).padding(6).background(Color.ink.opacity(0.7), in: Circle()).padding(6)
+                                Image(systemName: "camera.fill").font(.wr(.caption)).foregroundStyle(Color.paper).padding(6).background(Color.ink.opacity(0.7), in: Circle()).padding(6)
                             }
                     }
                     .accessibilityLabel(coverId == nil ? "Titelbild wählen" : "Titelbild ändern")
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(coverId == nil ? "Ohne Titelbild zeigen wir eine Faden-Tafel." : "Titelbild gesetzt.").font(.footnote).foregroundStyle(Color.muted)
+                        Text(coverId == nil ? "Ohne Titelbild zeigen wir eine Faden-Tafel." : "Titelbild gesetzt.").font(.wr(.footnote)).foregroundStyle(Color.muted)
                         if coverId != nil {
-                            Button("Entfernen", role: .destructive) { coverId = nil; coverPreview = nil }.font(.footnote.weight(.semibold))
+                            Button("Entfernen", role: .destructive) { coverId = nil; coverPreview = nil }.font(.wr(.footnote, .semibold))
                         }
                     }
                 }
@@ -231,7 +231,7 @@ struct TutorialEditorSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Material & Werkzeug").font(.headlineSerif)
                 Text("Die Liste erscheint in der Übersicht – Leser:innen können sie direkt auf eine Einkaufsliste setzen. In jedem Schritt kannst du daraus auswählen.")
-                    .font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader("Material")
@@ -251,9 +251,9 @@ struct TutorialEditorSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Schritte").font(.headlineSerif)
                 Text("Ein Schritt = eine Tätigkeit. Tippe auf einen Schritt, um Text, Bilder, Tipp und Sicherheitshinweise zu bearbeiten.")
-                    .font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
-            if let e = errors.fields["steps"] { Text(e).font(.caption).foregroundStyle(Color.danger) }
+            if let e = errors.fields["steps"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
             VStack(spacing: 0) {
                 ForEach(Array(steps.enumerated()), id: \.element.id) { i, s in
                     stepRow(s, index: i)
@@ -265,7 +265,7 @@ struct TutorialEditorSheet: View {
                 editingStep = TutorialStepEditTarget(id: s.id)
             } label: {
                 Label("Schritt hinzufügen", systemImage: "plus")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.wr(.subheadline, .semibold))
                     .foregroundStyle(Color.moss)
                     .frame(maxWidth: .infinity, minHeight: 48)
                     .background(Color.mossSoft.opacity(0.6), in: .rect(cornerRadius: Radius.inner, style: .continuous))
@@ -281,13 +281,13 @@ struct TutorialEditorSheet: View {
         return HStack(alignment: .top, spacing: 14) {
             ZStack {
                 Circle().fill(err == nil ? Color.ink : Color.danger).frame(width: 28, height: 28)
-                Text("\(i + 1)").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(Color.paper)
+                Text("\(i + 1)").font(.wr(size: 12, weight: .bold)).foregroundStyle(Color.paper)
             }
             .frame(width: 28)
             Button { editingStep = TutorialStepEditTarget(id: s.id) } label: {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(s.title.nilIfEmpty ?? "Ohne Titel").font(.subheadline.weight(.semibold)).foregroundStyle(s.title.isEmpty ? Color.muted : Color.ink).multilineTextAlignment(.leading)
-                    if let b = s.body.nilIfEmpty { Text(b).font(.footnote).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                    Text(s.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.subheadline, .semibold)).foregroundStyle(s.title.isEmpty ? Color.muted : Color.ink).multilineTextAlignment(.leading)
+                    if let b = s.body.nilIfEmpty { Text(b).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
                     HStack(spacing: 10) {
                         if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
                         if !s.media.isEmpty { Label("\(s.media.count)", systemImage: "photo").labelStyle(.compact) }
@@ -295,8 +295,8 @@ struct TutorialEditorSheet: View {
                         if s.safety.nilIfEmpty != nil || !s.safetyKinds.isEmpty { Label("Sicherheit", systemImage: "exclamationmark.triangle.fill").labelStyle(.compact).foregroundStyle(Color.danger) }
                         if s.stableKey != nil { Image(systemName: "link").accessibilityLabel("Fortschritt bleibt erhalten") }
                     }
-                    .font(.caption2).foregroundStyle(Color.muted)
-                    if let err { Text(err).font(.caption).foregroundStyle(Color.danger) }
+                    .font(.wr(.caption2)).foregroundStyle(Color.muted)
+                    if let err { Text(err).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(.rect)
@@ -315,7 +315,7 @@ struct TutorialEditorSheet: View {
                 Divider()
                 Button("Löschen", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { steps.removeAll { $0.id == s.id } } }
             } label: {
-                Image(systemName: "ellipsis").font(.subheadline.weight(.semibold)).foregroundStyle(Color.muted).frame(width: 36, height: 36).contentShape(.rect)
+                Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted).frame(width: 36, height: 36).contentShape(.rect)
             }
             .accessibilityLabel("Aktionen für Schritt \(i + 1)")
         }
@@ -341,7 +341,7 @@ struct TutorialEditorSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Freigabe").font(.headlineSerif)
                 Text(currentVersion.map { "Veröffentlicht ist Version \($0). Beim Veröffentlichen entsteht Version \($0 + 1) – der Fortschritt deiner Leser:innen bleibt bei unveränderten Schritten erhalten." } ?? "Noch nicht veröffentlicht. Ein Entwurf ist nur für dich sichtbar; beim Veröffentlichen entsteht Version 1.")
-                    .font(.subheadline).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -362,16 +362,16 @@ struct TutorialEditorSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Toggle(isOn: $isMajor.animation(.snappy)) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Grössere Änderung").font(.subheadline.weight(.semibold))
-                            Text("Z. B. andere Masse, Materialien oder Reihenfolge.").font(.caption).foregroundStyle(Color.muted)
+                            Text("Grössere Änderung").font(.wr(.subheadline, .semibold))
+                            Text("Z. B. andere Masse, Materialien oder Reihenfolge.").font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
                     }
                     .tint(.clay)
                     if isMajor {
                         Toggle(isOn: $notifyReaders) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Leser:innen benachrichtigen").font(.subheadline.weight(.semibold))
-                                Text("Alle, die gerade nachbauen, erhalten einen Hinweis.").font(.caption).foregroundStyle(Color.muted)
+                                Text("Leser:innen benachrichtigen").font(.wr(.subheadline, .semibold))
+                                Text("Alle, die gerade nachbauen, erhalten einen Hinweis.").font(.wr(.caption)).foregroundStyle(Color.muted)
                             }
                         }
                         .tint(.moss)
@@ -387,8 +387,8 @@ struct TutorialEditorSheet: View {
 
             Toggle(isOn: $shareToFeed) {
                 Label { VStack(alignment: .leading, spacing: 2) {
-                    Text("Im Feed teilen").font(.subheadline.weight(.semibold))
-                    Text("Beim Veröffentlichen entsteht ein Beitrag für deine Follower.").font(.caption).foregroundStyle(Color.muted)
+                    Text("Im Feed teilen").font(.wr(.subheadline, .semibold))
+                    Text("Beim Veröffentlichen entsteht ein Beitrag für deine Follower.").font(.wr(.caption)).foregroundStyle(Color.muted)
                 } } icon: { Image(systemName: "bubble.left.and.text.bubble.right").foregroundStyle(Color.moss) }
             }
             .tint(.moss)
@@ -586,12 +586,12 @@ struct TutorialStepEditor: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(String(format: "%02d", number)).font(.system(size: 44, weight: .semibold, design: .serif)).foregroundStyle(Color.moss).accessibilityHidden(true)
+                        Text(String(format: "%02d", number)).font(.wr(size: 44, weight: .semibold)).foregroundStyle(Color.moss).accessibilityHidden(true)
                         SpecLabel("Schritt \(number)")
                     }
                     ProjectsField(label: "Titel", trailing: "\(step.title.count)/140") {
                         TextField("z. B. Boden in Runden zunehmen", text: $step.title, axis: .vertical)
-                            .font(.system(.title3, design: .serif).weight(.semibold))
+                            .font(.wr(.title3, .semibold))
                             .lineLimit(1...3)
                             .focused($titleFocused)
                             .projectsInput()
@@ -626,7 +626,7 @@ struct TutorialStepEditor: View {
                                     }
                                 } label: {
                                     Label(s.label, systemImage: s.symbol)
-                                        .font(.footnote.weight(on ? .semibold : .regular))
+                                        .font(.wr(.footnote).weight(on ? .semibold : .regular))
                                         .foregroundStyle(on ? Color.paper : Color.danger)
                                         .padding(.horizontal, 11).padding(.vertical, 8)
                                         .background(on ? Color.danger : Color.danger.opacity(0.08), in: Capsule())
@@ -678,8 +678,8 @@ struct TutorialStepEditor: View {
                             if on { selection.wrappedValue.removeAll { $0 == name } } else { selection.wrappedValue.append(name) }
                         } label: {
                             HStack(spacing: 5) {
-                                Image(systemName: on ? "checkmark" : "plus").font(.caption2.weight(.bold))
-                                Text(name).font(.footnote.weight(on ? .semibold : .regular))
+                                Image(systemName: on ? "checkmark" : "plus").font(.wr(.caption2, .bold))
+                                Text(name).font(.wr(.footnote).weight(on ? .semibold : .regular))
                             }
                             .foregroundStyle(on ? Color.paper : Color.ink)
                             .padding(.horizontal, 11).padding(.vertical, 8)
@@ -697,7 +697,7 @@ struct TutorialStepEditor: View {
                     .submitLabel(.done)
                     .onSubmit { addCustom(custom, to: selection) }
                 if !custom.wrappedValue.trimmed.isEmpty {
-                    Button("Hinzufügen") { addCustom(custom, to: selection) }.font(.footnote.weight(.semibold)).foregroundStyle(Color.moss)
+                    Button("Hinzufügen") { addCustom(custom, to: selection) }.font(.wr(.footnote, .semibold)).foregroundStyle(Color.moss)
                 }
             }
             .projectsInput()
