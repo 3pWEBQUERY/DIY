@@ -1,0 +1,6 @@
+# Von XcodeGen erzeugt (Quelle: project.yml)
+Werkraum.xcodeproj/
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate

@@ -1,0 +1,50 @@
+name: Werkraum
+options:
+  bundleIdPrefix: ch.werkraum
+  deploymentTarget:
+    iOS: "26.1"
+  createIntermediateGroups: true
+  developmentLanguage: de
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_LANGUAGE: de
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_EMIT_LOC_STRINGS: NO
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+targets:
+  Werkraum:
+    type: application
+    platform: iOS
+    sources:
+      - path: Werkraum
+        excludes:
+          - "ThreeD/web/**"
+      - path: Werkraum/ThreeD/web
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.werkraum.app
+        PRODUCT_NAME: Werkraum
+        INFOPLIST_FILE: Werkraum/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        # Für Geräte-Builds eigenes Apple-Developer-Team eintragen (Simulator: leer lassen)
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_ENTITLEMENTS: Werkraum/Werkraum.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SUPPORTS_MACCATALYST: NO
+        ENABLE_PREVIEWS: YES
+        SWIFT_STRICT_CONCURRENCY: minimal
+schemes:
+  Werkraum:
+    build:
+      targets:
+        Werkraum: all
+    run:
+      config: Debug

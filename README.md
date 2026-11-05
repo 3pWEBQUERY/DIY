@@ -18,7 +18,7 @@
 
 ## Stack
 
-Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Prisma 7 · PostgreSQL · pg-boss · S3 (Railway Bucket) · Stripe Connect · Three.js
+Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Prisma 7 · PostgreSQL · pg-boss · S3 (Railway Bucket) · Stripe Connect · Three.js · iOS: Swift/SwiftUI (iOS 26.1+)
 
 ## Schnellstart
 
@@ -33,6 +33,13 @@ pnpm worker                               # zweites Terminal
 
 Demo-Login: `lena-haekelt@demo.werkraum.local` / `Werkraum-Demo-2026!` · Admin: `admin@werkraum.local` / `Werkraum-Admin-2026!` (lokal, bitte in Produktion per `ADMIN_EMAIL`/`ADMIN_PASSWORD` setzen).
 
+## iOS-App
+
+```bash
+cd apps/ios && xcodegen generate && open Werkraum.xcodeproj
+```
+Details: [`apps/ios/README.md`](apps/ios/README.md) · Mobile-API: `apps/web/src/server/mobile/`
+
 ## Dokumentation
 
 - [`docs/PLAN.md`](docs/PLAN.md) – Umsetzungsplan mit PRD-Abdeckung
@@ -44,5 +51,5 @@ Demo-Login: `lena-haekelt@demo.werkraum.local` / `Werkraum-Demo-2026!` · Admin:
 ```
 apps/web          Next.js-App (UI, API /api/v1, Worker, Prisma)
 packages/shared   Zod-Schemas, Enums, Geldlogik – geteilt mit der iOS-App
-apps/ios          iOS-App (Expo) – folgt in der Schlussphase
+apps/ios          Native iOS-App (SwiftUI, Liquid Glass, Three.js) – nutzt /api/v1/app
 ```
