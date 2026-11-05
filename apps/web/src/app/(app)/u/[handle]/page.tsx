@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!p) return { title: "Profil nicht gefunden" };
   return {
     title: `${p.displayName} (@${p.handle})`,
-    description: p.bio || `${p.displayName} auf WERKRAUM – Projekte, Anleitungen und mehr.`,
+    description: p.bio || `${p.displayName} auf Werkuno – Projekte, Anleitungen und mehr.`,
     alternates: { canonical: `/u/${p.handle}` },
     openGraph: { type: "profile", images: p.avatarUrl ? [p.avatarUrl] : undefined },
   };
@@ -159,7 +159,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : !viewer ? (
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
-            <span className="grid size-10 place-items-center border border-line-strong rounded-xl"><ShareButton url={`/u/${profile.handle}`} title={`${profile.displayName} auf WERKRAUM`} /></span>
+            <span className="grid size-10 place-items-center border border-line-strong rounded-xl"><ShareButton url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} /></span>
             {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
           </div>
         </header>

@@ -49,7 +49,7 @@ function collect(children: ReactNode, out: Opt[] = []) {
 }
 
 /**
- * Eigenes Auswahlfeld im Werkraum-Stil – ersetzt das native <select> vollständig.
+ * Eigenes Auswahlfeld im Werkuno-Stil – ersetzt das native <select> vollständig.
  * Drop-in: gleiche Props (value/defaultValue/name/disabled/onChange mit e.target.value),
  * funktioniert in Formularen (verstecktes Input), per Tastatur bedienbar (WAI-ARIA Listbox).
  */

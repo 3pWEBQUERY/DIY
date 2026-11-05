@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Marktplatz",
-  description: "Handgemachtes, DIY-Materialsets und Anleitungen – direkt von Menschen aus der WERKRAUM-Community.",
+  description: "Handgemachtes, DIY-Materialsets und Anleitungen – direkt von Menschen aus der Werkuno-Community.",
   alternates: { canonical: "/markt" },
 };
 

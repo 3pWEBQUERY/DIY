@@ -1,26 +1,31 @@
+import Image from "next/image";
+import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
-/** Wortmarke: Serif-Schriftzug + „Faden“-Signet (eine Linie, die eine Schlaufe bildet). */
+/** Seitenverhältnis des Werkuno-Logos (public/brand/werkuno-logo.png, 1400×440). */
+const LOGO_RATIO = 1980 / 622;
+
+/** Bildzeichen (Werkuno-Icon: Hammer, Garn, Schere, Pflanze). */
 export function Signet({ size = 28, className }: { size?: number; className?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className={className}>
-      <path
-        d="M3 24c4 0 6-3 8-8s4-10 8-10 5 4 3 7-6 4-8 2 0-6 4-6 7 4 7 9-2 6-4 6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <circle cx="26.6" cy="24" r="1.7" fill="#B64B3A" />
-    </svg>
-  );
+  return <Image src="/brand/werkuno-icon.png" alt="" aria-hidden width={size} height={size} className={cn("shrink-0 select-none", className)} priority />;
 }
 
-export function Wordmark({ className, compact }: { className?: string; compact?: boolean }) {
+/**
+ * Wortmarke „Werkuno“ als Logo-Bild. `compact` zeigt nur das Bildzeichen,
+ * `tone="light"` die helle Variante für dunkle Flächen (z. B. Admin-Kopfzeile).
+ */
+export function Wordmark({ className, compact, tone = "dark", height = 32 }: { className?: string; compact?: boolean; tone?: "dark" | "light"; height?: number }) {
+  if (compact) return <Signet size={Math.round(height * 1.15)} className={className} />;
+  const width = Math.round(height * LOGO_RATIO);
   return (
-    <span className={cn("inline-flex items-center gap-2 text-ink", className)}>
-      <Signet />
-      {!compact && <span className="font-serif text-[22px] font-medium tracking-[-0.02em] leading-none">Werkraum</span>}
-    </span>
+    <Image
+      src={tone === "light" ? "/brand/werkuno-logo-light.png" : "/brand/werkuno-logo.png"}
+      alt={BRAND.wordmark}
+      width={width}
+      height={height}
+      priority
+      className={cn("shrink-0 select-none", className)}
+      style={{ width, height }}
+    />
   );
 }

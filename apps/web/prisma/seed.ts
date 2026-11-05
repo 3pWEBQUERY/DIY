@@ -72,11 +72,21 @@ async function baseData() {
   await db.featureFlag.upsert({ where: { key: "local-feed" }, create: { key: "local-feed", enabled: false, description: "Feed „Lokal“ (Phase 4)" }, update: {} });
 }
 
+/** Umbenennung WERKRAUM → Werkuno für bereits angelegte Redaktionsdaten (idempotent). */
+async function rebrand() {
+  const r = await db.userProfile.updateMany({ where: { handle: "werkraum", displayName: "WERKRAUM Redaktion" }, data: { displayName: "Werkuno Redaktion", bio: "Die Redaktion hinter Werkuno. Wir kuratieren, moderieren und hören zu." } });
+  const p = await db.post.updateMany({ where: { body: { startsWith: "Willkommen im WERKRAUM!" } }, data: { body: "Willkommen bei Werkuno! 🧶 Diese Woche im Fokus: Häkeln, Stricken und Nähen. Teilt eure aktuellen Projekte – auch die halbfertigen. Gerade die." } });
+  if (r.count || p.count) console.log(`→ Marke aktualisiert (${r.count} Profil, ${p.count} Beitrag)`);
+}
+
 async function admin() {
   const email = (process.env.ADMIN_EMAIL ?? "admin@werkraum.local").toLowerCase();
   const password = process.env.ADMIN_PASSWORD ?? "Werkraum-Admin-2026!";
   const exists = await db.user.findUnique({ where: { email } });
-  if (exists) return exists;
+  if (exists) {
+    await rebrand();
+    return exists;
+  }
   console.log(`→ Admin angelegt: ${email}`);
   return db.user.create({
     data: {
@@ -87,7 +97,7 @@ async function admin() {
       adultConfirmedAt: new Date(),
       termsAcceptedAt: new Date(),
       onboardedAt: new Date(),
-      profile: { create: { handle: "werkraum", displayName: "WERKRAUM Redaktion", bio: "Die Redaktion hinter WERKRAUM. Wir kuratieren, moderieren und hören zu.", categories: ["haekeln-stricken", "naehen-textil", "holz"], region: "Zürich" } },
+      profile: { create: { handle: "werkraum", displayName: "Werkuno Redaktion", bio: "Die Redaktion hinter Werkuno. Wir kuratieren, moderieren und hören zu.", categories: ["haekeln-stricken", "naehen-textil", "holz"], region: "Zürich" } },
       preference: { create: { interests: ["haekeln-stricken", "naehen-textil", "holz"] } },
     },
   });
@@ -515,7 +525,7 @@ const POSTS: { author: string; body: string; cat?: string; project?: string; ago
   { author: "luca.schmuck", body: "Altsilber hat eine Geschichte. Dieser Ring war mal ein Kaffeelöffel – und davor ein Erbstück.", cat: "schmuck-accessoires", project: "Siegelring aus geerbtem Silber", ago: 7 },
   { author: "mattia.holz", body: "Probeverbindungen für das Schwalbenschwanz-Regal in Kiefer. Nummer 3 ist endlich spaltfrei.", cat: "holz", project: "Wandregal mit Schwalbenschwanz", ago: 8 },
   { author: "sophie.naeht", body: "Denim-Jacke: Rückenteil gepatcht. Jeansnadel 110 und Nähte flach hämmern – sonst bricht die Nadel.", cat: "naehen-textil", project: "Upcycling-Jacke aus alten Jeans", ago: 9 },
-  { author: "werkraum", body: "Willkommen im WERKRAUM! 🧶 Diese Woche im Fokus: Häkeln, Stricken und Nähen. Teilt eure aktuellen Projekte – auch die halbfertigen. Gerade die.", ago: 10 },
+  { author: "werkraum", body: "Willkommen bei Werkuno! 🧶 Diese Woche im Fokus: Häkeln, Stricken und Nähen. Teilt eure aktuellen Projekte – auch die halbfertigen. Gerade die.", ago: 10 },
 ];
 
 const COMMENTS = [

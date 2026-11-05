@@ -19,7 +19,7 @@ const schema = z.object({
   STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
   // E-Mail
   RESEND_API_KEY: z.string().optional(),
-  MAIL_FROM: z.string().default("WERKRAUM <hallo@werkraum.ch>"),
+  MAIL_FROM: z.string().default("Werkuno <hallo@werkuno.ch>"),
   // Apple
   APPLE_CLIENT_ID: z.string().optional(),
   APPLE_TEAM_ID: z.string().optional(),

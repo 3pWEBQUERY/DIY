@@ -34,7 +34,7 @@ export function stripe(): Stripe {
     client = new Stripe(key, {
       maxNetworkRetries: 2,
       timeout: 20_000,
-      appInfo: { name: "WERKRAUM Marktplatz" },
+      appInfo: { name: "Werkuno Marktplatz" },
     });
   }
   return client;
@@ -54,7 +54,7 @@ export async function createExpressAccount(input: { shopId: string; email: strin
       email: input.email,
       business_type: input.sellerType === "BUSINESS" ? "company" : "individual",
       capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-      business_profile: { url: input.shopUrl, name: input.shopName, product_description: "Handgemachte Produkte und DIY-Materialien über WERKRAUM" },
+      business_profile: { url: input.shopUrl, name: input.shopName, product_description: "Handgemachte Produkte und DIY-Materialien über Werkuno" },
       metadata: { shopId: input.shopId },
     },
     { idempotencyKey: `acct-create:${input.shopId}` },
@@ -136,7 +136,7 @@ export async function createCheckoutSession(input: {
       payment_intent_data: {
         application_fee_amount: input.applicationFeeMinor,
         transfer_data: { destination: input.destinationAccountId },
-        description: `WERKRAUM Bestellung ${input.orderNumber}`,
+        description: `Werkuno Bestellung ${input.orderNumber}`,
         metadata,
       },
     },

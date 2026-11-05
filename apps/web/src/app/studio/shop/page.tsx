@@ -146,7 +146,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
                 done={accountConnected || verified}
                 active={!accountConnected && !verified}
                 title="Auszahlungskonto verbinden"
-                body="Bei Stripe bestätigst du Identität und Bankverbindung. WERKRAUM sieht keine Kontodaten."
+                body="Bei Stripe bestätigst du Identität und Bankverbindung. Werkuno sieht keine Kontodaten."
               >
                 {!accountConnected && !verified && mode === "stripe" && <StripeOnboardingButton />}
                 {!verified && mode === "simulated" && <SimulateVerificationButton />}

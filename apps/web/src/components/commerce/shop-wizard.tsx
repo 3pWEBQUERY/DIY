@@ -136,7 +136,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
             >
               {(p) => (
                 <div className="flex items-stretch">
-                  <span className="flex items-center border border-r-0 border-line-strong bg-sunken px-3 font-mono text-[12px] text-muted rounded-2xl">werkraum.ch/markt/</span>
+                  <span className="flex items-center border border-r-0 border-line-strong bg-sunken px-3 font-mono text-[12px] text-muted rounded-2xl">werkuno.ch/markt/</span>
                   <Input
                     {...p}
                     value={v.slug}
@@ -240,7 +240,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
             <h2 className="headline text-2xl">Alles korrekt?</h2>
             <dl className="divide-y divide-line border-y border-line text-[14px]">
               {[
-                ["Shop", `${v.name || "–"} · werkraum.ch/markt/${v.slug || "…"}`],
+                ["Shop", `${v.name || "–"} · werkuno.ch/markt/${v.slug || "…"}`],
                 ["Verkäufertyp", SELLER_TYPE_LABEL[v.sellerType]],
                 ["Anbieter", [v.sellerType === "BUSINESS" ? v.businessName : null, v.legalName].filter(Boolean).join(", ") || "–"],
                 ["Adresse", [v.addressLine, `${v.postalCode} ${v.city}`.trim(), COUNTRY_LABEL[v.country]].filter(Boolean).join(", ")],

@@ -68,7 +68,7 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
               {prep.recipient.displayName} folgt dir nicht. Deine Nachricht wird als <strong>Kontaktanfrage</strong> zugestellt – bis zur Annahme kannst du bis zu drei Nachrichten senden.
             </p>
           )}
-          <p className="mt-4 max-w-sm text-[11px] text-muted">Bleib freundlich und bezahle nie ausserhalb des WERKRAUM-Checkouts.</p>
+          <p className="mt-4 max-w-sm text-[11px] text-muted">Bleib freundlich und bezahle nie ausserhalb des Werkuno-Checkouts.</p>
         </div>
         <NewConversationComposer handle={prep.recipient.handle} orderId={prep.context?.orderId} productId={prep.context?.productId} name={prep.recipient.displayName} />
       </div>

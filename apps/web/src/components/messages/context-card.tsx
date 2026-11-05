@@ -58,7 +58,7 @@ export function ContextCard({ ctx }: { ctx: OrderContext }) {
           </Link>
         )}
       </div>
-      <p className="border-t border-clay/20 px-3 py-1.5 text-[11px] text-clay-ink">Zahlungen nur über den WERKRAUM-Checkout – nur dann gilt der Käuferschutz.</p>
+      <p className="border-t border-clay/20 px-3 py-1.5 text-[11px] text-clay-ink">Zahlungen nur über den Werkuno-Checkout – nur dann gilt der Käuferschutz.</p>
     </div>
   );
 }

@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = data.community;
   return {
     title: c.name,
-    description: c.description.slice(0, 160) || `${c.name} – Community auf WERKRAUM`,
+    description: c.description.slice(0, 160) || `${c.name} – Community auf Werkuno`,
     alternates: { canonical: `/c/${c.slug}` },
     robots: c.visibility === "PRIVATE" ? { index: false } : undefined,
     openGraph: { title: c.name, description: c.description.slice(0, 160), images: c.coverUrl ? [{ url: c.coverUrl }] : undefined },
@@ -219,7 +219,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
     body = (
       <div className="mx-auto max-w-[720px]">
         <RulesList rules={c.rules} />
-        <p className="mt-6 text-sm text-muted">Zusätzlich gelten die <Link href="/richtlinien/community" className="underline underline-offset-2 hover:text-ink">Community-Richtlinien</Link> von WERKRAUM. Verstösse kannst du über „Melden“ an jedem Beitrag mitteilen.</p>
+        <p className="mt-6 text-sm text-muted">Zusätzlich gelten die <Link href="/richtlinien/community" className="underline underline-offset-2 hover:text-ink">Community-Richtlinien</Link> von Werkuno. Verstösse kannst du über „Melden“ an jedem Beitrag mitteilen.</p>
       </div>
     );
   } else {

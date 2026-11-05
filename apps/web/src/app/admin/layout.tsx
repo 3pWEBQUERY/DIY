@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { hasRole } from "@/server/authz";
 import { adminPage, ROLE_LABEL } from "@/server/admin/guard";
 import { adminNavCounts } from "@/server/admin/kpis";
-import { Signet } from "@/components/shell/wordmark";
+import { Wordmark } from "@/components/shell/wordmark";
 import { AdminNav, AdminMobileNav, type AdminNavGroup } from "@/components/admin/admin-nav";
 import { PageTransition } from "@/components/shell/page-transition";
 
@@ -73,8 +73,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="sticky top-0 z-30 bg-paper/90 px-3 pb-2 pt-3 backdrop-blur-md sm:px-4 sm:pt-4">
       <header className="flex h-12 items-center gap-4 rounded-2xl bg-ink px-4 text-paper sm:px-5">
         <Link href="/admin" className="flex items-center gap-2.5" aria-label="Administration – Übersicht">
-          <Signet size={24} />
-          <span className="font-serif text-[18px] leading-none tracking-[-0.02em]">Werkraum</span>
+          <Wordmark tone="light" height={26} />
         </Link>
         <span className="hidden h-5 w-px bg-paper/25 sm:block" aria-hidden />
         <span className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-paper/80 sm:inline">Administration</span>

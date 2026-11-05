@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 /**
- * Werkraum-Tooltip: eigene UI statt `title`-Attribut. Erscheint bei Hover (mit kurzer
+ * Werkuno-Tooltip: eigene UI statt `title`-Attribut. Erscheint bei Hover (mit kurzer
  * Verzögerung) und bei Tastaturfokus, rechts vom Element – ideal für die eingeklappte Rail.
  * Nach dem ersten Tooltip öffnen weitere sofort („Warm-up“), wie in nativen Apps.
  */

@@ -1,5 +1,5 @@
 /**
- * WERKRAUM Worker – Hintergrundjobs (PRD §25.2, §25.6, §27.3).
+ * Werkuno Worker – Hintergrundjobs (PRD §25.2, §25.6, §27.3).
  * Läuft als eigener Railway-Service mit demselben Image: `pnpm worker`.
  *
  * - Outbox → Queues (Entkopplung von Benachrichtigungen, Medien, Analytics)
@@ -123,11 +123,11 @@ async function sendEmails(mode: "instant" | "digest") {
     const to = list[0]!.recipient.email;
     if (to.endsWith(".invalid")) continue;
     const lines = list.map((n) => {
-      const who = n.actor?.profile?.displayName ?? "WERKRAUM";
+      const who = n.actor?.profile?.displayName ?? "Werkuno";
       const more = n.count > 1 ? ` (+${n.count - 1})` : "";
       return `• ${NOTIFICATION_LABEL[n.type as NotificationType] ?? n.type}: ${who}${more}`;
     });
-    const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf WERKRAUM` : `${list.length} Neuigkeiten auf WERKRAUM`;
+    const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
     try {
       await sendMail(to, subject, `Das ist in deiner Werkstatt passiert:\n\n${lines.join("\n")}`, { cta: { label: "Ansehen", url: `${appUrl}/benachrichtigungen` } });
       await db.notification.updateMany({ where: { id: { in: list.map((n) => n.id) } }, data: { emailedAt: new Date() } });

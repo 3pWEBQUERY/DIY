@@ -97,10 +97,10 @@ export function SideNav({ user, counts, collapsed: initial = false }: { user: Sh
     >
       <div className="flex h-full flex-col overflow-hidden">
         <div className="flex h-16 shrink-0 items-center px-5 nav-open:px-6">
-          <Link href={user ? "/feed" : "/"} aria-label="Werkraum – Startseite" className="nav-open:hidden">
+          <Link href={user ? "/feed" : "/"} aria-label="Werkuno – Startseite" className="nav-open:hidden">
             <Wordmark compact />
           </Link>
-          <Link href={user ? "/feed" : "/"} aria-label="Werkraum – Startseite" className="hidden whitespace-nowrap nav-open:block">
+          <Link href={user ? "/feed" : "/"} aria-label="Werkuno – Startseite" className="hidden whitespace-nowrap nav-open:block">
             <Wordmark />
           </Link>
         </div>

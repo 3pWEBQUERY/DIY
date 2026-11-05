@@ -40,7 +40,7 @@ export async function sendVerification(userId: string, email: string) {
   await sendMail(
     email,
     "Bestätige deine E-Mail-Adresse",
-    "Willkommen im Werkraum! Bitte bestätige deine E-Mail-Adresse, damit wir dich bei wichtigen Ereignissen erreichen können.\n\nDer Link ist 48 Stunden gültig.",
+    "Willkommen bei Werkuno! Bitte bestätige deine E-Mail-Adresse, damit wir dich bei wichtigen Ereignissen erreichen können.\n\nDer Link ist 48 Stunden gültig.",
     { cta: { label: "E-Mail bestätigen", url: `${env().APP_URL}/verifizieren/${raw}` } },
   );
 }
