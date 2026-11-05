@@ -22,6 +22,7 @@ import {
   saveArticleAction,
   unpublishArticleAction,
 } from "@/app/studio/blog/actions";
+import { TagInput } from "@/components/ui/tag-input";
 
 type Initial = {
   id: string;
@@ -97,7 +98,6 @@ export function ArticleEditor({
   });
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
-  const [tagDraft, setTagDraft] = useState("");
   const [seoTitle, setSeoTitle] = useState(initial?.seoTitle ?? "");
   const [seoDescription, setSeoDescription] = useState(initial?.seoDescription ?? "");
   const [commentsEnabled, setCommentsEnabled] = useState(initial?.commentsEnabled ?? true);
@@ -221,13 +221,6 @@ export function ArticleEditor({
     }
   }
 
-  function addTag(raw: string) {
-    const t = slugify(raw.replace(/^#/, ""), 30);
-    if (!raw.trim() || !t || tags.includes(t)) return setTagDraft("");
-    if (tags.length >= 10) return toast("Höchstens 10 Schlagwörter.", "error");
-    touch(setTags)([...tags, t]);
-    setTagDraft("");
-  }
 
   async function loadRevisions() {
     if (!id) return;
@@ -384,30 +377,7 @@ export function ArticleEditor({
               ))}
             </Select>
             <Label htmlFor="m-tags" className="mt-4">Schlagwörter</Label>
-            <div className="flex min-h-11 flex-wrap items-center gap-1.5 border border-line-strong bg-card px-2 py-1.5 focus-within:border-moss rounded-xl">
-              {tags.map((t) => (
-                <span key={t} className="inline-flex h-7 items-center gap-1 bg-sunken pl-2 pr-1 font-mono text-[11px] rounded-xl">
-                  #{t}
-                  <button type="button" onClick={() => touch(setTags)(tags.filter((x) => x !== t))} className="grid size-5 place-items-center hover:text-danger" aria-label={`Schlagwort ${t} entfernen`}><X size={11} /></button>
-                </span>
-              ))}
-              <input
-                id="m-tags"
-                value={tagDraft}
-                onChange={(e) => (e.target.value.endsWith(",") ? addTag(e.target.value.slice(0, -1)) : setTagDraft(e.target.value))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addTag(tagDraft);
-                  } else if (e.key === "Backspace" && !tagDraft && tags.length) touch(setTags)(tags.slice(0, -1));
-                }}
-                onBlur={() => tagDraft && addTag(tagDraft)}
-                placeholder={tags.length ? "" : "z.B. eiche, öl, werkbank"}
-                className="h-7 min-w-24 flex-1 bg-transparent text-sm outline-none"
-                aria-describedby="m-tags-hint"
-              />
-            </div>
-            <p id="m-tags-hint" className="mt-1.5 text-xs text-muted">Enter oder Komma zum Hinzufügen · {tags.length}/10</p>
+            <TagInput id="m-tags" value={tags} onChange={touch(setTags)} max={10} normalize={(raw) => slugify(raw.replace(/^#/, ""), 30)} placeholder="z. B. eiche – dann Enter" />
           </section>
 
           <section aria-labelledby="m-seo">

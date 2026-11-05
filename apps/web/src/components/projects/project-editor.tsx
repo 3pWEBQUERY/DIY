@@ -26,6 +26,7 @@ import { LineEditor, newLine, type Line } from "@/components/materials/line-edit
 import { cn, formatMinutes } from "@/lib/utils";
 import { createProjectAction, updateProjectAction } from "@/app/(app)/projekte/actions";
 import { StatusMark } from "./status";
+import { TagInput } from "@/components/ui/tag-input";
 
 type Values = ProjectEditData["values"];
 
@@ -84,7 +85,7 @@ export function ProjectEditor({
   const [title, setTitle] = useState(initial?.title ?? (remixSource ? `Mein Nachbau: ${remixSource.title}`.slice(0, 120) : ""));
   const [description, setDescription] = useState(initial?.description ?? "");
   const [category, setCategory] = useState<string>(initial?.category ?? remixSource?.category ?? defaultCategory ?? "");
-  const [tagText, setTagText] = useState((initial?.tags ?? []).join(", "));
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [status, setStatus] = useState<ProjectStatus>(initial?.status ?? (remixSource ? "PLANNING" : "IN_PROGRESS"));
   const [visibility, setVisibility] = useState<Visibility>(initial?.visibility ?? "PUBLIC");
   const [difficulty, setDifficulty] = useState<number>(initial?.difficulty ?? remixSource?.difficulty ?? 2);
@@ -100,10 +101,6 @@ export function ProjectEditor({
   const [remixNote, setRemixNote] = useState(initial?.remixNote ?? "");
   const [copied, setCopied] = useState(false);
 
-  const tags = useMemo(
-    () => [...new Set(tagText.split(/[,#\n]/).map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 12),
-    [tagText],
-  );
   const readyImages = media.filter((m) => m.state === "ready" && m.kind === "IMAGE");
   const effectiveCover = readyImages.find((m) => m.id === coverId)?.id ?? readyImages[0]?.id ?? null;
   const uploading = media.some((m) => m.state === "uploading");
@@ -212,8 +209,8 @@ export function ProjectEditor({
               </Select>
             )}
           </Field>
-          <Field label="Schlagwörter" optional hint={tags.length ? tags.map((t) => `#${t}`).join("  ") : "Mit Komma trennen, max. 12"} error={fields.tags}>
-            {(a) => <Input {...a} value={tagText} onChange={(e) => setTagText(e.target.value)} placeholder="eschenholz, zapfenverbindung" />}
+          <Field label="Schlagwörter" optional error={fields.tags}>
+            {(a) => <TagInput id={a.id} invalid={!!fields.tags} value={tags} onChange={setTags} max={12} placeholder="z. B. eschenholz – dann Enter" />}
           </Field>
         </div>
       </section>
