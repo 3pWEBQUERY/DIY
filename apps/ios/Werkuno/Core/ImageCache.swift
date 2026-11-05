@@ -25,7 +25,7 @@ final class ImageCache: @unchecked Sendable {
         if let t = lock.withLock({ inflight[url] }) { return await t.value }
         let task = Task<UIImage?, Never> { [session] in
             var req = URLRequest(url: url)
-            if url.host == AppConfig.baseURL.host, let t = APIClient.shared.token { req.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
+            if AppConfig.isOwnHost(url.host), let t = APIClient.shared.token { req.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
             guard let (data, resp) = try? await session.data(for: req), (resp as? HTTPURLResponse)?.statusCode ?? 200 < 400, let img = UIImage(data: data) else { return nil }
             return img.preparingForDisplay() ?? img
         }

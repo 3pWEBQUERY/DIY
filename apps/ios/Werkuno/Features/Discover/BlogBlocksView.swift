@@ -42,7 +42,7 @@ struct BlogLinkHandler: ViewModifier {
     @Environment(Router.self) private var router
     func body(content: Content) -> some View {
         content.environment(\.openURL, OpenURLAction { url in
-            let internalHost = url.host == nil || url.host == AppConfig.baseURL.host
+            let internalHost = url.host == nil || AppConfig.isOwnHost(url.host)
             if internalHost {
                 var path = url.path
                 if let q = url.query { path += "?" + q }

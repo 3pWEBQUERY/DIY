@@ -8,10 +8,10 @@ enum ServerEnvironment: String, CaseIterable, Identifiable, Codable {
     case local
 
     var id: String { rawValue }
-    var label: String { self == .production ? "Produktion (Railway)" : "Lokal (localhost:3000)" }
+    var label: String { self == .production ? "Produktion (werkuno.ch)" : "Lokal (localhost:3000)" }
     var baseURL: URL {
         switch self {
-        case .production: URL(string: "https://web-production-d04e69.up.railway.app")!
+        case .production: URL(string: "https://werkuno.ch")!
         case .local: URL(string: "http://localhost:3000")!
         }
     }
@@ -36,11 +36,28 @@ enum AppConfig {
     /// Relative Medien- und Seitenpfade (`/media/...`, `/u/...`) gegen den Server auflösen.
     static func resolve(_ path: String?) -> URL? {
         guard let path, !path.isEmpty else { return nil }
-        if path.hasPrefix("http://") || path.hasPrefix("https://") { return URL(string: path) }
+        if path.hasPrefix("http://") || path.hasPrefix("https://") { return URL(string: path).map(canonical) }
         return URL(string: path, relativeTo: baseURL)?.absoluteURL
     }
 
     static func webURL(_ path: String) -> URL { resolve(path) ?? baseURL }
+
+    /// Frühere Railway-Adresse: alte Links in Inhalten gelten weiter als eigene Seiten.
+    static let legacyHosts: Set<String> = ["web-production-d04e69.up.railway.app", "www.werkuno.ch"]
+
+    /// Gehört der Host zu unserer Plattform (aktuelle Basis-URL oder frühere Adresse)?
+    static func isOwnHost(_ host: String?) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+        return host == baseURL.host?.lowercased() || legacyHosts.contains(host)
+    }
+
+    /// Absolute Links auf die alte Adresse auf die aktuelle Basis-URL umschreiben.
+    static func canonical(_ url: URL) -> URL {
+        guard let host = url.host?.lowercased(), legacyHosts.contains(host),
+              var c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        c.scheme = baseURL.scheme; c.host = baseURL.host; c.port = baseURL.port
+        return c.url ?? url
+    }
 }
 
 // MARK: - Keychain (Session-Token)
@@ -304,7 +321,7 @@ final class APIClient: @unchecked Sendable {
         put.httpMethod = "PUT"
         put.setValue(mime, forHTTPHeaderField: "Content-Type")
         // Presigned-URLs (S3) ohne Authorization senden; eigener Server erhält das Token
-        let sameHost = target.host == AppConfig.baseURL.host
+        let sameHost = AppConfig.isOwnHost(target.host)
         if sameHost, let token { put.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         var ok = false
         if let (_, r) = try? await session.upload(for: put, from: data), let code = (r as? HTTPURLResponse)?.statusCode, code < 300 { ok = true }
