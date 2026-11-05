@@ -245,6 +245,7 @@ model User {
 
   profile         UserProfile?
   sessions        Session[]
+  pushDevices     PushDevice[]
   authAccounts    AuthAccount[]
   preference      UserPreference?
   roleAssignments RoleAssignment[]
@@ -592,11 +593,32 @@ model Notification {
   data        Json     @default("{}")
   readAt      DateTime?
   emailedAt   DateTime?
+  /// iOS-Push zugestellt (null = ausstehend; bei Bündelung erneut null)
+  pushedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([recipientId, readAt, updatedAt])
   @@index([recipientId, groupKey])
+  @@index([pushedAt, updatedAt])
+}
+
+/// Gerät für iOS-Push (APNs), an die Sitzung gebunden: Abmelden/Widerruf beendet den Versand (PRD §19.2).
+model PushDevice {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String?
+  token       String    @unique
+  platform    String    @default("IOS")
+  /// "sandbox" (Entwicklung) oder "production"
+  environment String    @default("production")
+  disabledAt  DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model UserBlock {

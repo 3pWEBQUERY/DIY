@@ -191,8 +191,12 @@ export function notificationParts(n: NotificationLike): NotificationParts {
         excerpt: str(data.publicNote),
       };
     }
-    case "COMMUNITY_INVITE":
+    case "COMMUNITY_INVITE": {
+      const kind = str(data.kind);
+      if (kind === "approved") return { lead: null, text: `Deine Beitrittsanfrage${title ? ` für ${title}` : ""} wurde angenommen.`, excerpt: null };
+      if (kind === "dissolved") return { lead: null, text: `Die Community${title ? ` ${title}` : ""} wurde von der Gründerin bzw. dem Gründer aufgelöst.`, excerpt: null };
       return { lead: name ?? "Jemand", text: `lädt dich in die Community${title ? ` ${title}` : ""} ein.`, excerpt: null };
+    }
     case "TUTORIAL_UPDATED":
       return {
         lead: null,

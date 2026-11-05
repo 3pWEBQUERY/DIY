@@ -41,6 +41,7 @@ export default defineRailway((ctx) => {
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
       RESEND_API_KEY: preserve(),
+      APPLE_IOS_CLIENT_ID: preserve(),
       ...storageEnv,
     },
   });
@@ -54,6 +55,11 @@ export default defineRailway((ctx) => {
       APP_URL: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
       SESSION_SECRET: ctx.shared.SESSION_SECRET,
       DB_POOL_MAX: "4",
+      // iOS-Push wird vom Worker zugestellt
+      APNS_KEY_ID: preserve(),
+      APNS_TEAM_ID: preserve(),
+      APNS_PRIVATE_KEY: preserve(),
+      APNS_BUNDLE_ID: preserve(),
       ...storageEnv,
     },
   });

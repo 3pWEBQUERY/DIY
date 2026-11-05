@@ -63,7 +63,7 @@ export async function notify(
     if (existing) {
       return c.notification.update({
         where: { id: existing.id },
-        data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object },
+        data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object, pushedAt: null },
       });
     }
   }

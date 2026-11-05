@@ -10,4 +10,3 @@ apps/web/src/generated
 .turbo
 tsconfig.tsbuildinfo
 next-env.d.ts
-apps/ios/

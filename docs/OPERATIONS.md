@@ -37,6 +37,15 @@ SESSION_SECRET=<zufällig, 48+ Zeichen>
 ```
 
 Optional: `STRIPE_*` (Marktplatz), `RESEND_API_KEY` (E-Mail), `APPLE_*` (Anmelden mit Apple).
+
+### iOS-App (`apps/ios`)
+| Variable | Service | Zweck |
+|---|---|---|
+| `APPLE_IOS_CLIENT_ID` | web | Bundle-ID der App (`ch.werkraum.app`) – aktiviert „Mit Apple anmelden“ in der App (`POST /api/v1/app/auth/apple`) |
+| `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID` | worker | iOS-Push. `.p8`-Schlüssel aus developer.apple.com → Certificates, IDs & Profiles → Keys (Apple Push Notifications service). Zeilenumbrüche als `\n`. |
+
+Ablauf Push: Die App meldet ihr Gerätetoken (`PATCH /api/v1/app/devices/push`, an die Sitzung gebunden). Der Worker stellt neue, ungelesene In-App-Benachrichtigungen alle 10 s per APNs zu (`push.deliver`), höchstens 30 Min. alte. Abmelden/Sitzungswiderruf beendet den Versand, ungültige Tokens werden deaktiviert. Ohne `APNS_*` bleibt der Versand still aus.
+In Xcode für Geräte-Builds das eigene Team eintragen (`DEVELOPMENT_TEAM` in `apps/ios/project.yml`) und die Capabilities „Sign in with Apple“ und „Push Notifications“ für die App-ID aktivieren.
 Ohne diese Variablen laufen die betroffenen Funktionen in einem klar gekennzeichneten Deaktiviert-Zustand.
 
 ## Erstinbetriebnahme

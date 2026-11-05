@@ -12,6 +12,7 @@ import { attachMedia } from "@/server/media/service";
 import { createPost, listPosts } from "@/server/social/posts";
 import { slugify } from "@/lib/utils";
 import { assertCategoryAllowed } from "@/server/categories/settings";
+import { audit } from "@/server/audit";
 
 /**
  * Communities (PRD §15): Sichtbarkeit PUBLIC / REQUEST / PRIVATE, Rollen, Beitritt,
@@ -454,6 +455,27 @@ export async function leaveCommunity(user: SessionUser, communityId: string) {
     if (m.state === "ACTIVE") await tx.community.update({ where: { id: communityId }, data: { memberCount: { decrement: 1 } } });
   });
   return { state: null };
+}
+
+/**
+ * Community auflösen (nur Gründer:in): wird archiviert statt hart gelöscht, damit Beiträge,
+ * Moderationsverlauf und Meldungen nachvollziehbar bleiben (PRD §24.3). Zur Bestätigung
+ * muss der Name exakt eingegeben werden. Mitglieder werden benachrichtigt.
+ */
+export async function deleteCommunity(user: SessionUser, communityId: string, confirmName: string) {
+  const c = await db.community.findUnique({ where: { id: communityId }, select: { id: true, name: true, ownerId: true, state: true } });
+  if (!c || c.state === "REMOVED") throw fail.notFound("Community nicht gefunden.");
+  if (c.ownerId !== user.id) throw fail.forbidden("Nur die Gründerin bzw. der Gründer kann die Community auflösen.");
+  if (confirmName.trim() !== c.name.trim()) throw fail.invalid("Bitte gib den Namen der Community exakt ein.", { confirm: "Name stimmt nicht überein" });
+  const members = await db.communityMember.findMany({ where: { communityId, state: "ACTIVE", userId: { not: user.id } }, select: { userId: true }, take: 2000 });
+  await db.$transaction(async (tx) => {
+    await tx.community.update({ where: { id: communityId }, data: { state: "REMOVED", isFeatured: false } });
+    await audit({ actorId: user.id, action: "community.dissolved_by_owner", targetType: "COMMUNITY", targetId: communityId, meta: { name: c.name, members: members.length } }, tx);
+  });
+  for (const m of members) {
+    await notify({ recipientId: m.userId, type: "COMMUNITY_INVITE", actorId: user.id, targetType: "COMMUNITY", targetId: communityId, bundle: false, data: { title: c.name, href: "/communities", kind: "dissolved" } }).catch(() => {});
+  }
+  return { ok: true };
 }
 
 export async function decideRequest(communityId: string, userId: string, approve: boolean) {

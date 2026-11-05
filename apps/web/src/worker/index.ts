@@ -17,6 +17,7 @@ import { sendMail } from "@/server/mail";
 import { storage } from "@/server/storage";
 import { track, isQualifiedComment } from "@/server/analytics/service";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
+import { deliverPendingPushes } from "@/server/push/service";
 
 const log = (msg: string, extra: Record<string, unknown> = {}) => console.log(JSON.stringify({ level: "info", svc: "worker", msg, ...extra }));
 const warn = (msg: string, extra: Record<string, unknown> = {}) => console.warn(JSON.stringify({ level: "warn", svc: "worker", msg, ...extra }));
@@ -30,6 +31,7 @@ const Q = {
   scheduled: "blog.scheduled",
   cleanup: "maintenance.cleanup",
   outbox: "outbox.dispatch",
+  push: "push.deliver",
 } as const;
 
 async function dispatchOutbox(boss: PgBoss) {
@@ -193,6 +195,7 @@ async function main() {
   await boss.work(Q.emailInstant, async () => sendEmails("instant"));
   await boss.work(Q.emailDigest, async () => sendEmails("digest"));
   await boss.work(Q.cleanup, async () => cleanup());
+  await boss.work(Q.push, async () => void (await deliverPendingPushes()));
 
   const releaseReservations = await optional<unknown>("@/server/commerce/reservations", "releaseExpiredReservations");
   const publishScheduled = await optional<unknown>("@/server/blog/service", "publishScheduledArticles");
@@ -205,13 +208,17 @@ async function main() {
   await boss.schedule(Q.reservations, "* * * * *");
   await boss.schedule(Q.scheduled, "* * * * *");
   await boss.schedule(Q.cleanup, "30 3 * * *", null, { tz: "Europe/Zurich" });
+  await boss.schedule(Q.push, "* * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => dispatchOutbox(boss).catch((e) => warn("outbox_tick", { err: String(e) })), 3000);
+  // iOS-Push zeitnah zustellen (Cron ist nur die Rückfallebene)
+  const pushTick = setInterval(() => deliverPendingPushes().catch((e) => warn("push_tick", { err: String(e) })), 10_000);
   log("worker_started", { queues: Object.values(Q) });
 
   const stop = async () => {
     clearInterval(tick);
+    clearInterval(pushTick);
     await boss.stop({ graceful: true, timeout: 20_000 });
     await db.$disconnect();
     process.exit(0);

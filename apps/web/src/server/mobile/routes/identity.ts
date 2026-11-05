@@ -17,6 +17,8 @@ import { hasRole } from "@/server/authz";
 import { setBlock, setMute } from "@/server/social/interactions";
 import { appealContext, submitAppeal } from "@/server/moderation/service";
 import { rateLimit } from "@/server/ratelimit";
+import { registerPushDevice, unregisterPushDevice } from "@/server/push/service";
+import { apnsConfigured } from "@/server/push/apns";
 import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, session, viewer, type RouteDef } from "../router";
 
 /** Identität, Onboarding, Bootstrap, Konto & Einstellungen (PRD §8, §23, §7). */
@@ -28,7 +30,7 @@ export const identityRoutes: RouteDef[] = [
     const base = {
       categories,
       payments: { mode: paymentsMode(), feeBps },
-      features: { apple: features.apple(), appleNative: !!process.env.APPLE_IOS_CLIENT_ID },
+      features: { apple: features.apple(), appleNative: !!process.env.APPLE_IOS_CLIENT_ID, push: apnsConfigured() },
       serverTime: new Date().toISOString(),
     };
     if (!u) return { ...base, me: null };
@@ -195,12 +197,14 @@ export const identityRoutes: RouteDef[] = [
     return { message: "Dein Einspruch ist eingegangen. Wir melden uns, sobald er geprüft wurde." };
   }),
 
-  // ── Push-Gerätetoken (vorbereitet; Versand folgt mit APNs-Schlüssel) ──
+  // ── iOS-Push (APNs): Gerät an die aktuelle Sitzung binden ──
   PATCH("/devices/push", async (c) => {
-    const u = await me();
+    const s = await session();
+    return registerPushDevice(s.user.id, s.sessionId, await c.json());
+  }),
+  DELETE("/devices/push", async (c) => {
+    const s = await session();
     const { token } = await c.json<{ token?: string }>();
-    if (!token || token.length > 200) throw fail.invalid("Ungültiges Gerätetoken.");
-    console.info(JSON.stringify({ level: "info", msg: "push_token_registered", user: u.id.slice(-6) }));
-    return { ok: true, delivery: "pending-apns-configuration" };
+    return unregisterPushDevice(s.user.id, String(token ?? ""));
   }),
 ];

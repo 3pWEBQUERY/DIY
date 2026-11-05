@@ -25,6 +25,13 @@ const schema = z.object({
   APPLE_TEAM_ID: z.string().optional(),
   APPLE_KEY_ID: z.string().optional(),
   APPLE_PRIVATE_KEY: z.string().optional(),
+  // iOS-App: Bundle-ID als Audience des nativen identityToken
+  APPLE_IOS_CLIENT_ID: z.string().optional(),
+  // iOS-Push (APNs, tokenbasiert)
+  APNS_KEY_ID: z.string().optional(),
+  APNS_TEAM_ID: z.string().optional(),
+  APNS_PRIVATE_KEY: z.string().optional(),
+  APNS_BUNDLE_ID: z.string().optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

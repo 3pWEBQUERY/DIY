@@ -65,6 +65,10 @@ export const communityRoutes: RouteDef[] = [
     return { requests, invited, banned, hidden, challenges, log, members, categories };
   }),
   PATCH("/communities/:id", async (c) => cs.updateCommunity(c.p.id!, await c.json())),
+  DELETE("/communities/:id", async (c) => {
+    const { confirm } = await c.json<{ confirm?: string }>();
+    return cs.deleteCommunity(await me(), c.p.id!, String(confirm ?? ""));
+  }),
   PUT("/communities/:id/rules", async (c) => {
     const { rules } = await c.json<{ rules?: unknown }>();
     await cs.setRules(c.p.id!, rules ?? []);
