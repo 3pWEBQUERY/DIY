@@ -67,8 +67,9 @@ export async function signUp(input: unknown) {
     select: { id: true, email: true },
   });
   await sendVerification(user.id, user.email);
-  await createSession(user.id);
-  return { userId: user.id };
+  const s = await createSession(user.id);
+  // Token für Bearer-Clients (iOS-App); Web nutzt das gesetzte httpOnly-Cookie
+  return { userId: user.id, token: s.rawToken };
 }
 
 export async function signIn(input: unknown) {
