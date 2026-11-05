@@ -212,7 +212,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             </ul>
             {u.shop && (
               <p className="mt-3 text-[13px]">
-                Shop: <Link href="/admin/marktplatz" className="font-semibold hover:underline">{u.shop.name}</Link> <Badge className="ml-1">{u.shop.status}</Badge>
+                Shop: <Link href={`/admin/marktplatz/${u.shop.id}`} className="font-semibold hover:underline">{u.shop.name}</Link> <Badge className="ml-1">{u.shop.status}</Badge>
               </p>
             )}
           </section>
