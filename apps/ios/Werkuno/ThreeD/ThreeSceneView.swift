@@ -90,7 +90,7 @@ struct ThreeSceneView: UIViewRepresentable {
     }
 
     private var themeDict: [String: JSONValue] {
-        ["ink": .string(Color.ink.hex(colorScheme)), "moss": .string(Color.moss.hex(colorScheme)), "clay": .string(Color.clay.hex(colorScheme)), "paper": .string(Color.paper.hex(colorScheme)), "muted": .string(Color.muted.hex(colorScheme)), "dark": .bool(colorScheme == .dark)]
+        ["ink": .string(Color.ink.hex(colorScheme)), "moss": .string(Color.moss.hex(colorScheme)), "clay": .string(Color.dynamic(light: 0xE08A73, dark: 0xF2AC9C).hex(colorScheme)), "paper": .string(Color.paper.hex(colorScheme)), "muted": .string(Color.muted.hex(colorScheme)), "dark": .bool(colorScheme == .dark)]
     }
 
     private func bootScript() -> String {

@@ -1,10 +1,10 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Farbwelt „Werkbuch“ (PRD §28.2) – hell & dunkel
+// MARK: - Farbwelt „Coral Studio“ – 1:1 aus apps/web/src/app/globals.css (@theme), plus Dunkelmodus
 //
-// Papier, Tinte, Moos und Terrakotta bleiben die Markenfarben. Liquid Glass liegt als
-// Navigations- und Aktionsschicht darüber; Inhalte bleiben ruhig und redaktionell.
+// Wie im Web heissen die Primär-Tokens aus historischen Gründen weiter `moss`/`clay`,
+// tragen aber Coral. Liquid Glass liegt als Navigations- und Aktionsschicht darüber.
 
 extension Color {
     static func dynamic(light: UInt32, dark: UInt32) -> Color {
@@ -13,30 +13,32 @@ extension Color {
         })
     }
 
-    /// Hintergrund (Papier)
-    static let paper = Color.dynamic(light: 0xFAF9F6, dark: 0x131412)
-    /// Karten und Panels
-    static let card = Color.dynamic(light: 0xFFFFFF, dark: 0x1C1E1B)
-    /// Abgesetzte Flächen
-    static let sunken = Color.dynamic(light: 0xF2F0EA, dark: 0x22241F)
-    /// Primärtext (Tinte)
-    static let ink = Color.dynamic(light: 0x252822, dark: 0xECEBE5)
-    static let ink2 = Color.dynamic(light: 0x3B3E37, dark: 0xD2D1CA)
-    /// Sekundärtext
-    static let muted = Color.dynamic(light: 0x73766E, dark: 0x9A9C94)
-    /// Primärakzent (Moos)
-    static let moss = Color.dynamic(light: 0x3D604C, dark: 0x86B08E)
-    static let mossInk = Color.dynamic(light: 0x2C4738, dark: 0xB4D3B9)
-    static let mossSoft = Color.dynamic(light: 0xE5ECE5, dark: 0x233127)
-    /// Warmer Kontrast (Terrakotta)
-    static let clay = Color.dynamic(light: 0xB46C4D, dark: 0xD9906F)
-    static let clayInk = Color.dynamic(light: 0x8A4F36, dark: 0xF0B79C)
-    static let claySoft = Color.dynamic(light: 0xF4E6DE, dark: 0x3A2920)
+    /// Hintergrund (Papier) – web --color-paper
+    static let paper = Color.dynamic(light: 0xFAF8F5, dark: 0x151312)
+    /// Karten und Panels – web --color-card
+    static let card = Color.dynamic(light: 0xFFFFFF, dark: 0x1F1C1B)
+    /// Abgesetzte Flächen – web --color-sunken
+    static let sunken = Color.dynamic(light: 0xF3EFEB, dark: 0x272321)
+    /// Primärtext (Tinte) – web --color-ink
+    static let ink = Color.dynamic(light: 0x262427, dark: 0xEEEAE6)
+    static let ink2 = Color.dynamic(light: 0x3D393C, dark: 0xD6D0CB)
+    /// Sekundärtext – web --color-muted
+    static let muted = Color.dynamic(light: 0x77706D, dark: 0xA39B96)
+    /// Primärfarbe (Coral) – web --color-moss
+    static let moss = Color.dynamic(light: 0xB64B3A, dark: 0xE47F6B)
+    /// Primär, gedrückt/Hover – web --color-moss-ink
+    static let mossInk = Color.dynamic(light: 0x973B2C, dark: 0xF2AC9C)
+    /// Akzentfläche – web --color-moss-soft
+    static let mossSoft = Color.dynamic(light: 0xF6E5E0, dark: 0x3B2420)
+    /// Akzent = Primärfarbe (wie im Web)
+    static let clay = moss
+    static let clayInk = mossInk
+    static let claySoft = mossSoft
     /// Linien
-    static let line = Color.dynamic(light: 0xE3E4DE, dark: 0x30332D)
-    static let lineStrong = Color.dynamic(light: 0xC9CBC2, dark: 0x464A42)
-    static let danger = Color.dynamic(light: 0xA8402F, dark: 0xE57A66)
-    static let warn = Color.dynamic(light: 0x9A6B12, dark: 0xE0B357)
+    static let line = Color.dynamic(light: 0xE7E2DE, dark: 0x35302D)
+    static let lineStrong = Color.dynamic(light: 0xD8D0CB, dark: 0x4B4440)
+    static let danger = Color.dynamic(light: 0x9B2335, dark: 0xEC7B88)
+    static let warn = Color.dynamic(light: 0x8A6A1F, dark: 0xE0B357)
     static let ochre = Color.dynamic(light: 0xC29A3E, dark: 0xD8B862)
     static let slate = Color.dynamic(light: 0x4F6475, dark: 0x93A9BB)
     static let plum = Color.dynamic(light: 0x6E4E64, dark: 0xBE9AB3)
@@ -126,7 +128,7 @@ extension View {
 enum CategoryPalette {
     static func color(for slug: String?) -> Color {
         switch slug {
-        case "haekeln-stricken": .clay
+        case "haekeln-stricken": Color.dynamic(light: 0xB46C4D, dark: 0xD9906F)
         case "naehen-textil": .plum
         case "holz": Color.dynamic(light: 0x7A5A3A, dark: 0xC59D72)
         case "moebel-upcycling": .ochre
@@ -137,7 +139,7 @@ enum CategoryPalette {
         case "malen-zeichnen": Color.dynamic(light: 0x3F5E8C, dark: 0x8FB1E0)
         case "3d-druck": Color.dynamic(light: 0x4B6B73, dark: 0x8EB9C2)
         case "elektronik-maker": Color.dynamic(light: 0x2F6A5A, dark: 0x78C2AC)
-        case "garten-pflanzen": .moss
+        case "garten-pflanzen": Color.dynamic(light: 0x4F7A55, dark: 0x8DBA92)
         case "festlich": Color.dynamic(light: 0x9C3D3D, dark: 0xE08585)
         case "kinder-familie": Color.dynamic(light: 0xB88A2E, dark: 0xE9C26E)
         default: .muted

@@ -249,7 +249,7 @@
   // ───────────────────────── Laufzeit ─────────────────────────
 
   const WR = (window.WR = {});
-  let renderer, scene, camera, group, current, theme = { ink: "#252822", moss: "#3D604C", clay: "#B46C4D", paper: "#FAF9F6", muted: "#73766E", dark: false };
+  let renderer, scene, camera, group, current, theme = { ink: "#262427", moss: "#B64B3A", clay: "#E08A73", paper: "#FAF8F5", muted: "#77706D", dark: false };
   let paused = false, reduce = false, last = 0, start = 0, booted = false;
   const drag = { active: false, x: 0, y: 0, vx: 0, vy: 0, yaw: 0, pitch: 0, moved: 0, enabled: true };
   let hemi, dir, rim;
