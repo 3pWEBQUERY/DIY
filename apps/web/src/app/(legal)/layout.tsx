@@ -33,7 +33,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Link href="/hilfe" className="hover:text-ink">Hilfe</Link>
             <Link href="/richtlinien/community" className="hover:text-ink">Richtlinien</Link>
             <Link href="/rechtliches/datenschutz" className="hover:text-ink">Datenschutz</Link>
-            <Link href="/feed" className="border border-rule px-3 py-1.5 font-semibold text-ink hover:bg-ink hover:text-paper rounded-2xl">Zur Community</Link>
+            <Link href="/feed" className="border border-rule px-3 py-1.5 font-semibold text-ink hover:border-moss hover:bg-moss hover:text-paper rounded-2xl">Zur Community</Link>
           </nav>
           <Link href="/feed" className="text-sm font-semibold md:hidden">Zur Community →</Link>
         </div>

@@ -257,7 +257,9 @@ export default async function CommunityPage({ params, searchParams }: Props) {
   return (
     <div className="pb-16">
       <header className="border-b border-rule">
-        <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/5" priority sizes="100vw" className="max-h-[320px] w-full border-b border-line" label={c.name} />
+        <div className="mx-auto max-w-[1200px] px-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
+          <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/5" priority sizes="(min-width: 1280px) 1120px, 100vw" className="max-h-[300px] w-full rounded-3xl border border-line" label={c.name} />
+        </div>
         <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-10">
           <div className="flex flex-wrap items-end justify-between gap-6 py-6">
             <div className="min-w-0">

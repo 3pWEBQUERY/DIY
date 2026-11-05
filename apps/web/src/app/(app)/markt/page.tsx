@@ -92,7 +92,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               placeholder="Korb, Wollset, Schneidebrett …"
               className="h-12 min-w-0 flex-1 bg-transparent px-3 text-[15px] outline-none placeholder:text-muted/80"
             />
-            <button type="submit" className="border-l border-rule px-4 text-[14px] font-semibold hover:bg-ink hover:text-paper">
+            <button type="submit" className="border-l border-rule px-4 text-[14px] font-semibold hover:border-moss hover:bg-moss hover:text-paper">
               Suchen
             </button>
           </div>

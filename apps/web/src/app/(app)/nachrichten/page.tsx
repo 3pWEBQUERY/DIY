@@ -27,7 +27,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
           </svg>
           <p className="headline mt-6 text-2xl">Wähle ein Gespräch</p>
           <p className="mt-2 text-sm text-muted">Oder beginne ein neues – mit einer Person aus der Community oder zu einer Bestellung.</p>
-          <Link href="/nachrichten/neu" className="mt-6 inline-flex h-10 items-center gap-2 border border-rule px-4 text-sm font-semibold hover:bg-ink hover:text-paper rounded-xl">
+          <Link href="/nachrichten/neu" className="mt-6 inline-flex h-10 items-center gap-2 border border-rule px-4 text-sm font-semibold hover:border-moss hover:bg-moss hover:text-paper rounded-xl">
             <PenSquare size={15} /> Neue Nachricht
           </Link>
         </div>

@@ -82,7 +82,7 @@ export function Segments({ items, active, className }: { items: { key: string; l
           key={s.key}
           href={s.href}
           aria-current={active === s.key ? "true" : undefined}
-          className={cn("flex h-8 items-center gap-2 px-3 text-[13px] text-ink-2 hover:bg-sunken rounded-xl", i > 0 && "border-l border-line-strong", active === s.key && "bg-ink text-paper hover:bg-ink")}
+          className={cn("flex h-8 items-center gap-2 px-3 text-[13px] text-ink-2 hover:bg-sunken rounded-xl", i > 0 && "border-l border-line-strong", active === s.key && "bg-moss text-paper hover:bg-moss")}
         >
           {s.label}
           {s.count != null && <span className={cn("font-mono text-[11px]", active === s.key ? "text-paper/70" : "text-muted")}>{s.count}</span>}

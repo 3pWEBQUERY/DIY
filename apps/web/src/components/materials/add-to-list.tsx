@@ -65,7 +65,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
               .
             </p>
             <div className="flex gap-2">
-              <Link href={`/einkaufslisten/${done.listId}`} className="inline-flex h-10 flex-1 items-center justify-center bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-2 rounded-xl">
+              <Link href={`/einkaufslisten/${done.listId}`} className="inline-flex h-10 flex-1 items-center justify-center bg-moss px-4 text-sm font-semibold text-paper hover:bg-moss-ink rounded-xl">
                 Zur Einkaufsliste
               </Link>
               <Button variant="outline" onClick={() => setOpen(false)}>

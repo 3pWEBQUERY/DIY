@@ -338,7 +338,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           })}
         </ol>
         {newBelow && (
-          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 bg-ink px-3 py-1.5 text-xs font-semibold text-paper rounded-2xl">
+          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 bg-moss px-3 py-1.5 text-xs font-semibold text-paper rounded-2xl">
             <ArrowDown size={13} /> Neue Nachrichten
           </button>
         )}

@@ -108,7 +108,8 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     <div>
       {!isSelf && !blocked && <TrackView targetType="USER" targetId={userId} />}
       {/* Titelbild: Foto oder Rasterpapier mit den Werkstatt-Glyphen */}
-      <div className="relative h-44 overflow-hidden border-b border-rule bg-sunken sm:h-64">
+      <div className="mx-auto max-w-[1120px] px-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
+      <div className="relative h-44 overflow-hidden rounded-3xl border border-line bg-sunken sm:h-64">
         {profile.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.coverUrl} alt="" className="h-full w-full object-cover" />
@@ -120,11 +121,12 @@ export default async function ProfilePage({ params, searchParams }: Params) {
           </div>
         )}
       </div>
+      </div>
 
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-10">
         <header className="relative grid gap-6 border-b border-line pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 border border-rule sm:-mt-16 rounded-2xl" />
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 ml-4 rounded-2xl border border-rule sm:-mt-16 sm:ml-8" />
             <div className="min-w-0 pb-1 sm:pt-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="display text-4xl sm:text-5xl">{profile.displayName}</h1>
