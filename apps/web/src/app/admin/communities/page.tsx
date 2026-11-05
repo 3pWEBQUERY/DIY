@@ -6,14 +6,16 @@ import { listCommunities } from "@/server/admin/content";
 import { AdminHeader, EmptyRow, FilterBar, FilterField, Pager, Table, Td, Th, Tr, filterInput } from "@/components/admin/ui";
 import { ActionButton, ReasonButton } from "@/components/admin/action-controls";
 import { Badge } from "@/components/ui/misc";
+import { LinkButton } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 import { num, shortDate } from "@/components/admin/format";
-import { setFeaturedAction, setHiddenAction } from "../inhalte/actions";
+import { setCommunityFeaturedAction, setCommunityHiddenAction } from "./actions";
 import { Select } from "@/components/ui/select";
 
 export const metadata: Metadata = { title: "Communities" };
 
 const VIS: Record<string, string> = { PUBLIC: "Öffentlich", REQUEST: "Auf Anfrage", PRIVATE: "Privat" };
-const STATE: Record<string, string> = { PUBLISHED: "Sichtbar", HIDDEN: "Ausgeblendet", REMOVED: "Entfernt", DRAFT: "Entwurf" };
+const STATE: Record<string, string> = { PUBLISHED: "Sichtbar", HIDDEN: "Ausgeblendet", REMOVED: "Archiviert", DRAFT: "Entwurf" };
 
 export default async function CommunitiesAdmin({ searchParams }: { searchParams: Promise<{ q?: string; zustand?: string; seite?: string }> }) {
   const user = await adminPage("PLATFORM_MODERATOR", "/admin/communities");
@@ -23,7 +25,7 @@ export default async function CommunitiesAdmin({ searchParams }: { searchParams:
 
   return (
     <div>
-      <AdminHeader n="07" title="Communities" description="Communities moderieren sich primär selbst. Hier werden sie hervorgehoben oder bei schweren Problemen plattformweit ausgeblendet." />
+      <AdminHeader n="07" title="Communities" description="Communities moderieren sich primär selbst. Hier werden sie hervorgehoben, bei schweren Problemen plattformweit ausgeblendet oder über „Verwalten“ im Detail betreut: Angaben, Mitglieder, Leitung und Verlauf." />
       <FilterBar>
         <FilterField label="Suche">
           <input name="q" defaultValue={sp.q ?? ""} placeholder="Name oder Slug" className={`${filterInput} w-56`} />
@@ -57,9 +59,14 @@ export default async function CommunitiesAdmin({ searchParams }: { searchParams:
           {r.rows.map((c) => (
             <Tr key={c.id}>
               <Td className="max-w-[280px]">
-                <Link href={`/c/${c.slug}`} target="_blank" className="font-semibold hover:underline">
+                <Link href={`/admin/communities/${c.id}`} className="font-semibold hover:underline">
                   {c.name}
                 </Link>
+                {c.state !== "REMOVED" && (
+                  <Link href={`/c/${c.slug}`} target="_blank" className="ml-1.5 inline-flex align-middle text-muted hover:text-ink" aria-label={`${c.name} öffentlich ansehen`} title="Öffentliche Seite">
+                    <ExternalLink size={12} aria-hidden />
+                  </Link>
+                )}
                 {c.isFeatured && <Badge tone="clay" className="ml-2">Hervorgehoben</Badge>}
                 <span className="block text-xs text-muted">
                   @{c.owner.profile?.handle}
@@ -75,10 +82,13 @@ export default async function CommunitiesAdmin({ searchParams }: { searchParams:
               <Td>
                 <div className="flex justify-end gap-1.5">
                   {c.state === "PUBLISHED" && c.visibility !== "PRIVATE" && (
-                    <ActionButton action={setFeaturedAction.bind(null, "COMMUNITY", c.id, !c.isFeatured)} label={c.isFeatured ? "Nicht mehr hervorheben" : "Hervorheben"} variant={c.isFeatured ? "ghost" : "outline"} />
+                    <ActionButton action={setCommunityFeaturedAction.bind(null, c.id, !c.isFeatured)} label={c.isFeatured ? "Nicht mehr hervorheben" : "Hervorheben"} variant={c.isFeatured ? "ghost" : "outline"} />
                   )}
-                  {c.state === "PUBLISHED" && <ReasonButton action={setHiddenAction.bind(null, "COMMUNITY", c.id, true)} label="Ausblenden" variant="ghost" title="Community ausblenden" description="Die Community ist danach für Nicht-Mitglieder nicht mehr auffindbar." confirmLabel="Ausblenden" />}
-                  {c.state === "HIDDEN" && <ReasonButton action={setHiddenAction.bind(null, "COMMUNITY", c.id, false)} label="Wieder anzeigen" variant="ghost" title="Community wieder anzeigen" confirmLabel="Anzeigen" />}
+                  {c.state === "PUBLISHED" && <ReasonButton action={setCommunityHiddenAction.bind(null, c.id, true)} label="Ausblenden" variant="ghost" title="Community ausblenden" description="Die Community ist danach für Nicht-Mitglieder nicht mehr auffindbar." confirmLabel="Ausblenden" />}
+                  {c.state === "HIDDEN" && <ReasonButton action={setCommunityHiddenAction.bind(null, c.id, false)} label="Wieder anzeigen" variant="ghost" title="Community wieder anzeigen" confirmLabel="Anzeigen" />}
+                  <LinkButton href={`/admin/communities/${c.id}`} size="sm" variant="outline">
+                    Verwalten
+                  </LinkButton>
                 </div>
               </Td>
             </Tr>
