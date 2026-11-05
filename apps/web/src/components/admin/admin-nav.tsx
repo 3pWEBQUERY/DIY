@@ -53,7 +53,7 @@ export function AdminMobileNav({ groups }: { groups: AdminNavGroup[] }) {
       {items.map((item) => {
         const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
-          <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-moss text-paper" : "text-muted")}>
+          <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors", active ? "bg-moss font-semibold text-paper" : "text-muted hover:bg-sunken hover:text-ink")}>
             {item.label}
             {!!item.badge && <span className="ml-1.5 font-mono text-[11px]">{item.badge}</span>}
           </Link>

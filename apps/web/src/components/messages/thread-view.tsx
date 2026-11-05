@@ -41,7 +41,7 @@ function merge(prev: MessageView[], next: MessageView[]) {
 
 function Warning() {
   return (
-    <div role="note" className="mb-1.5 flex max-w-[34rem] gap-2.5 border-l-2 border-warn bg-warn-soft px-3 py-2 text-[13px] leading-snug text-ink-2">
+    <div role="note" className="rounded-2xl mb-1.5 flex max-w-[34rem] gap-2.5 bg-warn-soft px-3 py-2 text-[13px] leading-snug text-ink-2">
       <ShieldAlert size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden />
       <span>
         <strong className="font-semibold text-ink">Vorsicht:</strong> Diese Nachricht erwähnt eine Zahlung ausserhalb von WERKRAUM (z.B. TWINT, IBAN, PayPal-Link oder Kurzlink). Bezahle nur über den Checkout – nur dann bist du geschützt. Teile keine Zugangsdaten.

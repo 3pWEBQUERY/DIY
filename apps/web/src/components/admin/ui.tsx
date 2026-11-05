@@ -23,8 +23,8 @@ export function AdminHeader({ n, title, description, actions }: { n?: string; ti
 
 export function Table({ children, className, caption }: { children: ReactNode; className?: string; caption?: string }) {
   return (
-    <div className={cn("overflow-x-auto border-y border-line", className)}>
-      <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
+    <div className={cn("overflow-x-auto rounded-2xl border border-line bg-card", className)}>
+      <table className="w-full min-w-[640px] border-collapse text-[13.5px] [&_tbody_tr:last-child_td]:border-b-0">
         {caption && <caption className="sr-only">{caption}</caption>}
         {children}
       </table>
@@ -76,13 +76,13 @@ export const filterInput = "h-9 min-w-0 border border-line-strong bg-card px-2.5
 /** Segmentierte Status-Links (z.B. Offen · In Prüfung · Entschieden) mit Zählern. */
 export function Segments({ items, active, className }: { items: { key: string; label: string; href: string; count?: number }[]; active: string; className?: string }) {
   return (
-    <nav aria-label="Filter" className={cn("mb-5 flex flex-wrap border border-line-strong w-fit rounded-2xl", className)}>
+    <nav aria-label="Filter" className={cn("mb-5 flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-full border border-line-strong bg-card p-0.5 scrollbar-none", className)}>
       {items.map((s, i) => (
         <Link
           key={s.key}
           href={s.href}
           aria-current={active === s.key ? "true" : undefined}
-          className={cn("flex h-8 items-center gap-2 px-3 text-[13px] text-ink-2 hover:bg-sunken rounded-xl", i > 0 && "border-l border-line-strong", active === s.key && "bg-moss text-paper hover:bg-moss")}
+          className={cn("flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[13px] text-ink-2 transition-colors hover:bg-moss-soft/60", active === s.key && "bg-moss font-semibold text-paper hover:bg-moss")}
         >
           {s.label}
           {s.count != null && <span className={cn("font-mono text-[11px]", active === s.key ? "text-paper/70" : "text-muted")}>{s.count}</span>}
@@ -110,7 +110,7 @@ export function Pager({ page, pages, href }: { page: number; pages: number; href
 /** Kennzahl im Datenblatt-Stil mit optionaler Veränderung und Sparkline. */
 export function Kpi({ label, value, note, delta, chart, restricted }: { label: string; value: ReactNode; note?: ReactNode; delta?: number | null; chart?: ReactNode; restricted?: boolean }) {
   return (
-    <div className="flex min-h-[112px] flex-col justify-between border-l border-line px-4 py-3">
+    <div className="flex min-h-[112px] flex-col justify-between rounded-2xl border border-line bg-card px-4 py-3">
       <div className="flex items-start justify-between gap-2">
         <dt className="spec">{label}</dt>
         {restricted && <span className="spec text-clay-ink">Admin</span>}
@@ -132,7 +132,7 @@ export function Kpi({ label, value, note, delta, chart, restricted }: { label: s
 }
 
 export function KpiGrid({ children, className }: { children: ReactNode; className?: string }) {
-  return <dl className={cn("grid grid-cols-1 gap-y-4 border-b border-line pb-5 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</dl>;
+  return <dl className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</dl>;
 }
 
 export function Dot({ tone }: { tone: "moss" | "clay" | "ink" | "muted" | "danger" | "warn" }) {

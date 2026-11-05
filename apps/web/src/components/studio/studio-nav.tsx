@@ -59,7 +59,7 @@ export function StudioMobileNav() {
       {STUDIO_NAV.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         return (
-          <Link key={item.href} href={item.href} className={cn("shrink-0 px-3 py-1.5 text-sm", active ? "bg-moss text-paper" : "text-muted")}>
+          <Link key={item.href} href={item.href} className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors", active ? "bg-moss font-semibold text-paper" : "text-muted hover:bg-sunken hover:text-ink")}>
             {item.label}
           </Link>
         );

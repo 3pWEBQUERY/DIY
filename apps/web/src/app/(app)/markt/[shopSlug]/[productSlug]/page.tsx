@@ -253,7 +253,7 @@ export default async function ProductPage({ params }: Params) {
             <SectionTitle n={p.project || p.tutorial ? "03" : "02"} title={<span id="pflicht">Sicherheit & Pflichtangaben</span>} />
             <div className="mt-5 space-y-5 text-[14.5px] leading-relaxed text-ink-2">
               {p.safetyInfo ? (
-                <div className="flex gap-3 border-l-2 border-warn/60 bg-warn-soft px-4 py-3">
+                <div className="rounded-2xl flex gap-3 bg-warn-soft px-4 py-3">
                   <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
                   <p className="whitespace-pre-line">{p.safetyInfo}</p>
                 </div>

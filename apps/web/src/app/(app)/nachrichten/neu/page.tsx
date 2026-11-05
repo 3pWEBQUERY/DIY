@@ -64,7 +64,7 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
           <p className="headline mt-4 text-2xl">{prep.recipient.displayName}</p>
           {prep.recipient.bio && <p className="mt-2 max-w-sm text-sm text-muted line-clamp-3">{prep.recipient.bio}</p>}
           {prep.asRequest && (
-            <p className="mt-5 max-w-sm border-l-2 border-line-strong bg-sunken px-3 py-2 text-left text-xs text-ink-2">
+            <p className="rounded-2xl mt-5 max-w-sm bg-sunken px-3 py-2 text-left text-xs text-ink-2">
               {prep.recipient.displayName} folgt dir nicht. Deine Nachricht wird als <strong>Kontaktanfrage</strong> zugestellt – bis zur Annahme kannst du bis zu drei Nachrichten senden.
             </p>
           )}

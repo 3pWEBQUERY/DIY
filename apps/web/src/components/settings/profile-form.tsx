@@ -101,7 +101,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     >
       <SettingsSection n="01" title="Bild & Titelbild" description="Ein Foto von dir oder deiner Werkbank. Das Titelbild erscheint oben auf deinem Profil (Querformat, mind. 1600 px breit).">
         <div className="relative border border-line rounded-2xl">
-          <div className="relative aspect-[4/1] overflow-hidden bg-sunken">
+          <div className="relative aspect-[3/1] overflow-hidden rounded-t-2xl bg-sunken sm:aspect-[4/1]">
             {cover.img.url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={cover.img.url} alt="Titelbild" className="h-full w-full object-cover" />
@@ -111,7 +111,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             {cover.img.busy && <Loader2 className="absolute right-3 top-3 animate-spin text-ink" size={18} aria-label="Wird hochgeladen" />}
           </div>
           <div className="flex flex-wrap items-end gap-4 px-4 pb-4">
-            <div className="relative -mt-10 border-4 border-paper bg-paper">
+            <div className="relative -mt-10 rounded-full border-4 border-paper bg-paper">
               <Avatar src={avatar.img.url} name={displayName || profile.displayName} size={88} />
               {avatar.img.busy && <Loader2 className="absolute inset-0 m-auto animate-spin text-paper" size={20} aria-label="Wird hochgeladen" />}
             </div>
@@ -255,7 +255,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         </div>
       </SettingsSection>
 
-      <div className="sticky bottom-16 z-10 -mx-4 flex items-center justify-end gap-3 border-t border-line bg-paper px-4 py-3 md:bottom-0">
+      <div className="sticky bottom-[4.75rem] z-10 flex items-center justify-end gap-3 rounded-2xl border border-line bg-card/95 px-4 py-3 shadow-float backdrop-blur md:bottom-4">
         <Button type="submit" variant="ink" disabled={pending || avatar.img.busy || cover.img.busy || handleState.status === "checking" || handleState.status === "error"} aria-busy={pending}>
           {pending ? "Speichert …" : "Profil speichern"}
         </Button>

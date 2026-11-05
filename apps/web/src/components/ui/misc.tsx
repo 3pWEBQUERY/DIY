@@ -8,7 +8,7 @@ const tones: Record<Tone, string> = {
   neutral: "bg-sunken text-ink-2",
   moss: "bg-moss-soft text-moss-ink",
   clay: "bg-clay-soft text-clay-ink",
-  ink: "bg-ink text-paper",
+  ink: "bg-ink/[0.07] text-ink",
   warn: "bg-warn-soft text-warn",
   danger: "bg-danger-soft text-danger",
   outline: "border border-line-strong text-ink-2",

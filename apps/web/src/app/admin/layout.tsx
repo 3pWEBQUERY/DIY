@@ -76,16 +76,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Signet size={24} />
           <span className="font-serif text-[18px] leading-none tracking-[-0.02em]">Werkraum</span>
         </Link>
-        <span className="h-5 w-px bg-paper/25" aria-hidden />
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-paper/80">Administration</span>
+        <span className="hidden h-5 w-px bg-paper/25 sm:block" aria-hidden />
+        <span className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-paper/80 sm:inline">Administration</span>
         <div className="ml-auto flex items-center gap-4 text-[13px]">
           <span className="hidden items-center gap-2 sm:flex">
             <span className="text-paper/70">{user.profile.displayName}</span>
             <span className="rounded-full border border-paper/25 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em]">{ROLE_LABEL[user.role]}</span>
           </span>
-          <Link href="/feed" className="flex items-center gap-1.5 text-paper/80 hover:text-paper">
+          <Link href="/feed" aria-label="Zur Community" className="flex items-center gap-1.5 whitespace-nowrap text-paper/80 hover:text-paper">
             <ArrowLeft size={14} aria-hidden />
-            Zur Community
+            <span className="hidden sm:inline">Zur Community</span>
           </Link>
         </div>
       </header>

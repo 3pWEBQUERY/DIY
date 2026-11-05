@@ -152,7 +152,7 @@ export default async function TutorialPage({ params }: Params) {
       </div>
 
       {/* Datenblatt */}
-      <dl className="grid grid-cols-2 gap-px border-b border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
         {[
           { label: "Schwierigkeit", value: <span className="flex items-center gap-2"><Difficulty level={t.difficulty} />{DIFFICULTY_LABEL[t.difficulty]}</span> },
           { label: "Dauer", value: formatMinutes(t.minutes ?? (stepsMinutes || null)) },
@@ -161,7 +161,7 @@ export default async function TutorialPage({ params }: Params) {
           { label: "Nachgebaut", value: `${t.counts.completions}×` },
           { label: "Aktualisiert", value: formatDate(t.version.publishedAt, { day: "numeric", month: "short", year: "numeric" }) },
         ].map((r) => (
-          <div key={r.label} className="bg-paper px-3 py-3.5">
+          <div key={r.label} className="bg-card px-4 py-3.5">
             <dt className="spec">{r.label}</dt>
             <dd className="mt-1 text-[15px] font-semibold num">{r.value}</dd>
           </div>

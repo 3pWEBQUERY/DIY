@@ -113,7 +113,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
                   <Link
                     href={c.id ? `/gespeichert?sammlung=${c.id}` : "/gespeichert"}
                     aria-current={active ? "page" : undefined}
-                    className={cn("flex items-center justify-between gap-3 px-2 py-2 text-[14px]", active ? "bg-moss text-paper" : "text-ink-2 hover:bg-sunken")}
+                    className={cn("flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-[14px] transition-colors", active ? "bg-moss font-semibold text-paper" : "text-ink-2 hover:bg-sunken")}
                   >
                     <span className="truncate">{c.title}</span>
                     <span className={cn("shrink-0 font-mono text-[10px]", active ? "text-paper/70" : "text-muted")}>

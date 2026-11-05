@@ -84,7 +84,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
       const c = CALLOUT[b.tone];
       const Icon = c.icon;
       return (
-        <aside role="note" aria-label={c.label} className={cn("border-l-2 px-5 py-4 font-sans text-[15.5px] leading-relaxed text-ink-2", c.cls)}>
+        <aside role="note" aria-label={c.label} className={cn("rounded-2xl px-5 py-4 font-sans text-[15.5px] leading-relaxed text-ink-2", c.cls)}>
           <p className="spec mb-1.5 flex items-center gap-1.5 text-ink"><Icon size={13} aria-hidden />{c.label}</p>
           <p><InlineText text={b.text} /></p>
         </aside>

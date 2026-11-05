@@ -319,7 +319,7 @@ export function ProjectEditor({
         </section>
       )}
 
-      <div className="sticky bottom-16 z-20 -mx-4 flex items-center justify-between gap-3 border-t border-rule bg-paper px-4 py-3 md:bottom-0">
+      <div className="sticky bottom-[4.75rem] z-20 flex items-center justify-between gap-3 rounded-2xl border border-line bg-card/95 px-4 py-3 shadow-float backdrop-blur md:bottom-4">
         <span className="hidden text-[13px] text-muted sm:block">
           {mode === "edit" ? "Änderungen sind nach dem Speichern sofort sichtbar." : "Du kannst alles später ergänzen – auch Journal und Anleitung."}
         </span>

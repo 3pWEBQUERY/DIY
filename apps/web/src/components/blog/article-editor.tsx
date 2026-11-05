@@ -306,7 +306,7 @@ export function ArticleEditor({
       </div>
 
       {state === "HIDDEN" && (
-        <p role="alert" className="mb-6 border-l-2 border-danger bg-danger-soft px-4 py-3 text-sm">Dieser Artikel wurde von der Moderation ausgeblendet. Details findest du in deinen Benachrichtigungen.</p>
+        <p role="alert" className="rounded-2xl mb-6 bg-danger-soft px-4 py-3 text-sm">Dieser Artikel wurde von der Moderation ausgeblendet. Details findest du in deinen Benachrichtigungen.</p>
       )}
 
       <div className="grid gap-12 xl:grid-cols-[minmax(0,1fr)_340px]">

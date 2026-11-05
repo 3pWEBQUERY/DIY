@@ -115,7 +115,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
       {header}
 
       {invites.length > 0 && (
-        <section aria-labelledby="einl" className="mb-12 border-l-2 border-clay bg-clay-soft px-5 py-4">
+        <section aria-labelledby="einl" className="rounded-2xl mb-12 bg-clay-soft px-5 py-4">
           <h2 id="einl" className="spec text-clay-ink">Einladungen für dich</h2>
           <ul className="mt-2 divide-y divide-clay/20">
             {invites.map((c) => (

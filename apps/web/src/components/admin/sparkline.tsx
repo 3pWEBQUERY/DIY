@@ -41,7 +41,7 @@ export function Sparkline({
         {values.map((v, i) => {
           const bh = Math.max(v > 0 ? 1.5 : 0, (v / max) * h);
           return (
-            <rect key={i} x={pad + i * (w / n) + 1} y={height - pad - bh} width={bw} height={bh} className={i === n - 1 ? "fill-clay" : "fill-ink"}>
+            <rect key={i} x={pad + i * (w / n) + 1} y={height - pad - bh} width={bw} height={bh} rx={Math.min(2, bw / 2)} className={i === n - 1 ? "fill-moss" : "fill-moss/35"}>
               <title>{`${labels?.[i] ?? `#${i + 1}`}: ${v}`}</title>
             </rect>
           );
@@ -54,8 +54,8 @@ export function Sparkline({
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("shrink-0 overflow-visible", className)} role="img" aria-label={summary}>
       <line x1={pad} x2={width - pad} y1={height - pad} y2={height - pad} className="stroke-line" strokeWidth={1} />
-      <path d={d} fill="none" className="stroke-ink" strokeWidth={1.4} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={x(n - 1)} cy={y(last)} r={2.4} className="fill-clay" />
+      <path d={d} fill="none" className="stroke-moss" strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={x(n - 1)} cy={y(last)} r={2.4} className="fill-moss-ink" />
       {labels && <title>{labels.map((l, i) => `${l}: ${values[i]}`).join("\n")}</title>}
     </svg>
   );

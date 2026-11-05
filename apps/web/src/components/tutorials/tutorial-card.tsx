@@ -21,7 +21,7 @@ export function TutorialCard({ tutorial: t, showAuthor = true, priority, classNa
     >
       <Link href={t.href} className="block">
         <div className="relative">
-          <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="3/2" className="rounded-none" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" priority={priority} />
+          <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="3/2" className="rounded-none" plateNumber={false} sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" priority={priority} />
           <span className="absolute left-3 top-3 rounded-full bg-paper/95 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-ink">
             Anleitung{t.version && t.version > 1 ? ` · v${t.version}` : ""}
           </span>

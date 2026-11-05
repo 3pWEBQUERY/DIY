@@ -141,7 +141,7 @@ export function BuyBox({
           Das ist dein Produkt. <Link href={`/studio/produkte/${productId}`} className="font-semibold text-ink underline underline-offset-2">Im Studio bearbeiten</Link>
         </p>
       ) : !paymentsLive ? (
-        <p className="border-l-2 border-warn/50 bg-warn-soft px-4 py-3 text-[14px] text-ink-2">Zahlungen noch nicht aktiviert. Bestellungen sind in Kürze möglich.</p>
+        <p className="rounded-2xl  bg-warn-soft px-4 py-3 text-[14px] text-ink-2">Zahlungen noch nicht aktiviert. Bestellungen sind in Kürze möglich.</p>
       ) : (
         <div className="flex items-stretch gap-3">
           {!isDigital && (

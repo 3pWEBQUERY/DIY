@@ -202,7 +202,7 @@ export default async function ProjectPage({ params }: Params) {
               <p className="mt-6 text-sm text-muted">{isOwner ? "Noch keine Beschreibung. Erzähle, was dich zu diesem Projekt gebracht hat." : "Keine Beschreibung."}</p>
             )}
             {p.remixOf && p.remixOf.deviations && (
-              <div className="mt-8 max-w-[68ch] border-l-2 border-clay bg-clay-soft px-5 py-4">
+              <div className="rounded-2xl mt-8 max-w-[68ch] bg-clay-soft px-5 py-4">
                 <p className="spec text-clay-ink">Abweichungen zum Original</p>
                 <p className="mt-1.5 whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{p.remixOf.deviations}</p>
               </div>

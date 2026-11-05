@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FolderInput, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { VISIBILITY, VISIBILITY_LABEL, type Visibility } from "@werkraum/shared";
 import type { TargetType } from "@/generated/prisma/enums";
 import { Dialog } from "@/components/ui/dialog";
@@ -128,7 +128,6 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
     <div className={cn("mt-2 flex items-center gap-1", className)}>
       <label className="relative flex min-w-0 flex-1 items-center">
         <span className="sr-only">In Sammlung verschieben</span>
-        <FolderInput size={13} className="pointer-events-none absolute left-2 text-muted" />
         <Select
           value={value}
           disabled={pending}
@@ -147,7 +146,7 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
               }
             });
           }}
-          className="h-8 min-w-0 pl-8 text-[12px] text-ink-2"
+          className="h-8 min-w-0 pl-3 pr-8 text-[12px] text-ink-2"
         >
           <option value="">Ohne Sammlung</option>
           {collections.map((c) => (

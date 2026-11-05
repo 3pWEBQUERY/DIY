@@ -240,7 +240,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                   )}
 
                   {s.tip && (
-                    <aside className="mt-6 max-w-[66ch] border-l-2 border-moss bg-moss-soft px-4 py-3" aria-label="Tipp">
+                    <aside className="rounded-2xl mt-6 max-w-[66ch] bg-moss-soft px-4 py-3" aria-label="Tipp">
                       <p className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-moss-ink">Tipp aus der Werkstatt</span>
                         <span className="text-[11px] text-muted">Erfahrung der Autorin bzw. des Autors</span>

@@ -714,10 +714,10 @@ const TONES = [
 function CalloutBlock({ b, ctx }: { b: Of<"callout">; ctx: BlockCtx }) {
   const tone = TONES.find((t) => t.key === b.tone) ?? TONES[0];
   return (
-    <div className={cn("border-l-2 px-4 py-3", tone.cls)}>
+    <div className={cn("rounded-2xl px-4 py-3", tone.cls)}>
       <div className="mb-1 flex gap-1" role="group" aria-label="Art des Hinweises">
         {TONES.map((t) => (
-          <button key={t.key} type="button" aria-pressed={b.tone === t.key} onClick={() => ctx.patch(b.id, { tone: t.key })} className={cn("inline-flex h-6 items-center gap-1 px-1.5 text-[11px] font-semibold", b.tone === t.key ? "bg-moss text-paper" : "text-muted hover:text-ink")}>
+          <button key={t.key} type="button" aria-pressed={b.tone === t.key} onClick={() => ctx.patch(b.id, { tone: t.key })} className={cn("inline-flex h-6 items-center gap-1 rounded-full px-2 text-[11px] font-semibold", b.tone === t.key ? "bg-moss text-paper" : "text-muted hover:text-ink")}>
             {t.icon} {t.label}
           </button>
         ))}
