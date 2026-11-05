@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
-import { CATEGORIES, PROFILE_COUNTRIES, PROFILE_COUNTRY_LABEL } from "@werkraum/shared";
+import { CATEGORIES, PROFILE_COUNTRIES, PROFILE_COUNTRY_LABEL, listCategories } from "@werkraum/shared";
 import { useAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { uploadFile } from "@/components/media/uploader";
@@ -237,7 +237,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
 
       <SettingsSection n="04" title="Kreative Schwerpunkte" description="Erscheinen auf deinem Profil und steuern deinen Feed „Für dich“. Änderungen hier gelten auch unter Feed & Interessen.">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label="Kategorien">
-          {CATEGORIES.map((c) => {
+          {listCategories().filter((c) => c.isActive || cats.includes(c.slug)).map((c) => {
             const on = cats.includes(c.slug);
             return (
               <button

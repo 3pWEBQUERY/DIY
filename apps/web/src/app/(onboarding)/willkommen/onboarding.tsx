@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Camera } from "lucide-react";
-import { CATEGORIES, categoryBySlug } from "@werkraum/shared";
+import { CATEGORIES, categoryBySlug, listCategories } from "@werkraum/shared";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea, Checkbox } from "@/components/ui/field";
 import { Avatar, Notice } from "@/components/ui/misc";
@@ -128,7 +128,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
 
           {step === 1 && (
             <ul className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3 rounded-2xl overflow-hidden">
-              {CATEGORIES.map((c) => {
+              {listCategories({ activeOnly: true }).filter((c) => c.isActive || data.interests.includes(c.slug)).map((c) => {
                 const on = data.interests.includes(c.slug);
                 return (
                   <li key={c.slug}>

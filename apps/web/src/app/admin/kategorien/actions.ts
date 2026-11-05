@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshCategoryRegistry } from "@/server/categories/settings";
 import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
 import { deleteCatalog, upsertCatalog, type CatalogEntity } from "@/server/admin/catalog";
@@ -36,7 +37,8 @@ export async function deleteCatalogAction(entity: CatalogEntity, id: string) {
 /* ───────────── DIY-Kategorien ───────────── */
 
 /** Kategorien wirken auf Entdecken, Filter und Editoren – daher das ganze Layout neu validieren. */
-const refreshCategory = (slug: string) => {
+const refreshCategory = async (slug: string) => {
+  await refreshCategoryRegistry();
   revalidatePath(`/admin/kategorien/${slug}`);
   revalidatePath("/", "layout");
 };
@@ -45,7 +47,7 @@ export async function updateCategoryAction(slug: string, input: Record<string, u
   return act(async () => {
     const u = await requireRole("ADMIN");
     const r = await updateCategorySetting(u, slug, input);
-    refreshCategory(slug);
+    await refreshCategory(slug);
     return r;
   }, "Kategorie gespeichert.");
 }
@@ -54,7 +56,7 @@ export async function deactivateCategoryAction(slug: string, input: ReasonInput)
   return act(async () => {
     const u = await requireRole("ADMIN");
     await setCategoryActive(u, slug, false, input.reason);
-    refreshCategory(slug);
+    await refreshCategory(slug);
     return null;
   }, "Kategorie deaktiviert. Bestehende Inhalte bleiben unverändert.");
 }
@@ -63,7 +65,7 @@ export async function activateCategoryAction(slug: string, input: ReasonInput) {
   return act(async () => {
     const u = await requireRole("ADMIN");
     await setCategoryActive(u, slug, true, input.reason);
-    refreshCategory(slug);
+    await refreshCategory(slug);
     return null;
   }, "Kategorie aktiviert.");
 }
@@ -72,7 +74,7 @@ export async function resetCategoryAction(slug: string, input: ReasonInput) {
   return act(async () => {
     const u = await requireRole("ADMIN");
     await resetCategory(u, slug, input.reason);
-    refreshCategory(slug);
+    await refreshCategory(slug);
     return null;
   }, "Auf Standard zurückgesetzt.");
 }

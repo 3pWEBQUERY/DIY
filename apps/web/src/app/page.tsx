@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
-import { CATEGORIES, PROJECT_STATUS_LABEL, DIFFICULTY_LABEL } from "@werkraum/shared";
+import { CATEGORIES, PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, listCategories, categoryBySlug } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
 import { getSetting } from "@/server/settings";
@@ -205,7 +205,7 @@ export default async function Landing() {
                       <Cover url={p.coverUrl} alt={p.title} seed={p.id} category={p.category} ratio={i === 0 ? "1/1" : "4/5"} sizes="(min-width:1024px) 25vw, 50vw" />
                     </div>
                     <div className="mt-3 flex items-center justify-between spec">
-                      <span>{CATEGORIES.find((c) => c.slug === p.category)?.short} · {PROJECT_STATUS_LABEL[p.status]}</span>
+                      <span>{categoryBySlug(p.category)?.short} · {PROJECT_STATUS_LABEL[p.status]}</span>
                       <Difficulty level={p.difficulty} />
                     </div>
                     <h3 className={`headline mt-1.5 group-hover:underline decoration-1 underline-offset-4 ${i === 0 ? "text-3xl" : "text-xl"}`}>{p.title}</h3>
@@ -236,7 +236,7 @@ export default async function Landing() {
               </p>
             </div>
             <ol className="border-t border-rule">
-              {CATEGORIES.map((c, i) => (
+              {listCategories({ activeOnly: true }).map((c, i) => (
                 <li key={c.slug}>
                   <Link href={`/entdecken?kategorie=${c.slug}`} className="group grid grid-cols-[2.5rem_2rem_1fr_auto] items-center gap-3 border-b border-line py-3.5 transition-colors hover:bg-paper sm:px-3">
                     <span className="font-mono text-xs text-muted">{pad(i + 1)}</span>

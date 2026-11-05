@@ -4,4 +4,8 @@ export async function register() {
   // CORS-Regel für Direkt-Uploads in den Railway Bucket sicherstellen
   const { ensureBucketCors } = await import("@/server/storage");
   await ensureBucketCors().catch(() => {});
+  // Kategorie-Overrides (Admin) prozessweit laden und regelmässig auffrischen
+  const { refreshCategoryRegistry } = await import("@/server/categories/settings");
+  await refreshCategoryRegistry().catch(() => {});
+  setInterval(() => void refreshCategoryRegistry().catch(() => {}), 60_000).unref?.();
 }

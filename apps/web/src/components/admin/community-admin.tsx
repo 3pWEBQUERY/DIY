@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
-import { CATEGORIES, COMMUNITY_VISIBILITY, COMMUNITY_VISIBILITY_LABEL } from "@werkraum/shared";
+import { CATEGORIES, COMMUNITY_VISIBILITY, COMMUNITY_VISIBILITY_LABEL, listCategories } from "@werkraum/shared";
 import type { ActionResult } from "@/server/errors";
 import { useAction } from "@/lib/use-action";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,7 @@ export function CommunityEditButton({
             <Field label="Kategorie" error={fields.category}>
               {(p) => (
                 <Select name="category" defaultValue={initial.category} {...p}>
-                  {CATEGORIES.map((c) => (
+                  {listCategories().map((c) => (
                     <option key={c.slug} value={c.slug}>
                       {c.name}
                     </option>

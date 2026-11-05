@@ -11,6 +11,7 @@ import { relationsFor, isBlockedBetween } from "@/server/visibility";
 import { attachMedia } from "@/server/media/service";
 import { createPost, listPosts } from "@/server/social/posts";
 import { slugify } from "@/lib/utils";
+import { assertCategoryAllowed } from "@/server/categories/settings";
 
 /**
  * Communities (PRD §15): Sichtbarkeit PUBLIC / REQUEST / PRIVATE, Rollen, Beitritt,
@@ -367,6 +368,7 @@ export async function listChallenges(communityId: string) {
 
 export async function createCommunity(user: SessionUser, input: unknown) {
   const data = communityUpsertSchema.parse(input);
+  await assertCategoryAllowed(data.category);
   await rateLimit(`community-create:${user.id}`, 5, 86400);
   const slug = data.slug ?? slugify(data.name, 48);
   if (slug.length < 3 || RESERVED_SLUGS.has(slug)) throw fail.invalid("Diese Adresse ist nicht verfügbar.", { slug: "Diese Adresse ist nicht verfügbar." });
@@ -398,6 +400,7 @@ const settingsSchema = communityUpsertSchema.omit({ slug: true, rules: true });
 export async function updateCommunity(communityId: string, input: unknown) {
   const { user, community } = await requireManager(communityId);
   const data = settingsSchema.parse(input);
+  await assertCategoryAllowed(data.category, (await db.community.findUnique({ where: { id: communityId }, select: { category: true } }))?.category);
   await db.$transaction(async (tx) => {
     const coverUrl = data.coverMediaId ? await coverFromMedia(tx, user.id, data.coverMediaId) : data.coverMediaId === null ? null : undefined;
     await tx.community.update({

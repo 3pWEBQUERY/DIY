@@ -4,6 +4,8 @@ import { BRAND } from "@/config/brand";
 import { Toaster } from "@/components/ui/toast";
 import { Suspense } from "react";
 import { NavProgress } from "@/components/shell/page-transition";
+import { categoryRegistrySnapshot } from "@werkraum/shared";
+import { CategoryRegistrySync } from "@/components/shell/category-registry";
 
 const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
@@ -29,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de-CH">
       <body className="min-h-dvh">
+        <CategoryRegistrySync data={categoryRegistrySnapshot()} />
         <a href="#main" className="skip-link">
           Zum Inhalt springen
         </a>

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { CATEGORIES } from "@werkraum/shared";
+import { CATEGORIES, listCategories } from "@werkraum/shared";
 import { db } from "@/server/db";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
     return [
       ...staticPages,
-      ...CATEGORIES.map((c) => ({ url: u(`/entdecken?kategorie=${c.slug}`), changeFrequency: "daily" as const, priority: 0.6 })),
+      ...listCategories({ activeOnly: true }).map((c) => ({ url: u(`/entdecken?kategorie=${c.slug}`), changeFrequency: "daily" as const, priority: 0.6 })),
       ...projects.map((p) => ({ url: u(`/u/${p.owner.profile?.handle}/${p.slug}`), lastModified: p.updatedAt, priority: 0.8 })),
       ...tutorials.map((t) => ({ url: u(`/anleitungen/${t.slug}`), lastModified: t.updatedAt, priority: 0.9 })),
       ...articles.map((a) => ({ url: u(`/u/${a.author.profile?.handle}/blog/${a.slug}`), lastModified: a.updatedAt, priority: 0.8 })),

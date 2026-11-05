@@ -15,6 +15,7 @@ import { attachMedia, mediaCoverUrl } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listComments } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
+import { assertCategoryAllowed } from "@/server/categories/settings";
 
 /**
  * Projekte – der Produktkern (PRD §10). Ein Projekt bündelt Journal, Anleitung,
@@ -125,6 +126,7 @@ async function notifyFollowers(projectId: string, actorId: string, data: Record<
 
 export async function createProject(user: SessionUser, input: unknown) {
   const data = projectUpsertSchema.parse(input);
+  await assertCategoryAllowed(data.category);
   await limit("post", user.id);
 
   let original: { id: string; ownerId: string; title: string } | null = null;
@@ -207,6 +209,7 @@ async function ownedProject(user: SessionUser, projectId: string) {
 
 export async function updateProject(user: SessionUser, projectId: string, input: unknown) {
   const data = projectUpsertSchema.parse(input);
+  await assertCategoryAllowed(data.category, (await db.project.findUnique({ where: { id: projectId }, select: { category: true } }))?.category);
   const prev = await ownedProject(user, projectId);
   const galleryIds = data.media.map((m) => m.id);
   const coverId = data.coverMediaId ?? galleryIds[0] ?? null;

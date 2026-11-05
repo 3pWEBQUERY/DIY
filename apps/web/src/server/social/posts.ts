@@ -11,6 +11,7 @@ import type { SessionUser } from "@/server/auth/session";
 import { attachMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
 import { rankFeed, type Candidate } from "./ranking";
+import { assertCategoryAllowed } from "@/server/categories/settings";
 
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
@@ -215,6 +216,7 @@ async function notifyMentions(body: string, actorId: string, postId: string) {
 
 export async function createPost(user: SessionUser, input: unknown, extra: { communityId?: string; tutorialId?: string; articleId?: string; productId?: string; projectUpdateId?: string } = {}) {
   const data = postCreateSchema.parse(input);
+  await assertCategoryAllowed(data.category);
   await limit("post", user.id);
   if (data.projectId) {
     const pr = await db.project.findUnique({ where: { id: data.projectId }, select: { ownerId: true } });
@@ -267,6 +269,7 @@ export async function updatePost(
   if (!post || post.state === "REMOVED") throw fail.notFound();
   if (post.authorId !== user.id) throw fail.forbidden();
   const data = postCreateSchema.parse({ ...input, media: input.media ?? [], repostOfId: post.repostOfId ?? undefined, projectId: input.projectId ?? undefined });
+  await assertCategoryAllowed(data.category, (await db.post.findUnique({ where: { id: postId }, select: { category: true } }))?.category);
   if (input.projectId) {
     const pr = await db.project.findUnique({ where: { id: input.projectId }, select: { ownerId: true } });
     if (!pr || pr.ownerId !== user.id) throw fail.forbidden("Du kannst nur eigene Projekte verknüpfen.");

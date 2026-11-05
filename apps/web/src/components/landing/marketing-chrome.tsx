@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/shell/wordmark";
 import { LinkButton } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
-import { CATEGORIES } from "@werkraum/shared";
+import { CATEGORIES, listCategories } from "@werkraum/shared";
 
 export function MarketingHeader() {
   return (
@@ -54,7 +54,7 @@ export function MarketingFooter() {
         />
         <FooterCol
           title="Kategorien"
-          links={CATEGORIES.filter((c) => c.focus || ["holz", "keramik", "moebel-upcycling", "3d-druck"].includes(c.slug)).map((c) => [`/entdecken?kategorie=${c.slug}`, c.name] as [string, string])}
+          links={listCategories({ activeOnly: true }).filter((c) => c.focus || ["holz", "keramik", "moebel-upcycling", "3d-druck"].includes(c.slug)).map((c) => [`/entdecken?kategorie=${c.slug}`, c.name] as [string, string])}
         />
         <FooterCol
           title="Vertrauen"

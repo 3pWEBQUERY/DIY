@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CATEGORIES, VISIBILITY, categoryBySlug } from "@werkraum/shared";
+import { CATEGORIES, VISIBILITY, categoryBySlug, listCategories } from "@werkraum/shared";
 import { AppError } from "@/server/errors";
 import { hasRole } from "@/server/authz";
 import { adminPage } from "@/server/admin/guard";
@@ -64,7 +64,7 @@ export default async function AdminPostPage({ params }: { params: Promise<{ id: 
                 kind="POST"
                 id={p.id}
                 values={{ category: p.category, visibility: p.visibility }}
-                categories={CATEGORIES.map((c) => ({ value: c.slug, label: c.short }))}
+                categories={listCategories().map((c) => ({ value: c.slug, label: c.short + (c.isActive ? "" : " (inaktiv)") }))}
                 visibilities={VISIBILITY.map((v) => ({ value: v, label: VISIBILITY_SHORT[v] ?? v }))}
               />
             )}

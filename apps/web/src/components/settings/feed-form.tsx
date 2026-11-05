@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CATEGORIES, FEED_DEFAULTS, FEED_DEFAULT_LABEL } from "@werkraum/shared";
+import { CATEGORIES, FEED_DEFAULTS, FEED_DEFAULT_LABEL, listCategories } from "@werkraum/shared";
 import { useAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ type Mode = "interest" | "neutral" | "hidden";
 
 /** Je Kategorie ein Dreifach-Schalter: Interessiert mich · Neutral · Ausblenden. */
 export function FeedForm({ interests, hidden, feedDefault }: { interests: string[]; hidden: string[]; feedDefault: string }) {
-  const [modes, setModes] = useState<Record<string, Mode>>(() => Object.fromEntries(CATEGORIES.map((c) => [c.slug, interests.includes(c.slug) ? "interest" : hidden.includes(c.slug) ? "hidden" : "neutral"])));
+  const [modes, setModes] = useState<Record<string, Mode>>(() => Object.fromEntries(listCategories().map((c) => [c.slug, interests.includes(c.slug) ? "interest" : hidden.includes(c.slug) ? "hidden" : "neutral"])));
   const [def, setDef] = useState(FEED_DEFAULTS.includes(feedDefault as (typeof FEED_DEFAULTS)[number]) ? feedDefault : "FOR_YOU");
   const { run, pending } = useAction(updateFeedPrefsAction);
   const count = (m: Mode) => Object.values(modes).filter((x) => x === m).length;
@@ -31,7 +31,7 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
     >
       <SettingsSection n="01" title="Interessen & ausgeblendete Kategorien" description={`„Interessiert mich“ stärkt Kategorien im Feed „Für dich“ und erscheint als Schwerpunkt auf deinem Profil. Ausgeblendete Kategorien zeigen wir dir nicht mehr. ${count("interest")} Interessen · ${count("hidden")} ausgeblendet.`}>
         <ul className="divide-y divide-line border-y border-line">
-          {CATEGORIES.map((c) => (
+          {listCategories().filter((c) => c.isActive || modes[c.slug] !== "neutral").map((c) => (
             <li key={c.slug} className="flex flex-wrap items-center gap-3 py-2.5">
               <Glyph name={c.glyph} size={20} className="text-ink" />
               <span className="min-w-0 flex-1 text-sm font-medium">{c.name}</span>

@@ -15,6 +15,7 @@ import { attachMedia, mediaCoverUrl } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listComments } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
+import { assertCategoryAllowed } from "@/server/categories/settings";
 
 /**
  * Anleitungen (PRD §11).
@@ -72,6 +73,7 @@ function asStepMedia(json: unknown): StepMedia[] {
 
 export async function saveTutorial(user: SessionUser, tutorialId: string | null, input: unknown, opts: { publish: boolean }) {
   const data = tutorialSaveSchema.parse(input);
+  await assertCategoryAllowed(data.category, tutorialId ? (await db.tutorial.findUnique({ where: { id: tutorialId }, select: { category: true } }))?.category : null);
   if (!tutorialId || opts.publish) await limit("post", user.id);
 
   const existing = tutorialId

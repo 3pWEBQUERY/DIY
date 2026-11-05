@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, type SafetyKind } from "@werkraum/shared";
+import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, type SafetyKind, listCategories } from "@werkraum/shared";
 import { AppError } from "@/server/errors";
 import { hasRole } from "@/server/authz";
 import { adminPage } from "@/server/admin/guard";
@@ -57,7 +57,7 @@ export default async function AdminTutorialPage({ params }: { params: Promise<{ 
                 kind="TUTORIAL"
                 id={t.id}
                 values={{ title: t.title, summary: t.summary, category: t.category, difficulty: t.difficulty }}
-                categories={CATEGORIES.map((c) => ({ value: c.slug, label: c.short }))}
+                categories={listCategories().map((c) => ({ value: c.slug, label: c.short + (c.isActive ? "" : " (inaktiv)") }))}
                 difficulties={DIFFICULTY.map((n) => ({ value: String(n), label: DIFFICULTY_LABEL[n] ?? String(n) }))}
               />
             )}

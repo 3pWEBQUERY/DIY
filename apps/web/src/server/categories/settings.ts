@@ -3,6 +3,8 @@ import { cache } from "react";
 import { db } from "@/server/db";
 import type { CategoryOption } from "./types";
 import { mergeCategories } from "./merge";
+import { AppError } from "@/server/errors";
+import { setCategoryRegistry } from "@werkraum/shared";
 
 export type { CategoryOption, EffectiveCategory } from "./types";
 export { mergeCategories } from "./merge";
@@ -21,7 +23,30 @@ export const getCategorySettings = cache(async () => {
 });
 
 /** Alle Kategorien inkl. Overrides, sortiert. Pro Request gecacht. */
-export const effectiveCategories = cache(async () => mergeCategories(await getCategorySettings()));
+export const effectiveCategories = cache(async () => {
+  const list = mergeCategories(await getCategorySettings());
+  // Prozessweite Namensquelle aktuell halten (Karten, Detailseiten, categoryBySlug)
+  setCategoryRegistry(list);
+  return list;
+});
+
+/** Registry beim Start bzw. nach Admin-Änderungen frisch aus der DB laden (ohne Request-Cache). */
+export async function refreshCategoryRegistry() {
+  const rows = await db.categorySetting.findMany().catch(() => []);
+  const list = mergeCategories(new Map(rows.map((r) => [r.slug, r])));
+  setCategoryRegistry(list);
+  return list;
+}
+
+/**
+ * Serverseitige Prüfung beim Erstellen/Bearbeiten: inaktive Kategorien sind für neue
+ * Inhalte gesperrt. Die bereits gespeicherte Kategorie (`current`) bleibt erlaubt.
+ */
+export async function assertCategoryAllowed(slug: string | null | undefined, current?: string | null) {
+  if (!slug || slug === current) return;
+  const c = (await effectiveCategories()).find((x) => x.slug === slug);
+  if (c && !c.isActive) throw new AppError("VALIDATION", `Die Kategorie „${c.name}“ ist derzeit nicht verfügbar.`, { category: "Bitte eine andere Kategorie wählen." });
+}
 
 /** Nur aktive Kategorien – für Auswahllisten bei neuen Inhalten und Browse-Chips. */
 export const activeCategories = cache(async () => (await effectiveCategories()).filter((c) => c.isActive));

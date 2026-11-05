@@ -20,6 +20,54 @@ export const CATEGORIES = [
 export type CategorySlug = (typeof CATEGORIES)[number]["slug"];
 export const CATEGORY_SLUGS = CATEGORIES.map((c) => c.slug) as [CategorySlug, ...CategorySlug[]];
 
-export function categoryBySlug(slug: string | null | undefined) {
-  return CATEGORIES.find((c) => c.slug === slug);
+type BaseCategory = (typeof CATEGORIES)[number];
+
+/** Darstellungsdaten einer Kategorie inkl. Admin-Overrides (Name, Kurzname, Reihenfolge, aktiv). */
+export type CategoryInfo = { slug: CategorySlug; name: string; short: string; focus: boolean; glyph: BaseCategory["glyph"]; description: string; isActive: boolean };
+
+type RegistryEntry = { slug: string; name: string; short: string; focus: boolean; description?: string; isActive?: boolean };
+
+/*
+ * Laufzeit-Registry für Overrides aus der Datenbank (Admin → Kategorien).
+ * Liegt auf globalThis, damit Server-Komponenten, SSR und Browser dieselbe Quelle sehen
+ * (Next.js bündelt RSC- und SSR-Schicht getrennt). Ohne Registry gelten die Standards.
+ */
+const KEY = "__werkraumCategoryRegistry";
+type Registry = { order: string[]; bySlug: Map<string, CategoryInfo> };
+const g = globalThis as unknown as Record<string, Registry | undefined>;
+
+function base(c: BaseCategory): CategoryInfo {
+  return { slug: c.slug, name: c.name, short: c.short, focus: c.focus, glyph: c.glyph, description: "", isActive: true };
+}
+
+export function setCategoryRegistry(list: readonly RegistryEntry[]) {
+  const bySlug = new Map<string, CategoryInfo>();
+  for (const e of list) {
+    const c = CATEGORIES.find((x) => x.slug === e.slug);
+    if (!c) continue;
+    bySlug.set(c.slug, { ...base(c), name: e.name || c.name, short: e.short || c.short, focus: e.focus, description: e.description ?? "", isActive: e.isActive ?? true });
+  }
+  g[KEY] = { order: list.map((e) => e.slug).filter((s) => bySlug.has(s)), bySlug };
+}
+
+/** Aktuelle Registry als serialisierbare Liste (für die Übergabe an den Browser). */
+export function categoryRegistrySnapshot(): CategoryInfo[] {
+  return listCategories();
+}
+
+/** Kategorie nach Slug – mit Overrides (auch inaktive, damit bestehende Inhalte korrekt heissen). */
+export function categoryBySlug(slug: string | null | undefined): CategoryInfo | undefined {
+  if (!slug) return undefined;
+  const r = g[KEY];
+  const hit = r?.bySlug.get(slug);
+  if (hit) return hit;
+  const c = CATEGORIES.find((x) => x.slug === slug);
+  return c ? base(c) : undefined;
+}
+
+/** Alle Kategorien in Admin-Reihenfolge; `activeOnly` blendet deaktivierte aus. */
+export function listCategories(opts: { activeOnly?: boolean; keep?: string | null } = {}): CategoryInfo[] {
+  const r = g[KEY];
+  const all = r ? r.order.map((s) => r.bySlug.get(s)!) : CATEGORIES.map(base);
+  return opts.activeOnly ? all.filter((c) => c.isActive || c.slug === opts.keep) : all;
 }

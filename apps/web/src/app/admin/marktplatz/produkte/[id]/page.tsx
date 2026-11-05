@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { CATEGORIES, COUNTRY_LABEL, PRODUCT_STATUS_LABEL, categoryBySlug, type ShipCountry } from "@werkraum/shared";
+import { CATEGORIES, COUNTRY_LABEL, PRODUCT_STATUS_LABEL, categoryBySlug, type ShipCountry, listCategories } from "@werkraum/shared";
 import { AppError } from "@/server/errors";
 import { hasRole } from "@/server/authz";
 import { adminPage } from "@/server/admin/guard";
@@ -102,7 +102,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <ProductEditButton
             action={updateProductAction.bind(null, p.id)}
             initial={{ title: p.title, description: p.description, category: p.category, materials: p.materials, dimensions: p.dimensions, safetyInfo: p.safetyInfo, returnPolicy: p.returnPolicy, price: minorToInput(p.priceMinor) }}
-            categories={CATEGORIES.map((c) => ({ value: c.slug, label: c.name }))}
+            categories={listCategories().map((c) => ({ value: c.slug, label: c.name + (c.isActive ? "" : " (inaktiv)") }))}
             canEditPrice={isAdmin}
             currency={p.currency}
           />
