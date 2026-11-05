@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Bookmark, Plus, Sparkles, Users } from "lucide-react";
 import { PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -48,7 +48,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
   const aside = (
     <div className="space-y-10">
       <section>
-        <SectionTitle n="A" title="Auf deiner Werkbank" action={<Link href="/erstellen?typ=projekt" className="text-muted hover:text-ink" aria-label="Neues Projekt"><Plus size={16} /></Link>} />
+        <SectionTitle icon={<Avatar src={viewer.avatarUrl} name={viewer.displayName || user.profile?.handle || "Du"} size={28} />} title="Auf deiner Werkbank" action={<Link href="/erstellen?typ=projekt" className="text-muted hover:text-ink" aria-label="Neues Projekt"><Plus size={16} /></Link>} />
         {myProjects.length ? (
           <ul className="divide-y divide-line">
             {myProjects.map((p) => (
@@ -77,7 +77,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
 
       {creators.length > 0 && (
         <section>
-          <SectionTitle n="B" title="Creator für dich" />
+          <SectionTitle icon={<span className="grid size-7 place-items-center rounded-full bg-moss-soft text-moss"><Sparkles size={14} strokeWidth={2} aria-hidden /></span>} title="Creator für dich" />
           <ul className="divide-y divide-line">
             {creators.map((c) => (
               <li key={c.userId} className="flex items-center gap-3 py-3">
@@ -95,7 +95,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
 
       {trending.length > 0 && (
         <section>
-          <SectionTitle n="C" title="Gerade viel gemerkt" />
+          <SectionTitle icon={<span className="grid size-7 place-items-center rounded-full bg-moss-soft text-moss"><Bookmark size={14} strokeWidth={2} aria-hidden /></span>} title="Gerade viel gemerkt" />
           <ol className="mt-1">
             {trending.map((p, i) => (
               <li key={p.id}>
@@ -114,7 +114,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
 
       {communities.length > 0 && (
         <section>
-          <SectionTitle n="D" title="Communities" action={<Link href="/communities" className="text-xs text-muted hover:text-ink">Alle</Link>} />
+          <SectionTitle icon={<span className="grid size-7 place-items-center rounded-full bg-moss-soft text-moss"><Users size={14} strokeWidth={2} aria-hidden /></span>} title="Communities" action={<Link href="/communities" className="text-xs text-muted hover:text-ink">Alle</Link>} />
           <ul className="divide-y divide-line">
             {communities.map((c) => (
               <li key={c.id}>

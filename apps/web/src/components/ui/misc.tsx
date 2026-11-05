@@ -72,11 +72,12 @@ export function Spec({ label, children, className }: { label: string; children: 
 }
 
 /* ───────── Abschnittstitel mit Nummer ───────── */
-export function SectionTitle({ n, title, action, className }: { n?: string; title: ReactNode; action?: ReactNode; className?: string }) {
+export function SectionTitle({ n, icon, title, action, className }: { n?: string; icon?: ReactNode; title: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex items-end justify-between gap-4 border-b border-rule pb-2.5", className)}>
-      <h2 className="flex items-baseline gap-3 text-[15px] font-bold tracking-tight">
-        {n && <span className="spec text-ink">{n}</span>}
+    <div className={cn("flex justify-between gap-4 border-b border-rule pb-2.5", icon ? "items-center" : "items-end", className)}>
+      <h2 className={cn("flex gap-3 text-[15px] font-bold tracking-tight", icon ? "items-center gap-2.5" : "items-baseline")}>
+        {icon && <span className="grid shrink-0 place-items-center">{icon}</span>}
+        {!icon && n && <span className="spec text-ink">{n}</span>}
         {title}
       </h2>
       {action}
