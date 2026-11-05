@@ -11,6 +11,6 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
   const user = await requirePageUser("/studio/blog").catch(() => null);
   if (!user) redirect(`/anmelden?weiter=/studio/blog/${id}`);
   const [article, categories, projects] = await Promise.all([getArticleForEdit(user, id), listArticleCategories(), myProjectOptions(user.id)]);
-  if (!article) notFound();
+  if (!article || article.state === "REMOVED") notFound();
   return <ArticleEditor key={article.id} initial={article} categories={categories} projects={projects} handle={user.profile.handle} baseUrl={articleBaseUrl()} />;
 }

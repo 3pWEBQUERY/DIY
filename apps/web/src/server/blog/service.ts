@@ -229,6 +229,7 @@ async function ownArticle(user: Pick<SessionUser, "id">, id: string) {
 export async function saveArticle(user: SessionUser, id: string | null, input: unknown) {
   const data = articleUpsertSchema.parse(input);
   const existing = id ? await ownArticle(user, id) : null;
+  if (existing?.state === "REMOVED") throw fail.forbidden("Dieser Artikel wurde von der Moderation entfernt und kann nicht mehr bearbeitet werden.");
   if (existing?.state === "HIDDEN") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet und kann nicht bearbeitet werden.");
   const { blocks, mediaIds } = await normalizeBlocks(user.id, data.blocks);
   const plainText = blocksToPlainText(blocks);
@@ -345,7 +346,7 @@ async function takeAnnounceMarker(authorId: string, articleId: string) {
 export async function publishArticle(user: SessionUser, id: string, input: unknown) {
   const opts = articlePublishSchema.parse(input ?? {});
   const a = await ownArticle(user, id);
-  if (a.state === "HIDDEN") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet.");
+  if (a.state === "HIDDEN" || a.state === "REMOVED") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet.");
   if (!hasContent(parseBlocks(a.blocks))) throw fail.invalid("Dein Artikel braucht noch Inhalt, bevor du ihn veröffentlichst.");
   const now = new Date();
   const at = opts.publishAt ? new Date(opts.publishAt) : null;
@@ -369,7 +370,7 @@ export async function publishArticle(user: SessionUser, id: string, input: unkno
 
 export async function unpublishArticle(user: SessionUser, id: string) {
   const a = await ownArticle(user, id);
-  if (a.state === "HIDDEN") throw fail.forbidden();
+  if (a.state === "HIDDEN" || a.state === "REMOVED") throw fail.forbidden();
   if (a.state === "SCHEDULED") {
     await takeAnnounceMarker(user.id, id);
     await db.blogArticle.update({ where: { id }, data: { state: "DRAFT", publishedAt: null } });
@@ -602,6 +603,7 @@ export async function getArticleForReader(handle: string, slug: string, viewerId
   const isAuthor = viewerId === article.authorId;
   const isLive = article.state === "PUBLISHED" && !!article.publishedAt && article.publishedAt <= new Date();
   if (!isLive && !isAuthor) return null;
+  if (article.state === "REMOVED") return null;
   if (article.state === "HIDDEN" && !isAuthor) return null;
   if (viewerId && !isAuthor) {
     const rel = await relationsFor(viewerId);
@@ -703,7 +705,7 @@ export async function recordArticleView(articleId: string) {
 
 export async function listMyArticles(userId: string, state?: ArticleState) {
   const rows = await db.blogArticle.findMany({
-    where: { authorId: userId, ...(state ? { state } : {}) },
+    where: { authorId: userId, ...(state ? { state } : { state: { not: "REMOVED" } }) },
     orderBy: { updatedAt: "desc" },
     select: { id: true, slug: true, title: true, dek: true, state: true, coverUrl: true, viewCount: true, likeCount: true, readingMinutes: true, publishedAt: true, updatedAt: true, category: { select: { name: true } } },
     take: 200,

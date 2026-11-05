@@ -12,7 +12,7 @@ export function AdminNav({ groups }: { groups: AdminNavGroup[] }) {
   const pathname = usePathname();
   let n = 0;
   return (
-    <nav aria-label="Administration" className="sticky top-12 hidden h-[calc(100dvh-3rem)] w-60 shrink-0 overflow-y-auto border-r border-line bg-paper py-5 lg:block">
+    <nav aria-label="Administration" className="sticky top-[4.25rem] hidden h-[calc(100dvh-4.25rem)] sm:top-[4.5rem] sm:h-[calc(100dvh-4.5rem)] w-60 shrink-0 overflow-y-auto border-r border-line bg-paper py-5 lg:block">
       {groups.map((g) => (
         <div key={g.title} className="mb-5 px-3">
           <p className="spec mb-1.5 px-3">{g.title}</p>

@@ -5,6 +5,7 @@ import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
 import { setContentHidden, setFeatured } from "@/server/admin/content";
 import {
+  approveCommunityRequests,
   removeCommunity,
   removeCommunityMember,
   restoreCommunity,
@@ -109,4 +110,22 @@ export async function unbanMemberAction(id: string, userId: string, input: Reaso
     refresh(id);
     return null;
   }, "Sperre aufgehoben.");
+}
+
+export async function approveRequestAction(id: string, userId: string, input: ReasonInput) {
+  return act(async () => {
+    const u = await requireRole("PLATFORM_MODERATOR");
+    await approveCommunityRequests(u, id, [userId], input.reason);
+    refresh(id);
+    return null;
+  }, "Anfrage angenommen – die Person ist jetzt Mitglied.");
+}
+
+export async function approveAllRequestsAction(id: string, input: ReasonInput) {
+  return act(async () => {
+    const u = await requireRole("PLATFORM_MODERATOR");
+    const r = await approveCommunityRequests(u, id, "ALL", input.reason);
+    refresh(id);
+    return r;
+  }, "Alle offenen Anfragen angenommen.");
 }

@@ -66,7 +66,7 @@ export default async function AdminArticlePage({ params }: { params: Promise<{ i
             ) : (
               <ReasonButton action={setCommentsLockedAction.bind(null, a.id, false)} label="Kommentare öffnen" variant="outline" title="Kommentare wieder öffnen" confirmLabel="Öffnen" />
             )}
-            <StateActions kind="ARTICLE" id={a.id} state={a.state} featured={a.isFeatured} canFeature canRemove={false} isAdmin={isAdmin} />
+            <StateActions kind="ARTICLE" id={a.id} state={a.state} featured={a.isFeatured} canFeature canRemove isAdmin={isAdmin} />
           </>
         }
       />

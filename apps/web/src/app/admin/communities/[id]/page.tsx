@@ -21,6 +21,8 @@ import {
   banMemberAction,
   removeCommunityAction,
   removeMemberAction,
+  approveRequestAction,
+  approveAllRequestsAction,
   restoreCommunityAction,
   setCommunityFeaturedAction,
   setCommunityHiddenAction,
@@ -46,6 +48,7 @@ const AUDIT_LABEL: Record<string, string> = {
   "admin.community_member_removed": "Mitglied entfernt",
   "admin.community_member_banned": "Mitglied gesperrt",
   "admin.community_member_unbanned": "Sperre aufgehoben",
+  "admin.community_member_approved": "Anfrage angenommen",
   "admin.content_featured": "Hervorgehoben",
   "admin.content_unfeatured": "Hervorhebung entfernt",
   "admin.content_hidden": "Ausgeblendet",
@@ -205,7 +208,23 @@ export default async function CommunityDetailPage({ params, searchParams }: { pa
           </section>
 
           <section aria-labelledby="c2" id="mitglieder">
-            <SectionTitle n="02" title={<span id="c2">Mitglieder ({num(members.total)}{filtered ? " Treffer" : ""})</span>} />
+            <SectionTitle
+              n="02"
+              title={<span id="c2">Mitglieder ({num(members.total)}{filtered ? " Treffer" : ""})</span>}
+              action={
+                counts.members.PENDING > 0 && c.state !== "REMOVED" ? (
+                  <ReasonButton
+                    action={approveAllRequestsAction.bind(null, c.id)}
+                    label={`Alle ${counts.members.PENDING} Anfragen annehmen`}
+                    variant="outline"
+                    confirmVariant="primary"
+                    title="Alle offenen Beitrittsanfragen annehmen"
+                    description="Alle Personen mit offener Anfrage werden Mitglied und benachrichtigt."
+                    confirmLabel="Alle annehmen"
+                  />
+                ) : undefined
+              }
+            />
             <FilterBar action={`/admin/communities/${c.id}`} className="mt-4">
               <FilterField label="Suche">
                 <input name="q" defaultValue={sp.q ?? ""} placeholder="@handle oder Name" className={`${filterInput} w-56`} />
@@ -273,6 +292,17 @@ export default async function CommunityDetailPage({ params, searchParams }: { pa
                               choices={ROLE_CHOICES.filter((r) => r.value !== m.role)}
                               choiceLabel="Neue Community-Rolle"
                               confirmLabel="Rolle speichern"
+                            />
+                          )}
+                          {m.state === "PENDING" && c.state !== "REMOVED" && (
+                            <ReasonButton
+                              action={approveRequestAction.bind(null, c.id, m.userId)}
+                              label="Annehmen"
+                              variant="primary"
+                              confirmVariant="primary"
+                              title={`Anfrage von ${name} annehmen`}
+                              description="Die Person wird sofort Mitglied und benachrichtigt. Die Freigabe erscheint auch im Moderationsprotokoll der Community."
+                              confirmLabel="Annehmen"
                             />
                           )}
                           {canSanction && m.state !== "BANNED" && (

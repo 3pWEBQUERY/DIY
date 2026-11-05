@@ -24,6 +24,7 @@ const STATE = {
   SCHEDULED: { label: "Geplant", tone: "clay" },
   PUBLISHED: { label: "Veröffentlicht", tone: "moss" },
   HIDDEN: { label: "Ausgeblendet", tone: "danger" },
+  REMOVED: { label: "Entfernt", tone: "danger" },
 } as const;
 
 export default async function StudioBlogPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {

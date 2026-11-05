@@ -15,6 +15,7 @@ type Option = { value: string; label: string };
 export type ContentEditValues = {
   title?: string;
   summary?: string;
+  body?: string;
   category?: string | null;
   categoryId?: string | null;
   visibility?: string;
@@ -78,7 +79,7 @@ export function EditContentButton({
   const hasTitle = kind !== "POST";
   const summaryLabel = kind === "PROJECT" ? "Beschreibung" : kind === "ARTICLE" ? "Vorspann (Dek)" : "Zusammenfassung";
   const summaryMax = kind === "PROJECT" ? 10_000 : kind === "ARTICLE" ? 400 : 2000;
-  const known = ["title", "summary", "category", "categoryId", "visibility", "difficulty", "reason"];
+  const known = ["title", "summary", "body", "category", "categoryId", "visibility", "difficulty", "reason"];
   const other = Object.entries(fields).find(([k]) => !known.includes(k))?.[1];
 
   return (
@@ -96,6 +97,7 @@ export function EditContentButton({
             run({
               title: s("title"),
               summary: s("summary"),
+              body: s("body"),
               category: kind === "ARTICLE" ? undefined : (s("category") ?? ""),
               categoryId: kind === "ARTICLE" ? (s("categoryId") ?? "") : undefined,
               visibility: s("visibility"),
@@ -112,6 +114,11 @@ export function EditContentButton({
           {hasTitle && (
             <Field label={summaryLabel} optional error={fields.summary}>
               {(p) => <Textarea name="summary" defaultValue={values.summary ?? ""} maxLength={summaryMax} rows={kind === "PROJECT" ? 6 : 3} {...p} />}
+            </Field>
+          )}
+          {kind === "POST" && (
+            <Field label="Text" error={fields.body} hint="Wird mit „bearbeitet“ markiert. Bitte nur Regelverstösse oder offensichtliche Fehler korrigieren.">
+              {(p) => <Textarea name="body" defaultValue={values.body ?? ""} maxLength={5000} rows={6} {...p} />}
             </Field>
           )}
           {kind === "ARTICLE" ? (

@@ -425,3 +425,31 @@ export async function unbanCommunityMember(actor: Actor, id: string, userId: str
     await audit({ actorId: actor.id, action: "admin.community_member_unbanned", targetType: "COMMUNITY", targetId: id, meta: { userId, reason: r } }, tx);
   });
 }
+
+/**
+ * Beitrittsanfragen durch die Plattform annehmen (einzeln oder alle offenen).
+ * Entspricht der Freigabe durch die Community-Leitung, wird zusätzlich im Audit protokolliert.
+ */
+export async function approveCommunityRequests(actor: Actor, id: string, userIds: string[] | "ALL", reason: string) {
+  mod(actor);
+  const r = reasonSchema.parse(reason);
+  const approved = await db.$transaction(async (tx) => {
+    const c = await loadCommunity(id, tx);
+    if (c.state === "REMOVED") throw fail.conflict("Archivierte Communities nehmen keine Mitglieder auf.");
+    const pending = await tx.communityMember.findMany({
+      where: { communityId: id, state: "PENDING", ...(userIds === "ALL" ? {} : { userId: { in: userIds } }), user: { status: "ACTIVE" } },
+      select: { userId: true },
+    });
+    if (!pending.length) throw fail.conflict("Keine offenen Anfragen.");
+    const ids = pending.map((m) => m.userId);
+    await tx.communityMember.updateMany({ where: { communityId: id, userId: { in: ids }, state: "PENDING" }, data: { state: "ACTIVE", joinedAt: new Date() } });
+    await tx.community.update({ where: { id }, data: { memberCount: { increment: ids.length } } });
+    for (const uid of ids) await communityLog(tx, { communityId: id, moderatorId: actor.id, targetType: "USER", targetId: uid, action: "APPROVE_MEMBER", reason: "Plattform-Moderation" });
+    await audit({ actorId: actor.id, action: "admin.community_member_approved", targetType: "COMMUNITY", targetId: id, meta: { userIds: ids, reason: r } }, tx);
+    return { ids, c };
+  });
+  for (const uid of approved.ids) {
+    await notify({ recipientId: uid, type: "COMMUNITY_INVITE", actorId: actor.id, targetType: "COMMUNITY", targetId: id, bundle: false, data: { title: approved.c.name, href: `/c/${approved.c.slug}`, kind: "approved" } });
+  }
+  return { count: approved.ids.length };
+}

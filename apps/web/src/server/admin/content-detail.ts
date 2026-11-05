@@ -369,6 +369,7 @@ const editSchemas = {
     reason: reasonSchema,
   }),
   POST: z.object({
+    body: z.string().trim().max(5000, "Höchstens 5000 Zeichen").optional(),
     category: z.union([category, z.literal("")]).transform((v) => v || null),
     visibility,
     reason: reasonSchema,
@@ -381,7 +382,7 @@ const editSchemas = {
   }),
 } as const;
 
-export type EditInput = { title?: string; summary?: string; category?: string; categoryId?: string; visibility?: string; difficulty?: string | number; reason: string };
+export type EditInput = { title?: string; summary?: string; body?: string; category?: string; categoryId?: string; visibility?: string; difficulty?: string | number; reason: string };
 
 type Change = { field: string; from: unknown; to: unknown };
 function diff(before: Record<string, unknown>, after: Record<string, unknown>, longText: string[] = []): Change[] {
@@ -426,18 +427,21 @@ export async function updateContentMeta(actor: Actor, kind: DetailKind, id: stri
     } else if (k === "POST") {
       const d = editSchemas.POST.parse(input);
       reason = d.reason;
-      const p = await tx.post.findUnique({ where: { id }, select: { category: true, visibility: true, authorId: true, state: true, body: true } });
+      const p = await tx.post.findUnique({ where: { id }, select: { category: true, visibility: true, authorId: true, state: true, body: true, repostOfId: true, _count: { select: { media: true } } } });
       if (!p) throw fail.notFound();
       if (p.state === "REMOVED") throw fail.conflict("Entfernte Inhalte können nicht bearbeitet werden.");
-      changes = diff({ category: p.category, visibility: p.visibility }, { category: d.category, visibility: d.visibility });
-      if (changes.length) await tx.post.update({ where: { id }, data: { category: d.category, visibility: d.visibility } });
+      const body = d.body ?? p.body;
+      if (!body && !p._count.media && !p.repostOfId) throw fail.invalid("Ein Beitrag ohne Bild braucht einen Text.", { body: "Bitte einen Text angeben" });
+      changes = diff({ body: p.body, category: p.category, visibility: p.visibility }, { body, category: d.category, visibility: d.visibility }, ["body"]);
+      if (changes.length) await tx.post.update({ where: { id }, data: { body, category: d.category, visibility: d.visibility, ...(body !== p.body ? { editedAt: new Date() } : {}) } });
       ownerId = p.authorId;
       title = postTitle(p.body);
     } else {
       const d = editSchemas.ARTICLE.parse(input);
       reason = d.reason;
-      const a = await tx.blogArticle.findUnique({ where: { id }, select: { title: true, dek: true, categoryId: true, authorId: true } });
+      const a = await tx.blogArticle.findUnique({ where: { id }, select: { title: true, dek: true, categoryId: true, authorId: true, state: true } });
       if (!a) throw fail.notFound();
+      if (a.state === "REMOVED") throw fail.conflict("Entfernte Inhalte können nicht bearbeitet werden.");
       if (d.categoryId && !(await tx.articleCategory.findUnique({ where: { id: d.categoryId }, select: { id: true } }))) throw fail.invalid("Unbekannte Kategorie.", { categoryId: "Unbekannte Kategorie" });
       changes = diff({ title: a.title, dek: a.dek, categoryId: a.categoryId }, { title: d.title, dek: d.summary, categoryId: d.categoryId }, ["dek"]);
       if (changes.length) await tx.blogArticle.update({ where: { id }, data: { title: d.title, dek: d.summary, categoryId: d.categoryId } });
@@ -496,8 +500,8 @@ export async function setDetailHidden(actor: Actor, kind: DetailKind, id: string
     } else {
       const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true, authorId: true, title: true, publishedAt: true } });
       if (!a) throw fail.notFound();
-      if ((hidden && a.state === "HIDDEN") || (!hidden && a.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
-      // Artikel kennen kein REMOVED; beim Wiederanzeigen zurück zu veröffentlicht bzw. Entwurf
+      if (a.state === "REMOVED" || (hidden && a.state === "HIDDEN") || (!hidden && a.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
+      // Beim Wiederanzeigen zurück zu veröffentlicht bzw. Entwurf
       const next = hidden ? "HIDDEN" : a.publishedAt && a.publishedAt <= new Date() ? "PUBLISHED" : "DRAFT";
       await tx.blogArticle.update({ where: { id }, data: { state: next, ...(hidden ? { isFeatured: false } : {}) } });
       ownerId = a.authorId;
@@ -519,7 +523,6 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
   admin(actor, "Entfernen");
   const k = kindSchema.parse(kind);
   const d = removeSchema.parse(input);
-  if (k === "ARTICLE") throw fail.invalid("Artikel kennen keinen Zustand „entfernt“ – bitte ausblenden.");
   const owner = await db.$transaction(async (tx) => {
     let ownerId: string;
     let title: string;
@@ -537,6 +540,14 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
       if (t.state === "REMOVED") throw fail.conflict("Bereits entfernt.");
       await tx.tutorial.update({ where: { id }, data: { state: "REMOVED", isFeatured: false } });
       ({ ownerId, title, from } = { ownerId: t.authorId, title: t.title, from: t.state });
+    } else if (k === "ARTICLE") {
+      const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true, authorId: true, title: true } });
+      if (!a) throw fail.notFound();
+      if (a.state === "REMOVED") throw fail.conflict("Bereits entfernt.");
+      await tx.blogArticle.update({ where: { id }, data: { state: "REMOVED", isFeatured: false } });
+      // Angekündigte Feed-Beiträge zum Artikel nicht mehr anzeigen
+      await tx.post.updateMany({ where: { articleId: id, state: { in: ["PUBLISHED", "DRAFT"] } }, data: { state: "HIDDEN" } });
+      ({ ownerId, title, from } = { ownerId: a.authorId, title: a.title, from: a.state });
     } else {
       const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true } });
       if (!p) throw fail.notFound();
@@ -556,7 +567,6 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
   admin(actor, "Wiederherstellen");
   const k = kindSchema.parse(kind);
   const r = reasonSchema.parse(reason);
-  if (k === "ARTICLE") throw fail.invalid("Artikel werden über „Wieder anzeigen“ wiederhergestellt.");
   const owner = await db.$transaction(async (tx) => {
     let ownerId: string;
     let title: string;
@@ -576,6 +586,14 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
       to = t.currentVersionId ? "PUBLISHED" : "DRAFT";
       await tx.tutorial.update({ where: { id }, data: { state: to } });
       ({ ownerId, title } = { ownerId: t.authorId, title: t.title });
+    } else if (k === "ARTICLE") {
+      const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true, authorId: true, title: true, publishedAt: true } });
+      if (!a) throw fail.notFound();
+      if (a.state !== "REMOVED") throw fail.conflict("Der Inhalt ist nicht entfernt.");
+      to = a.publishedAt && a.publishedAt <= new Date() ? "PUBLISHED" : "DRAFT";
+      await tx.blogArticle.update({ where: { id }, data: { state: to } });
+      if (to === "PUBLISHED") await tx.post.updateMany({ where: { articleId: id, state: "HIDDEN" }, data: { state: "PUBLISHED" } });
+      ({ ownerId, title } = { ownerId: a.authorId, title: a.title });
     } else {
       const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true } });
       if (!p) throw fail.notFound();

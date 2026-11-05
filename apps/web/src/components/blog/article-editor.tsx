@@ -36,7 +36,7 @@ type Initial = {
   seoDescription: string;
   commentsEnabled: boolean;
   projectIds: string[];
-  state: "DRAFT" | "PUBLISHED" | "SCHEDULED" | "HIDDEN";
+  state: "DRAFT" | "PUBLISHED" | "SCHEDULED" | "HIDDEN" | "REMOVED";
   publishedAt: string | null;
   updatedAt: string;
   everPublished: boolean;
@@ -44,8 +44,8 @@ type Initial = {
 
 type Revision = { id: string; title: string; createdAt: string; blockCount: number; words: number };
 
-const STATE_LABEL = { DRAFT: "Entwurf", PUBLISHED: "Veröffentlicht", SCHEDULED: "Geplant", HIDDEN: "Ausgeblendet" } as const;
-const STATE_TONE = { DRAFT: "outline", PUBLISHED: "moss", SCHEDULED: "clay", HIDDEN: "danger" } as const;
+const STATE_LABEL = { DRAFT: "Entwurf", PUBLISHED: "Veröffentlicht", SCHEDULED: "Geplant", HIDDEN: "Ausgeblendet", REMOVED: "Entfernt" } as const;
+const STATE_TONE = { DRAFT: "outline", PUBLISHED: "moss", SCHEDULED: "clay", HIDDEN: "danger", REMOVED: "danger" } as const;
 
 function Counter({ n, max, warnAt }: { n: number; max: number; warnAt?: number }) {
   return (

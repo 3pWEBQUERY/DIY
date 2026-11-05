@@ -63,7 +63,7 @@ export default async function AdminPostPage({ params }: { params: Promise<{ id: 
               <EditContentButton
                 kind="POST"
                 id={p.id}
-                values={{ category: p.category, visibility: p.visibility }}
+                values={{ body: p.body, category: p.category, visibility: p.visibility }}
                 categories={listCategories().map((c) => ({ value: c.slug, label: c.short + (c.isActive ? "" : " (inaktiv)") }))}
                 visibilities={VISIBILITY.map((v) => ({ value: v, label: VISIBILITY_SHORT[v] ?? v }))}
               />
