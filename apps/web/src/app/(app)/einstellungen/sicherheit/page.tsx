@@ -9,6 +9,7 @@ import { SettingsSection } from "@/components/settings/section";
 import { RevokeOthersButton, RevokeSessionButton, SignOutButton } from "@/components/settings/session-controls";
 import { Badge, Notice } from "@/components/ui/misc";
 import { formatDate, relativeTime } from "@/lib/utils";
+import { BrowserLogo } from "@/components/settings/browser-logo";
 
 export const metadata: Metadata = { title: "Sicherheit" };
 export const dynamic = "force-dynamic";
@@ -26,13 +27,16 @@ export default async function SecuritySettingsPage() {
         title="Angemeldete Geräte"
         description="Alle Geräte und Browser, auf denen du gerade angemeldet bist. Kommt dir etwas unbekannt vor, beende die Sitzung und ändere dein Passwort."
       >
-        <ul className="divide-y divide-line border-y border-line">
+        <ul className="divide-y divide-line rounded-2xl border border-line bg-card px-4">
           {sessions.map((x) => {
             const Icon = x.isApp || /iOS|Android/.test(x.device) ? Smartphone : Monitor;
             return (
               <li key={x.key} className="flex flex-wrap items-center gap-4 py-3.5">
-                <span className="grid size-10 place-items-center border border-line-strong bg-card rounded-xl">
-                  <Icon size={18} strokeWidth={1.6} aria-hidden />
+                <span className="relative grid size-11 shrink-0 place-items-center rounded-2xl border border-line bg-paper">
+                  <BrowserLogo browser={x.browser} size={24} />
+                  <span className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-full border-2 border-card bg-sunken text-ink-2" title={Icon === Smartphone ? "Mobilgerät" : "Computer"}>
+                    <Icon size={10} strokeWidth={2} aria-hidden />
+                  </span>
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-sm font-semibold">

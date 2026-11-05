@@ -3,6 +3,7 @@ import { PenSquare, ShieldAlert } from "lucide-react";
 import type { ConversationListItem, InboxBox } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
+import { InboxLive } from "./inbox-live";
 
 export const BOX_PARAM: Record<InboxBox, string | null> = { inbox: null, requests: "anfragen", archived: "archiv" };
 export function boxFromParam(p?: string): InboxBox {
@@ -39,16 +40,17 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
           <PenSquare size={17} />
         </Link>
       </div>
+      <InboxLive />
       <nav aria-label="Ordner" className="flex gap-5 border-b border-line px-4 sm:px-5">
         {tabs.map((t) => (
           <Link
             key={t.key}
             href={`/nachrichten${q(t.key)}`}
             aria-current={box === t.key ? "page" : undefined}
-            className={cn("relative -mb-px flex items-center gap-1.5 border-b-2 border-transparent py-2.5 text-[13px] text-muted hover:text-ink", box === t.key && "border-rule font-semibold text-ink")}
+            className={cn("relative -mb-px flex items-center gap-1.5 border-b-2 border-transparent py-2.5 text-[13px] text-muted hover:text-ink", box === t.key && "border-moss font-semibold text-ink")}
           >
             {t.label}
-            {t.count != null && <span className={cn("min-w-4 px-1 text-center font-mono text-[10px]", t.key === "requests" ? "bg-clay text-paper" : "bg-ink text-paper")}>{t.count}</span>}
+            {t.count != null && <span className={cn("grid h-[18px] min-w-[18px] place-items-center rounded-full px-1.5 text-[10.5px] font-bold num", t.key === "requests" ? "bg-clay text-paper" : "bg-moss text-paper")}>{t.count > 99 ? "99+" : t.count}</span>}
           </Link>
         ))}
       </nav>
@@ -61,7 +63,7 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
             </p>
           </div>
         ) : (
-          <ul>
+          <ul className="space-y-1 p-2">
             {items.map((c) => {
               const active = c.id === activeId;
               return (
@@ -69,11 +71,11 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                   <Link
                     href={`/nachrichten/${c.id}${q(box)}`}
                     aria-current={active ? "page" : undefined}
-                    className={cn("flex gap-3 border-b border-line px-4 py-3.5 sm:px-5", active ? "bg-moss text-paper" : "hover:bg-card")}
+                    className={cn("flex gap-3 rounded-2xl px-3 py-3 transition-colors", active ? "bg-moss text-paper" : c.unread ? "bg-card hover:bg-moss-soft/50" : "hover:bg-card")}
                   >
                     <span className="relative shrink-0">
                       <Avatar src={c.other.avatarUrl} name={c.other.displayName} size={42} />
-                      {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-rule" : "border-paper")} aria-hidden />}
+                      {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-moss" : "border-paper")} aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">

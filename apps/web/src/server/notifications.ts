@@ -1,6 +1,7 @@
 import "server-only";
 import type { NotificationType } from "@werkraum/shared";
 import { db, type Tx, type TargetType } from "@/server/db";
+import { publish } from "@/server/realtime/bus";
 
 type Prefs = Partial<Record<NotificationType, { inApp?: boolean; email?: boolean }>>;
 
@@ -19,6 +20,11 @@ export function prefFor(prefs: Prefs | null | undefined, type: NotificationType)
  * Erzeugt oder bündelt eine Benachrichtigung. Gleiche ungelesene Ereignisse eines Ziels
  * (z.B. 12 Likes auf einem Projekt) werden zu einem Eintrag zusammengefasst.
  */
+/** Zähler der Person live aktualisieren – kurz verzögert, damit eine laufende Transaktion zuerst committet. */
+function live(userId: string) {
+  setTimeout(() => void publish([userId], { t: "counts" }), 400);
+}
+
 export async function notify(
   input: {
     recipientId: string;
@@ -61,12 +67,14 @@ export async function notify(
       select: { id: true },
     });
     if (existing) {
+      live(input.recipientId);
       return c.notification.update({
         where: { id: existing.id },
         data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object, pushedAt: null },
       });
     }
   }
+  live(input.recipientId);
   return c.notification.create({
     data: {
       recipientId: input.recipientId,

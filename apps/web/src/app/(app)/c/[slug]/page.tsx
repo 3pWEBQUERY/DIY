@@ -277,11 +277,11 @@ export default async function CommunityPage({ params, searchParams }: Props) {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <ShareButton url={base} title={c.name} />
+              <ShareButton variant="button" url={base} title={c.name} />
               {isMod && (
                 <LinkButton href={`${base}/verwalten`} variant="outline" className="relative">
                   <Settings size={15} /> Verwalten
-                  {data.pendingCount > 0 && <span className="ml-1 bg-clay px-1.5 font-mono text-[10px] text-paper rounded-2xl" aria-label={`${data.pendingCount} offene Anfragen`}>{data.pendingCount}</span>}
+                  {data.pendingCount > 0 && <span className="ml-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-clay px-1.5 text-[10.5px] font-bold text-paper" aria-label={`${data.pendingCount} offene Anfragen`}>{data.pendingCount}</span>}
                 </LinkButton>
               )}
               {canView && (

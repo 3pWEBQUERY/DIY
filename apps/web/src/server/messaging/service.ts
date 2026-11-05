@@ -9,6 +9,7 @@ import { notify } from "@/server/notifications";
 import { relationsFor, isBlockedBetween } from "@/server/visibility";
 import { attachMedia } from "@/server/media/service";
 import type { SessionUser } from "@/server/auth/session";
+import { publish } from "@/server/realtime/bus";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -312,6 +313,8 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
     await emit({ type: "MessageSent", messageId: m.id, conversationId }, tx);
     return m;
   });
+  // Live: alle Beteiligten (auch eigene weitere Tabs) sofort informieren
+  void publish([user.id, ...others.map((o) => o.userId)], { t: "message", c: conversationId });
   const excerpt = data.body ? data.body.slice(0, 120) : "Hat dir ein Bild geschickt.";
   // Erste Nachricht einer Kontaktanfrage: genau eine Benachrichtigung pro Unterhaltung
   // (weitere Nachrichten sind bis zur Annahme ohnehin begrenzt → kein Spam-Kanal)
@@ -463,6 +466,9 @@ export async function markRead(user: SessionUser, conversationId: string) {
   const now = new Date();
   await db.conversationMember.update({ where: { conversationId_userId: { conversationId, userId: user.id } }, data: { lastReadAt: now } });
   await db.notification.updateMany({ where: { recipientId: user.id, groupKey: `MESSAGE:MESSAGE:${conversationId}`, readAt: null }, data: { readAt: now } });
+  // Lesebestätigung für die andere Seite und Zähler in weiteren eigenen Tabs
+  const others = await db.conversationMember.findMany({ where: { conversationId, userId: { not: user.id } }, select: { userId: true } });
+  void publish([user.id, ...others.map((o) => o.userId)], { t: "read", c: conversationId });
   return { lastReadAt: now.toISOString() };
 }
 
@@ -481,5 +487,6 @@ export async function respondToRequest(user: SessionUser, conversationId: string
     data: accept ? { isRequest: false, archivedAt: null, lastReadAt: new Date() } : { archivedAt: new Date() },
   });
   await db.notification.updateMany({ where: { recipientId: user.id, targetType: "MESSAGE", targetId: conversationId, readAt: null }, data: { readAt: new Date() } });
+  void publish([user.id], { t: "counts" });
   return { accepted: accept };
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Combine, Link2, Pencil, Printer, Trash2, X } from "lucide-react";
+import { Check, Combine, Pencil, Printer, Trash2, X, Share2 } from "lucide-react";
 import type { ShoppingListView } from "@/server/materials/service";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -148,10 +148,10 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
           <div className="mt-2 flex items-start justify-between gap-4">
             <h1 className="display text-[2.4rem] text-balance sm:text-5xl">{title}</h1>
             <div className="flex shrink-0 items-center gap-2 pt-2 print:hidden">
-              <Button variant={token ? "ink" : "outline"} size="sm" onClick={() => share(!token)} disabled={pending} aria-pressed={!!token}>
-                <Link2 size={14} /> {token ? "Geteilt" : "Teilen"}
+              <Button variant="outline" onClick={() => share(!token)} disabled={pending} aria-pressed={!!token} className={cn(token && "border-moss bg-moss-soft text-moss-ink hover:border-moss")}>
+                <Share2 size={17} strokeWidth={1.7} /> {token ? "Geteilt" : "Teilen"}
               </Button>
-              <MoreMenu items={menu} label="Listenaktionen" />
+              <MoreMenu items={menu} label="Listenaktionen" variant="button" />
             </div>
           </div>
         )}

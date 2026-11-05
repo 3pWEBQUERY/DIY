@@ -8,6 +8,16 @@ export type LiveCounts = { notifications: number; messages: number; requests: nu
 const EMPTY: LiveCounts = { notifications: 0, messages: 0, requests: 0, cart: 0 };
 const Ctx = createContext<LiveCounts>(EMPTY);
 const EVENT = "werkuno:counts";
+/** Live-Ereignisse vom Server: detail = { type: "message" | "read" | "counts", c?: Unterhaltungs-ID } */
+export const LIVE_EVENT = "werkuno:live";
+export type LiveDetail = { type: "message" | "read" | "counts"; c?: string };
+
+const ADJUST = "werkuno:counts-adjust";
+
+/** Zähler sofort lokal anpassen (optimistisch), z. B. beim Anklicken einer ungelesenen Benachrichtigung. */
+export function adjustCounts(delta: Partial<LiveCounts>) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(ADJUST, { detail: delta }));
+}
 
 /** Badges sofort neu laden, z. B. nach dem Lesen einer Unterhaltung oder dem Senden. */
 export function refreshCounts() {
@@ -56,11 +66,50 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
     window.addEventListener("focus", onVis);
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener(EVENT, load);
+    const onAdjust = (e: Event) => {
+      const d = (e as CustomEvent<Partial<LiveCounts>>).detail ?? {};
+      setCounts((c) => ({
+        notifications: Math.max(0, c.notifications + (d.notifications ?? 0)),
+        messages: Math.max(0, c.messages + (d.messages ?? 0)),
+        requests: Math.max(0, c.requests + (d.requests ?? 0)),
+        cart: Math.max(0, c.cart + (d.cart ?? 0)),
+      }));
+    };
+    window.addEventListener(ADJUST, onAdjust);
     return () => {
+      window.removeEventListener(ADJUST, onAdjust);
       window.clearInterval(id);
       window.removeEventListener("focus", onVis);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener(EVENT, load);
+    };
+  }, [enabled, load]);
+
+  // Echtzeit: ein Server-Sent-Events-Stream pro Tab (Nachrichten, Lesebestätigungen, Zähler)
+  useEffect(() => {
+    if (!enabled || typeof EventSource === "undefined") return;
+    let es: EventSource | null = null;
+    let debounce: number | undefined;
+    const soon = () => {
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(() => void load(), 250);
+    };
+    const open = () => {
+      es = new EventSource("/api/v1/stream");
+      const relay = (type: string) => (ev: MessageEvent) => {
+        try {
+          window.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: { type, ...JSON.parse(ev.data) } }));
+        } catch {}
+        soon();
+      };
+      es.addEventListener("message", relay("message"));
+      es.addEventListener("read", relay("read"));
+      es.addEventListener("counts", relay("counts"));
+    };
+    open();
+    return () => {
+      window.clearTimeout(debounce);
+      es?.close();
     };
   }, [enabled, load]);
 

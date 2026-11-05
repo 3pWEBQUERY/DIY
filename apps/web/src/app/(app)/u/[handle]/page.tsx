@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings } from "lucide-react";
+import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboard } from "lucide-react";
 import { categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
@@ -146,8 +146,8 @@ export default async function ProfilePage({ params, searchParams }: Params) {
           <div className="flex flex-wrap items-center gap-2">
             {isSelf ? (
               <>
-                <LinkButton href="/einstellungen/profil" variant="outline" size="sm"><Settings size={14} /> Profil bearbeiten</LinkButton>
-                <LinkButton href="/studio" variant="ink" size="sm">Creator Studio</LinkButton>
+                <LinkButton href="/einstellungen/profil" variant="outline"><Settings size={15} /> Profil bearbeiten</LinkButton>
+                <LinkButton href="/studio" variant="primary"><LayoutDashboard size={15} /> Creator Studio</LinkButton>
               </>
             ) : viewer && !blocked ? (
               <>
@@ -159,7 +159,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : !viewer ? (
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
-            <span className="grid size-10 place-items-center border border-line-strong rounded-xl"><ShareButton url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} /></span>
+            <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} />
             {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
           </div>
         </header>

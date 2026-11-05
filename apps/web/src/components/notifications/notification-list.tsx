@@ -28,7 +28,7 @@ import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { loadNotificationsAction, markReadAction } from "@/app/(app)/benachrichtigungen/actions";
-import { refreshCounts } from "@/components/shell/live-counts";
+import { adjustCounts, refreshCounts } from "@/components/shell/live-counts";
 
 const ICONS: Record<string, LucideIcon> = {
   "user-plus": UserPlus,
@@ -86,6 +86,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
   async function open(n: NotificationView) {
     if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      adjustCounts({ notifications: -1 }); // Badge sofort, ohne auf den Server zu warten
       await markReadAction([n.id]);
       refreshCounts();
     }
@@ -123,20 +124,20 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                       void open(n);
                     }}
                     className={cn(
-                      "group relative flex gap-3.5 py-3.5 pl-4 pr-2 transition-colors hover:bg-sunken focus-visible:bg-sunken rounded-2xl",
-                      !n.read && "bg-card before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-clay",
+                      "group relative flex gap-3.5 overflow-hidden rounded-l-none rounded-r-2xl py-3.5 pl-4 pr-3 transition-colors hover:bg-sunken focus-visible:bg-sunken",
+                      !n.read && "bg-card before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-clay",
                     )}
                   >
                     <span className="relative mt-0.5 shrink-0">
                       {n.actor ? (
                         <Avatar src={n.actor.avatarUrl} name={n.actor.displayName} size={36} />
                       ) : (
-                        <span className={cn("grid size-9 place-items-center border rounded-xl", n.group === "system" ? "border-moss bg-moss text-paper" : "border-line-strong bg-paper text-ink")}>
+                        <span className={cn("grid size-9 place-items-center rounded-full border", n.group === "system" ? "border-moss bg-moss text-paper" : "border-line-strong bg-paper text-ink")}>
                           <Icon size={16} strokeWidth={1.7} aria-hidden />
                         </span>
                       )}
                       {n.actor && (
-                        <span className="absolute -bottom-1 -right-1 grid size-[18px] place-items-center border border-paper bg-ink text-paper rounded-xl">
+                        <span className="absolute -bottom-1 -right-1 grid size-[18px] place-items-center rounded-full border-2 border-paper bg-moss text-paper">
                           <Icon size={10} strokeWidth={2} aria-hidden />
                         </span>
                       )}

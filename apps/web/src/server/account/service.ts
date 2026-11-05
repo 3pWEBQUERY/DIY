@@ -20,6 +20,7 @@ import { attachMedia } from "@/server/media/service";
 import { changePassword, isHandleAvailable, sendVerification } from "@/server/identity/service";
 import { BRAND } from "@/config/brand";
 import type { SessionUser } from "@/server/auth/session";
+import { browserFromUserAgent } from "@/lib/user-agent";
 
 /**
  * Konto- und Profileinstellungen (PRD §7, §8.3, §19.3, §21.3, §23.1).
@@ -128,6 +129,7 @@ export async function listSessions(userId: string, currentSessionId: string) {
     key: s.id.slice(0, 16),
     device: s.deviceLabel ?? "Unbekanntes Gerät",
     isApp: /Werk(raum|uno)App/.test(s.userAgent ?? ""),
+    browser: browserFromUserAgent(s.userAgent),
     lastUsedAt: s.lastUsedAt,
     createdAt: s.createdAt,
     expiresAt: s.expiresAt,

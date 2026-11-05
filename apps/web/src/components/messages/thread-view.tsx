@@ -15,9 +15,9 @@ import { archiveConversationAction, loadOlderMessagesAction, markReadAction, res
 import { cn, formatDate } from "@/lib/utils";
 import { MessageComposer, type ComposerHandle } from "./composer";
 import { ContextCard } from "./context-card";
-import { refreshCounts } from "@/components/shell/live-counts";
+import { LIVE_EVENT, refreshCounts, type LiveDetail } from "@/components/shell/live-counts";
 
-const POLL_MS = 6000;
+const POLL_MS = 5000; // Rückfall, falls der Live-Kanal (SSE) nicht verfügbar ist
 
 function dayKey(iso: string) {
   const d = new Date(iso);
@@ -57,7 +57,7 @@ function Bubble({ m, otherName, onReport, showTime }: { m: MessageView; otherNam
     <div className={cn("group flex flex-col", m.mine ? "items-end" : "items-start")}>
       {flagged && <Warning />}
       <div className={cn("flex max-w-[85%] items-end gap-2 sm:max-w-[70%]", m.mine && "flex-row-reverse")}>
-        <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "border border-dashed border-line-strong text-muted rounded-2xl" : m.mine ? "bg-moss text-paper" : "border border-line bg-card text-ink rounded-2xl", flagged && "border-warn")}>
+        <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "rounded-[20px] border border-dashed border-line-strong text-muted" : m.mine ? "rounded-[20px] rounded-br-md bg-moss text-paper" : "rounded-[20px] rounded-bl-md border border-line bg-card text-ink", flagged && "border-warn")}>
           <p className="sr-only">{m.mine ? "Du" : otherName}, {time(m.createdAt)}:</p>
           {m.removed ? (
             <p className="text-sm">Diese Nachricht wurde entfernt.</p>
@@ -69,7 +69,7 @@ function Bubble({ m, otherName, onReport, showTime }: { m: MessageView; otherNam
                     <li key={img.id}>
                       <a href={img.url} target="_blank" rel="noopener" className="block">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={img.thumb || img.url} alt={img.alt || "Bild"} loading="lazy" className="max-h-64 w-full object-cover" />
+                        <img src={img.thumb || img.url} alt={img.alt || "Bild"} loading="lazy" className="max-h-64 w-full rounded-xl object-cover" />
                       </a>
                     </li>
                   ))}
@@ -177,6 +177,16 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
       /* Netzwerk – nächster Versuch beim nächsten Intervall */
     }
   }, [thread.id, otherName, router]);
+
+  // Echtzeit: neue Nachricht oder Lesebestätigung in genau dieser Unterhaltung → sofort abholen
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<LiveDetail>).detail;
+      if (d?.c === thread.id && (d.type === "message" || d.type === "read")) void poll();
+    };
+    window.addEventListener(LIVE_EVENT, on);
+    return () => window.removeEventListener(LIVE_EVENT, on);
+  }, [poll, thread.id]);
 
   useEffect(() => {
     const t = setInterval(poll, POLL_MS);
@@ -311,7 +321,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
       >
         {hasMore && (
           <div className="mb-4 flex justify-center">
-            <button type="button" onClick={loadOlder} disabled={pending} className="border border-line px-3 py-1.5 text-xs font-semibold text-muted hover:border-rule-strong hover:text-ink rounded-2xl">
+            <button type="button" onClick={loadOlder} disabled={pending} className="rounded-full border border-line px-3.5 py-1.5 text-xs font-semibold text-muted hover:border-rule-strong hover:text-ink">
               {pending ? "Lädt …" : "Ältere Nachrichten laden"}
             </button>
           </div>
@@ -344,7 +354,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           })}
         </ol>
         {newBelow && (
-          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 bg-moss px-3 py-1.5 text-xs font-semibold text-paper rounded-2xl">
+          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 rounded-full bg-moss px-3.5 py-1.5 text-xs font-semibold text-paper shadow-float">
             <ArrowDown size={13} /> Neue Nachrichten
           </button>
         )}

@@ -8,7 +8,7 @@ import type { TargetType } from "@/generated/prisma/enums";
 import { cn, compactNumber } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { Dialog } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
 import { Textarea, Label } from "@/components/ui/field";
 import { likeAction, bookmarkAction, reportAction, hideAction, muteAction, blockAction, followAction } from "@/app/(app)/social-actions";
 
@@ -83,12 +83,21 @@ export function SaveButton({ type, id, saved: initial, label }: { type: TargetTy
   );
 }
 
-export function ShareButton({ url, title }: { url: string; title: string }) {
+/**
+ * Teilen – überall gleich: `inline` in Aktionsleisten (nur Symbol), `button` in Seitenköpfen
+ * (runder Umriss-Button in derselben Höhe wie die übrigen Kopf-Buttons).
+ */
+export function ShareButton({ url, title, variant = "inline", label = false }: { url: string; title: string; variant?: "inline" | "button"; label?: boolean }) {
   return (
     <button
       type="button"
       aria-label="Teilen"
-      className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink"
+      title="Teilen"
+      className={
+        variant === "button"
+          ? cn(buttonClass("outline", "md"), label ? "" : "size-11 px-0")
+          : "inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink"
+      }
       onClick={async () => {
         const full = new URL(url, location.origin).toString();
         if (navigator.share) {
@@ -104,6 +113,7 @@ export function ShareButton({ url, title }: { url: string; title: string }) {
       }}
     >
       <Share2 size={17} strokeWidth={1.7} />
+      {label && <span>Teilen</span>}
     </button>
   );
 }
@@ -198,7 +208,7 @@ export function ReportDialog({ open, onClose, targetType, targetId }: { open: bo
 export type MenuItem = { label: string; icon?: React.ReactNode; onSelect: () => void; danger?: boolean };
 
 /** Kontextmenü (Disclosure-Pattern, per Tastatur bedienbar). */
-export function MoreMenu({ items, label = "Weitere Aktionen" }: { items: MenuItem[]; label?: string }) {
+export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline" }: { items: MenuItem[]; label?: string; variant?: "inline" | "button" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -215,11 +225,11 @@ export function MoreMenu({ items, label = "Weitere Aktionen" }: { items: MenuIte
   }, [open]);
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-label={label} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} className="grid size-8 place-items-center text-muted hover:bg-sunken hover:text-ink rounded-xl">
+      <button type="button" aria-label={label} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} className={variant === "button" ? cn(buttonClass("outline", "md"), "size-11 px-0") : "grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink"}>
         <MoreHorizontal size={18} />
       </button>
       {open && (
-        <ul role="menu" className="absolute right-0 top-9 z-30 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise">
+        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise">
           {items.map((it) => (
             <li key={it.label} role="none">
               <button

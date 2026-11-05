@@ -83,7 +83,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
           <label htmlFor="markt-q" className="spec mb-2 block">
             Im Marktplatz suchen
           </label>
-          <div className="flex items-stretch border border-rule bg-card focus-within:outline-2 focus-within:outline-moss rounded-2xl">
+          <div className="flex items-stretch overflow-hidden rounded-2xl border border-rule bg-card transition-colors focus-within:border-moss focus-within:ring-4 focus-within:ring-moss/12">
             <Search size={17} className="ml-3 self-center text-muted" aria-hidden />
             <input
               id="markt-q"
@@ -93,7 +93,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               placeholder="Korb, Wollset, Schneidebrett …"
               className="h-12 min-w-0 flex-1 bg-transparent px-3 text-[15px] outline-none placeholder:text-muted/80"
             />
-            <button type="submit" className="border-l border-rule px-4 text-[14px] font-semibold hover:border-moss hover:bg-moss hover:text-paper">
+            <button type="submit" className="rounded-l-none rounded-r-[15px] border-l border-rule px-5 text-[14px] font-semibold transition-colors hover:border-moss hover:bg-moss hover:text-paper">
               Suchen
             </button>
           </div>

@@ -20,6 +20,7 @@ export function ProfileSafetyMenu({ userId, name, muted }: { userId: string; nam
   return (
     <>
       <MoreMenu
+        variant="button"
         label="Profilaktionen"
         items={[
           { label: "Profil melden", icon: <Flag size={15} />, onSelect: () => setReport(true) },
