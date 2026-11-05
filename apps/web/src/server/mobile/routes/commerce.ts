@@ -25,6 +25,15 @@ export const commerceRoutes: RouteDef[] = [
       if (v) sp[k] = v;
     }
     const filters = products.parseProductFilters(sp);
+    // Zusätzliche Mobile-Filter: Shop (Shopseite), Projekt/Anleitung (verknüpfte Produkte)
+    const shopSlug = str(c.q, "shop");
+    if (shopSlug) {
+      const shop = await db.shop.findUnique({ where: { slug: shopSlug.toLowerCase() }, select: { id: true } });
+      if (!shop) return { items: [], nextCursor: null };
+      Object.assign(filters, { shopId: shop.id, includeSoldOut: true });
+    }
+    if (str(c.q, "projectId")) Object.assign(filters, { projectId: str(c.q, "projectId") });
+    if (str(c.q, "tutorialId")) Object.assign(filters, { tutorialId: str(c.q, "tutorialId") });
     const u = await viewer();
     return products.listProducts(filters, str(c.q, "cursor") ?? null, { viewerId: u?.id, take: int(c.q, "take") ?? 24 });
   }),
