@@ -313,9 +313,23 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
     return m;
   });
   const excerpt = data.body ? data.body.slice(0, 120) : "Hat dir ein Bild geschickt.";
+  // Erste Nachricht einer Kontaktanfrage: genau eine Benachrichtigung pro Unterhaltung
+  // (weitere Nachrichten sind bis zur Annahme ohnehin begrenzt → kein Spam-Kanal)
+  const firstRequestMessage = others.some((o) => o.isRequest) && (await db.message.count({ where: { conversationId, senderId: user.id } })) === 1;
   for (const o of others) {
-    // Kontaktanfragen lösen keine Benachrichtigung aus (Schutz vor Massennachrichten)
-    if (o.isRequest) continue;
+    if (o.isRequest) {
+      if (!firstRequestMessage) continue;
+      await notify({
+        recipientId: o.userId,
+        type: "MESSAGE",
+        actorId: user.id,
+        targetType: "MESSAGE",
+        targetId: conversationId,
+        bundle: false,
+        data: { kind: "request", title: user.profile?.displayName ?? "Kontaktanfrage", href: "/nachrichten?ordner=anfragen", excerpt: flags.length ? "Neue Kontaktanfrage" : excerpt },
+      });
+      continue;
+    }
     await notify({
       recipientId: o.userId,
       type: "MESSAGE",
@@ -466,5 +480,6 @@ export async function respondToRequest(user: SessionUser, conversationId: string
     where: { conversationId_userId: { conversationId, userId: user.id } },
     data: accept ? { isRequest: false, archivedAt: null, lastReadAt: new Date() } : { archivedAt: new Date() },
   });
+  await db.notification.updateMany({ where: { recipientId: user.id, targetType: "MESSAGE", targetId: conversationId, readAt: null }, data: { readAt: new Date() } });
   return { accepted: accept };
 }

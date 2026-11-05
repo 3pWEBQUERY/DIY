@@ -28,6 +28,7 @@ import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { loadNotificationsAction, markReadAction } from "@/app/(app)/benachrichtigungen/actions";
+import { refreshCounts } from "@/components/shell/live-counts";
 
 const ICONS: Record<string, LucideIcon> = {
   "user-plus": UserPlus,
@@ -86,6 +87,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
     if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       await markReadAction([n.id]);
+      refreshCounts();
     }
     router.push(n.href);
   }

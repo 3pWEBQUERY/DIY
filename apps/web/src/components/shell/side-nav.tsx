@@ -11,6 +11,7 @@ import { Wordmark } from "./wordmark";
 import { Avatar, Kbd } from "@/components/ui/misc";
 import { openCommandPalette } from "./command-palette";
 import { Tip } from "@/components/ui/tooltip";
+import { badgeText, useLiveCounts } from "./live-counts";
 
 export type ShellUser = {
   handle: string;
@@ -60,7 +61,8 @@ function useWide() {
   return wide;
 }
 
-export function SideNav({ user, counts, collapsed: initial = false }: { user: ShellUser; counts: { messages: number; notifications: number; cart: number }; collapsed?: boolean }) {
+export function SideNav({ user, collapsed: initial = false }: { user: ShellUser; collapsed?: boolean }) {
+  const counts = useLiveCounts();
   const pathname = usePathname();
   const items = MAIN_NAV.filter((i) => !i.auth || user);
   const [collapsed, setCollapsed] = useState(initial);
@@ -265,14 +267,18 @@ function MiniLink({ href, icon, label }: { href: string; icon: React.ReactNode; 
 }
 
 /** iPhone/Mobil: Menü „Mehr“ in der Kopfzeile mit allen sekundären Bereichen. */
-export function MobileMoreMenu({ user, cart }: { user: NonNullable<ShellUser>; cart: number }) {
+export function MobileMoreMenu({ user }: { user: NonNullable<ShellUser> }) {
+  const { cart, messages } = useLiveCounts();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="grid size-10 place-items-center" aria-label="Mehr" aria-haspopup="dialog" aria-expanded={open}>
-        <Menu size={20} strokeWidth={1.6} />
+        <span className="relative">
+          <Menu size={20} strokeWidth={1.6} />
+          {messages > 0 && <span className="absolute -right-1.5 -top-1.5 size-2.5 rounded-full bg-clay ring-2 ring-paper" aria-label={`${messages} ungelesene Nachrichten`} />}
+        </span>
       </button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Mehr">
         <ul className="-mx-2 divide-y divide-line">
@@ -281,6 +287,9 @@ export function MobileMoreMenu({ user, cart }: { user: NonNullable<ShellUser>; c
               <Link href={l.href} className={cn("flex h-12 items-center gap-3 px-2 text-[15px] hover:bg-sunken rounded-xl", pathname.startsWith(l.href) && "font-semibold")}>
                 <span className="text-muted [&_svg]:size-[18px]">{l.icon}</span>
                 {l.label}
+                {l.href === "/nachrichten" && messages > 0 && (
+                  <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-clay px-1.5 text-[11px] font-bold text-paper">{badgeText(messages)}</span>
+                )}
               </Link>
             </li>
           ))}
@@ -291,7 +300,8 @@ export function MobileMoreMenu({ user, cart }: { user: NonNullable<ShellUser>; c
 }
 
 /** iPhone/Mobil: native Bottom Navigation mit Safe Area (§28.5). */
-export function BottomNav({ user, counts }: { user: ShellUser; counts: { messages: number; notifications: number } }) {
+export function BottomNav({ user }: { user: ShellUser }) {
+  const counts = useLiveCounts();
   const pathname = usePathname();
   const items = MAIN_NAV.filter((i) => MOBILE_NAV.includes(i.href));
   return (

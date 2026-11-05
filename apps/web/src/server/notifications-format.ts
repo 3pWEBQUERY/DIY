@@ -156,6 +156,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
     case "NEW_POST_FROM_FOLLOWED":
       return { lead: name ?? "Jemand, dem du folgst", text: title ? `hat ${title} geteilt.` : "hat etwas Neues geteilt.", excerpt };
     case "MESSAGE":
+      if (str(data.kind) === "request") return { lead: name ?? "Jemand", text: "möchte dir schreiben – neue Kontaktanfrage.", excerpt };
       return plural
         ? { lead: name ?? "Jemand", text: `hat dir ${nf.format(count)} Nachrichten geschrieben.`, excerpt }
         : { lead: name ?? "Jemand", text: "hat dir eine Nachricht geschrieben.", excerpt };

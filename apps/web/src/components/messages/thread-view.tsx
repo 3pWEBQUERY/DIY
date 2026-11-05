@@ -15,6 +15,7 @@ import { archiveConversationAction, loadOlderMessagesAction, markReadAction, res
 import { cn, formatDate } from "@/lib/utils";
 import { MessageComposer, type ComposerHandle } from "./composer";
 import { ContextCard } from "./context-card";
+import { refreshCounts } from "@/components/shell/live-counts";
 
 const POLL_MS = 6000;
 
@@ -143,7 +144,10 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
 
   // Beim Öffnen als gelesen markieren
   useEffect(() => {
-    void markReadAction(thread.id).then(() => router.refresh());
+    void markReadAction(thread.id).then(() => {
+      refreshCounts();
+      router.refresh();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread.id]);
 
@@ -165,6 +169,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           if (nearBottom.current) requestAnimationFrame(() => scrollToBottom(true));
           else setNewBelow(true);
           await markReadAction(thread.id);
+          refreshCounts();
           router.refresh();
         }
       }
@@ -217,6 +222,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
     start(async () => {
       const r = await respondToRequestAction(thread.id, accept);
       if (!r.ok) return toast(r.error, "error");
+      refreshCounts();
       toast(r.message ?? "");
       if (accept) {
         setIsRequest(false);
