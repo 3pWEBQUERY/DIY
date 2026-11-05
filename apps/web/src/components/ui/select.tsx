@@ -220,12 +220,21 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
         pos &&
         createPortal(
           <ul
-            ref={list}
+            ref={(el) => {
+              list.current = el;
+              // Top-Layer: liegt auch über modalen <dialog>-Elementen (showModal)
+              if (el && !el.matches(":popover-open")) {
+                try {
+                  el.showPopover();
+                } catch {}
+              }
+            }}
+            popover="manual"
             id={listId}
             role="listbox"
             aria-labelledby={id}
             tabIndex={-1}
-            style={{ position: "fixed", left: pos.left, width: pos.width, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}
+            style={{ position: "fixed", inset: "auto", margin: 0, left: pos.left, width: pos.width, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}
             className="z-[120] max-h-[300px] overflow-y-auto rounded-2xl border border-line bg-card p-1.5 shadow-float animate-pop"
           >
             {options.map((o, i) => {
