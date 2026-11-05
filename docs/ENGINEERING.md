@@ -34,7 +34,7 @@ Dieses Dokument ist für alle, die am Code arbeiten. Es beschreibt, *wie* gebaut
 
 - **Verboten**: Verläufe, Schatten, Glassmorphism, grosse Rundungen (max. `rounded-sm`), dekorative Illustrationen, Emojis als UI.
 - **Farben** (Tailwind-Tokens): `paper` (Hintergrund), `card`, `sunken`, `ink`, `ink-2`, `muted`, `moss` (+`moss-ink`, `moss-soft`), `clay` (+`clay-ink`, `clay-soft`), `line`, `line-strong`, `danger`, `warn`.
-- **Typografie**: `.display` / `.headline` (Source Serif 4) für redaktionelle Titel, Manrope für UI, `.spec` (Mono, Versalien, klein) für Metadaten/Datenblatt-Labels, `.prose-werk` für Fliesstext von Artikeln/Anleitungen.
+- **Typografie**: Manrope ist die einzige Schrift. `.display` / `.headline` (Manrope, fett, enges Tracking) für Titel, `.spec` (Manrope, Versalien) für Datenblatt-Labels, `.prose-werk` für Lesetexte.
 - **Muster**: Haarlinien (`border-line`), aktive Zustände in `ink`, Abschnittstitel mit `SectionTitle n="01"`, Kennzahlen mit `Spec`/`Stat`, Schwierigkeit mit `Difficulty`, Seitenkopf mit `PageHeader`, Tabs mit `TabLinks`.
 - **Projektfaden**: Verknüpfungen zu einem Projekt werden mit einer linken Linie (`border-l border-ink pl-3`) bzw. Knoten auf einer vertikalen Linie dargestellt.
 - **Barrierefreiheit**: Labels via `Field`, sichtbarer Fokus, `aria-*` für Toggle-Buttons, Alt-Texte, `prefers-reduced-motion`.

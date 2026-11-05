@@ -74,7 +74,7 @@ export default async function AppealPage({ params }: { params: Promise<{ caseId:
                 {ctx.appeal.status === "OVERTURNED" && "Die Massnahme wurde aufgehoben und der vorherige Zustand wiederhergestellt."}
                 {ctx.appeal.status === "UPHELD" && "Die Entscheidung bleibt bestehen. Die Prüfung des Einspruchs ist abschliessend."}
               </p>
-              {ctx.appeal.decision && <p className="mt-2 italic">„{ctx.appeal.decision}“</p>}
+              {ctx.appeal.decision && <p className="mt-2">„{ctx.appeal.decision}“</p>}
             </Notice>
           ) : ctx.canAppeal ? (
             <>

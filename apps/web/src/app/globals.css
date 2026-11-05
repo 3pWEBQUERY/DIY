@@ -1,7 +1,5 @@
 @import "tailwindcss";
 @import "@fontsource-variable/manrope";
-@import "@fontsource-variable/source-serif-4";
-@import "@fontsource-variable/source-serif-4/wght-italic.css";
 
 /*
  * Werkuno Designsystem „Werkbuch“ (PRD §28)
@@ -40,7 +38,8 @@
   --color-warn-soft: #f4ecd6;
 
   --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-serif: "Source Serif 4 Variable", ui-serif, Georgia, serif;
+  /* Eine Schrift für alles: Manrope (Titel, UI, Lesetexte) */
+  --font-serif: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   /* Label-/Zahlenschrift: Manrope statt Monospace – ruhiger, runder, passend zur weichen UI */
   --font-mono: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
 
@@ -144,17 +143,16 @@
 @layer components {
   /* Redaktionelle Titel */
   .display {
-    font-family: var(--font-serif);
-    font-weight: 420;
-    letter-spacing: -0.022em;
-    line-height: 1.02;
-    font-optical-sizing: auto;
+    font-family: var(--font-sans);
+    font-weight: 750;
+    letter-spacing: -0.035em;
+    line-height: 1.04;
   }
   .headline {
-    font-family: var(--font-serif);
-    font-weight: 480;
-    letter-spacing: -0.012em;
-    line-height: 1.15;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
   /* Technische Datenblatt-Labels */
   .spec {
@@ -172,16 +170,16 @@
 
   /* Lesetypografie für Artikel und Anleitungen */
   .prose-werk {
-    font-family: var(--font-serif);
-    font-size: 1.1875rem;
-    line-height: 1.7;
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.75;
     color: var(--color-ink-2);
   }
   .prose-werk > * + * { margin-top: 1.1em; }
-  .prose-werk h2 { font-weight: 520; font-size: 1.6rem; line-height: 1.25; color: var(--color-ink); margin-top: 2em; letter-spacing: -0.01em; }
+  .prose-werk h2 { font-weight: 750; font-size: 1.5rem; line-height: 1.25; color: var(--color-ink); margin-top: 2em; letter-spacing: -0.025em; }
   .prose-werk h3 { font-family: var(--font-sans); font-weight: 700; font-size: 1.05rem; color: var(--color-ink); margin-top: 1.8em; }
   .prose-werk a { color: var(--color-moss); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-  .prose-werk blockquote { border-left: 2px solid var(--color-clay); padding-left: 1.2em; font-style: italic; color: var(--color-ink); }
+  .prose-werk blockquote { border-left: 2px solid var(--color-clay); padding-left: 1.2em; font-weight: 600; color: var(--color-ink); }
   .prose-werk ul { list-style: none; padding-left: 0; }
   .prose-werk ul > li { position: relative; padding-left: 1.4em; }
   .prose-werk ul > li::before { content: ""; position: absolute; left: 0.2em; top: 0.8em; width: 0.55em; height: 1px; background: var(--color-ink); }

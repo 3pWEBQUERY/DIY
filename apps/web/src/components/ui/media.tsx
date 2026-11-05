@@ -90,7 +90,7 @@ export function Plate({ seed, category, label, className, number }: { seed: stri
           {cat ? ` · ${cat.short}` : ""}
         </div>
       )}
-      {label && <div className="absolute bottom-3 left-3 right-3 truncate font-serif text-sm italic opacity-80">{label}</div>}
+      {label && <div className="absolute bottom-3 left-3 right-3 truncate text-[13px] font-semibold opacity-80">{label}</div>}
     </div>
   );
 }

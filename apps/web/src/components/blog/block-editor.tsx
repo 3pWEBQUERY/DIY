@@ -427,7 +427,7 @@ function BlockBody({ block, index, ctx }: { block: ArticleBlock; index: number; 
 
 /* ─────────────────────────── Textblöcke ─────────────────────────── */
 
-const proseInput = "block w-full resize-none bg-transparent font-serif text-[1.1875rem] leading-[1.7] text-ink-2 outline-none placeholder:text-muted/60 field-sizing-content";
+const proseInput = "block w-full resize-none bg-transparent text-[1.0625rem] leading-[1.75] text-ink-2 outline-none placeholder:text-muted/60 field-sizing-content";
 
 function wrapSelection(el: HTMLTextAreaElement, before: string, after: string, placeholder: string) {
   const { selectionStart: s, selectionEnd: e, value } = el;
@@ -621,7 +621,7 @@ function HeadingBlock({ b, index, ctx }: { b: Of<"heading">; index: number; ctx:
         }}
         className={cn(
           "w-full bg-transparent text-ink outline-none placeholder:text-muted/50",
-          b.level === 2 ? "font-serif text-[1.6rem] font-[520] leading-tight py-1" : "py-2 text-[1.05rem] font-bold",
+          b.level === 2 ? "text-[1.5rem] font-bold tracking-[-0.025em] leading-tight py-1" : "py-2 text-[1.05rem] font-bold",
         )}
       />
     </div>
@@ -699,7 +699,7 @@ function ListBlock({ b, index, ctx }: { b: Of<"list">; index: number; ctx: Block
 function QuoteBlock({ b, ctx }: { b: Of<"quote">; ctx: BlockCtx }) {
   return (
     <div className="border-l-2 border-clay pl-4">
-      <textarea data-block-input={b.id} value={b.text} rows={1} maxLength={3000} aria-label="Zitat" placeholder="Zitat" onChange={(e) => ctx.patch(b.id, { text: e.target.value })} className={cn(proseInput, "italic text-ink")} />
+      <textarea data-block-input={b.id} value={b.text} rows={1} maxLength={3000} aria-label="Zitat" placeholder="Zitat" onChange={(e) => ctx.patch(b.id, { text: e.target.value })} className={cn(proseInput, "text-ink")} />
       <input value={b.cite} maxLength={200} aria-label="Quelle des Zitats" placeholder="— Quelle (optional)" onChange={(e) => ctx.patch(b.id, { cite: e.target.value })} className="mt-1 w-full bg-transparent text-sm text-muted outline-none" />
     </div>
   );

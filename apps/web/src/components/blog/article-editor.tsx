@@ -336,7 +336,7 @@ export function ArticleEditor({
               maxLength={400}
               onChange={(e) => touch(setDek)(e.target.value)}
               placeholder="Vorspann – zwei Sätze, die Lust aufs Weiterlesen machen."
-              className="mt-4 block w-full resize-none bg-transparent font-serif text-xl italic leading-snug text-ink-2 outline-none placeholder:text-muted/50 field-sizing-content"
+              className="mt-4 block w-full resize-none bg-transparent text-xl font-medium leading-snug text-ink-2 outline-none placeholder:text-muted/50 field-sizing-content"
             />
             <div className="mt-1 flex justify-end"><Counter n={dek.length} max={400} warnAt={300} /></div>
             <div className="mt-6 border-t border-rule pt-8">

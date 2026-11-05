@@ -39,7 +39,7 @@ export function ArticleCard({
           <h2 className="display mt-3 text-[2.25rem] text-balance sm:text-[2.9rem]">
             <Link href={a.href} className="ink-link">{a.title}</Link>
           </h2>
-          {a.dek && <p className="mt-4 font-serif text-lg italic leading-snug text-ink-2 text-pretty">{a.dek}</p>}
+          {a.dek && <p className="mt-4 text-lg font-medium leading-snug text-ink-2 text-pretty">{a.dek}</p>}
           {showAuthor && (
             <p className="mt-6 flex items-center gap-3 border-t border-line pt-4 text-sm">
               <Avatar src={a.author.avatarUrl} name={a.author.displayName} size={32} />

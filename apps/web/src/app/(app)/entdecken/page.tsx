@@ -76,7 +76,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       <header className="mb-10 grid gap-8 border-b border-rule pb-10 lg:grid-cols-[1.3fr_1fr] lg:items-end">
         <div>
           <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{cat ? `Werkstatt ${pad(cat.position)}` : "Entdecken"}</p>
-          <h1 className="display text-5xl text-balance sm:text-6xl">{cat ? cat.name : <>Was entsteht <em className="italic text-moss">gerade</em>?</>}</h1>
+          <h1 className="display text-5xl text-balance sm:text-6xl">{cat ? cat.name : <>Was entsteht <em className="not-italic text-moss">gerade</em>?</>}</h1>
           <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-muted">
             {cat ? cat.description || `Projekte, Anleitungen und Menschen rund um ${cat.name}.` : "Projekte, Anleitungen und Menschen – kuratiert von der Redaktion und gemischt nach deinen Interessen."}
           </p>

@@ -59,7 +59,7 @@ function Bubble({ m, otherName, onReport, showTime }: { m: MessageView; otherNam
         <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "border border-dashed border-line-strong text-muted rounded-2xl" : m.mine ? "bg-moss text-paper" : "border border-line bg-card text-ink rounded-2xl", flagged && "border-warn")}>
           <p className="sr-only">{m.mine ? "Du" : otherName}, {time(m.createdAt)}:</p>
           {m.removed ? (
-            <p className="text-sm italic">Diese Nachricht wurde entfernt.</p>
+            <p className="text-sm">Diese Nachricht wurde entfernt.</p>
           ) : (
             <>
               {m.media.length > 0 && (

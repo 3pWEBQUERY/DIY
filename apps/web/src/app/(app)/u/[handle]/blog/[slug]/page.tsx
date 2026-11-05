@@ -128,7 +128,7 @@ export default async function ArticlePage({ params }: Props) {
             <span>{a.readingMinutes} Min. Lesezeit</span>
           </p>
           <h1 id="article-title" className="display mt-5 text-[2.5rem] text-balance sm:text-[3.6rem]">{a.title}</h1>
-          {a.dek && <p className="mx-auto mt-5 max-w-[640px] font-serif text-[1.3rem] italic leading-snug text-ink-2 text-pretty">{a.dek}</p>}
+          {a.dek && <p className="mx-auto mt-5 max-w-[640px] text-[1.25rem] font-medium leading-snug text-ink-2 text-pretty">{a.dek}</p>}
           <div className="mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm">
             <Link href={`/u/${author.handle}`} className="flex items-center gap-2">
               <Avatar src={author.avatarUrl} name={author.displayName} size={30} />

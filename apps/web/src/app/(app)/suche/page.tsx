@@ -53,7 +53,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <Page width="wide">
-      <PageHeader kicker="Suche" title={q ? <>Ergebnisse für <em className="italic text-moss">„{q}“</em></> : "Was suchst du?"} />
+      <PageHeader kicker="Suche" title={q ? <>Ergebnisse für <em className="not-italic text-moss">„{q}“</em></> : "Was suchst du?"} />
       <Form action="/suche" role="search" className="mb-6 flex gap-2">
         <label htmlFor="q" className="sr-only">Suchbegriff</label>
         <div className="relative flex-1">

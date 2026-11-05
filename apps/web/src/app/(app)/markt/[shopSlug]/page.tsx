@@ -68,7 +68,7 @@ export default async function ShopPage({ params, searchParams }: Params) {
             Shop · {country}
           </p>
           <h1 className="display text-[2.6rem] text-balance sm:text-6xl">{shop.name}</h1>
-          {shop.tagline && <p className="headline mt-3 max-w-2xl text-xl italic text-ink-2">{shop.tagline}</p>}
+          {shop.tagline && <p className="mt-3 max-w-2xl text-xl font-medium text-ink-2">{shop.tagline}</p>}
           <Link href={`/u/${profile.handle}`} className="group mt-6 inline-flex items-center gap-3">
             <Avatar src={profile.avatarUrl} name={profile.displayName} size={40} />
             <span>

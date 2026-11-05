@@ -19,9 +19,6 @@ importers:
       '@fontsource-variable/manrope':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource-variable/source-serif-4':
-        specifier: ^5.3.1
-        version: 5.3.1
       '@prisma/adapter-pg':
         specifier: ^7.10.1
         version: 7.10.1
@@ -384,9 +381,6 @@ packages:
 
   '@fontsource-variable/manrope@5.3.0':
     resolution: {integrity: sha512-6D5dgokHsWDDMtmXHznKa0hK229NN+1a4BLPmUCLqcO1Pw5EEhWY5RFt0AcXnVRAljFFPfRtLkJePQj6LSsV6g==}
-
-  '@fontsource-variable/source-serif-4@5.3.1':
-    resolution: {integrity: sha512-4Rtay22SC4lMvw11r/+9kxANB6P3M0X8s1NudBC2v0J1KU2y3DcMoNcT3lBoZ/CqLirzf+StlO6UlJilyrvaUg==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2219,8 +2213,6 @@ snapshots:
     optional: true
 
   '@fontsource-variable/manrope@5.3.0': {}
-
-  '@fontsource-variable/source-serif-4@5.3.1': {}
 
   '@img/colour@1.1.0': {}
 

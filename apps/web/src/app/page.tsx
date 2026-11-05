@@ -77,7 +77,7 @@ export default async function Landing() {
       <h1 className="display mt-7 text-[3.4rem] leading-[0.95] sm:text-7xl xl:text-[6.2rem]">
         Ein Faden.
         <br />
-        <em className="font-serif italic font-[380] text-moss">Unzählige</em> Projekte.
+        <em className="not-italic text-moss">Unzählige</em> Projekte.
       </h1>
       <p className="mt-8 max-w-md text-[18px] leading-relaxed text-ink-2 text-pretty">
         {BRAND.name} verbindet Menschen, die mit ihren Händen erschaffen – mit Projekten, die wachsen, Anleitungen, die bleiben, und einem Marktplatz für echtes Handwerk.
@@ -282,7 +282,7 @@ export default async function Landing() {
         <section className="border-t border-ink bg-ink text-paper">
           <div className="mx-auto grid max-w-[1400px] items-end gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[2fr_1fr] lg:py-28">
             <h2 className="display text-5xl sm:text-7xl">
-              Was entsteht als Nächstes <em className="italic text-clay-soft">auf deiner</em> Werkbank?
+              Was entsteht als Nächstes <em className="not-italic text-clay-soft">auf deiner</em> Werkbank?
             </h2>
             <div>
               <p className="max-w-sm leading-relaxed text-paper/75">

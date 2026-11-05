@@ -70,7 +70,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
       </div>
       <div className="flex flex-wrap items-end justify-between gap-6 pb-6 pt-8">
         <h1 className="display text-[3rem] leading-[0.95] sm:text-[4.5rem]">
-          Aus den <em className="font-[380]">Werkstätten</em>
+          Aus den <em className="not-italic text-moss">Werkstätten</em>
         </h1>
         <SearchBox q={sp.q} rubrik={sp.rubrik} />
       </div>
