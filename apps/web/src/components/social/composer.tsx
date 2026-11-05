@@ -10,6 +10,7 @@ import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { createPostAction } from "@/app/(app)/social-actions";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
+import type { CategoryOption } from "@/server/categories/types";
 
 /**
  * Beitragseditor – so einfach wie in einem modernen sozialen Netzwerk (§5.4, §9.3).
@@ -21,12 +22,15 @@ export function Composer({
   defaultProjectId,
   compact,
   onPosted,
+  categories = CATEGORIES,
 }: {
   viewer: { displayName: string; avatarUrl: string | null };
   projects: { id: string; title: string }[];
   defaultProjectId?: string;
   compact?: boolean;
   onPosted?: () => void;
+  /** Angebotene (aktive) Kategorien; Standard: alle */
+  categories?: readonly CategoryOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(!compact);
@@ -87,7 +91,7 @@ export function Composer({
               <span className="spec mb-1 block">Kategorie</span>
               <Select value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 text-sm">
                 <option value="">Ohne Kategorie</option>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.slug} value={c.slug}>{c.name}</option>
                 ))}
               </Select>

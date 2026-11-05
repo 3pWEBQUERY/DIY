@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { useAction } from "@/lib/use-action";
 import { cn, pad, slugify } from "@/lib/utils";
 import { createCommunityAction, setRulesAction, updateCommunityAction } from "@/app/(app)/communities/actions";
+import type { CategoryOption } from "@/server/categories/types";
 
 export type Rule = { title: string; body: string };
 type Visibility = "PUBLIC" | "REQUEST" | "PRIVATE";
@@ -101,7 +102,7 @@ function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUplo
 type Initial = { id: string; name: string; slug: string; description: string; category: string; visibility: Visibility; region: string | null; coverUrl: string | null };
 
 /** Formular zum Erstellen bzw. Bearbeiten einer Community. */
-export function CommunityForm({ initial }: { initial?: Initial }) {
+export function CommunityForm({ initial, categories = CATEGORIES }: { initial?: Initial; /** Angebotene Kategorien (aktive + ggf. gespeicherte); Standard: alle */ categories?: readonly CategoryOption[] }) {
   const editing = !!initial;
   const [name, setName] = useState(initial?.name ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
@@ -160,7 +161,7 @@ export function CommunityForm({ initial }: { initial?: Initial }) {
             {(p) => (
               <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)} required>
                 <option value="" disabled>Bitte wählen</option>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.slug} value={c.slug}>{c.name}</option>
                 ))}
               </Select>

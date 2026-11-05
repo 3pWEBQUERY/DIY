@@ -2,8 +2,9 @@ import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Search } from "lucide-react";
-import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug } from "@werkraum/shared";
+import { DIFFICULTY, DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
+import { browseCategories, effectiveCategory } from "@/server/categories/settings";
 import { DURATIONS, listTutorials, type TutorialCardData, type TutorialFilters } from "@/server/tutorials/service";
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { ChipLink, ChipRow } from "@/components/ui/chips";
@@ -17,7 +18,7 @@ type SP = { kategorie?: string; stufe?: string; dauer?: string; sort?: string; q
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SP> }): Promise<Metadata> {
   const sp = await searchParams;
-  const cat = categoryBySlug(sp.kategorie);
+  const cat = await effectiveCategory(sp.kategorie);
   return {
     title: cat ? `${cat.name} – Anleitungen` : "Anleitungen",
     description: "Schritt-für-Schritt-Anleitungen der Community: mit Materialliste, Zeitangaben, Tipps und klar markierten Sicherheitshinweisen.",
@@ -68,7 +69,7 @@ function Lead({ t }: { t: TutorialCardData }) {
 export default async function TutorialsIndex({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const user = await currentUser();
-  const cat = categoryBySlug(sp.kategorie);
+  const [cat, cats] = await Promise.all([effectiveCategory(sp.kategorie), browseCategories(sp.kategorie)]);
   const level = DIFFICULTY.find((d) => String(d) === sp.stufe);
   const duration = DURATIONS.find((d) => d.key === sp.dauer);
   const sort = sp.sort === "beliebt" ? "popular" : "new";
@@ -111,7 +112,7 @@ export default async function TutorialsIndex({ searchParams }: { searchParams: P
         </Form>
         <ChipRow label="Kategorie">
           <ChipLink href={href({ kategorie: undefined })} active={!cat}>Alle</ChipLink>
-          {CATEGORIES.map((c) => (
+          {cats.map((c) => (
             <ChipLink key={c.slug} href={href({ kategorie: c.slug })} active={cat?.slug === c.slug}>{c.short}</ChipLink>
           ))}
         </ChipRow>

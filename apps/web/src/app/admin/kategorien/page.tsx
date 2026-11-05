@@ -1,5 +1,7 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { adminPage } from "@/server/admin/guard";
+import { hasRole } from "@/server/authz";
 import { categoryCounts, listMaterialCatalog } from "@/server/admin/catalog";
 import { AdminHeader, EmptyRow, FilterBar, FilterField, Table, Td, Th, Tr, filterInput } from "@/components/admin/ui";
 import { ActionButton } from "@/components/admin/action-controls";
@@ -12,45 +14,59 @@ import { deleteCatalogAction, upsertCatalogAction } from "./actions";
 export const metadata: Metadata = { title: "Kategorien & Materialien" };
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  await adminPage("PLATFORM_MODERATOR", "/admin/kategorien");
+  const actor = await adminPage("PLATFORM_MODERATOR", "/admin/kategorien");
+  const isAdmin = hasRole(actor, "ADMIN");
   const sp = await searchParams;
   const [cats, catalog] = await Promise.all([categoryCounts(), listMaterialCatalog(sp.q?.trim() || null)]);
   const categoryOptions = catalog.categories.map((c) => ({ id: c.id, name: c.name }));
 
   return (
     <div>
-      <AdminHeader n="10" title="Kategorien & Materialien" description="DIY-Kategorien sind fest definiert und mit der iOS-App geteilt (Code-Änderung nötig). Die Materialdatenbank wird hier gepflegt." />
+      <AdminHeader n="10" title="Kategorien & Materialien" description="Die Slugs der DIY-Kategorien sind fest definiert und mit der iOS-App geteilt. Name, Reihenfolge, Startschwerpunkt und Aktiv-Status werden hier verwaltet. Die Materialdatenbank wird ebenfalls hier gepflegt." />
 
       <section aria-labelledby="c1" className="mb-12">
-        <SectionTitle n="01" title={<span id="c1">DIY-Kategorien</span>} action={<span className="spec">schreibgeschützt · packages/shared</span>} />
+        <SectionTitle n="01" title={<span id="c1">DIY-Kategorien</span>} action={<span className="spec">{cats.filter((c) => c.isActive).length} von {cats.length} aktiv · Slugs fix{isAdmin ? "" : " · Ändern: Administration"}</span>} />
         <Table className="mt-3" caption="DIY-Kategorien mit Anzahl veröffentlichter Inhalte">
           <thead>
             <tr>
               <Th>Kategorie</Th>
               <Th>Slug</Th>
+              <Th>Status</Th>
               <Th align="right">Projekte</Th>
               <Th align="right">Anleitungen</Th>
               <Th align="right">Beiträge</Th>
               <Th align="right">Produkte</Th>
               <Th align="right">Communities</Th>
+              <Th align="right">Aktionen</Th>
             </tr>
           </thead>
           <tbody>
             {cats.map((c) => (
-              <Tr key={c.slug}>
+              <Tr key={c.slug} className={c.isActive ? undefined : "text-muted"}>
                 <Td>
-                  <span className="flex items-center gap-2.5">
-                    <Glyph name={c.glyph} size={20} className="text-ink" />
-                    <span className="font-semibold">{c.name}</span>
+                  <Link href={`/admin/kategorien/${c.slug}`} className="group flex items-center gap-2.5">
+                    <span className="font-mono text-[11px] text-muted num">{String(c.position).padStart(2, "0")}</span>
+                    <Glyph name={c.glyph} size={20} className={c.isActive ? "text-ink" : "text-muted"} />
+                    <span className="min-w-0">
+                      <span className="block font-semibold group-hover:underline">{c.name}</span>
+                      {c.name !== c.defaults.name && <span className="block text-xs text-muted">Standard: {c.defaults.name}</span>}
+                    </span>
                     {c.focus && <Badge tone="moss">Startschwerpunkt</Badge>}
-                  </span>
+                    {c.overridden && <Badge tone="outline">Angepasst</Badge>}
+                  </Link>
                 </Td>
                 <Td mono className="text-muted">{c.slug}</Td>
+                <Td>{c.isActive ? <Badge tone="moss">Aktiv</Badge> : <Badge>Inaktiv</Badge>}</Td>
                 <Td align="right">{num(c.projects)}</Td>
                 <Td align="right">{num(c.tutorials)}</Td>
                 <Td align="right">{num(c.posts)}</Td>
                 <Td align="right">{num(c.products)}</Td>
                 <Td align="right">{num(c.communities)}</Td>
+                <Td align="right">
+                  <Link href={`/admin/kategorien/${c.slug}`} className="text-[13px] font-semibold text-moss hover:underline">
+                    Verwalten
+                  </Link>
+                </Td>
               </Tr>
             ))}
           </tbody>
@@ -104,7 +120,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             {catalog.materials.map((m) => (
               <Tr key={m.id}>
                 <Td>
-                  <span className="font-semibold">{m.name}</span>
+                  <Link href={`/admin/kategorien/material/${m.id}`} className="font-semibold hover:underline">
+                    {m.name}
+                  </Link>
                   {m.brand && <span className="ml-1.5 text-xs text-muted">{m.brand}</span>}
                 </Td>
                 <Td>{m.type}</Td>
@@ -146,7 +164,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             {catalog.tools.length === 0 && <EmptyRow cols={5}>Keine Werkzeuge.</EmptyRow>}
             {catalog.tools.map((t) => (
               <Tr key={t.id}>
-                <Td className="font-semibold">{t.name}</Td>
+                <Td>
+                  <Link href={`/admin/kategorien/werkzeug/${t.id}`} className="font-semibold hover:underline">
+                    {t.name}
+                  </Link>
+                </Td>
                 <Td className="max-w-[320px] text-ink-2"><span className="line-clamp-1">{t.notes || "–"}</span></Td>
                 <Td>{t.safetyInfo ? <Badge tone="warn">Hinweis</Badge> : <span className="text-muted">–</span>}</Td>
                 <Td align="right">{num(t._count.projectTools)}</Td>

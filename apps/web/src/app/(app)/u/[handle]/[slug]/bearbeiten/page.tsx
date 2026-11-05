@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { getProjectForEdit } from "@/server/projects/service";
+import { categoryOptions } from "@/server/categories/settings";
 import { Page, PageHeader } from "@/components/shell/page";
 import { ProjectEditor } from "@/components/projects/project-editor";
 
@@ -22,7 +23,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ ha
         <ArrowLeft size={13} /> Zurück zum Projekt
       </Link>
       <PageHeader kicker="Werkblatt bearbeiten" title={data.values.title} />
-      <ProjectEditor mode="edit" projectId={data.id} initial={data.values} remixOf={data.remixOf} />
+      <ProjectEditor mode="edit" projectId={data.id} initial={data.values} remixOf={data.remixOf} categories={await categoryOptions(data.values.category)} />
     </Page>
   );
 }

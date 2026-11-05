@@ -20,12 +20,15 @@ export function CatalogDialogButton({
   initial,
   categories = [],
   action,
+  variant = "ghost",
 }: {
   entity: Entity;
   id?: string;
   initial?: Values;
   categories?: { id: string; name: string }[];
   action: (entity: Entity, id: string | null, input: Record<string, unknown>) => Promise<ActionResult<unknown>>;
+  /** Darstellung des Bearbeiten-Buttons (Detailseiten: „ink“) */
+  variant?: "ghost" | "ink" | "outline";
 }) {
   const [open, setOpen] = useState(false);
   const { run, pending, fields } = useAction(action, { onSuccess: () => setOpen(false) });
@@ -33,7 +36,7 @@ export function CatalogDialogButton({
   return (
     <>
       {id ? (
-        <Button size="sm" variant="ghost" onClick={() => setOpen(true)} aria-label={`${TITLES[entity]} „${v.name}“ bearbeiten`}>
+        <Button size="sm" variant={variant} onClick={() => setOpen(true)} aria-label={`${TITLES[entity]} „${v.name}“ bearbeiten`}>
           <Pencil size={14} aria-hidden /> Bearbeiten
         </Button>
       ) : (

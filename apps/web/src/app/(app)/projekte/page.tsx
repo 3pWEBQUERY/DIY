@@ -2,8 +2,9 @@ import Link from "next/link";
 import Form from "next/form";
 import type { Metadata } from "next";
 import { Plus, Search } from "lucide-react";
-import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, PROJECT_STATUS, PROJECT_STATUS_LABEL, categoryBySlug, type ProjectStatus } from "@werkraum/shared";
+import { DIFFICULTY, DIFFICULTY_LABEL, PROJECT_STATUS, PROJECT_STATUS_LABEL, type ProjectStatus } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
+import { browseCategories, effectiveCategory } from "@/server/categories/settings";
 import { listProjects, type ProjectFilters, type ProjectSort } from "@/server/projects/service";
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { ChipLink, ChipRow } from "@/components/ui/chips";
@@ -22,7 +23,7 @@ const SORTS: { key: ProjectSort; label: string; param: string }[] = [
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SP> }): Promise<Metadata> {
   const sp = await searchParams;
-  const cat = categoryBySlug(sp.kategorie);
+  const cat = await effectiveCategory(sp.kategorie);
   return {
     title: cat ? `${cat.name} – Projekte` : "Projekte",
     description: cat ? `DIY-Projekte rund um ${cat.name}: mit Journal, Materialliste und Nachbauten.` : "Projekte der Community – vom ersten Skizzenstrich bis zum fertigen Stück, mit Journal, Materialliste und Nachbauten.",
@@ -33,7 +34,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function ProjectsIndex({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const user = await currentUser();
-  const cat = categoryBySlug(sp.kategorie);
+  const [cat, cats] = await Promise.all([effectiveCategory(sp.kategorie), browseCategories(sp.kategorie)]);
   const level = DIFFICULTY.find((d) => String(d) === sp.stufe);
   const status = PROJECT_STATUS.find((s) => s === sp.status?.toUpperCase()) as ProjectStatus | undefined;
   const sort = SORTS.find((s) => s.param === sp.sort) ?? SORTS[0]!;
@@ -81,7 +82,7 @@ export default async function ProjectsIndex({ searchParams }: { searchParams: Pr
         </Form>
         <ChipRow label="Kategorie">
           <ChipLink href={href({ kategorie: undefined })} active={!cat}>Alle</ChipLink>
-          {CATEGORIES.map((c) => (
+          {cats.map((c) => (
             <ChipLink key={c.slug} href={href({ kategorie: c.slug })} active={cat?.slug === c.slug}>
               {c.short}
             </ChipLink>

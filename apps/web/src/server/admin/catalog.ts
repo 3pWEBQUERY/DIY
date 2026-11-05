@@ -1,11 +1,12 @@
 import "server-only";
 import { z } from "zod";
-import { CATEGORIES, editorialCollectionSchema, SUPPORT_STATUS } from "@werkraum/shared";
+import { editorialCollectionSchema, SUPPORT_STATUS } from "@werkraum/shared";
 import { db, Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import { audit } from "@/server/audit";
 import { hasRole } from "@/server/authz";
 import { slugify } from "@/lib/utils";
+import { effectiveCategories } from "@/server/categories/settings";
 import type { SessionUser } from "@/server/auth/session";
 
 /** Kategorien & Materialien, Redaktion und Support (Admin). */
@@ -17,10 +18,11 @@ function mod(actor: Actor) {
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 const isFk = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && (e.code === "P2003" || e.code === "P2014");
 
-/* ───────────── DIY-Kategorien (statisch, nur Zählung) ───────────── */
+/* ───────────── DIY-Kategorien (Slugs fest, Overrides via CategorySetting) ───────────── */
 
 export async function categoryCounts() {
-  const [projects, tutorials, products, communities, posts] = await Promise.all([
+  const [cats, projects, tutorials, products, communities, posts] = await Promise.all([
+    effectiveCategories(),
     db.project.groupBy({ by: ["category"], where: { state: "PUBLISHED" }, _count: { _all: true } }),
     db.tutorial.groupBy({ by: ["category"], where: { state: "PUBLISHED" }, _count: { _all: true } }),
     db.product.groupBy({ by: ["category"], where: { status: "ACTIVE" }, _count: { _all: true } }),
@@ -29,7 +31,7 @@ export async function categoryCounts() {
   ]);
   const m = (rows: { category: string | null; _count: { _all: number } }[]) => Object.fromEntries(rows.map((r) => [r.category ?? "", r._count._all]));
   const p = m(projects), t = m(tutorials), pr = m(products), c = m(communities), po = m(posts);
-  return CATEGORIES.map((cat) => ({ ...cat, projects: p[cat.slug] ?? 0, tutorials: t[cat.slug] ?? 0, products: pr[cat.slug] ?? 0, communities: c[cat.slug] ?? 0, posts: po[cat.slug] ?? 0 }));
+  return cats.map((cat) => ({ ...cat, projects: p[cat.slug] ?? 0, tutorials: t[cat.slug] ?? 0, products: pr[cat.slug] ?? 0, communities: c[cat.slug] ?? 0, posts: po[cat.slug] ?? 0 }));
 }
 
 /* ───────────── Materialdatenbank ───────────── */

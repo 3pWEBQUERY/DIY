@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { hasRole } from "@/server/authz";
+import { categoryOptions } from "@/server/categories/settings";
 import { getCommunityPage, listByState, listChallenges, listHiddenPosts, listMembers, moderationLog, ROLE_RANK } from "@/server/communities/service";
 import { Page, TabLinks } from "@/components/shell/page";
 import { CommunityForm, RulesForm } from "@/components/communities/community-forms";
@@ -44,7 +45,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
     case "einstellungen":
       body = (
         <div className="max-w-[720px]">
-          <CommunityForm initial={{ id: c.id, name: c.name, slug: c.slug, description: c.description, category: c.category, visibility: c.visibility, region: c.region, coverUrl: c.coverUrl }} />
+          <CommunityForm initial={{ id: c.id, name: c.name, slug: c.slug, description: c.description, category: c.category, visibility: c.visibility, region: c.region, coverUrl: c.coverUrl }} categories={await categoryOptions(c.category)} />
         </div>
       );
       break;

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ChevronDown, Copy, Eye, Plus, Trash2 } from "lucide-react";
 import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, SAFETY_KINDS, SAFETY_LABEL, type SafetyKind } from "@werkraum/shared";
 import type { TutorialEditData } from "@/server/tutorials/service";
+import type { CategoryOption } from "@/server/categories/types";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -65,6 +66,7 @@ export function TutorialEditor({
   projects,
   defaultProjectId,
   slug,
+  categories = CATEGORIES,
 }: {
   tutorialId: string | null;
   initial?: Values;
@@ -72,6 +74,8 @@ export function TutorialEditor({
   projects: { id: string; title: string }[];
   defaultProjectId?: string;
   slug?: string;
+  /** Angebotene Kategorien (aktive + ggf. bereits gespeicherte); Standard: alle */
+  categories?: readonly CategoryOption[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -196,7 +200,7 @@ export function TutorialEditor({
               {(a) => (
                 <Select {...a} value={category} onChange={(e) => setCategory(e.target.value)}>
                   <option value="" disabled>Bitte wählen</option>
-                  {CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.slug} value={c.slug}>{c.name}</option>
                   ))}
                 </Select>

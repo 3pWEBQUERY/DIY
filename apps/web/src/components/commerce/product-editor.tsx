@@ -11,6 +11,7 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field"
 import { Notice, SectionTitle } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import type { CategoryOption } from "@/server/categories/types";
 import { minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
 import { saveProductAction } from "@/app/studio/produkte/actions";
 
@@ -59,6 +60,7 @@ export function ProductEditor({
   shopReturnPolicy,
   feeBps,
   digitalEnabled,
+  categories = CATEGORIES,
 }: {
   initial: ProductEditorInitial;
   projects: { id: string; title: string }[];
@@ -67,6 +69,8 @@ export function ProductEditor({
   shopReturnPolicy: string;
   feeBps: number;
   digitalEnabled: boolean;
+  /** Angebotene Kategorien (aktive + ggf. bereits gespeicherte); Standard: alle */
+  categories?: readonly CategoryOption[];
 }) {
   const router = useRouter();
   const [v, setV] = useState(() => ({
@@ -208,7 +212,7 @@ export function ProductEditor({
           <Field label="Kategorie" error={fields.category}>
             {(p) => (
               <Select {...p} value={v.category} onChange={(e) => set("category", e.target.value)}>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.slug} value={c.slug}>
                     {c.name}
                   </option>

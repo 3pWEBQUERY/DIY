@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CATEGORIES, COUNTRY_LABEL, PRODUCT_KIND, PRODUCT_KIND_LABEL, SHIP_COUNTRIES } from "@werkraum/shared";
 import { Input, Label, Select } from "@/components/ui/field";
 import { buttonClass } from "@/components/ui/button";
+import type { CategoryOption } from "@/server/categories/types";
 
 const SORT_LABEL: Record<string, string> = {
   neu: "Neueste zuerst",
@@ -17,7 +18,7 @@ export const MARKET_SORT_LABEL = SORT_LABEL;
  * Filter als einfaches GET-Formular – funktioniert ohne JavaScript, Zustand steckt in der URL
  * (teilbar, zurück-Taste funktioniert). Kein Infinite-Scroll-Sog.
  */
-export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw: Record<string, string>; action?: string; idPrefix?: string }) {
+export function MarketFilters({ raw, action = "/markt", idPrefix = "f", categories = CATEGORIES }: { raw: Record<string, string>; action?: string; idPrefix?: string; categories?: readonly CategoryOption[] }) {
   const id = (k: string) => `${idPrefix}-${k}`;
   return (
     <Form action={action} className="space-y-6" aria-label="Produkte filtern">
@@ -26,7 +27,7 @@ export function MarketFilters({ raw, action = "/markt", idPrefix = "f" }: { raw:
         <Label htmlFor={id("kategorie")}>Kategorie</Label>
         <Select id={id("kategorie")} name="kategorie" defaultValue={raw.kategorie ?? ""}>
           <option value="">Alle Kategorien</option>
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}
             </option>

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getRemixSource } from "@/server/projects/service";
+import { activeCategories, categoryOptions } from "@/server/categories/settings";
 import { Page, PageHeader } from "@/components/shell/page";
 import { Notice } from "@/components/ui/misc";
 import { ProjectEditor } from "@/components/projects/project-editor";
@@ -15,7 +15,8 @@ export default async function NewProjectPage({ searchParams }: { searchParams: P
   const user = await currentUser();
   if (!user?.profile) redirect(`/anmelden?weiter=${encodeURIComponent(`/projekte/neu${sp.nachbau ? `?nachbau=${sp.nachbau}` : ""}`)}`);
   const source = sp.nachbau ? await getRemixSource(user.id, sp.nachbau) : null;
-  const defaultCategory = categoryBySlug(sp.kategorie)?.slug;
+  const defaultCategory = (await activeCategories()).find((c) => c.slug === sp.kategorie)?.slug;
+  const categories = await categoryOptions(source?.category);
 
   return (
     <Page width="feed" className="max-w-[820px]">
@@ -33,7 +34,7 @@ export default async function NewProjectPage({ searchParams }: { searchParams: P
           Das Originalprojekt ist nicht (mehr) verfügbar. Du kannst trotzdem ein eigenes Projekt anlegen.
         </Notice>
       )}
-      <ProjectEditor mode="create" remixSource={source} defaultCategory={defaultCategory} />
+      <ProjectEditor mode="create" remixSource={source} defaultCategory={defaultCategory} categories={categories} />
     </Page>
   );
 }

@@ -2,11 +2,12 @@ import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";
-import { CATEGORIES, PRODUCT_KIND_LABEL, categoryBySlug, COUNTRY_LABEL, type ShipCountry } from "@werkraum/shared";
+import { PRODUCT_KIND_LABEL, COUNTRY_LABEL, type ShipCountry } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { listProducts, parseProductFilters } from "@/server/commerce/products";
 import { listShops } from "@/server/commerce/shops";
 import { paymentsMode } from "@/server/commerce/stripe";
+import { browseCategories, effectiveCategory } from "@/server/categories/settings";
 import { ProductGrid } from "@/components/commerce/product-card";
 import { ShopCard } from "@/components/commerce/shop-card";
 import { MarketFilters, MARKET_SORT_LABEL } from "@/components/commerce/market-filters";
@@ -46,7 +47,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
     listProducts(filters, cursor, { viewerId: user?.id, take: 24 }),
     !filtered && !cursor ? listShops({ take: 4, viewerId: user?.id }) : Promise.resolve([]),
   ]);
-  const activeCat = categoryBySlug(filters.category);
+  const [activeCat, cats] = await Promise.all([effectiveCategory(filters.category), browseCategories(filters.category)]);
   const mode = paymentsMode();
 
   const chips: { label: string; href: string }[] = [];
@@ -107,7 +108,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               Alles
             </Link>
           </li>
-          {CATEGORIES.map((c) => {
+          {cats.map((c) => {
             const active = c.slug === filters.category;
             return (
               <li key={c.slug}>
@@ -139,11 +140,11 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               <SlidersHorizontal size={15} /> Filter {chips.length > 0 && <span className="spec">({chips.length})</span>}
             </summary>
             <div className="mt-5">
-              <MarketFilters raw={raw} idPrefix="fm" />
+              <MarketFilters raw={raw} idPrefix="fm" categories={cats} />
             </div>
           </details>
           <div className="sticky top-6 hidden lg:block">
-            <MarketFilters raw={raw} idPrefix="fd" />
+            <MarketFilters raw={raw} idPrefix="fd" categories={cats} />
           </div>
         </aside>
 

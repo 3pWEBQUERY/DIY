@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/server/auth/session";
+import { categoryOptions } from "@/server/categories/settings";
 import { Page, PageHeader } from "@/components/shell/page";
 import { CommunityForm } from "@/components/communities/community-forms";
 
@@ -12,7 +13,7 @@ export default async function NewCommunityPage() {
   return (
     <Page width="feed">
       <PageHeader kicker="Communities · Neu" title="Community gründen" description="Du wirst automatisch Gründer:in und kannst später Admins und Moderator:innen ernennen." />
-      <CommunityForm />
+      <CommunityForm categories={await categoryOptions()} />
     </Page>
   );
 }

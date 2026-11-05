@@ -1640,6 +1640,19 @@ model EditorialCollection {
   updatedAt   DateTime @updatedAt
 }
 
+/// Overrides für die fest definierten DIY-Kategorien (packages/shared). Slugs bleiben fix.
+model CategorySetting {
+  slug        String   @id
+  name        String?
+  short       String?
+  description String?
+  isActive    Boolean  @default(true) // false = nicht mehr für neue Inhalte angeboten
+  isFocus     Boolean? // Override für „Startschwerpunkt“
+  sortOrder   Int?
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
 model SupportTicket {
   id        String   @id @default(cuid())
   userId    String?

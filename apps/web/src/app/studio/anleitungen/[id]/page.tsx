@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { getTutorialForEdit } from "@/server/tutorials/service";
 import { listOwnProjectOptions } from "@/server/projects/service";
+import { categoryOptions } from "@/server/categories/settings";
 import { PageHeader } from "@/components/shell/page";
 import { TutorialEditor } from "@/components/tutorials/tutorial-editor";
 
@@ -22,7 +23,7 @@ export default async function EditTutorialPage({ params }: { params: Promise<{ i
         <ArrowLeft size={13} /> Alle Anleitungen
       </Link>
       <PageHeader kicker={data.currentVersion ? `Studio · Version ${data.currentVersion} veröffentlicht` : "Studio · Entwurf"} title={data.values.title || "Ohne Titel"} />
-      <TutorialEditor key={data.id} tutorialId={data.id} slug={data.slug} initial={data.values} currentVersion={data.currentVersion} projects={projects} />
+      <TutorialEditor key={data.id} tutorialId={data.id} slug={data.slug} initial={data.values} currentVersion={data.currentVersion} projects={projects} categories={await categoryOptions(data.values.category)} />
     </div>
   );
 }

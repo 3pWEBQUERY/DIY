@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { categoryOptions } from "@/server/categories/settings";
 import { Page, PageHeader } from "@/components/shell/page";
 import { Composer } from "@/components/social/composer";
 import { Glyph } from "@/components/ui/glyphs";
@@ -33,7 +34,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
       <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
         <section aria-labelledby="quick">
           <h2 id="quick" className="spec mb-3 text-ink">01 — Schnell teilen</h2>
-          <Composer viewer={{ displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl }} projects={projects} defaultProjectId={sp.projekt} />
+          <Composer viewer={{ displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl }} projects={projects} defaultProjectId={sp.projekt} categories={await categoryOptions()} />
         </section>
         <section aria-labelledby="more">
           <h2 id="more" className="spec mb-3 text-ink">02 — Mehr erschaffen</h2>

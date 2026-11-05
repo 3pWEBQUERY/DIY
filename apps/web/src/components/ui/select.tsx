@@ -263,7 +263,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
               );
             })}
           </ul>,
-          document.body,
+          (button.current?.closest("dialog") as HTMLElement | null) ?? document.body,
         )}
     </>
   );

@@ -2,8 +2,8 @@ import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Plus, Search } from "lucide-react";
-import { CATEGORIES, categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
+import { browseCategories, effectiveCategories } from "@/server/categories/settings";
 import { communityCategoryCounts, listCommunities, viewerInvitations } from "@/server/communities/service";
 import { Page, PageHeader } from "@/components/shell/page";
 import { CommunityCard } from "@/components/communities/community-card";
@@ -24,8 +24,8 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
   const user = await currentUser();
   const viewerId = user?.id ?? null;
   const filtered = !!(sp.q || sp.kategorie);
-  const counts = await communityCategoryCounts();
-  const cats = CATEGORIES.filter((c) => (counts.get(c.slug) ?? 0) > 0);
+  const [counts, browse, allCats] = await Promise.all([communityCategoryCounts(), browseCategories(sp.kategorie), effectiveCategories()]);
+  const cats = browse.filter((c) => (counts.get(c.slug) ?? 0) > 0);
 
   const header = (
     <PageHeader
@@ -73,7 +73,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
 
   if (filtered) {
     const res = await listCommunities({ q: sp.q, category: sp.kategorie, viewerId, take: 24 }, sp.nach);
-    const label = [sp.q && `„${sp.q}“`, categoryBySlug(sp.kategorie)?.name].filter(Boolean).join(" · ");
+    const label = [sp.q && `„${sp.q}“`, allCats.find((c) => c.slug === sp.kategorie)?.name].filter(Boolean).join(" · ");
     return (
       <Page width="wide">
         {header}
@@ -105,7 +105,8 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
     listCommunities({ viewerId, take: 60 }),
   ]);
   const featuredIds = new Set(featured.items.map((c) => c.id));
-  const byCategory = CATEGORIES.map((cat) => ({ cat, items: all.items.filter((c) => c.category === cat.slug && !featuredIds.has(c.id)).slice(0, 3) })).filter((g) => g.items.length);
+  // Gruppierung über alle Kategorien – Communities in deaktivierten Kategorien bleiben auffindbar
+  const byCategory = allCats.map((cat) => ({ cat, items: all.items.filter((c) => c.category === cat.slug && !featuredIds.has(c.id)).slice(0, 3) })).filter((g) => g.items.length);
   let n = 0;
   const next = () => String(++n).padStart(2, "0");
 

@@ -2,8 +2,9 @@ import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
-import { CATEGORIES, DIFFICULTY_LABEL, formatMoney, type Currency } from "@werkraum/shared";
+import { DIFFICULTY_LABEL, formatMoney, type Currency } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
+import { browseCategories } from "@/server/categories/settings";
 import { search, SEARCH_TYPES, type SearchType } from "@/server/discovery/search";
 import { getProjectCards } from "@/server/projects/service";
 import { getTutorialCards } from "@/server/tutorials/service";
@@ -26,7 +27,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const type = SEARCH_TYPES.includes(sp.typ as SearchType) ? (sp.typ as SearchType) : null;
-  const user = await currentUser();
+  const [user, cats] = await Promise.all([currentUser(), browseCategories(sp.kategorie)]);
   const viewerId = user?.id ?? null;
   const filters = {
     q,
@@ -77,7 +78,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               <span className="spec">Kategorie</span>
               <Select name="kategorie" defaultValue={sp.kategorie ?? ""} className="h-9 w-auto min-w-[150px] text-[14px]">
                 <option value="">Alle</option>
-                {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                {cats.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
               </Select>
             </label>
             <label className="flex flex-col gap-1">
@@ -111,7 +112,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
       {!q && (
         <div className="grid gap-px border border-line bg-line sm:grid-cols-3 lg:grid-cols-5 rounded-2xl overflow-hidden">
-          {CATEGORIES.map((c) => (
+          {cats.map((c) => (
             <Link key={c.slug} href={`/entdecken?kategorie=${c.slug}`} className="bg-paper p-4 text-sm font-semibold hover:bg-card">{c.name}</Link>
           ))}
         </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { CATEGORIES, VISIBILITY, VISIBILITY_LABEL } from "@werkraum/shared";
 import type { PostEditData } from "@/server/social/posts";
+import type { CategoryOption } from "@/server/categories/types";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { Notice } from "@/components/ui/misc";
@@ -12,7 +13,7 @@ import { toast } from "@/components/ui/toast";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { removePostAction, savePostAction } from "./actions";
 
-export function PostEditor({ post, projects }: { post: PostEditData; projects: { id: string; title: string }[] }) {
+export function PostEditor({ post, projects, categories = CATEGORIES }: { post: PostEditData; projects: { id: string; title: string }[]; categories?: readonly CategoryOption[] }) {
   const router = useRouter();
   const [body, setBody] = useState(post.body);
   const [media, setMedia] = useState<UploadedMedia[]>(
@@ -96,7 +97,7 @@ export function PostEditor({ post, projects }: { post: PostEditData; projects: {
             {(p) => (
               <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">Ohne Kategorie</option>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.slug} value={c.slug}>{c.name}</option>
                 ))}
               </Select>

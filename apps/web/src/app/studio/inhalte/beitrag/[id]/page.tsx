@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { requirePageUser } from "@/server/auth/session";
 import { getPostForEdit } from "@/server/social/posts";
 import { listOwnProjectOptions } from "@/server/projects/service";
+import { categoryOptions } from "@/server/categories/settings";
 import { AppError } from "@/server/errors";
 import { Stat } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
@@ -45,7 +46,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
       </header>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_260px]">
-        <PostEditor post={post} projects={projects.map((p) => ({ id: p.id, title: p.title }))} />
+        <PostEditor post={post} projects={projects.map((p) => ({ id: p.id, title: p.title }))} categories={await categoryOptions(post.category)} />
         <aside className="space-y-6" aria-label="Kennzahlen">
           <p className="spec text-ink">Resonanz</p>
           <div className="grid grid-cols-2 gap-5 lg:grid-cols-1">

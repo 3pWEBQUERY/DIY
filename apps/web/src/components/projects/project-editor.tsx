@@ -16,6 +16,7 @@ import {
   type Visibility,
 } from "@werkraum/shared";
 import type { ProjectEditData, RemixSource } from "@/server/projects/service";
+import type { CategoryOption } from "@/server/categories/types";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -65,6 +66,7 @@ export function ProjectEditor({
   remixSource,
   remixOf,
   defaultCategory,
+  categories = CATEGORIES,
 }: {
   mode: "create" | "edit";
   projectId?: string;
@@ -72,6 +74,8 @@ export function ProjectEditor({
   remixSource?: RemixSource | null;
   remixOf?: ProjectEditData["remixOf"];
   defaultCategory?: string;
+  /** Angebotene Kategorien (aktive + ggf. bereits gespeicherte); Standard: alle */
+  categories?: readonly CategoryOption[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -200,7 +204,7 @@ export function ProjectEditor({
                 <option value="" disabled>
                   Bitte wählen
                 </option>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c.slug} value={c.slug}>
                     {c.name}
                   </option>

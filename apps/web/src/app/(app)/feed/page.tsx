@@ -5,6 +5,7 @@ import { ArrowRight, Bookmark, Plus, Sparkles, Users } from "lucide-react";
 import { PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { categoryOptions } from "@/server/categories/settings";
 import { getFeed, type FeedKind } from "@/server/social/posts";
 import { suggestedCreators, suggestedCommunities, activeProjectsOf, trendingProjects } from "@/server/discovery/suggestions";
 import { relationsFor } from "@/server/visibility";
@@ -144,7 +145,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
 
-      <Composer viewer={viewer} projects={projectOptions} compact />
+      <Composer viewer={viewer} projects={projectOptions} categories={await categoryOptions()} compact />
 
       <TabLinks
         className="mt-8"

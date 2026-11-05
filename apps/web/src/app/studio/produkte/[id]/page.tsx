@@ -6,6 +6,7 @@ import { currentUser } from "@/server/auth/session";
 import { PageHeader } from "@/components/shell/page";
 import { ProductEditor } from "@/components/commerce/product-editor";
 import { Badge } from "@/components/ui/misc";
+import { categoryOptions } from "@/server/categories/settings";
 import { loadEditor } from "../editor-data";
 
 export const metadata: Metadata = { title: "Produkt bearbeiten" };
@@ -42,6 +43,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         shopReturnPolicy={data.shop.returnPolicy}
         feeBps={data.feeBps}
         digitalEnabled={data.digitalEnabled}
+        categories={await categoryOptions(data.initial.category)}
       />
     </div>
   );

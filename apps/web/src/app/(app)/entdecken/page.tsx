@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
-import { CATEGORIES, categoryBySlug } from "@werkraum/shared";
+import { categoryBySlug } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
+import { browseCategories, effectiveCategory } from "@/server/categories/settings";
 import { listProjects, getProjectCards } from "@/server/projects/service";
 import { listTutorials, getTutorialCards } from "@/server/tutorials/service";
 import { suggestedCreators, suggestedCommunities } from "@/server/discovery/suggestions";
@@ -19,10 +20,10 @@ import { LinkButton } from "@/components/ui/button";
 import { cn, pad } from "@/lib/utils";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ kategorie?: string }> }): Promise<Metadata> {
-  const cat = categoryBySlug((await searchParams).kategorie);
+  const cat = await effectiveCategory((await searchParams).kategorie);
   return {
     title: cat ? `${cat.name} – Projekte & Anleitungen` : "Entdecken",
-    description: cat ? `Projekte, Anleitungen und Creator rund um ${cat.name}.` : "Projekte, Anleitungen, Creator und Communities aus der DIY-Community entdecken.",
+    description: cat ? cat.description || `Projekte, Anleitungen und Creator rund um ${cat.name}.` : "Projekte, Anleitungen, Creator und Communities aus der DIY-Community entdecken.",
     alternates: { canonical: cat ? `/entdecken?kategorie=${cat.slug}` : "/entdecken" },
   };
 }
@@ -37,7 +38,7 @@ type Collection = { id: string; slug: string; title: string; kicker: string; des
 /** Entdecken (§18.3): redaktionell kuratiert, nach Interessen gemischt, auch für Gäste. */
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ kategorie?: string }> }) {
   const sp = await searchParams;
-  const cat = categoryBySlug(sp.kategorie);
+  const [cat, cats] = await Promise.all([effectiveCategory(sp.kategorie), browseCategories(sp.kategorie)]);
   const user = await currentUser();
   const viewerId = user?.id ?? null;
   const interests = cat ? [cat.slug] : (user?.profile?.categories ?? []);
@@ -74,10 +75,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       {/* Kopf */}
       <header className="mb-10 grid gap-8 border-b border-rule pb-10 lg:grid-cols-[1.3fr_1fr] lg:items-end">
         <div>
-          <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{cat ? `Werkstatt ${pad(CATEGORIES.indexOf(cat) + 1)}` : "Entdecken"}</p>
+          <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{cat ? `Werkstatt ${pad(cat.position)}` : "Entdecken"}</p>
           <h1 className="display text-5xl text-balance sm:text-6xl">{cat ? cat.name : <>Was entsteht <em className="italic text-moss">gerade</em>?</>}</h1>
           <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-muted">
-            {cat ? `Projekte, Anleitungen und Menschen rund um ${cat.name}.` : "Projekte, Anleitungen und Menschen – kuratiert von der Redaktion und gemischt nach deinen Interessen."}
+            {cat ? cat.description || `Projekte, Anleitungen und Menschen rund um ${cat.name}.` : "Projekte, Anleitungen und Menschen – kuratiert von der Redaktion und gemischt nach deinen Interessen."}
           </p>
         </div>
         {!user && (
@@ -94,7 +95,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       {/* Kategorien */}
       <nav aria-label="Kategorien" className="-mx-4 mb-12 flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
         <Link href="/entdecken" className={cn("flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm", !cat ? "border-moss bg-moss text-paper" : "border-line hover:border-rule-strong")}>Alle</Link>
-        {CATEGORIES.map((c) => (
+        {cats.map((c) => (
           <Link
             key={c.slug}
             href={`/entdecken?kategorie=${c.slug}`}
