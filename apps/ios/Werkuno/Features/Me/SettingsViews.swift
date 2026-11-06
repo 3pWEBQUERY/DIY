@@ -21,6 +21,9 @@ struct SettingsView: View {
                     row(.feed, "Interessen, Stummgeschaltete, Ausgeblendetes")
                     row(.privacy, "Nachrichten, Bewegung, Blockierte")
                 }
+                MeGroup(title: "Darstellung", footer: "„System“ folgt der Einstellung deines iPhones.") {
+                    AppearancePicker()
+                }
                 MeGroup(title: "Hilfe") {
                     row(.support, "Anfrage an das Team, Richtlinien")
                 }

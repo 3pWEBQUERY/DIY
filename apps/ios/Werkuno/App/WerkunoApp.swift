@@ -107,6 +107,7 @@ struct RootView: View {
         }
         .animation(.smooth(duration: 0.45), value: app.phase)
         .toastOverlay()
+        .onAppear { AppAppearance.apply() } // gespeicherte Darstellung (Hell/Dunkel/System)
         .task { await app.launch() }
         .onChange(of: scenePhase) { _, p in app.setActive(p == .active) }
     }

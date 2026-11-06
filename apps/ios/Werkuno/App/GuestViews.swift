@@ -57,6 +57,10 @@ struct GuestMeView: View {
                     .frame(height: 220)
                 PageTitle(kicker: "Dein Werkuno", title: "Noch ohne Konto", subtitle: "Mit einem kostenlosen Konto dokumentierst du Projekte, sammelst Anleitungen und tauschst dich mit der Community aus.")
                 Button { app.requestSignIn() } label: { Text("Anmelden oder registrieren").frame(maxWidth: .infinity) }.primaryButton()
+                VStack(alignment: .leading, spacing: 8) {
+                    SpecLabel("Darstellung").padding(.horizontal, 6)
+                    AppearancePicker().cardSurface()
+                }
                 VStack(spacing: 0) {
                     ForEach([("Hilfe", "/hilfe"), ("Community-Richtlinien", "/richtlinien/community"), ("Datenschutz", "/rechtliches/datenschutz"), ("AGB", "/rechtliches/agb"), ("Impressum", "/rechtliches/impressum")], id: \.1) { item in
                         Button { router.open(.web(path: item.1)) } label: {
