@@ -76,6 +76,7 @@ struct RouteView: View {
             case .article(let h, let s): ArticleReaderView(handle: h, slug: s)
             case .userBlog(let h): UserBlogView(handle: h)
             case .conversations: ConversationListView()
+            case .conversationsBox(let b): ConversationListView(initialBox: SocialInboxBox(rawValue: b) ?? .inbox)
             case .conversation(let id): ConversationView(id: id)
             case .notifications: NotificationsView()
             case .saved: SavedView()

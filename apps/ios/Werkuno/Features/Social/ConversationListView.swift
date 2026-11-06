@@ -5,11 +5,15 @@ struct ConversationListView: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
 
-    @State private var box: SocialInboxBox = .inbox
+    @State private var box: SocialInboxBox
     @State private var items: [ConversationItem] = []
     @State private var counts = InboxCounts(requests: 0, unread: 0)
     @State private var loaded = false
     @State private var error: String?
+
+    init(initialBox: SocialInboxBox = .inbox) {
+        _box = State(initialValue: initialBox)
+    }
 
     var body: some View {
         List {
@@ -77,6 +81,11 @@ struct ConversationListView: View {
         }
         .task(id: box) { await load() }
         .onAppear { if loaded { Task { await load() } } }
+        // Live: neue Nachrichten, Lesestand und Anfragen aktualisieren den Posteingang sofort
+        .onReceive(NotificationCenter.default.publisher(for: LiveEvent.notification)) { n in
+            guard LiveEvent(n) != nil, loaded else { return }
+            Task { await load() }
+        }
         .refreshable {
             await load()
             await app.refreshCounts()

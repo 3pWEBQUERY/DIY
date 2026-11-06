@@ -84,6 +84,11 @@ struct NotificationsView: View {
             }
         }
         .task(id: filter) { await load(reset: true) }
+        // Live: neue/gebündelte Benachrichtigungen erscheinen sofort (Server-Sent Events)
+        .onReceive(NotificationCenter.default.publisher(for: LiveEvent.notification)) { n in
+            guard let e = LiveEvent(n), e == .counts, loaded else { return }
+            Task { await load(reset: true) }
+        }
         .refreshable {
             await load(reset: true)
             await app.refreshCounts()
@@ -160,6 +165,7 @@ struct NotificationsView: View {
 
     private func markRead(_ n: NotificationItem) async {
         setRead([n.id])
+        app.markNotificationsRead(1) // Badge sofort, ohne auf den Server zu warten
         do {
             _ = try await APIClient.shared.post("/notifications/read", ["ids": JSONValue.array([.string(n.id)])]) as JSONValue
             await app.refreshCounts()
@@ -167,15 +173,16 @@ struct NotificationsView: View {
     }
 
     private func markAll() async {
+        app.markNotificationsRead() // optimistisch auf 0
         let ok = await app.run("Alles als gelesen markiert.") {
             _ = try await APIClient.shared.post("/notifications/read", ["all": JSONValue.bool(true)]) as JSONValue
         }
         if ok {
             setRead(items.map(\.id))
             withAnimation(.snappy) { unread = [:] }
-            await app.refreshCounts()
             await load(reset: true)
         }
+        await app.refreshCounts()
     }
 
     private func setRead(_ ids: [String]) {
@@ -224,17 +231,25 @@ private struct NotificationRow: View {
                 }
             }
             .padding(.vertical, 12)
-            .padding(.horizontal, 8)
-            .background(alignment: .leading) {
-                if !item.read { Capsule().fill(Color.clay).frame(width: 2).padding(.vertical, 10) }
+            .padding(.leading, 14)
+            .padding(.trailing, 10)
+            .background {
+                // Wie im Web: links gerade mit Akzentleiste, rechts gerundet
+                if !item.read {
+                    Self.cardShape.fill(Color.card)
+                        .overlay(alignment: .leading) { Rectangle().fill(Color.clay).frame(width: 3) }
+                        .clipShape(Self.cardShape)
+                }
             }
-            .contentShape(.rect)
+            .contentShape(Self.cardShape)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
         .accessibilityHint("Öffnen")
     }
+
+    static let cardShape = UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 18, topTrailingRadius: 18, style: .continuous)
 
     private var message: Text {
         if let lead = item.lead?.nilIfEmpty {
@@ -268,8 +283,8 @@ private struct NotificationRow: View {
                         .font(.wr(size: 9, weight: .bold))
                         .foregroundStyle(Color.paper)
                         .frame(width: 20, height: 20)
-                        .background(SocialNotificationIcon.tint(item.type), in: Circle())
-                        .overlay(Circle().strokeBorder(Color.paper, lineWidth: 1.5))
+                        .background(Color.moss, in: Circle())
+                        .overlay(Circle().strokeBorder(Color.paper, lineWidth: 2))
                         .offset(x: 4, y: 4)
                 }
                 .padding(.trailing, 2)
@@ -279,8 +294,8 @@ private struct NotificationRow: View {
                 .font(.wr(size: 16, weight: .medium))
                 .foregroundStyle(system ? Color.paper : SocialNotificationIcon.tint(item.type))
                 .frame(width: 40, height: 40)
-                .background(system ? Color.moss : Color.card, in: .rect(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(system ? Color.clear : Color.lineStrong, lineWidth: 0.75))
+                .background(system ? Color.moss : Color.paper, in: Circle())
+                .overlay(Circle().strokeBorder(system ? Color.clear : Color.lineStrong, lineWidth: 0.75))
         }
     }
 }

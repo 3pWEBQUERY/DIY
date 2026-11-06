@@ -457,6 +457,8 @@ struct MeSecurityInfo: Decodable, Sendable {
         var key: String
         var device: String
         var isApp: Bool?
+        /// Browser aus dem User-Agent (safari, chrome, firefox, edge, opera, brave, vivaldi, duckduckgo, app)
+        var browser: String?
         var lastUsedAt: Date?
         var createdAt: Date?
         var expiresAt: Date?

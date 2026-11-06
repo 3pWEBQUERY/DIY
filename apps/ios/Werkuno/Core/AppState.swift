@@ -65,20 +65,32 @@ final class AppState {
     /// Zentrale Meldungen („Toast“)
     var toast: Toast?
 
+    /// Live-Zähler aus GET /api/v1/me/counts (wie die Web-Shell: Polling + Server-Sent Events)
+    struct ShellCounts: Decodable, Sendable, Equatable { var notifications: Int; var messages: Int; var requests: Int; var cart: Int }
+    var liveCounts: ShellCounts?
+
     private var countsTask: Task<Void, Never>?
+    private var liveObserver: NSObjectProtocol?
+    private var isActive = true
     let api = APIClient.shared
 
     init() {
         api.onUnauthorized = { [weak self] in
             Task { @MainActor in self?.handleUnauthorized() }
         }
+        liveObserver = NotificationCenter.default.addObserver(forName: LiveEvent.notification, object: nil, queue: .main) { [weak self] n in
+            guard let e = LiveEvent(n) else { return }
+            Task { @MainActor in self?.handleLive(e) }
+        }
     }
 
     var isSignedIn: Bool { me != nil }
     var handle: String? { me?.profile?.handle }
-    var unreadNotifications: Int { me?.counts.notifications ?? 0 }
-    var unreadMessages: Int { (me?.counts.messages.unread ?? 0) + (me?.counts.messages.requests ?? 0) }
-    var cartCount: Int { me?.counts.cart ?? 0 }
+    var unreadNotifications: Int { liveCounts?.notifications ?? me?.counts.notifications ?? 0 }
+    /// Badge „Nachrichten“: ungelesene Gespräche plus offene Kontaktanfragen (wie im Web)
+    var unreadMessages: Int { liveCounts?.messages ?? ((me?.counts.messages.unread ?? 0) + (me?.counts.messages.requests ?? 0)) }
+    var pendingRequests: Int { liveCounts?.requests ?? me?.counts.messages.requests ?? 0 }
+    var cartCount: Int { liveCounts?.cart ?? me?.counts.cart ?? 0 }
     var hasActiveShop: Bool { me?.shop?.status == "ACTIVE" || me?.shop?.status == "PAUSED" }
 
     func category(_ slug: String?) -> Category? { categories.first { $0.slug == slug } }
@@ -113,6 +125,7 @@ final class AppState {
         feeBps = b.payments.feeBps
         appleNative = b.features?.appleNative ?? false
         me = b.me
+        liveCounts = nil
         if b.me == nil {
             if api.token != nil { api.token = nil }
             phase = isGuest ? .ready : .signedOut
@@ -121,23 +134,60 @@ final class AppState {
         } else {
             phase = .ready
         }
-        if b.me != nil { Task { await PushRegistration.sync() } }
-    }
-
-    func refreshCounts() async {
-        guard api.isSignedIn else { return }
-        if let b: Bootstrap = try? await api.get("/bootstrap"), let m = b.me {
-            withAnimation(.snappy) { me = m }
+        if b.me != nil {
+            Task { await PushRegistration.sync() }
+            if isActive { LiveStream.shared.start() }
+        } else {
+            LiveStream.shared.stop()
         }
     }
 
+    /// Zähler frisch vom Server (leichtgewichtig, ohne kompletten Bootstrap)
+    func refreshCounts() async {
+        guard api.isSignedIn, me != nil else { return }
+        do {
+            let c: ShellCounts = try await api.send("GET", "/me/counts", body: Optional<Int>.none, root: "/api/v1")
+            if c != liveCounts { withAnimation(.snappy) { liveCounts = c } }
+        } catch let e as APIError where e.status == 404 {
+            // Älterer Server ohne /me/counts → Bootstrap
+            if let b: Bootstrap = try? await api.get("/bootstrap"), let m = b.me { withAnimation(.snappy) { me = m; liveCounts = nil } }
+        } catch {}
+    }
+
+    /// Optimistisch: Badge sinkt sofort (Benachrichtigung angetippt / „Alle gelesen“), Server bestätigt danach.
+    func markNotificationsRead(_ n: Int? = nil) {
+        let current = unreadNotifications
+        var c = liveCounts ?? ShellCounts(notifications: current, messages: unreadMessages, requests: pendingRequests, cart: cartCount)
+        c.notifications = n.map { max(0, current - $0) } ?? 0
+        withAnimation(.snappy) { liveCounts = c }
+    }
+
+    /// Wie die Web-Shell: alle 15 s, solange die App aktiv ist (Rückfall zum Live-Stream)
     private func startCountsPolling() {
         countsTask?.cancel()
         countsTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(45))
-                await self?.refreshCounts()
+                try? await Task.sleep(for: .seconds(15))
+                guard let self, self.isActive else { continue }
+                await self.refreshCounts()
             }
+        }
+    }
+
+    /// App kommt in den Vordergrund / geht in den Hintergrund
+    func setActive(_ active: Bool) {
+        isActive = active
+        if active {
+            if me != nil { LiveStream.shared.start() }
+            Task { await refreshCounts() }
+        } else {
+            LiveStream.shared.stop()
+        }
+    }
+
+    private func handleLive(_ e: LiveEvent) {
+        switch e {
+        case .counts, .message, .read: Task { await refreshCounts() }
         }
     }
 
@@ -181,6 +231,7 @@ final class AppState {
     }
 
     func signOut() async {
+        LiveStream.shared.stop()
         await PushRegistration.unregister()
         await api.logout()
         api.token = nil
@@ -191,6 +242,7 @@ final class AppState {
 
     private func handleUnauthorized() {
         guard me != nil || api.token != nil else { return }
+        LiveStream.shared.stop()
         api.token = nil
         me = nil
         phase = .signedOut

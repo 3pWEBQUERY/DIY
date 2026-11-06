@@ -478,8 +478,8 @@ private struct MeSecuritySettings: View {
             Section {
                 ForEach(d.sessions) { s in
                     HStack(spacing: 12) {
-                        Image(systemName: s.isApp == true || s.device.contains("iOS") ? "iphone" : s.device.contains("Android") ? "smartphone" : "desktopcomputer")
-                            .font(.wr(.title3)).foregroundStyle(Color.ink2).frame(width: 34)
+                        DeviceLogo(browser: s.browser ?? (s.isApp == true ? "app" : nil), device: s.device)
+                            .frame(width: 34)
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 6) {
                                 Text(s.device).font(.wr(.subheadline, .semibold))
@@ -1002,5 +1002,29 @@ private struct MeDeveloperSettings: View {
                 }
             }
         } message: { _ in Text("Du wirst abgemeldet und meldest dich danach auf dem anderen Server an.") }
+    }
+}
+
+
+/// Wie im Web: Original-Browserlogo bzw. Werkuno-Zeichen für die App, sonst neutrales Gerätesymbol.
+struct DeviceLogo: View {
+    var browser: String?
+    var device: String
+    var size: CGFloat = 26
+
+    private static let known: Set<String> = ["safari", "chrome", "firefox", "edge", "opera", "brave", "vivaldi", "duckduckgo", "arc"]
+
+    var body: some View {
+        Group {
+            if browser == "app" {
+                BrandMark(size: size)
+            } else if let b = browser, Self.known.contains(b) {
+                Image("BrowserLogo-\(b)").resizable().scaledToFit().frame(width: size, height: size)
+            } else {
+                Image(systemName: device.contains("iOS") ? "iphone" : device.contains("Android") ? "smartphone" : "desktopcomputer")
+                    .font(.wr(.title3)).foregroundStyle(Color.ink2)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

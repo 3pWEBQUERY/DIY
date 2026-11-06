@@ -68,6 +68,10 @@ struct ConversationView: View {
         }
         .task(id: id) { await load() }
         .task(id: id) { await poll() }
+        .onReceive(NotificationCenter.default.publisher(for: LiveEvent.notification)) { n in
+            guard let e = LiveEvent(n), e.conversationId == id, thread != nil else { return }
+            Task { await fetchNew() }
+        }
         .onChange(of: picks) { _, new in
             guard !new.isEmpty else { return }
             let batch = new
@@ -376,33 +380,37 @@ struct ConversationView: View {
         } catch { app.show(error: error) }
     }
 
-    /// Polling alle 4 s, solange die Ansicht sichtbar ist.
+    /// Rückfall-Polling, solange die Ansicht sichtbar ist. Mit Live-Stream (SSE) kommen neue
+    /// Nachrichten und Lesebestätigungen sofort; dann reicht ein ruhigeres Intervall.
     private func poll() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(LiveStream.shared.isConnected ? 15 : 4))
             if Task.isCancelled { return }
             guard thread != nil, scenePhase == .active else { continue }
-            do {
-                let r: SocialMessagesSince = try await APIClient.shared.get("/conversations/\(id)/messages", query: ["after": lastAt.map(SocialFmt.iso)])
-                withAnimation(.snappy) {
-                    otherRead = r.otherLastReadAt
-                    otherPending = r.otherPendingRequest ?? false
-                }
-                guard !r.messages.isEmpty else { continue }
-                merge(r.messages)
-                if r.messages.contains(where: { !$0.mine }) {
-                    Haptics.soft()
-                    scrollTarget = "bottom"
-                    await markRead()
-                    if let last = r.messages.last(where: { !$0.mine }) {
-                        UIAccessibility.post(notification: .announcement, argument: "Neue Nachricht von \(thread?.other?.displayName ?? ""): \(last.body.isEmpty ? "Bild" : String(last.body.prefix(120)))")
-                    }
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                // Netzwerkfehler – nächster Versuch im nächsten Intervall
+            await fetchNew()
+        }
+    }
+
+    /// Neue Nachrichten und den Lesestand der anderen Seite holen.
+    private func fetchNew() async {
+        do {
+            let r: SocialMessagesSince = try await APIClient.shared.get("/conversations/\(id)/messages", query: ["after": lastAt.map(SocialFmt.iso)])
+            withAnimation(.snappy) {
+                otherRead = r.otherLastReadAt
+                otherPending = r.otherPendingRequest ?? false
             }
+            guard !r.messages.isEmpty else { return }
+            merge(r.messages)
+            if r.messages.contains(where: { !$0.mine }) {
+                Haptics.soft()
+                scrollTarget = "bottom"
+                await markRead()
+                if let last = r.messages.last(where: { !$0.mine }) {
+                    UIAccessibility.post(notification: .announcement, argument: "Neue Nachricht von \(thread?.other?.displayName ?? ""): \(last.body.isEmpty ? "Bild" : String(last.body.prefix(120)))")
+                }
+            }
+        } catch {
+            // Netzwerkfehler – nächster Versuch beim nächsten Ereignis/Intervall
         }
     }
 

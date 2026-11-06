@@ -86,6 +86,8 @@ enum Route: Hashable {
     case article(handle: String, slug: String)
     case userBlog(handle: String)
     case conversations
+    /// Posteingang mit bestimmtem Ordner (`/nachrichten?ordner=anfragen|archiv`)
+    case conversationsBox(String)
     case conversation(id: String)
     case notifications
     case saved
@@ -124,7 +126,12 @@ enum Route: Hashable {
             case "bestellungen": return .orders
             case "communities": return .communities
             case "blogs": return .blogHome
-            case "nachrichten": return .conversations
+            case "nachrichten":
+                switch q["ordner"] {
+                case "anfragen": return .conversationsBox("requests")
+                case "archiv": return .conversationsBox("archived")
+                default: return .conversations
+                }
             case "benachrichtigungen": return .notifications
             case "gespeichert": return .saved
             case "einkaufslisten": return .shoppingLists

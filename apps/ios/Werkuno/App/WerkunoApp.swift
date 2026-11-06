@@ -93,6 +93,7 @@ struct WerkunoApp: App {
 
 struct RootView: View {
     @Environment(AppState.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -107,6 +108,7 @@ struct RootView: View {
         .animation(.smooth(duration: 0.45), value: app.phase)
         .toastOverlay()
         .task { await app.launch() }
+        .onChange(of: scenePhase) { _, p in app.setActive(p == .active) }
     }
 }
 
