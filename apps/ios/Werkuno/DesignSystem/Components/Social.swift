@@ -127,6 +127,8 @@ struct FollowButton: View {
             } label: {
                 Text(following ? "Folge ich" : "Folgen")
                     .font(compact ? Font.wr(.footnote, .semibold) : .wr(.subheadline, .semibold))
+                    // Gefüllt mit Tinte → Schrift in Papierfarbe (hell auf dunkel bzw. dunkel auf hell im Dark Mode)
+                    .foregroundStyle(following ? Color.ink : Color.paper)
                     .padding(.horizontal, compact ? 4 : 8)
             }
             .buttonStyle(following ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))

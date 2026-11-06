@@ -12,10 +12,13 @@ struct FeedView: View {
     @State private var error: String?
     @State private var context: SocialFeedContext = .empty
     @State private var contextLoaded = false
+    /// Filter ist nach oben gescrollt → kompakt in der Navigationsleiste zeigen
+    @State private var kindInBar = false
+    @State private var topInset: CGFloat = 0
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 FeedHeader(firstName: firstName)
                     .padding(.horizontal, Space.gutter)
                     .padding(.top, 4)
@@ -29,18 +32,22 @@ struct FeedView: View {
                         .padding(.top, Space.xl)
                 }
 
-                Section {
-                    feedContent
-                } header: {
-                    ChipBar(items: SocialFeedKind.allCases.map { ($0, $0.label) }, selection: $kind)
-                        .padding(.vertical, 6)
-                        .accessibilityLabel("Feed auswählen")
-                }
-                .padding(.top, Space.xl)
+                ChipBar(items: SocialFeedKind.allCases.map { ($0, $0.label) }, selection: $kind)
+                    .padding(.vertical, 6)
+                    .padding(.top, Space.xl)
+                    .accessibilityLabel("Feed auswählen")
+                    .opacity(kindInBar ? 0 : 1)
+                    // Sobald die Leiste unter der Navigationsleiste verschwindet, übernimmt der kompakte Umschalter oben
+                    .onGeometryChange(for: Bool.self) { $0.frame(in: .global).maxY - 10 < topInset } action: { hidden in
+                        if hidden != kindInBar { withAnimation(.snappy(duration: 0.25)) { kindInBar = hidden } }
+                    }
+
+                feedContent
             }
             .padding(.bottom, 40)
         }
         .scrollDismissesKeyboard(.interactively)
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
         .background(Color.paper)
         .navigationTitle("Werkbank")
         .navigationBarTitleDisplayMode(.inline)
@@ -74,6 +81,11 @@ struct FeedView: View {
     // MARK: Toolbar
 
     @ToolbarContentBuilder private var inboxToolbar: some ToolbarContent {
+        if kindInBar {
+            ToolbarItem(placement: .topBarLeading) {
+                FeedKindSwitch(selection: $kind)
+            }
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button { router.open(.notifications) } label: {
                 Image(systemName: app.unreadNotifications > 0 ? "bell.badge" : "bell")
@@ -519,5 +531,37 @@ private struct FeedCommunityShelf: View {
             .scrollTargetBehavior(.viewAligned)
             .scrollClipDisabled()
         }
+    }
+}
+
+
+// MARK: - Kompakter Feed-Umschalter (in der Navigationsleiste beim Scrollen)
+
+private struct FeedKindSwitch: View {
+    @Binding var selection: SocialFeedKind
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(SocialFeedKind.allCases, id: \.self) { k in
+                let on = k == selection
+                Button {
+                    Haptics.selection()
+                    withAnimation(.snappy) { selection = k }
+                } label: {
+                    Text(k.label)
+                        .font(.wr(.footnote, on ? .bold : .medium))
+                        .foregroundStyle(on ? Color.paper : Color.ink)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(on ? Color.ink : .clear, in: Capsule())
+                        .fixedSize()
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Feed auswählen")
     }
 }

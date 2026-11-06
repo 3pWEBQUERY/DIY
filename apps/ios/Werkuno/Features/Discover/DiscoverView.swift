@@ -252,21 +252,9 @@ private struct DiscoverPageContent: View {
         case .creators:
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader("Creator", number: number, subtitle: "Menschen, deren Faden sich lohnt")
-                VStack(spacing: 14) {
-                    ForEach(p.creators) { c in
-                        VStack(alignment: .leading, spacing: 6) {
-                            CreatorRowView(creator: c)
-                            if let bio = c.bio?.nilIfEmpty {
-                                Text(bio).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).padding(.leading, 56)
-                            }
-                        }
-                        if c.id != p.creators.last?.id { Divider().overlay(Color.line) }
-                    }
-                }
-                .padding(16)
-                .cardSurface()
+                    .padding(.horizontal, Space.gutter)
+                DiscoverCreatorPages(creators: p.creators)
             }
-            .padding(.horizontal, Space.gutter)
         case .communities:
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader("Communities", number: number, subtitle: "Gemeinsam werken, fragen, zeigen") {
@@ -321,19 +309,18 @@ private struct DiscoverPageContent: View {
     private func categoryGrid(_ number: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(active == nil ? "Werkstätten" : "Andere Werkstätten", number: number, subtitle: "Jede Kategorie hat ihren eigenen Faden")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(categories) { c in
-                    Button {
-                        Haptics.selection()
-                        if isRoot { router.open(.category(slug: c.slug)) } else { withAnimation(.snappy) { active = c.slug } }
-                    } label: {
-                        DiscoverCategoryTile(category: c, selected: c.slug == active)
-                    }
-                    .buttonStyle(.pressable)
+                .padding(.horizontal, Space.gutter)
+            // Wie Projekte/Anleitungen: seitlich wischbar
+            DiscoverCarousel(items: categories, width: 172, spacing: 10) { c in
+                Button {
+                    Haptics.selection()
+                    if isRoot { router.open(.category(slug: c.slug)) } else { withAnimation(.snappy) { active = c.slug } }
+                } label: {
+                    DiscoverCategoryTile(category: c, selected: c.slug == active)
                 }
+                .buttonStyle(.pressable)
             }
         }
-        .padding(.horizontal, Space.gutter)
     }
 
     // MARK: Kollektionen
@@ -411,5 +398,51 @@ private extension Array where Element == String {
     func removingDuplicates() -> [String] {
         var seen = Set<String>()
         return filter { seen.insert($0.lowercased()).inserted }
+    }
+}
+
+
+// MARK: - Creator: seitlich wischbar, je Seite drei Creator untereinander
+
+private struct DiscoverCreatorPages: View {
+    var creators: [CreatorSuggestion]
+
+    private struct Page: Identifiable { var id: String; var items: [CreatorSuggestion] }
+
+    private var pages: [Page] {
+        stride(from: 0, to: creators.count, by: 3).map { i in
+            let chunk = Array(creators[i..<min(i + 3, creators.count)])
+            return Page(id: chunk.map(\.id).joined(separator: "-"), items: chunk)
+        }
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(alignment: .top, spacing: 12) {
+                ForEach(pages) { page in
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(page.items) { c in
+                            VStack(alignment: .leading, spacing: 6) {
+                                CreatorRowView(creator: c)
+                                Text(c.bio?.nilIfEmpty ?? " ")
+                                    .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                                    .lineLimit(2, reservesSpace: true)
+                                    .padding(.leading, 56)
+                            }
+                            if c.id != page.items.last?.id { Divider().overlay(Color.line) }
+                        }
+                    }
+                    .padding(16)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .cardSurface()
+                    // Nächste Seite lugt hervor → zeigt, dass man wischen kann
+                    .containerRelativeFrame(.horizontal) { w, _ in creators.count > 3 ? w - Space.gutter * 2 - 28 : w - Space.gutter * 2 }
+                }
+            }
+            .scrollTargetLayout()
+            .padding(.horizontal, Space.gutter)
+        }
+        .scrollTargetBehavior(.viewAligned)
+        .scrollClipDisabled()
     }
 }
