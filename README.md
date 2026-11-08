@@ -12,7 +12,7 @@
 | Projekte | Datenblatt, Galerie, Status, Materialien & Werkzeuge, **Projektjournal**, **Nachbauten** mit Originalnennung, Projektfaden |
 | Anleitungen | Strukturierte Schritte, Sicherheitshinweise, Fortschritt je Konto, **Versionierung** mit stabilem Fortschritt |
 | Marktplatz | Shop-Aktivierung, Stripe Connect, Varianten & Bestand, Reservierung, Bestellstatus ≠ Zahlungsstatus, idempotente Webhooks, Bewertungen nach Kauf |
-| Creator | Creator Studio, Blog mit Block-Editor, Communities, Nachrichten |
+| Creator | Werkuno Studio, Blog mit Block-Editor, Communities, Nachrichten |
 | Vertrauen | Moderation mit Fallnummern & Einsprüchen, Hash-verkettetes Audit-Log, Rollen, Accountlöschung & Datenexport |
 | Erlebnis | „Werkbuch“-Designsystem, Three.js-Scrollytelling auf der Landingpage, ⌘K-Befehlspalette, WCAG 2.2 AA |
 

@@ -64,7 +64,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
     return (
       <div>
         <PageHeader
-          kicker="Creator Studio · Shop"
+          kicker="Werkuno Studio · Shop"
           title={shop ? "Shop fertig einrichten" : "Eröffne deinen Shop"}
           description="Verkaufe Einzelstücke, Kleinserien, Materialsets oder digitale Anleitungen – direkt neben deinen Projekten. Der Marktplatz ergänzt die Community, er ersetzt sie nicht."
         />
@@ -108,7 +108,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
   return (
     <div>
       <PageHeader
-        kicker="Creator Studio · Shop"
+        kicker="Werkuno Studio · Shop"
         title={shop.name}
         description={shop.tagline || undefined}
         actions={

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboard } from "lucide-react";
+import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboard, FileText } from "lucide-react";
 import { categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
@@ -20,6 +20,9 @@ import { Cover } from "@/components/ui/media";
 import { Glyph } from "@/components/ui/glyphs";
 import { LinkButton } from "@/components/ui/button";
 import { TabLinks } from "@/components/shell/page";
+import { isPro } from "@/server/pro/service";
+import { featuredProjects } from "@/server/pro/profile";
+import { ProMark } from "@/components/pro/pro-mark";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
 import { cn, formatDate, compactNumber } from "@/lib/utils";
@@ -76,6 +79,8 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   const shop = profile.user.shop && ["ACTIVE", "PAUSED"].includes(profile.user.shop.status) ? profile.user.shop : null;
   const reviewCounts = blocked ? { given: 0, received: 0 } : await profileReviewCounts(userId, shop?.id ?? null, viewerId);
   const showReviews = !!shop || reviewCounts.given > 0;
+  // Creator Pro: Kennzeichen, Schaufenster, Medienkit
+  const [pro, featured] = blocked ? [false, []] : await Promise.all([isPro(userId), featuredProjects(userId, profile.featuredProjectIds, viewerId)]);
   const [projects, tutorials, posts, products, collections, articles, followsYou] = blocked
     ? [null, null, null, [], [], 0, false]
     : await Promise.all([
@@ -147,6 +152,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                 <h1 className="display text-4xl sm:text-5xl">{profile.displayName}</h1>
                 {profile.user.role !== "MEMBER" && <Badge tone="moss">Team</Badge>}
                 {profile.user.shop?.status === "ACTIVE" && <Badge tone="clay">Verkäufer:in</Badge>}
+                {pro && <ProMark size="md" />}
               </div>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                 <span>@{profile.handle}</span>
@@ -162,7 +168,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             {isSelf ? (
               <>
                 <LinkButton href="/einstellungen/profil" variant="outline"><Settings size={15} /> Profil bearbeiten</LinkButton>
-                <LinkButton href="/studio" variant="primary"><LayoutDashboard size={15} /> Creator Studio</LinkButton>
+                <LinkButton href="/studio" variant="primary"><LayoutDashboard size={15} /> Werkuno Studio</LinkButton>
               </>
             ) : viewer && !blocked ? (
               <>
@@ -184,6 +190,19 @@ export default async function ProfilePage({ params, searchParams }: Params) {
         ) : (
           <div className="grid gap-10 py-8 lg:grid-cols-[1fr_280px]">
             <div className="min-w-0">
+              {featured.length > 0 && (
+                <section aria-labelledby="schaufenster" className="mb-10">
+                  <h2 id="schaufenster" className="mb-4 flex items-center gap-2 text-[15px] font-bold tracking-tight">
+                    Schaufenster
+                    <span className="text-[13px] font-normal text-muted">· ausgewählt von {profile.displayName.split(" ")[0]}</span>
+                  </h2>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3">
+                    {featured.map((p, i) => (
+                      <ProjectCard key={p.id} project={p} showAuthor={false} priority={i < 3} ratio="4/3" />
+                    ))}
+                  </div>
+                </section>
+              )}
               <TabLinks active={tab} tabs={tabs.map((t) => ({ ...t, href: `/u/${profile.handle}?tab=${t.key}` }))} />
               <div className="mt-6">
                 {tab === "beitraege" &&
@@ -334,6 +353,14 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                     </li>
                   ))}
                 </ul>
+              )}
+              {pro && (profile.mediaKitPublic || isSelf) && (
+                <Link href={`/u/${profile.handle}/medienkit`} className="flex items-center justify-between rounded-2xl border border-line px-4 py-3 text-sm hover:border-rule-strong">
+                  <span className="inline-flex items-center gap-2">
+                    <FileText size={15} /> Medienkit
+                  </span>
+                  <span className="text-xs text-muted">{profile.mediaKitPublic ? "Für Kooperationen" : "Nur für dich sichtbar"}</span>
+                </Link>
               )}
               {articles > 0 && (
                 <Link href={`/u/${profile.handle}/blog`} className="flex items-center justify-between border border-line px-4 py-3 text-sm hover:border-rule-strong rounded-2xl">

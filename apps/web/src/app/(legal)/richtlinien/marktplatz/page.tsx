@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Marktplatz-Richtlinien", alternates:
 export default async function MarketplaceGuidelinesPage() {
   const feeBps = await getSetting("commerce.feeBps");
   const pct = (feeBps / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
+  const proPct = (Math.min(feeBps, await getSetting("pro.feeBps")) / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
   const example = computeFees(4500, 900, feeBps);
 
   return (
@@ -71,7 +72,7 @@ export default async function MarketplaceGuidelinesPage() {
                 items={[
                   ["Shop eröffnen", "kostenlos"],
                   ["Angebote einstellen", "kostenlos"],
-                  ["Provision", `${pct} % auf den Warenwert eines abgeschlossenen Verkaufs (ohne Versand)`],
+                  ["Provision", `${pct} % auf den Warenwert eines abgeschlossenen Verkaufs (ohne Versand); mit Creator Pro ${proPct} %`],
                   ["Zahlungsabwicklung", "Gebühren des Zahlungsdienstleisters, separat ausgewiesen"],
                   ["Auszahlung", "auf dein hinterlegtes Konto, gemäss Auszahlungsplan des Zahlungsdienstleisters"],
                 ]}

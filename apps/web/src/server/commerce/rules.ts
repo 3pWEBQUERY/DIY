@@ -86,7 +86,7 @@ export function shippingForLines(lines: Pick<PricedLine, "shippingMinor" | "isDi
 export type ShopTotals<L extends PricedLine> = { shopId: string; lines: L[]; fees: FeeBreakdown };
 
 /** Gruppiert Positionen je Shop (→ eine Bestellung pro Shop) und berechnet Gebühren transparent. */
-export function groupByShop<L extends PricedLine>(lines: L[], feeBps: number): ShopTotals<L>[] {
+export function groupByShop<L extends PricedLine>(lines: L[], feeBps: number | ((shopId: string) => number)): ShopTotals<L>[] {
   const groups = new Map<string, L[]>();
   for (const l of lines) {
     if (!Number.isInteger(l.quantity) || l.quantity < 1) throw new Error("Ungültige Menge");
@@ -96,7 +96,7 @@ export function groupByShop<L extends PricedLine>(lines: L[], feeBps: number): S
   }
   return [...groups.entries()].map(([shopId, ls]) => {
     const subtotal = ls.reduce((s, l) => s + l.unitMinor * l.quantity, 0);
-    return { shopId, lines: ls, fees: computeFees(subtotal, shippingForLines(ls), feeBps) };
+    return { shopId, lines: ls, fees: computeFees(subtotal, shippingForLines(ls), typeof feeBps === "function" ? feeBps(shopId) : feeBps) };
   });
 }
 

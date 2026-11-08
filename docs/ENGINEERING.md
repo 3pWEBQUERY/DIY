@@ -10,7 +10,7 @@ Dieses Dokument ist für alle, die am Code arbeiten. Es beschreibt, *wie* gebaut
 | `src/server/<domäne>/` | Domänenmodule (modularer Monolith, §27.1). Nur hier wird auf `db` zugegriffen. Jede Datei beginnt mit `import "server-only"`. |
 | `src/app/(app)/…` | Seiten mit Hauptnavigation (AppShell). |
 | `src/app/(auth)/…` | Anmeldung, Registrierung, Reset. |
-| `src/app/studio/…` | Creator Studio (eigenes Layout). |
+| `src/app/studio/…` | Werkuno Studio (eigenes Layout). |
 | `src/app/admin/…` | Administration & Moderation (eigenes Layout). |
 | `src/app/api/v1/…` | REST-API für iOS & Client-Fetches (`api()`-Wrapper aus `src/server/api.ts`). |
 | `src/components/ui/` | Designsystem-Primitives. |

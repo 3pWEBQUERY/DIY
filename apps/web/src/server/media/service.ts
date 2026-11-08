@@ -4,6 +4,7 @@ import { fail } from "@/server/errors";
 import { limit } from "@/server/ratelimit";
 import { storage, ensureBucketCors } from "@/server/storage";
 import { getSetting } from "@/server/settings";
+import { isPro } from "@/server/pro/service";
 import type { SessionUser } from "@/server/auth/session";
 import { requireFlag } from "@/server/flags";
 
@@ -26,6 +27,14 @@ const EXT: Record<string, string> = {
   "application/zip": "zip",
 };
 
+/** Video-Grenzen: Standard oder – mit Creator Pro – die grosszügigeren Pro-Werte. */
+export async function videoLimits(userId: string) {
+  const [sec, mb, pro] = await Promise.all([getSetting("media.maxVideoSeconds"), getSetting("media.maxVideoMb"), isPro(userId)]);
+  if (!pro) return { maxSeconds: sec, maxMb: mb, pro };
+  const [psec, pmb] = await Promise.all([getSetting("pro.maxVideoSeconds"), getSetting("pro.maxVideoMb")]);
+  return { maxSeconds: Math.max(sec, psec), maxMb: Math.max(mb, pmb), pro };
+}
+
 /** Schritt 1–3 der Media Pipeline: Upload anfordern → Berechtigung & Typ prüfen → signierte Ziel-URL. */
 export async function requestUpload(user: SessionUser, input: { mime: string; bytes: number; purpose?: "public" | "private"; durationSec?: number | null }) {
   await limit("upload", user.id);
@@ -36,13 +45,14 @@ export async function requestUpload(user: SessionUser, input: { mime: string; by
   if (!isImage && !isVideo && !isFile) throw fail.invalid("Dieser Dateityp wird nicht unterstützt.");
   if (isVideo) await requireFlag("uploads.video", user.id);
   if (isFile && input.purpose !== "private") throw fail.invalid("Dateien sind nur für digitale Produkte erlaubt.");
-  const maxMb = isImage ? await getSetting("media.maxImageMb") : isVideo ? await getSetting("media.maxVideoMb") : 100;
+  const limits = isVideo ? await videoLimits(user.id) : null;
+  const maxMb = isImage ? await getSetting("media.maxImageMb") : limits ? limits.maxMb : 100;
   if (!Number.isFinite(input.bytes) || input.bytes <= 0 || input.bytes > maxMb * 1024 * 1024) {
     throw fail.invalid(`Die Datei ist zu gross (max. ${maxMb} MB).`);
   }
   // Frühe Prüfung mit der vom Browser gelesenen Länge; verbindlich prüft der Worker per ffprobe
   if (isVideo && typeof input.durationSec === "number" && Number.isFinite(input.durationSec)) {
-    const maxSec = await getSetting("media.maxVideoSeconds");
+    const maxSec = limits!.maxSeconds;
     if (input.durationSec > maxSec + 1) {
       throw fail.invalid(`Das Video ist zu lang (${Math.round(input.durationSec)} Sek.). Erlaubt sind höchstens ${maxSec >= 60 ? `${Math.round(maxSec / 60)} Min.` : `${maxSec} Sek.`}`);
     }

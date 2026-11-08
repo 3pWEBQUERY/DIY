@@ -26,7 +26,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 
 /** Slugs, die unter /u/[handle]/… bereits von festen Routen belegt sind. */
 const RESERVED_SLUGS = new Set([
-  "blog", "bearbeiten", "projekte", "anleitungen", "beitraege", "produkte", "sammlungen", "gespeichert",
+  "blog", "medienkit", "bearbeiten", "projekte", "anleitungen", "beitraege", "produkte", "sammlungen", "gespeichert",
   "follower", "folgt", "info", "neu", "shop", "medien", "artikel",
 ]);
 
@@ -492,7 +492,7 @@ export async function listOwnProjectOptions(userId: string) {
   return db.project.findMany({ where: { ownerId: userId, state: { not: "REMOVED" } }, orderBy: { updatedAt: "desc" }, take: 100, select: { id: true, title: true } });
 }
 
-/** Creator Studio: eigene Projekte mit ehrlich beschrifteten Kennzahlen. */
+/** Werkuno Studio: eigene Projekte mit ehrlich beschrifteten Kennzahlen. */
 export async function listStudioProjects(userId: string) {
   const rows = await db.project.findMany({
     where: { ownerId: userId, state: { not: "REMOVED" } },

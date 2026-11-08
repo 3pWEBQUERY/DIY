@@ -37,7 +37,7 @@ export default async function StudioProductsPage({ searchParams }: { searchParam
   return (
     <div>
       <PageHeader
-        kicker="Creator Studio · Marktplatz"
+        kicker="Werkuno Studio · Marktplatz"
         title="Produkte"
         description="Deine Angebote im Marktplatz. Verknüpfe sie mit Projekten, damit Käufer:innen sehen, wie sie entstanden sind."
         actions={

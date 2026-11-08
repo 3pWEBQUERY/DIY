@@ -264,7 +264,7 @@ export function notificationHref(n: Pick<NotificationLike, "type" | "data">): st
     case "ORDER_STATUS":
       return "/bestellungen";
     case "SECURITY":
-      return "/einstellungen/sicherheit";
+      return str(data.kind) === "PRO" ? "/studio/pro" : "/einstellungen/sicherheit";
     default:
       return "/benachrichtigungen";
   }

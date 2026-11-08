@@ -32,7 +32,7 @@ const GROUPS: { id: string; title: string; items: Q[] }[] = [
       { q: "Was ist ein Nachbau?", a: <>Wenn du ein Projekt nach dem Vorbild eines anderen machst, verknüpfst du es als Nachbau. Die ursprüngliche Person sieht, was aus ihrer Idee entstanden ist – und du beschreibst, was du anders gemacht hast.</> },
       { q: "Kann ich Anleitungen verkaufen?", a: <>Ja, als digitales Produkt in deinem Shop – wenn die Anleitung von dir stammt. Mehr in den <Link href="/richtlinien/marktplatz">Marktplatz-Richtlinien</Link>.</> },
       { q: "Was passiert mit meinem Fortschritt, wenn eine Anleitung aktualisiert wird?", a: <>Abgehakte Schritte bleiben erhalten. Bei wichtigen Änderungen benachrichtigen wir dich, damit du nichts verpasst.</> },
-      { q: "Wer sieht meine Zahlen im Creator Studio?", a: <>Nur du. „Aufrufe“ zählen Seitenaufrufe, nicht eindeutige Personen; wiederholte Aufrufe innerhalb von 30 Minuten zählen einmal, deine eigenen nie.</> },
+      { q: "Wer sieht meine Zahlen im Werkuno Studio?", a: <>Nur du. „Aufrufe“ zählen Seitenaufrufe, nicht eindeutige Personen; wiederholte Aufrufe innerhalb von 30 Minuten zählen einmal, deine eigenen nie.</> },
     ],
   },
   {

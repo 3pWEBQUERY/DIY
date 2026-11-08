@@ -1,25 +1,19 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/server/auth/session";
 import { LinkButton } from "@/components/ui/button";
-import { Badge, SectionTitle } from "@/components/ui/misc";
+import { SectionTitle } from "@/components/ui/misc";
+import { ProMark } from "@/components/pro/pro-mark";
+import { getProStatus } from "@/server/pro/service";
 import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
-const PRO = [
-  ["Profilgestaltung", "Eigene Profilsektionen, hervorgehobene Projekte und eine Werkstatt-Seite."],
-  ["Erweiterte Statistiken", "Herkunft der Aufrufe, Verläufe über 12 Monate, Export als CSV."],
-  ["Medienkit", "Automatisch erstelltes Portfolio für Kooperationen – mit echten, erklärten Zahlen."],
-  ["Planung", "Beiträge und Journal-Einträge vorbereiten und zeitgesteuert veröffentlichen."],
-  ["Mehr Speicher", "Grössere Videos und mehr Platz in der Medienbibliothek."],
-];
-
-/** Studio-Einstellungen – Creator Pro (PRD §22.3) ist angekündigt, aber noch nicht buchbar. */
+/** Studio-Einstellungen – Konto-Verknüpfungen und Creator Pro (PRD §22.3). */
 export default async function StudioSettingsPage() {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/studio/einstellungen");
+  const pro = await getProStatus(user.id);
   return (
     <div className="max-w-[820px]">
       <header className="mb-10">
@@ -37,28 +31,17 @@ export default async function StudioSettingsPage() {
         </div>
       </section>
 
-      <section aria-labelledby="se2" className="crop border border-line bg-card p-6 sm:p-8 rounded-2xl">
+      <section aria-labelledby="se2" className="rounded-2xl border border-line bg-card p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-3">
           <h2 id="se2" className="headline text-2xl">Creator Pro</h2>
-          <Badge tone="clay">Bald verfügbar</Badge>
+          <ProMark size="md" label={pro.active ? "Aktiv" : "Pro"} />
         </div>
         <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-2">
-          Für Menschen, die mit ihren Projekten wachsen wollen. Die Grundfunktionen von {BRAND.name} – Projekte, Anleitungen, Communities, Shop – bleiben dauerhaft kostenlos. Creator Pro ergänzt Werkzeuge für Profis, ohne die Reichweite anderer zu beschneiden: Bezahlen bringt keine bevorzugte Platzierung im Feed.
+          {pro.active
+            ? "Dein Abo, Schaufenster-Projekte, Medienkit und die Jahresstatistik verwaltest du an einem Ort."
+            : `Schaufenster im Profil, Medienkit, Statistik über 12 Monate, längere Videos und eine tiefere Shop-Provision. Die Grundfunktionen von ${BRAND.name} bleiben kostenlos.`}
         </p>
-        <ol className="mt-6 divide-y divide-line border-y border-line">
-          {PRO.map(([t, d], i) => (
-            <li key={t} className="flex gap-4 py-3">
-              <span className="font-mono text-[11px] text-muted">{String(i + 1).padStart(2, "0")}</span>
-              <span>
-                <span className="block text-sm font-semibold">{t}</span>
-                <span className="block text-[13px] text-muted">{d}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-5 text-xs text-muted">
-          Preise und Start geben wir rechtzeitig bekannt. Wünsche oder Ideen? <Link href="/einstellungen/hilfe-support" className="underline">Schreib uns</Link>.
-        </p>
+        <LinkButton href="/studio/pro" className="mt-5">{pro.active ? "Creator Pro verwalten" : "Creator Pro ansehen"}</LinkButton>
       </section>
     </div>
   );

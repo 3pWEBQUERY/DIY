@@ -449,7 +449,7 @@ export async function getTutorialCards(ids: string[], viewerId: string | null | 
   return ids.map((id) => byId.get(id)).filter((r): r is TutorialCardRow => !!r).map(toTutorialCard);
 }
 
-/** Creator Studio: eigene Anleitungen. */
+/** Werkuno Studio: eigene Anleitungen. */
 export async function listStudioTutorials(userId: string) {
   const rows = await db.tutorial.findMany({
     where: { authorId: userId, state: { not: "REMOVED" } },

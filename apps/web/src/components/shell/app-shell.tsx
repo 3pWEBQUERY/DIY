@@ -40,7 +40,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <SideNav user={shellUser} collapsed={navCollapsed} hide={hide} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile Kopfzeile */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-paper px-4 md:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-paper px-4 md:hidden print:hidden">
           <Link href={user ? "/feed" : "/"} aria-label="Startseite">
             <Wordmark />
           </Link>

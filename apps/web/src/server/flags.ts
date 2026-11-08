@@ -36,6 +36,11 @@ export const FLAGS = {
     description: "Videos in Beiträgen und Projekten hochladen. Fotos sind nicht betroffen.",
     default: true,
   },
+  pro: {
+    label: "Creator Pro buchbar",
+    description: "Creator Pro abschliessen (Abo). Aus: Keine neuen Abos – bestehende Abos und geschenkte Zugänge bleiben aktiv.",
+    default: true,
+  },
   realtime: {
     label: "Live-Updates",
     description: "Badges, Benachrichtigungen und Chats in Echtzeit. Aus: Aktualisierung alle paar Sekunden statt sofort (entlastet den Server).",
@@ -52,6 +57,7 @@ const PAUSED_MESSAGE: Record<FlagKey, string> = {
   "communities.create": "Neue Communities können gerade nicht gegründet werden.",
   "messages.new": "Neue Unterhaltungen sind gerade pausiert. Bestehende Gespräche funktionieren weiter.",
   "uploads.video": "Video-Uploads sind gerade pausiert. Fotos kannst du weiterhin hochladen.",
+  pro: "Creator Pro kann gerade nicht abgeschlossen werden. Bitte versuche es später erneut.",
   realtime: "Live-Updates sind gerade pausiert.",
 };
 

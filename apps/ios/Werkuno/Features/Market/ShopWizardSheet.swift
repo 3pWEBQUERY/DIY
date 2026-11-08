@@ -311,7 +311,7 @@ struct ShopWizardSheet: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Image(systemName: "checkmark.seal.fill").font(.wr(size: 44)).foregroundStyle(Color.moss)
                     Text("Dein Shop ist aktiv.").font(.display(26))
-                    Text("Du kannst jetzt Produkte veröffentlichen. Lege dein erstes Angebot im Creator Studio unter „Produkte“ an.").font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+                    Text("Du kannst jetzt Produkte veröffentlichen. Lege dein erstes Angebot im Werkuno Studio unter „Produkte“ an.").font(.wr(.subheadline)).foregroundStyle(Color.ink2)
                 }
                 Button { dismiss() } label: { Text("Fertig").frame(maxWidth: .infinity) }.primaryButton()
             } else {

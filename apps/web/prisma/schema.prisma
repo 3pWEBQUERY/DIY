@@ -282,6 +282,7 @@ model User {
   communityMemberships CommunityMember[]
   communitiesOwned Community[]
   shop            Shop?
+  subscription    Subscription? @relation("subscriber")
   carts           Cart[]
   orders          Order[]       @relation("buyer")
   reviews         Review[]
@@ -326,6 +327,10 @@ model UserProfile {
   postCount      Int    @default(0)
   projectCount   Int    @default(0)
   dmPolicy     String   @default("FOLLOWING") // EVERYONE | FOLLOWING | NOBODY
+  /// Creator Pro: bis zu 3 hervorgehobene Projekte oben im Profil
+  featuredProjectIds String[] @default([])
+  /// Creator Pro: Medienkit öffentlich unter /u/{handle}/medienkit
+  mediaKitPublic Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1919,4 +1924,30 @@ model CustomerDetails {
   phone      String   @default("")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+/// Creator Pro (PRD §22.3): Abo über Stripe Billing oder von der Administration geschenkt.
+model Subscription {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation("subscriber", fields: [userId], references: [id], onDelete: Cascade)
+  plan              String    @default("PRO")
+  /// month | year | comp (geschenkt)
+  interval          String
+  /// active | trialing | past_due | canceled | incomplete | incomplete_expired | unpaid
+  status            String
+  /// stripe | simulated | comp
+  provider          String
+  customerId        String?
+  subscriptionId    String?   @unique
+  priceMinor        Int?
+  currency          String    @default("CHF")
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  grantedById       String?
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
 }

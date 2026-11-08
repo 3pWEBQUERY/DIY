@@ -224,7 +224,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
             <div>
               <p className="spec mb-1.5">Selbst verkaufen</p>
               <p>
-                Du werkst selbst? <Link href="/studio/shop" className="font-semibold text-ink underline underline-offset-2">Eröffne deinen Shop</Link> im Creator Studio und verknüpfe Produkte mit deinen Projekten.
+                Du werkst selbst? <Link href="/studio/shop" className="font-semibold text-ink underline underline-offset-2">Eröffne deinen Shop</Link> im Werkuno Studio und verknüpfe Produkte mit deinen Projekten.
               </p>
             </div>
           </aside>

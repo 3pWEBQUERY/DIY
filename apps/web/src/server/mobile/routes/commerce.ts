@@ -216,7 +216,7 @@ export const commerceRoutes: RouteDef[] = [
       categoryOptions(),
       id ? products.getProductForEdit(u, id) : Promise.resolve(null),
     ]);
-    if (!shop) throw fail.forbidden("Eröffne zuerst deinen Shop im Creator Studio.");
+    if (!shop) throw fail.forbidden("Eröffne zuerst deinen Shop im Werkuno Studio.");
     return { shop: { id: shop.id, slug: shop.slug, status: shop.status, name: shop.name }, links, feeBps, digitalEnabled, categories, product };
   }),
   POST("/studio/products", async (c) => {

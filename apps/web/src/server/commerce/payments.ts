@@ -342,6 +342,11 @@ async function orderExists(id: string | null | undefined) {
 
 /** Fachliche Behandlung eines verifizierten Stripe-Events. Muss idempotent sein. */
 export async function handleStripeEvent(event: Stripe.Event) {
+  // Creator Pro (Abo) – eigene Ereignisse, Bestell-Checkout bleibt unberührt
+  if (/^(checkout\.session\.completed|customer\.subscription\.|invoice\.payment_failed)/.test(event.type)) {
+    const { handleProStripeEvent } = await import("@/server/pro/service");
+    if (await handleProStripeEvent(event)) return;
+  }
   switch (event.type) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded": {

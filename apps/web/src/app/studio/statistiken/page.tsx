@@ -7,26 +7,57 @@ import { EmptyRow, Table, Td, Th, Tr } from "@/components/admin/ui";
 import { Sparkline } from "@/components/admin/sparkline";
 import { num, shortDate, weekLabel } from "@/components/admin/format";
 import { SectionTitle } from "@/components/ui/misc";
+import { Download } from "lucide-react";
+import { isPro } from "@/server/pro/service";
+import { ProMark } from "@/components/pro/pro-mark";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Statistiken" };
 export const dynamic = "force-dynamic";
 
-export default async function StudioStatsPage() {
-  const user = await currentUser();
+export default async function StudioStatsPage({ searchParams }: { searchParams: Promise<{ zeitraum?: string }> }) {
+  const [user, sp] = await Promise.all([currentUser(), searchParams]);
   if (!user?.profile) redirect("/anmelden?weiter=/studio/statistiken");
-  const s = await contentStats(user.id);
+  const pro = await isPro(user.id);
+  const year = pro && sp.zeitraum === "jahr";
+  const s = await contentStats(user.id, year ? 52 : 12);
   const labels = s.weeks.map(weekLabel);
-  const trend = (id: string) => <Sparkline values={s.trend(id)} labels={labels} label="Aufrufe pro Woche" width={96} height={24} />;
+  const trend = (id: string) => <Sparkline values={s.trend(id)} labels={labels} label="Aufrufe pro Woche" width={year ? 160 : 96} height={24} />;
   const handle = user.profile.handle;
 
   return (
     <div className="max-w-[1100px]">
       <header className="mb-10">
-        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Je Inhalt · Verlauf der letzten 12 Wochen</p>
+        <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />Je Inhalt · Verlauf der letzten {year ? "12 Monate" : "12 Wochen"}</p>
         <h1 className="display text-[2.4rem] sm:text-5xl">Statistiken</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
           „Aufrufe“ sind Seitenaufrufe, nicht eindeutige Besucher. Gemerkt und Nachbauten sagen oft mehr über den Wert eines Projekts als Aufrufe – sie zeigen, dass jemand es selbst machen will.
         </p>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          {pro ? (
+            <>
+              <div className="inline-flex rounded-xl bg-sunken p-1 text-[13px]" role="tablist" aria-label="Zeitraum">
+                {(
+                  [
+                    ["wochen", "12 Wochen", "/studio/statistiken"],
+                    ["jahr", "12 Monate", "/studio/statistiken?zeitraum=jahr"],
+                  ] as const
+                ).map(([k, l, href]) => (
+                  <Link key={k} href={href} role="tab" aria-selected={(k === "jahr") === year} className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted hover:text-ink", (k === "jahr") === year && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
+                    {l}
+                  </Link>
+                ))}
+              </div>
+              <a href={`/studio/statistiken/export${year ? "?zeitraum=jahr" : ""}`} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-line-strong bg-card px-3.5 text-[13px] font-semibold hover:border-rule-strong">
+                <Download size={14} aria-hidden /> Als CSV exportieren
+              </a>
+            </>
+          ) : (
+            <Link href="/studio/pro" className="inline-flex items-center gap-2 rounded-xl bg-sunken px-3.5 py-2 text-[13px] text-ink-2 hover:text-ink">
+              <ProMark /> 12 Monate Verlauf und CSV-Export mit Creator Pro
+            </Link>
+          )}
+        </div>
       </header>
 
       <section aria-labelledby="st1" className="mb-12">

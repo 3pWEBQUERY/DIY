@@ -14,7 +14,7 @@ struct MeView: View {
                 notices
                 quickTiles
                 MeGroup(title: "Werkstatt") {
-                    MeNavRow(symbol: "chart.bar.xaxis", title: "Creator Studio", subtitle: "Inhalte, Kennzahlen, Medien", tint: .moss) { router.open(.studio) }
+                    MeNavRow(symbol: "chart.bar.xaxis", title: "Werkuno Studio", subtitle: "Inhalte, Kennzahlen, Medien", tint: .moss) { router.open(.studio) }
                     if let shop = app.me?.shop {
                         MeNavRow(symbol: "storefront", title: shop.name, subtitle: "Shop · \(L.shopStatus[shop.status] ?? shop.status)", tint: .clay) { router.open(.studioSection(.shop)) }
                     } else {

@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { db } from "@/server/db";
 import { storage, publicMediaUrl } from "@/server/storage";
-import { getSetting } from "@/server/settings";
+import { videoLimits } from "./service";
 import { notify } from "@/server/notifications";
 import { VideoRejected, ffmpegAvailable, transcode } from "./video";
 
@@ -57,7 +57,7 @@ export async function processMedia(mediaId: string) {
         await st.put(key, raw.body, m.mime, "public, max-age=31536000, immutable");
         await db.media.update({ where: { id: m.id }, data: { state: "READY", variants: { video: publicMediaUrl(key) } } });
       } else {
-        const maxSeconds = await getSetting("media.maxVideoSeconds");
+        const { maxSeconds } = await videoLimits(m.ownerId);
         let r;
         try {
           r = await transcode(raw.body, { maxSeconds });

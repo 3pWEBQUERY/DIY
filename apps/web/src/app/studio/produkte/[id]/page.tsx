@@ -21,7 +21,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   return (
     <div>
       <PageHeader
-        kicker="Creator Studio · Produkte"
+        kicker="Werkuno Studio · Produkte"
         title={data.initial.title || "Produkt"}
         actions={
           <>

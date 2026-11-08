@@ -67,3 +67,24 @@ export async function resetMfaAction(userId: string, input: ReasonInput) {
     return null;
   }, "Zwei-Faktor-Anmeldung zurückgesetzt, Sitzungen beendet.");
 }
+
+/** Creator Pro schenken (Tage leer = unbefristet) bzw. geschenkten Zugang entziehen. */
+export async function grantProAction(userId: string, input: ReasonInput) {
+  return act(async () => {
+    const u = await requireRole("ADMIN");
+    const { grantPro } = await import("@/server/pro/service");
+    const r = await grantPro(u, userId, { days: input.days ?? 0, note: input.reason });
+    refresh(userId);
+    return r;
+  }, "Creator Pro wurde geschenkt.");
+}
+
+export async function revokeProAction(userId: string) {
+  return act(async () => {
+    const u = await requireRole("ADMIN");
+    const { revokePro } = await import("@/server/pro/service");
+    const r = await revokePro(u, userId);
+    refresh(userId);
+    return r;
+  }, "Geschenkter Zugang entzogen.");
+}

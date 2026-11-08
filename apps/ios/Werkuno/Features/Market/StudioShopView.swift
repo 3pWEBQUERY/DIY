@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-// MARK: - Creator Studio → Shop
+// MARK: - Werkuno Studio → Shop
 
 struct StudioShopView: View {
     @Environment(AppState.self) private var app
@@ -14,7 +14,7 @@ struct StudioShopView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageTitle(kicker: "Creator Studio", title: "Shop", subtitle: "Status, Verifizierung, Auszahlungen und Einstellungen.")
+                PageTitle(kicker: "Werkuno Studio", title: "Shop", subtitle: "Status, Verifizierung, Auszahlungen und Einstellungen.")
                 if let data {
                     if let s = data.shop { content(s, data) } else { MarketNoShopCTA() }
                 } else if let error {
@@ -194,7 +194,7 @@ struct MarketStudioLink: View {
     }
 }
 
-// MARK: - Creator Studio → Einnahmen (§20.4 – ehrlich beschriftet)
+// MARK: - Werkuno Studio → Einnahmen (§20.4 – ehrlich beschriftet)
 
 struct StudioRevenueView: View {
     @Environment(Router.self) private var router
@@ -209,7 +209,7 @@ struct StudioRevenueView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                PageTitle(kicker: "Creator Studio", title: "Einnahmen", subtitle: "Bezahlte Bestellungen deines Shops – ohne Schönfärberei.")
+                PageTitle(kicker: "Werkuno Studio", title: "Einnahmen", subtitle: "Bezahlte Bestellungen deines Shops – ohne Schönfärberei.")
                     .padding(.horizontal, Space.gutter)
                 if app.me?.shop == nil {
                     MarketNoShopCTA().padding(.horizontal, Space.gutter)

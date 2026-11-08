@@ -63,7 +63,7 @@ export default function PrivacyPage() {
               <h3>Technische Daten</h3>
               <ul>
                 <li>Sitzungsdaten (Gerätebezeichnung wie „Safari auf macOS“, Zeitpunkt der letzten Nutzung, ein gekürzter Hash der IP-Adresse) – zur Sicherheit deines Kontos</li>
-                <li>Pseudonyme Nutzungsereignisse (z.B. „Projekt veröffentlicht“, Seitenaufrufe) ohne Klartext-Personendaten – für Statistiken im Creator Studio und zur Verbesserung der Plattform</li>
+                <li>Pseudonyme Nutzungsereignisse (z.B. „Projekt veröffentlicht“, Seitenaufrufe) ohne Klartext-Personendaten – für Statistiken im Werkuno Studio und zur Verbesserung der Plattform</li>
               </ul>
             </>
           ),

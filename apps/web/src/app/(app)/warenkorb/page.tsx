@@ -81,7 +81,7 @@ export default async function CartPage() {
               <p className="spec mb-3">Zusammenfassung</p>
               <FeeSummary subtotal={cart.totals.subtotal} shipping={cart.totals.shipping} total={cart.totals.total} />
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
-                Für dich fallen keine weiteren Gebühren an. Die Shops zahlen eine Plattformprovision von {formatBps(cart.feeBps)} auf den Warenwert – sie ist im Preis bereits enthalten.
+                Für dich fallen keine weiteren Gebühren an. Die Shops zahlen eine Plattformprovision von höchstens {formatBps(cart.feeBps)} auf den Warenwert – sie ist im Preis bereits enthalten.
               </p>
               {cart.groups.length > 1 && <p className="mt-3 text-[12.5px] leading-relaxed text-muted">Du erhältst {cart.groups.length} Bestellungen, die jeweils direkt vom Shop versendet werden.</p>}
               {cart.mode === "disabled" ? (

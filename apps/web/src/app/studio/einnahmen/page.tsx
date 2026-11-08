@@ -7,7 +7,7 @@ import { getMyShop } from "@/server/commerce/shops";
 import { shopRevenue, type RevenueRange } from "@/server/commerce/revenue";
 import { formatBps } from "@/server/commerce/rules";
 import { paymentsMode } from "@/server/commerce/stripe";
-import { getSetting } from "@/server/settings";
+import { feeForShop } from "@/server/commerce/fees";
 import { PageHeader, TabLinks } from "@/components/shell/page";
 import { PayoutPanel } from "@/components/commerce/payout-panel";
 import { getPayoutOverview, PAYOUT_STATUS_LABEL } from "@/server/commerce/payouts";
@@ -32,14 +32,14 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
   const shop = await getMyShop(user.id);
   if (!shop) redirect("/studio/shop");
   const range = (RANGES.find((r) => r.key === sp.zeitraum)?.key ?? "30") as RevenueRange;
-  const [r, feeBps, payout] = await Promise.all([shopRevenue(shop.id, range), getSetting("commerce.feeBps"), getPayoutOverview(user)]);
+  const [r, feeBps, payout] = await Promise.all([shopRevenue(shop.id, range), feeForShop(shop.id), getPayoutOverview(user)]);
   const c = r.currency as Currency;
   const m = (n: number) => formatMoney(n, c);
   const mode = paymentsMode();
 
   return (
     <div>
-      <PageHeader kicker="Creator Studio · Marktplatz" title="Einnahmen & Auszahlungen" description="Alle Beträge in Rappen genau – so, wie sie verbucht wurden." />
+      <PageHeader kicker="Werkuno Studio · Marktplatz" title="Einnahmen & Auszahlungen" description="Alle Beträge in Rappen genau – so, wie sie verbucht wurden." />
       <TabLinks active={range} tabs={RANGES.map((x) => ({ key: x.key, label: x.label, href: `/studio/einnahmen?zeitraum=${x.key}` }))} />
 
       {mode === "simulated" && (

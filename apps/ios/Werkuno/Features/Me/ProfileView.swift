@@ -78,7 +78,7 @@ struct ProfileView: View {
                     ShareLink(item: MeLinks.profile(prof.handle)) { Label("Profil teilen", systemImage: "square.and.arrow.up") }
                     if viewer.isSelf {
                         Button("Profil bearbeiten", systemImage: "pencil") { router.open(.settingsSection(.profile)) }
-                        Button("Creator Studio", systemImage: "chart.bar.xaxis") { router.open(.studio) }
+                        Button("Werkuno Studio", systemImage: "chart.bar.xaxis") { router.open(.studio) }
                     } else {
                         Button("Nachricht schreiben", systemImage: "bubble.left") { router.present(.newConversation(handle: prof.handle)) }
                         Divider()

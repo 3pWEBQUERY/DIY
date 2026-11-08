@@ -13,6 +13,12 @@ export const SETTING_DEFAULTS = {
   "media.maxVideoSeconds": 180,
   "feed.authorCap": 2, // max. Beiträge pro Autor je Feed-Seite (Vielfalt §9.5)
   "signup.minAge": 18,
+  // Creator Pro (§22.3)
+  "pro.priceMonthMinor": 900, // CHF 9.– pro Monat
+  "pro.priceYearMinor": 9000, // CHF 90.– pro Jahr (2 Monate geschenkt)
+  "pro.feeBps": 400, // tiefere Provision für Pro-Shops
+  "pro.maxVideoSeconds": 600,
+  "pro.maxVideoMb": 1000,
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

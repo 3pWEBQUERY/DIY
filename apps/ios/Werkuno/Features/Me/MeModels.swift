@@ -245,7 +245,7 @@ struct MeShareResult: Decodable, Sendable { var shareToken: String? }
 struct MeMergeResult: Decodable, Sendable { var added: Int?; var merged: Int? }
 struct MeCountResult: Decodable, Sendable { var count: Int?; var removed: Int?; var revoked: Int? }
 
-// MARK: - Creator Studio (§20)
+// MARK: - Werkuno Studio (§20)
 
 struct MeCurPrev: Decodable, Sendable { var cur: Int; var prev: Int }
 

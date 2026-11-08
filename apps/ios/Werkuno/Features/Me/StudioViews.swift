@@ -12,7 +12,7 @@ struct StudioView: View {
     var body: some View {
         MePhase(value: data, error: error, retry: load) { d in content(d) }
             .background(Color.paper)
-            .navigationTitle("Creator Studio")
+            .navigationTitle("Werkuno Studio")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -44,7 +44,7 @@ struct StudioView: View {
         let days = o.periodDays ?? 28
         return ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                PageTitle(kicker: "Creator Studio", title: "Deine Werkstatt in Zahlen", subtitle: "Letzte \(days) Tage im Vergleich zu den \(days) Tagen davor.")
+                PageTitle(kicker: "Werkuno Studio", title: "Deine Werkstatt in Zahlen", subtitle: "Letzte \(days) Tage im Vergleich zu den \(days) Tagen davor.")
 
                 // 01 Reichweite & Resonanz
                 VStack(alignment: .leading, spacing: 12) {

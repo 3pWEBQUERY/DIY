@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Creator Studio → Produkte: Liste mit Status, Bestand, Aufrufen und Schnellaktionen.
+/// Werkuno Studio → Produkte: Liste mit Status, Bestand, Aufrufen und Schnellaktionen.
 struct StudioProductsView: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
@@ -15,7 +15,7 @@ struct StudioProductsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                PageTitle(kicker: "Creator Studio", title: "Produkte", subtitle: "Deine Angebote im Marktplatz – ruhig, ehrlich, mit dem Faden dahinter.")
+                PageTitle(kicker: "Werkuno Studio", title: "Produkte", subtitle: "Deine Angebote im Marktplatz – ruhig, ehrlich, mit dem Faden dahinter.")
                     .padding(.horizontal, Space.gutter)
                 if let data, data.shop == nil {
                     MarketNoShopCTA().padding(.horizontal, Space.gutter)

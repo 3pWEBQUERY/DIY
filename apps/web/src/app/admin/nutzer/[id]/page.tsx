@@ -13,7 +13,9 @@ import { Table, Td, Th, Tr, EmptyRow, RiskMeter } from "@/components/admin/ui";
 import { dateTime, num, shortDate } from "@/components/admin/format";
 import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
-import { changeRoleAction, resetMfaAction, revokeSessionsAction, suspendUserAction, unsuspendUserAction, verifyEmailAction } from "../actions";
+import { changeRoleAction, grantProAction, resetMfaAction, revokeProAction, revokeSessionsAction, suspendUserAction, unsuspendUserAction, verifyEmailAction } from "../actions";
+import { getProStatus } from "@/server/pro/service";
+import { ProMark } from "@/components/pro/pro-mark";
 
 export const metadata: Metadata = { title: "Nutzer" };
 
@@ -34,6 +36,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const isAdmin = hasRole(actor, "ADMIN");
   const isSuper = hasRole(actor, "SUPERADMIN");
   const self = actor.id === u.id;
+  const pro = await getProStatus(u.id);
   const outranked = RANK[u.role] >= RANK[actor.role] && !isSuper;
   const canSanction = !self && !outranked && u.status !== "DELETED";
   const roleChoices = ROLES.filter((r) => r !== u.role && (isSuper || (RANK[r] < RANK.ADMIN && RANK[u.role] < RANK.ADMIN))).map((r) => ({ value: r, label: ROLE_LABEL[r] }));
@@ -95,6 +98,23 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
               confirmLabel="Zurücksetzen"
               confirmVariant="danger"
             />
+          )}
+          {isAdmin && u.status !== "DELETED" && !(pro.active && pro.provider !== "comp") && (
+            pro.active ? (
+              <ActionButton action={revokeProAction.bind(null, u.id)} label="Pro entziehen" confirm="Geschenkten Creator-Pro-Zugang entziehen?" />
+            ) : (
+              <ReasonButton
+                action={grantProAction.bind(null, u.id)}
+                label="Pro schenken"
+                variant="outline"
+                title="Creator Pro schenken"
+                description="Zum Beispiel für Partner:innen oder als Dankeschön. Ohne Anzahl Tage gilt der Zugang unbefristet. Die Person wird benachrichtigt."
+                withDays
+                daysOptional
+                reasonLabel="Interne Notiz"
+                confirmLabel="Schenken"
+              />
+            )
           )}
           {isAdmin && !u.emailVerifiedAt && u.status !== "DELETED" && <ActionButton action={verifyEmailAction.bind(null, u.id)} label="E-Mail bestätigen" confirm="E-Mail-Adresse manuell als bestätigt markieren?" />}
           {isAdmin && !self && roleChoices.length > 0 && u.status !== "DELETED" && (
@@ -220,6 +240,17 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             <SectionTitle n="05" title="Rollen & Berechtigungen" />
             <ul className="mt-3 space-y-2 text-[13px]">
               <li className="flex justify-between"><span>Plattformrolle</span><span className="font-semibold">{ROLE_LABEL[u.role]}</span></li>
+              <li className="flex items-center justify-between gap-3">
+                <span>Creator Pro</span>
+                {pro.active ? (
+                  <span className="inline-flex items-center gap-2 text-muted">
+                    <ProMark /> {pro.provider === "comp" ? "geschenkt" : pro.interval === "year" ? "jährlich" : "monatlich"}
+                    {pro.periodEnd ? ` · bis ${shortDate(pro.periodEnd)}` : ""}
+                  </span>
+                ) : (
+                  <span className="text-muted">–</span>
+                )}
+              </li>
               {u.roleAssignments.map((r) => (
                 <li key={r.id} className="flex justify-between gap-3">
                   <span className="font-mono text-[12px]">{r.role}</span>

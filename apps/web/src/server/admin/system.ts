@@ -25,6 +25,11 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; gro
   "media.maxVideoMb": { label: "Max. Videogrösse", help: "Pro Datei.", group: "Medien", unit: "MB", min: 10, max: 2000 },
   "media.maxVideoSeconds": { label: "Max. Videolänge", help: "Längere Videos werden abgelehnt.", group: "Medien", unit: "Sek.", min: 10, max: 1800 },
   "feed.authorCap": { label: "Beiträge pro Autor je Feed-Seite", help: "Sichert Vielfalt im Feed (§9.5).", group: "Feed", min: 1, max: 10 },
+  "pro.priceMonthMinor": { label: "Creator Pro – Preis pro Monat", help: "In Rappen (900 = CHF 9.–). Gilt für neue Abos.", group: "Creator Pro", unit: "Rp.", min: 100, max: 100000 },
+  "pro.priceYearMinor": { label: "Creator Pro – Preis pro Jahr", help: "In Rappen (9000 = CHF 90.–). Gilt für neue Abos.", group: "Creator Pro", unit: "Rp.", min: 100, max: 1000000 },
+  "pro.feeBps": { label: "Creator Pro – Plattformprovision", help: "Tiefere Provision für Shops mit Creator Pro (400 = 4 %).", group: "Creator Pro", unit: "bps", min: 0, max: 3000, format: "bps" },
+  "pro.maxVideoSeconds": { label: "Creator Pro – max. Videolänge", help: "Statt der Standard-Videolänge.", group: "Creator Pro", unit: "Sek.", min: 10, max: 3600 },
+  "pro.maxVideoMb": { label: "Creator Pro – max. Videogrösse", help: "Pro Datei.", group: "Creator Pro", unit: "MB", min: 10, max: 4000 },
   "signup.minAge": { label: "Mindestalter", help: "Plattform ist für Erwachsene konzipiert (§8.4).", group: "Registrierung", unit: "Jahre", min: 16, max: 21 },
 };
 
@@ -50,7 +55,7 @@ export async function updateSetting(actor: Actor, key: string, raw: unknown) {
     value = z.coerce.number().int("Ganzzahl erwartet").min(meta.min ?? 0, `Mindestens ${meta.min}`).max(meta.max ?? 1_000_000, `Höchstens ${meta.max}`).parse(raw);
   }
   // Provisionserhöhungen sind kritisch → nur SUPERADMIN
-  if (k === "commerce.feeBps" && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Die Provision ändert nur die Superadministration.");
+  if ((k === "commerce.feeBps" || k === "pro.feeBps") && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Die Provision ändert nur die Superadministration.");
   const prev = await db.systemSetting.findUnique({ where: { key } });
   await db.$transaction(async (tx) => {
     await tx.systemSetting.upsert({ where: { key }, create: { key, value: value as Prisma.InputJsonValue, updatedBy: actor.id }, update: { value: value as Prisma.InputJsonValue, updatedBy: actor.id } });
@@ -61,7 +66,7 @@ export async function updateSetting(actor: Actor, key: string, raw: unknown) {
 export async function resetSetting(actor: Actor, key: string) {
   admin(actor);
   if (!(key in SETTING_DEFAULTS)) throw fail.invalid("Unbekannte Einstellung.");
-  if (key === "commerce.feeBps" && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Die Provision ändert nur die Superadministration.");
+  if ((key === "commerce.feeBps" || key === "pro.feeBps") && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Die Provision ändert nur die Superadministration.");
   await db.$transaction(async (tx) => {
     const del = await tx.systemSetting.deleteMany({ where: { key } });
     if (del.count) await audit({ actorId: actor.id, action: "admin.setting_reset", targetType: "SYSTEM_SETTING", targetId: key }, tx);

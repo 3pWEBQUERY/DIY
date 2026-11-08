@@ -5,6 +5,7 @@ import { db, type Prisma } from "@/server/db";
 import { AppError, fail } from "@/server/errors";
 import { limit } from "@/server/ratelimit";
 import { getSetting } from "@/server/settings";
+import { feeResolver } from "./fees";
 import { humanCode, token } from "@/server/crypto";
 import type { SessionUser } from "@/server/auth/session";
 import { OutOfStockError, reserve } from "./inventory";
@@ -83,8 +84,7 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
   let created: { id: string; number: string; totalMinor: number; shippingMinor: number; platformFeeMinor: number; currency: string; destination: string | null; lines: { name: string; unitMinor: number; quantity: number }[] }[] = [];
   try {
     await abandonOwnPending(user.id);
-    const [feeBps, reservationMinutes, digitalEnabled] = await Promise.all([
-      getSetting("commerce.feeBps"),
+    const [reservationMinutes, digitalEnabled] = await Promise.all([
       getSetting("commerce.reservationMinutes"),
       getSetting("commerce.digitalEnabledWeb"),
     ]);
@@ -140,7 +140,9 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
         }
         if (new Set(lines.map((l) => l.currency)).size > 1) throw fail.invalid("Artikel in verschiedenen Währungen können nicht gemeinsam bestellt werden.");
 
-        const groups = groupByShop(lines, feeBps);
+        // Provision je Shop (Creator Pro: tiefer)
+        const fee = await feeResolver(lines.map((l) => l.shopId));
+        const groups = groupByShop(lines, fee);
         if (data.expectedTotalMinor != null && data.expectedTotalMinor !== grandTotal(groups).total) {
           throw fail.conflict("Preise oder Versandkosten haben sich geändert. Bitte prüfe deine Bestellung erneut.");
         }
@@ -171,7 +173,7 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
               shippingMinor: g.fees.shipping,
               totalMinor: g.fees.total,
               platformFeeMinor: g.fees.platformFee,
-              feeBps,
+              feeBps: fee(g.shopId),
               shippingAddress: party.shippingAddress,
               buyerDetails: party.buyerDetails,
               buyerNote: data.buyerNote,

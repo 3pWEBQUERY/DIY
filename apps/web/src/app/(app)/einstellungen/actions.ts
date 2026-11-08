@@ -78,7 +78,7 @@ export async function revokeOtherSessionsAction() {
 
 export async function signOutAction() {
   await destroySession();
-  redirect("/anmelden");
+  redirect("/");
 }
 
 export async function updateNotificationPrefsAction(input: unknown) {

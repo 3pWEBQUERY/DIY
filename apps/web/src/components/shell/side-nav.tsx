@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays } from "lucide-react";
+import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, LogOut, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays } from "lucide-react";
+import { signOutAction } from "@/app/(auth)/actions";
 import { Dialog } from "@/components/ui/dialog";
 import { cn, pad } from "@/lib/utils";
 import { MAIN_NAV, MOBILE_NAV } from "./nav-config";
@@ -95,7 +96,7 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
     <nav
       aria-label="Hauptnavigation"
       data-nav={collapsed ? "closed" : "open"}
-      className="group/nav sticky top-0 z-20 hidden h-dvh w-[84px] shrink-0 py-3 pl-3 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:block nav-open:w-[276px]"
+      className="group/nav sticky top-0 z-20 hidden h-dvh print:!hidden w-[84px] shrink-0 py-3 pl-3 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:block nav-open:w-[276px]"
     >
       <div className="relative flex h-full flex-col overflow-hidden rounded-[26px] bg-rail text-ink">
         <div className="flex h-[68px] shrink-0 items-center px-3 nav-open:px-5">
@@ -191,15 +192,20 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
                   </Tip>
                 ))}
               </div>
-              <Tip disabled={!rail} content={<TipBody label={user.displayName} hint={`@${user.handle} · Profil ansehen`} />}>
-                <Link href={`/u/${user.handle}`} aria-label="Dein Profil" className="group flex items-center gap-3 rounded-2xl p-[7px] transition-colors hover:bg-paper hover:text-ink">
-                  <Avatar src={user.avatarUrl} name={user.displayName} size={34} />
-                  <span className="hidden min-w-0 nav-open:block">
-                    <span className="block truncate text-sm font-semibold">{user.displayName}</span>
-                    <span className="block truncate text-xs text-muted">@{user.handle}</span>
-                  </span>
-                </Link>
-              </Tip>
+              <div className="flex flex-col items-stretch gap-1 nav-open:flex-row nav-open:items-center">
+                <Tip disabled={!rail} content={<TipBody label={user.displayName} hint={`@${user.handle} · Profil ansehen`} />} className="min-w-0 nav-open:flex-1">
+                  <Link href={`/u/${user.handle}`} aria-label="Dein Profil" className="group flex items-center gap-3 rounded-2xl p-[7px] transition-colors hover:bg-paper hover:text-ink">
+                    <Avatar src={user.avatarUrl} name={user.displayName} size={34} />
+                    <span className="hidden min-w-0 nav-open:block">
+                      <span className="block truncate text-sm font-semibold">{user.displayName}</span>
+                      <span className="block truncate text-xs text-muted">@{user.handle}</span>
+                    </span>
+                  </Link>
+                </Tip>
+                <Tip content={<TipBody label="Abmelden" hint="Zurück zur Startseite" />}>
+                  <SignOutIcon />
+                </Tip>
+              </div>
             </>
           ) : (
             <div className="flex flex-col gap-2">
@@ -251,6 +257,23 @@ export function secondaryLinks(user: NonNullable<ShellUser>, cart: number, hide:
   ].filter((l) => !hide.includes(l.href));
 }
 
+/** Abmelden: Sitzung beenden und zur Startseite. */
+function SignOutIcon() {
+  const [pending, setPending] = useState(false);
+  return (
+    <form action={signOutAction} onSubmit={() => setPending(true)}>
+      <button
+        type="submit"
+        disabled={pending}
+        aria-label="Abmelden"
+        className="flex h-9 w-full items-center justify-center rounded-xl text-muted transition-colors hover:bg-paper hover:text-danger disabled:opacity-50 nav-open:size-9"
+      >
+        <LogOut size={16} strokeWidth={1.8} />
+      </button>
+    </form>
+  );
+}
+
 function MiniLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   const pathname = usePathname();
   return (
@@ -295,6 +318,13 @@ export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUse
               </Link>
             </li>
           ))}
+          <li>
+            <form action={signOutAction}>
+              <button type="submit" className="flex h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-[15px] text-danger hover:bg-sunken">
+                <LogOut size={18} aria-hidden /> Abmelden
+              </button>
+            </form>
+          </li>
         </ul>
       </Dialog>
     </>
@@ -307,7 +337,7 @@ export function BottomNav({ user, hide = [] }: { user: ShellUser; hide?: string[
   const pathname = usePathname();
   const items = MAIN_NAV.filter((i) => MOBILE_NAV.includes(i.href) && !hide.includes(i.href));
   return (
-    <nav aria-label="Navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper safe-bottom md:hidden">
+    <nav aria-label="Navigation" className="fixed inset-x-0 bottom-0 z-40 print:hidden border-t border-line bg-paper safe-bottom md:hidden">
       <ul className="grid grid-cols-5">
         {items.map((item) => {
           const href = !user && item.auth ? "/anmelden" : item.href;

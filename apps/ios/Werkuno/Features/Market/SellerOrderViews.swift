@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Creator Studio → Bestellungen
+// MARK: - Werkuno Studio → Bestellungen
 
 struct StudioOrdersView: View {
     @Environment(AppState.self) private var app
@@ -23,7 +23,7 @@ struct StudioOrdersView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                PageTitle(kicker: "Creator Studio", title: "Bestellungen", subtitle: "In der Reihenfolge des Arbeitsablaufs – älteste offene zuerst.")
+                PageTitle(kicker: "Werkuno Studio", title: "Bestellungen", subtitle: "In der Reihenfolge des Arbeitsablaufs – älteste offene zuerst.")
                     .padding(.horizontal, Space.gutter)
                 if app.me?.shop == nil {
                     MarketNoShopCTA().padding(.horizontal, Space.gutter)

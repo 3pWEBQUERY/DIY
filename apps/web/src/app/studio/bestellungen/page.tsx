@@ -35,7 +35,7 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
 
   return (
     <div>
-      <PageHeader kicker="Creator Studio · Marktplatz" title="Bestellungen" description={working ? "Älteste zuerst – so bleibt nichts liegen." : undefined} />
+      <PageHeader kicker="Werkuno Studio · Marktplatz" title="Bestellungen" description={working ? "Älteste zuerst – so bleibt nichts liegen." : undefined} />
       <TabLinks
         active={tab.key}
         tabs={SELLER_ORDER_TABS.map((t) => ({ key: t.key, label: t.label, count: counts[t.status] ?? 0, href: `/studio/bestellungen?status=${t.key}` }))}

@@ -4,6 +4,7 @@ import { db, type Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
 import { getSetting } from "@/server/settings";
+import { feeResolver } from "./fees";
 import { isBlockedBetween } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
 import type { Variants } from "@/components/ui/media";
@@ -104,17 +105,19 @@ function toLine(r: CartRow, opts: { digitalEnabled: boolean }): CartLineView {
 
 /** Warenkorb gruppiert nach Shop – mit vollständiger Kostenaufstellung (§5.7). */
 export async function getCartView(userId: string) {
-  const [feeBps, digitalEnabled] = await Promise.all([getSetting("commerce.feeBps"), getSetting("commerce.digitalEnabledWeb")]);
-  const cart = await db.cart.findUnique({ where: { userId }, include: { items: { include: cartItemInclude, orderBy: { createdAt: "asc" } } } });
+  const [digitalEnabled, cart] = await Promise.all([getSetting("commerce.digitalEnabledWeb"), db.cart.findUnique({ where: { userId }, include: { items: { include: cartItemInclude, orderBy: { createdAt: "asc" } } } })]);
   const rows = cart?.items ?? [];
+  const fee = await feeResolver(rows.map((r) => r.product.shop.id));
+  const feeBps = fee.base;
   const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled }) }));
   const priced = lines.map((l) => ({ ...l.view, shopId: l.row.product.shop.id }));
-  const groups = groupByShop(priced, feeBps).map((g) => {
+  const groups = groupByShop(priced, fee).map((g) => {
     const shop = rows.find((r) => r.product.shop.id === g.shopId)!.product.shop;
     return {
       shop: { id: shop.id, slug: shop.slug, name: shop.name, processingDays: shop.processingDays, country: shop.country },
       lines: g.lines,
       fees: g.fees,
+      feeBps: fee(g.shopId),
       purchasable: g.lines.every((l) => !l.problem),
     };
   });

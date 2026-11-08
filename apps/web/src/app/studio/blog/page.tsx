@@ -44,7 +44,7 @@ export default async function StudioBlogPage({ searchParams }: { searchParams: P
   return (
     <div className="max-w-[1100px]">
       <PageHeader
-        kicker="Creator Studio · Blog"
+        kicker="Werkuno Studio · Blog"
         title="Deine Artikel"
         description="Schreibe Werkstattberichte, Materialkunde oder Hintergründe zu deinen Projekten. Entwürfe sind nur für dich sichtbar."
         actions={

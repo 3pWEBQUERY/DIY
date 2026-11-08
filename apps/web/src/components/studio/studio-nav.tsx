@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn, pad } from "@/lib/utils";
+import { ProMark } from "@/components/pro/pro-mark";
 
 /** Navigationspunkte gemäss PRD §6.3. */
 export const STUDIO_NAV = [
@@ -17,10 +18,11 @@ export const STUDIO_NAV = [
   { href: "/studio/medien", label: "Medienbibliothek" },
   { href: "/studio/statistiken", label: "Statistiken" },
   { href: "/studio/einnahmen", label: "Einnahmen & Auszahlungen", shop: true },
+  { href: "/studio/pro", label: "Creator Pro", pro: true },
   { href: "/studio/einstellungen", label: "Einstellungen" },
 ];
 
-export function StudioNav({ hasShop }: { hasShop: boolean }) {
+export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?: boolean }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Studio" className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-60 shrink-0 overflow-y-auto border-r border-line py-6 md:block">
@@ -42,6 +44,7 @@ export function StudioNav({ hasShop }: { hasShop: boolean }) {
                 <span className={cn("font-mono text-[10px]", active ? "text-paper/60" : "text-muted/70")}>{pad(i + 1)}</span>
                 <span className="truncate">{item.label}</span>
                 {disabled && <span className="ml-auto spec">Shop</span>}
+                {"pro" in item && item.pro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label={isPro ? "Aktiv" : "Pro"} />}
               </Link>
             </li>
           );

@@ -5,7 +5,7 @@ import { storage } from "@/server/storage";
 import { weekKeys, weeklySeries } from "@/server/admin/kpis";
 
 /**
- * Kennzahlen für das Creator Studio (PRD §20). Ehrlich beschriftet (§20.4):
+ * Kennzahlen für das Werkuno Studio (PRD §20). Ehrlich beschriftet (§20.4):
  * „Aufrufe“ sind keine eindeutigen Besucher; Zeiträume sind immer angegeben.
  */
 
@@ -230,8 +230,8 @@ export async function listOwnContent(userId: string, handle: string, opts: { typ
 
 /* ───────────── Statistik je Inhalt ───────────── */
 
-export async function contentStats(userId: string) {
-  const keys = weekKeys();
+export async function contentStats(userId: string, weeks = 12) {
+  const keys = weekKeys(weeks);
   const start = new Date(`${keys[0]}T00:00:00Z`);
   const [projects, tutorials, articles, posts, products, series] = await Promise.all([
     db.project.findMany({ where: { ownerId: userId, state: { in: ["PUBLISHED", "HIDDEN"] } }, orderBy: { viewCount: "desc" }, take: 60, select: { id: true, title: true, viewCount: true, likeCount: true, saveCount: true, commentCount: true, remixCount: true, publishedAt: true } }),
@@ -250,7 +250,8 @@ export async function contentStats(userId: string) {
     byId.get(r.id)!.set(r.wk, Number(r.n));
   }
   const trend = (id: string) => keys.map((k) => byId.get(id)?.get(k) ?? 0);
-  return { projects, tutorials, articles, posts, products, trend, weeks: keys };
+  const viewsInRange = (id: string) => trend(id).reduce((a, b) => a + b, 0);
+  return { projects, tutorials, articles, posts, products, trend, viewsInRange, weeks: keys };
 }
 
 /* ───────────── Medienbibliothek ───────────── */

@@ -8,7 +8,11 @@ import * as moderation from "@/server/moderation/service";
 import * as users from "@/server/admin/users";
 import * as content from "@/server/admin/content";
 import { adminNavCounts, dashboardKpis } from "@/server/admin/kpis";
-import { DELETE, GET, PATCH, POST, int, me, str, type RouteDef } from "../router";
+import { DELETE, GET, PATCH, POST, PUT, int, me, str, type RouteDef } from "../router";
+import { db } from "@/server/db";
+import { flagEnabled } from "@/server/flags";
+import * as pro from "@/server/pro/service";
+import * as proProfile from "@/server/pro/profile";
 
 async function moderator() {
   const u = await me();
@@ -16,9 +20,36 @@ async function moderator() {
   return u;
 }
 
-/** Creator Studio (PRD §20) und Moderation/Administration (PRD §24, rollenbasiert). */
+/** Werkuno Studio (PRD §20) und Moderation/Administration (PRD §24, rollenbasiert). */
 export const studioAdminRoutes: RouteDef[] = [
-  // ── Creator Studio ──
+  // ── Werkuno Studio ──
+  // Creator Pro: Status, Preise, Abschluss (Stripe Checkout im Browser), Kündigung, Profilwerkzeuge
+  GET("/studio/pro", async () => {
+    const u = await me();
+    const [status, prices, enabled, profile] = await Promise.all([
+      pro.getProStatus(u.id),
+      pro.proPrices(),
+      flagEnabled("pro", u.id),
+      db.userProfile.findUnique({ where: { userId: u.id }, select: { featuredProjectIds: true, mediaKitPublic: true, handle: true } }),
+    ]);
+    return { status, prices, enabled, featuredProjectIds: profile?.featuredProjectIds ?? [], mediaKitPublic: !!profile?.mediaKitPublic, mediaKitUrl: profile ? `/u/${profile.handle}/medienkit` : null, featuredMax: proProfile.FEATURED_MAX };
+  }),
+  POST("/studio/pro/checkout", async (c) => {
+    const { interval } = await c.json<{ interval?: string }>();
+    return { url: await pro.startProCheckout(await me(), interval) };
+  }),
+  POST("/studio/pro/cancel", async (c) => {
+    const { cancel } = await c.json<{ cancel?: boolean }>();
+    return pro.setProCancel(await me(), cancel !== false);
+  }),
+  PUT("/studio/pro/featured", async (c) => {
+    const { ids } = await c.json<{ ids?: string[] }>();
+    return proProfile.setFeaturedProjects(await me(), ids ?? []);
+  }),
+  PUT("/studio/pro/media-kit", async (c) => {
+    const { public: value } = await c.json<{ public?: boolean }>();
+    return proProfile.setMediaKitPublic(await me(), !!value);
+  }),
   GET("/studio/overview", async () => {
     const u = await me();
     const [overview, heat] = await Promise.all([studio.studioOverview(u.id), studio.publishingHeat(u.id, 12)]);

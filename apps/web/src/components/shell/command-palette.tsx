@@ -24,7 +24,7 @@ const ACTIONS: Hit[] = [
   { type: "action", id: "a3", title: "Neue Anleitung", subtitle: "Schritt-für-Schritt-Tutorial", href: "/studio/anleitungen/neu" },
   { type: "action", id: "a4", title: "Neuer Artikel", subtitle: "Blogbeitrag schreiben", href: "/studio/blog/neu" },
   { type: "action", id: "a5", title: "Einkaufslisten", subtitle: "Materialien organisieren", href: "/einkaufslisten" },
-  { type: "action", id: "a6", title: "Creator Studio", subtitle: "Inhalte, Shop & Statistiken", href: "/studio" },
+  { type: "action", id: "a6", title: "Werkuno Studio", subtitle: "Inhalte, Shop & Statistiken", href: "/studio" },
 ];
 
 export function openCommandPalette() {

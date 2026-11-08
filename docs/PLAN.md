@@ -137,7 +137,7 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Alle Ereignisse aus §19.1, In-App + E-Mail, Einstellungen je Ereignis/Kanal, Bündelung
 - 🍎 iOS-Push
 
-### WP14 – Creator Studio (CREATOR-001 … CREATOR-030)
+### WP14 – Werkuno Studio (CREATOR-001 … CREATOR-030)
 - [x] Übersicht mit ehrlich beschrifteten Kennzahlen (§20.4)
 - [x] Inhalte, Projekte, Tutorials, Blog, Produkte, Bestellungen, Shop, Medien, Einnahmen
 
