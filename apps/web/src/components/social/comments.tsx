@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { TargetType } from "@/generated/prisma/enums";
 import type { CommentView } from "@/server/social/interactions";
 import { Avatar } from "@/components/ui/misc";
@@ -56,15 +56,23 @@ export function Comments({
   );
 }
 
-function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDone, autoFocus }: { targetType: TargetType; targetId: string; parentId?: string; viewer: { displayName: string; avatarUrl: string | null }; placeholder: string; onDone: () => void; autoFocus?: boolean }) {
-  const [body, setBody] = useState("");
+function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDone, autoFocus, initialBody = "" }: { targetType: TargetType; targetId: string; parentId?: string; viewer: { displayName: string; avatarUrl: string | null }; placeholder: string; onDone: () => void; autoFocus?: boolean; initialBody?: string }) {
+  const [body, setBody] = useState(initialBody);
+  const field = useRef<HTMLTextAreaElement>(null);
+  // Bei vorausgefüllter @Erwähnung den Cursor ans Ende setzen
+  useEffect(() => {
+    if (!autoFocus || !field.current) return;
+    const el = field.current;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [autoFocus]);
   const [pending, start] = useTransition();
   return (
     <form
       className="flex items-start gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!body.trim()) return;
+        if (!body.trim() || body.trim() === initialBody.trim()) return;
         start(async () => {
           const r = await commentAction(targetType, targetId, { body, parentId });
           if (r.ok) {
@@ -77,6 +85,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
       <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={32} />
       <div className="flex-1">
         <textarea
+          ref={field}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder={placeholder}
@@ -89,7 +98,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
           }}
           className="block min-h-10 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[15px] outline-none field-sizing-content focus:border-moss"
         />
-        {body.trim() && (
+        {body.trim() && body.trim() !== initialBody.trim() && (
           <div className="mt-2 flex justify-end">
             <Button type="submit" size="sm" disabled={pending}>Senden</Button>
           </div>
@@ -116,11 +125,13 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c
           {c.isQuestion && <span className="spec text-clay">Frage</span>}
           {c.isAnswer && <span className="spec text-moss">Lösung</span>}
         </div>
-        <p className="mt-0.5 whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{c.body}</p>
+        <p className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-ink-2"><WithMentions text={c.body} /></p>
         <div className="mt-1.5 flex items-center gap-4">
           <LikeButton type="COMMENT" id={c.id} liked={c.liked} count={c.likeCount} size="sm" />
-          {viewer && !isReply && (
-            <button type="button" onClick={() => setReplying((r) => !r)} className="text-xs font-semibold text-muted hover:text-ink">Antworten</button>
+          {viewer && (
+            <button type="button" onClick={() => setReplying((r) => !r)} aria-expanded={replying} className={cn("text-xs font-semibold hover:text-ink", replying ? "text-moss" : "text-muted")}>
+              Antworten
+            </button>
           )}
           {viewer && viewer.id !== c.author.id && (
             <button type="button" onClick={() => setReporting(true)} className="text-xs text-muted hover:text-ink">Melden</button>
@@ -137,7 +148,17 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c
         </div>
         {replying && viewer && (
           <div className="mt-3">
-            <CommentForm targetType={targetType} targetId={targetId} parentId={c.id} viewer={viewer} placeholder={`Antwort an ${c.author.displayName} …`} autoFocus onDone={() => { setReplying(false); onChange(); }} />
+            <CommentForm
+              targetType={targetType}
+              targetId={targetId}
+              parentId={c.id}
+              viewer={viewer}
+              placeholder={`Antwort an ${c.author.displayName} …`}
+              // Antwort auf eine Antwort: landet im selben Faden, mit @Erwähnung der Person
+              initialBody={isReply && viewer.id !== c.author.id ? `@${c.author.handle} ` : ""}
+              autoFocus
+              onDone={() => { setReplying(false); onChange(); }}
+            />
           </div>
         )}
         {replies.length > 0 && (
@@ -150,5 +171,23 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c
         <ReportDialog open={reporting} onClose={() => setReporting(false)} targetType="COMMENT" targetId={c.id} />
       </div>
     </li>
+  );
+}
+
+/** @Erwähnungen im Kommentartext als Profil-Links hervorheben. */
+function WithMentions({ text }: { text: string }) {
+  const parts = text.split(/(@[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?)/gi);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <Link key={i} href={`/u/${part.slice(1).toLowerCase()}`} className="font-semibold text-moss hover:underline">
+            {part}
+          </Link>
+        ) : (
+          part
+        ),
+      )}
+    </>
   );
 }
