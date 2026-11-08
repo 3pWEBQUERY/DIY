@@ -372,6 +372,16 @@ export const conversationStartSchema = z.object({
 
 export type MessageSendInput = z.infer<typeof messageSendSchema>;
 
+/** Gruppenchat: Name und 2–24 weitere Personen (max. 25 inkl. Ersteller:in). */
+export const GROUP_MAX_MEMBERS = 25;
+export const groupTitleSchema = z.string().trim().min(1, "Gib der Gruppe einen Namen").max(60, "Höchstens 60 Zeichen");
+export const groupCreateSchema = z.object({
+  title: groupTitleSchema,
+  handles: z.array(z.string().trim().min(1)).min(2, "Wähle mindestens zwei Personen").max(GROUP_MAX_MEMBERS - 1, `Höchstens ${GROUP_MAX_MEMBERS} Personen pro Gruppe`),
+  body: z.string().trim().max(5000).default(""),
+});
+export const groupAddMembersSchema = z.object({ handles: z.array(z.string().trim().min(1)).min(1, "Wähle mindestens eine Person").max(GROUP_MAX_MEMBERS - 1) });
+
 // ───────────────────────── Events (Communities) ─────────────────────────
 
 export const EVENT_KINDS = ["MEETUP", "WORKSHOP", "SWAP", "OTHER"] as const;

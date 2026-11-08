@@ -1132,7 +1132,10 @@ model CommunityChallenge {
 
 model Conversation {
   id           String   @id @default(cuid())
-  kind         String   @default("DIRECT") // DIRECT | ORDER
+  kind         String   @default("DIRECT") // DIRECT | ORDER | GROUP
+  /// Gruppenname (nur GROUP)
+  title        String?
+  createdById  String?
   orderId      String?
   productId    String?
   lastMessageAt DateTime @default(now())
@@ -1152,6 +1155,9 @@ model ConversationMember {
   lastReadAt     DateTime?
   archivedAt     DateTime?
   isRequest      Boolean      @default(false)
+  /// Gruppen: ADMIN darf Mitglieder verwalten und umbenennen
+  role           String       @default("MEMBER")
+  joinedAt       DateTime     @default(now())
 
   @@id([conversationId, userId])
   @@index([userId])
@@ -1164,6 +1170,8 @@ model Message {
   senderId       String
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
   body           String
+  /// TEXT | SYSTEM (Gruppenereignisse wie „X hat Y hinzugefügt“)
+  kind           String       @default("TEXT")
   media          Json         @default("[]")
   flags          String[]     @default([]) // SUSPICIOUS_PAYMENT_LINK, …
   state          ContentState @default(PUBLISHED)

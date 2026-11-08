@@ -58,10 +58,12 @@ const profileSelect = { id: true, status: true, profile: { select: { handle: tru
 
 type MediaItem = { id: string; url: string; thumb: string; alt: string; width: number | null; height: number | null };
 
-function messageView(m: { id: string; body: string; media: unknown; flags: string[]; state: string; createdAt: Date; senderId: string }, viewerId: string) {
+function messageView(m: { id: string; body: string; media: unknown; flags: string[]; state: string; createdAt: Date; senderId: string; kind?: string }, viewerId: string) {
   const removed = m.state !== "PUBLISHED";
   return {
     id: m.id,
+    /** Gruppenereignis („X hat Y hinzugefügt“) statt Nachricht */
+    system: m.kind === "SYSTEM",
     body: removed ? "" : m.body,
     media: removed ? [] : ((Array.isArray(m.media) ? m.media : []) as MediaItem[]),
     flags: m.flags,
@@ -99,7 +101,8 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
       ...where,
       conversation: {
         messages: { some: {} },
-        ...(rel.blocked.length ? { members: { none: { userId: { in: rel.blocked } } } } : {}),
+        // Blockierte Personen blenden Einzelgespräche aus – Gruppen bleiben sichtbar
+        ...(rel.blocked.length ? { OR: [{ kind: "GROUP" }, { members: { none: { userId: { in: rel.blocked } } } }] } : {}),
       },
     },
     orderBy: { conversation: { lastMessageAt: "desc" } },
@@ -108,7 +111,7 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
       conversation: {
         include: {
           members: { where: { userId: { not: userId } }, include: { user: { select: profileSelect } } },
-          messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, media: true, senderId: true, createdAt: true, state: true, flags: true } },
+          messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, media: true, senderId: true, createdAt: true, state: true, flags: true, kind: true } },
         },
       },
     },
@@ -121,15 +124,20 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
     const other = c.members[0]?.user;
     const last = c.messages[0];
     const unread = !!last && last.senderId !== userId && (!r.lastReadAt || r.lastReadAt < c.lastMessageAt);
-    const preview = !last ? "" : last.state !== "PUBLISHED" ? "Nachricht entfernt" : last.body ? last.body.slice(0, 140) : Array.isArray(last.media) && last.media.length ? "Bild" : "";
+    const isGroup = c.kind === "GROUP";
+    const text = !last ? "" : last.state !== "PUBLISHED" ? "Nachricht entfernt" : last.body ? last.body.slice(0, 140) : Array.isArray(last.media) && last.media.length ? "Bild" : "";
+    // Gruppen: Absender:in vor die Vorschau (ausser bei Systemhinweisen und eigenen Nachrichten)
+    const sender = isGroup && last && last.senderId !== userId && last.kind !== "SYSTEM" ? c.members.find((m) => m.userId === last.senderId)?.user.profile?.displayName?.split(" ")[0] : null;
+    const preview = sender ? `${sender}: ${text}` : text;
     return {
       id: c.id,
-      kind: c.kind as "DIRECT" | "ORDER",
+      kind: c.kind as "DIRECT" | "ORDER" | "GROUP",
+      group: isGroup ? { title: c.title ?? "Gruppe", memberCount: c.members.length + 1, avatars: c.members.slice(0, 2).map((m) => ({ name: m.user.profile?.displayName ?? "", avatarUrl: m.user.profile?.avatarUrl ?? null })) } : null,
       orderNumber: c.orderId ? onum.get(c.orderId) ?? null : null,
       isProductInquiry: c.kind === "ORDER" && !c.orderId && !!c.productId,
       lastMessageAt: c.lastMessageAt.toISOString(),
       preview,
-      lastFromMe: last?.senderId === userId,
+      lastFromMe: last?.senderId === userId && last.kind !== "SYSTEM",
       flagged: !!last?.flags.includes("SUSPICIOUS_PAYMENT_LINK") && last.senderId !== userId,
       unread,
       other: other
@@ -142,7 +150,7 @@ export type ConversationListItem = Awaited<ReturnType<typeof listConversations>>
 
 export async function inboxCounts(userId: string) {
   const rel = await relationsFor(userId);
-  const notBlocked = rel.blocked.length ? { members: { none: { userId: { in: rel.blocked } } } } : {};
+  const notBlocked = rel.blocked.length ? { OR: [{ kind: "GROUP" }, { members: { none: { userId: { in: rel.blocked } } } }] } : {};
   const [requests, unread] = await Promise.all([
     db.conversationMember.count({ where: { userId, isRequest: true, archivedAt: null, conversation: { messages: { some: {} }, ...notBlocked } } }),
     db.$queryRaw<{ n: bigint }[]>`
@@ -203,7 +211,8 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   const me = await membershipOrThrow(user.id, conversationId);
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
   const others = await otherMembers(conversationId, user.id);
-  const other = others[0];
+  const isGroup = conv.kind === "GROUP";
+  const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound("Unterhaltung nicht gefunden.");
   const before = opts.before ? new Date(opts.before) : null;
   const rows = await db.message.findMany({
@@ -214,9 +223,31 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   const hasMore = rows.length > PAGE;
   const messages = rows.slice(0, PAGE).reverse().map((m) => messageView(m, user.id));
   const ownCount = await db.message.count({ where: { conversationId, senderId: user.id } });
+  const group = isGroup
+    ? {
+        title: conv.title ?? "Gruppe",
+        isAdmin: me.role === "ADMIN",
+        // Alle aktuellen Mitglieder inkl. mir (für Namen über den Nachrichten und die Mitgliederliste)
+        members: [
+          { userId: user.id, role: me.role, isRequest: me.isRequest, archivedAt: me.archivedAt, user: { id: user.id, status: "ACTIVE", profile: user.profile } },
+          ...others,
+        ]
+          .filter((m) => !isDeclined(m))
+          .map((m) => ({
+            id: m.userId,
+            handle: m.user.profile?.handle ?? "",
+            displayName: m.user.status === "DELETED" ? "Gelöschtes Konto" : m.user.profile?.displayName ?? "Unbekannt",
+            avatarUrl: m.user.profile?.avatarUrl ?? null,
+            role: m.role as "ADMIN" | "MEMBER",
+            pending: m.isRequest,
+            me: m.userId === user.id,
+          })),
+      }
+    : null;
   return {
     id: conv.id,
-    kind: conv.kind as "DIRECT" | "ORDER",
+    kind: conv.kind as "DIRECT" | "ORDER" | "GROUP",
+    group,
     messages,
     hasMore,
     me: { isRequest: me.isRequest, archived: !!me.archivedAt, lastReadAt: me.lastReadAt?.toISOString() ?? null },
@@ -234,7 +265,7 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
         }
       : null,
     context: await orderContext(conv, user.id),
-    canSend: canMessage(user) && !!other && other.user.status === "ACTIVE" && !isDeclined(other),
+    canSend: isGroup ? canMessage(user) && others.length > 0 : canMessage(user) && !!other && other.user.status === "ACTIVE" && !isDeclined(other),
     requestQuotaLeft: other?.isRequest ? Math.max(0, MAX_UNANSWERED_REQUEST_MESSAGES - ownCount) : null,
     messagingRestrictedUntil: !canMessage(user) ? user.messagingRestrictedUntil?.toISOString() ?? null : null,
   };
@@ -253,7 +284,9 @@ export async function messagesSince(user: SessionUser, conversationId: string, a
     }),
     otherMembers(conversationId, user.id),
   ]);
-  const other = others[0];
+  const isGroup = (await db.conversation.findUnique({ where: { id: conversationId }, select: { kind: true } }))?.kind === "GROUP";
+  // Gruppen: keine Lesebestätigungen und keine Blockier-Sperre
+  const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound();
   return {
     messages: rows.map((m) => messageView(m, user.id)),
@@ -288,14 +321,17 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
   const data = messageSendSchema.parse(input);
   assertCanMessage(user);
   const me = await membershipOrThrow(user.id, conversationId);
-  const others = await otherMembers(conversationId, user.id);
-  if (!others.length) throw fail.invalid("Diese Unterhaltung hat keine Empfänger:innen mehr.");
-  for (const o of others) {
+  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, select: { kind: true, title: true } });
+  const isGroup = conv.kind === "GROUP";
+  // Gruppen: an alle Mitglieder ausser abgelehnten Einladungen; Blockieren gilt hier nicht als Sperre
+  const others = (await otherMembers(conversationId, user.id)).filter((o) => !isGroup || !isDeclined(o));
+  if (!others.length) throw fail.invalid(isGroup ? "In dieser Gruppe ist sonst niemand mehr." : "Diese Unterhaltung hat keine Empfänger:innen mehr.");
+  for (const o of isGroup ? [] : others) {
     if (await isBlockedBetween(user.id, o.userId)) throw fail.forbidden("Du kannst dieser Person keine Nachrichten senden.");
     if (o.user.status !== "ACTIVE") throw fail.forbidden("Dieses Konto kann derzeit keine Nachrichten empfangen.");
     if (isDeclined(o)) throw fail.forbidden("Diese Nachricht kann nicht zugestellt werden.");
   }
-  if (others.some((o) => o.isRequest)) {
+  if (!isGroup && others.some((o) => o.isRequest)) {
     const sent = await db.message.count({ where: { conversationId, senderId: user.id } });
     if (sent >= MAX_UNANSWERED_REQUEST_MESSAGES) throw fail.invalid("Warte, bis deine Kontaktanfrage angenommen wurde, bevor du weitere Nachrichten schickst.");
   }
@@ -319,8 +355,21 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
   const excerpt = data.body ? data.body.slice(0, 120) : "Hat dir ein Bild geschickt.";
   // Erste Nachricht einer Kontaktanfrage: genau eine Benachrichtigung pro Unterhaltung
   // (weitere Nachrichten sind bis zur Annahme ohnehin begrenzt → kein Spam-Kanal)
-  const firstRequestMessage = others.some((o) => o.isRequest) && (await db.message.count({ where: { conversationId, senderId: user.id } })) === 1;
+  const firstRequestMessage = !isGroup && others.some((o) => o.isRequest) && (await db.message.count({ where: { conversationId, senderId: user.id } })) === 1;
   for (const o of others) {
+    if (isGroup) {
+      // Offene Einladungen und inaktive Konten nicht anpingen
+      if (o.isRequest || o.user.status !== "ACTIVE") continue;
+      await notify({
+        recipientId: o.userId,
+        type: "MESSAGE",
+        actorId: user.id,
+        targetType: "MESSAGE",
+        targetId: conversationId,
+        data: { group: conv.title ?? "Gruppe", href: `/nachrichten/${conversationId}`, excerpt: flags.length ? "Neue Nachricht" : excerpt },
+      }).catch(() => {});
+      continue;
+    }
     if (o.isRequest) {
       if (!firstRequestMessage) continue;
       await notify({
@@ -484,10 +533,24 @@ export async function setArchived(user: SessionUser, conversationId: string, arc
 export async function respondToRequest(user: SessionUser, conversationId: string, accept: boolean) {
   const m = await membershipOrThrow(user.id, conversationId);
   if (!m.isRequest) return { accepted: true };
+  const conv = await db.conversation.findUnique({ where: { id: conversationId }, select: { kind: true } });
+  if (conv?.kind === "GROUP" && !accept) {
+    // Gruppeneinladung ablehnen: still aus der Gruppe entfernen
+    await db.conversationMember.delete({ where: { conversationId_userId: { conversationId, userId: user.id } } });
+    await db.notification.updateMany({ where: { recipientId: user.id, targetType: "MESSAGE", targetId: conversationId, readAt: null }, data: { readAt: new Date() } });
+    void publish([user.id], { t: "counts" });
+    return { accepted: false };
+  }
   await db.conversationMember.update({
     where: { conversationId_userId: { conversationId, userId: user.id } },
     data: accept ? { isRequest: false, archivedAt: null, lastReadAt: new Date() } : { archivedAt: new Date() },
   });
+  if (accept && conv?.kind === "GROUP") {
+    const m2 = await db.message.create({ data: { conversationId, senderId: user.id, body: `${user.profile?.displayName ?? "Jemand"} ist der Gruppe beigetreten.`, kind: "SYSTEM" } });
+    await db.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: m2.createdAt } });
+    const all = await db.conversationMember.findMany({ where: { conversationId }, select: { userId: true } });
+    void publish(all.map((x) => x.userId), { t: "message", c: conversationId });
+  }
   await db.notification.updateMany({ where: { recipientId: user.id, targetType: "MESSAGE", targetId: conversationId, readAt: null }, data: { readAt: new Date() } });
   void publish([user.id], { t: "counts" });
   return { accepted: accept };

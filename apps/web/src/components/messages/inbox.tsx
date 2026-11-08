@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PenSquare, ShieldAlert } from "lucide-react";
+import { PenSquare, ShieldAlert, UsersRound } from "lucide-react";
 import type { ConversationListItem, InboxBox } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,18 @@ function stamp(iso: string) {
   return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: diff > 300 ? "2-digit" : undefined });
 }
 
+/** Zwei überlappende Profilbilder als Gruppenbild. */
+export function GroupAvatar({ avatars, size = 42, className }: { avatars: { name: string; avatarUrl: string | null }[]; size?: number; className?: string }) {
+  const inner = Math.round(size * 0.68);
+  const [a, b] = avatars;
+  return (
+    <span className={cn("relative block shrink-0", className)} style={{ width: size, height: size }} aria-hidden>
+      {b && <Avatar src={b.avatarUrl} name={b.name} size={inner} className="absolute right-0 top-0" />}
+      {a ? <Avatar src={a.avatarUrl} name={a.name} size={inner} className="absolute bottom-0 left-0 ring-2 ring-paper" /> : <span className="grid size-full place-items-center rounded-full bg-sunken"><UsersRound size={18} /></span>}
+    </span>
+  );
+}
+
 /** Unterhaltungsliste mit Ordnern (Posteingang / Anfragen / Archiv) und Ungelesen-Status. */
 export function InboxPane({ box, items, activeId, counts, className }: { box: InboxBox; items: ConversationListItem[]; activeId?: string; counts: { requests: number; unread: number }; className?: string }) {
   const q = (b: InboxBox) => (BOX_PARAM[b] ? `?ordner=${BOX_PARAM[b]}` : "");
@@ -36,9 +48,14 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
           <p className="spec">Nachrichten</p>
           <h1 className="display mt-1 text-3xl">Gespräche</h1>
         </div>
-        <Link href="/nachrichten/neu" className="grid size-10 place-items-center border border-line-strong hover:border-rule-strong rounded-xl" aria-label="Neue Nachricht">
-          <PenSquare size={17} />
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/nachrichten/gruppe/neu" className="grid size-10 place-items-center border border-line-strong hover:border-rule-strong rounded-xl" aria-label="Neue Gruppe" title="Neue Gruppe">
+            <UsersRound size={17} />
+          </Link>
+          <Link href="/nachrichten/neu" className="grid size-10 place-items-center border border-line-strong hover:border-rule-strong rounded-xl" aria-label="Neue Nachricht" title="Neue Nachricht">
+            <PenSquare size={17} />
+          </Link>
+        </div>
       </div>
       <InboxLive />
       <nav aria-label="Ordner" className="flex gap-5 border-b border-line px-4 sm:px-5">
@@ -74,12 +91,12 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                     className={cn("flex gap-3 rounded-2xl px-3 py-3 transition-colors", active ? "bg-moss text-paper" : c.unread ? "bg-card hover:bg-moss-soft/50" : "hover:bg-card")}
                   >
                     <span className="relative shrink-0">
-                      <Avatar src={c.other.avatarUrl} name={c.other.displayName} size={42} />
+                      {c.group ? <GroupAvatar avatars={c.group.avatars} /> : <Avatar src={c.other.avatarUrl} name={c.other.displayName} size={42} />}
                       {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-moss" : "border-paper")} aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className={cn("truncate text-[14.5px]", c.unread ? "font-bold" : "font-semibold")}>{c.other.displayName}</span>
+                        <span className={cn("truncate text-[14.5px]", c.unread ? "font-bold" : "font-semibold")}>{c.group ? c.group.title : c.other.displayName}</span>
                         <time dateTime={c.lastMessageAt} className={cn("shrink-0 font-mono text-[10px] num", active ? "text-paper/70" : c.unread ? "text-ink" : "text-muted")}>{stamp(c.lastMessageAt)}</time>
                       </span>
                       {(c.orderNumber || c.isProductInquiry) && (

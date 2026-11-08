@@ -5,6 +5,7 @@ import * as cs from "@/server/communities/service";
 import * as ev from "@/server/communities/events";
 import * as blog from "@/server/blog/service";
 import * as msg from "@/server/messaging/service";
+import * as groups from "@/server/messaging/groups";
 import { listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
 import { browseCategories, categoryOptions, effectiveCategories } from "@/server/categories/settings";
 import { DELETE, GET, PATCH, POST, PUT, int, me, meAllowSuspended, need, str, viewer, viewerId, type RouteDef } from "../router";
@@ -212,6 +213,15 @@ export const communityRoutes: RouteDef[] = [
     return { items, counts };
   }),
   POST("/conversations", async (c) => msg.startConversation(await me(), await c.json())),
+  // ── Gruppenchats ──
+  // { title, handles: string[], body? }
+  POST("/conversations/groups", async (c) => groups.createGroup(await me(), await c.json())),
+  GET("/conversations/groups/candidates", async () => groups.groupCandidates(await me())),
+  POST("/conversations/:id/members", async (c) => groups.addGroupMembers(await me(), c.p.id!, await c.json())),
+  DELETE("/conversations/:id/members/:userId", async (c) => groups.removeGroupMember(await me(), c.p.id!, c.p.userId!)),
+  POST("/conversations/:id/members/:userId/admin", async (c) => groups.setGroupAdmin(await me(), c.p.id!, c.p.userId!, !!(await c.json<{ admin?: boolean }>()).admin)),
+  POST("/conversations/:id/leave", async (c) => groups.leaveGroup(await me(), c.p.id!)),
+  PATCH("/conversations/:id", async (c) => groups.renameGroup(await me(), c.p.id!, (await c.json<{ title?: string }>()).title)),
   GET("/conversations/prepare", async (c) => {
     const handle = str(c.q, "handle");
     if (!handle) throw fail.invalid("handle fehlt.");

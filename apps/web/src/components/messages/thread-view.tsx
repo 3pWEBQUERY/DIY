@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Flag, ShieldAlert } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Flag, Info, LogOut, ShieldAlert } from "lucide-react";
 import type { MessageView, ThreadData } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ import { archiveConversationAction, loadOlderMessagesAction, markReadAction, res
 import { cn, formatDate } from "@/lib/utils";
 import { MessageComposer, type ComposerHandle } from "./composer";
 import { ContextCard } from "./context-card";
+import { GroupInfo } from "./group-info";
+import { GroupAvatar } from "./inbox";
+import { leaveGroupAction } from "@/app/(app)/nachrichten/actions";
 import { LIVE_EVENT, refreshCounts, type LiveDetail } from "@/components/shell/live-counts";
 
 const POLL_MS = 5000; // Rückfall, falls der Live-Kanal (SSE) nicht verfügbar ist
@@ -51,14 +54,30 @@ function Warning() {
   );
 }
 
-function Bubble({ m, otherName, onReport, showTime }: { m: MessageView; otherName: string; onReport: () => void; showTime: boolean }) {
+type Sender = { displayName: string; avatarUrl: string | null; handle: string };
+
+function Bubble({ m, otherName, onReport, showTime, sender }: { m: MessageView; otherName: string; onReport: () => void; showTime: boolean; sender?: Sender | null }) {
   const flagged = !m.mine && m.flags.includes("SUSPICIOUS_PAYMENT_LINK");
+  if (m.system) {
+    return (
+      <p className="mx-auto my-2 w-fit max-w-[90%] rounded-full bg-sunken px-3.5 py-1 text-center text-[12.5px] text-ink-2" role="note">
+        {m.body}
+      </p>
+    );
+  }
   return (
     <div className={cn("group flex flex-col", m.mine ? "items-end" : "items-start")}>
+      {/* Gruppen: Name über der ersten Nachricht einer Folge */}
+      {sender && (
+        <Link href={`/u/${sender.handle}`} className="mb-1 ml-1 flex items-center gap-1.5 text-[12px] font-semibold text-ink-2 hover:underline">
+          <Avatar src={sender.avatarUrl} name={sender.displayName} size={18} />
+          {sender.displayName}
+        </Link>
+      )}
       {flagged && <Warning />}
       <div className={cn("flex max-w-[85%] items-end gap-2 sm:max-w-[70%]", m.mine && "flex-row-reverse")}>
         <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "rounded-[20px] border border-dashed border-line-strong text-muted" : m.mine ? "rounded-[20px] rounded-br-md bg-moss text-paper" : "rounded-[20px] rounded-bl-md border border-line bg-card text-ink", flagged && "border-warn")}>
-          <p className="sr-only">{m.mine ? "Du" : otherName}, {time(m.createdAt)}:</p>
+          <p className="sr-only">{m.mine ? "Du" : sender?.displayName ?? otherName}, {time(m.createdAt)}:</p>
           {m.removed ? (
             <p className="text-sm">Diese Nachricht wurde entfernt.</p>
           ) : (
@@ -107,12 +126,15 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
   const [newBelow, setNewBelow] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
   const [reportUser, setReportUser] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const group = thread.group;
+  const people = new Map((group?.members ?? []).map((p) => [p.id, p]));
   const [pending, start] = useTransition();
   const scroller = useRef<HTMLDivElement>(null);
   const composer = useRef<ComposerHandle>(null);
   const lastAt = useRef(thread.messages.at(-1)?.createdAt ?? null);
   const nearBottom = useRef(true);
-  const otherName = thread.other?.displayName ?? "Unbekannt";
+  const otherName = group ? group.title : thread.other?.displayName ?? "Unbekannt";
   const backHref = box === "inbox" ? "/nachrichten" : `/nachrichten?ordner=${box === "requests" ? "anfragen" : "archiv"}`;
 
   // Server-Refresh: gleiche Unterhaltung → zusammenführen (ältere geladene Nachrichten bleiben), neue → ersetzen
@@ -162,10 +184,11 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
       if (data.messages.length) {
         lastAt.current = data.messages.at(-1)!.createdAt;
         setMessages((prev) => merge(prev, data.messages));
-        const incoming = data.messages.filter((m) => !m.mine);
+        if (group && data.messages.some((m) => m.system)) router.refresh();
+        const incoming = data.messages.filter((m) => !m.mine && !m.system);
         if (incoming.length) {
           const last = incoming.at(-1)!;
-          setAnnounce(`Neue Nachricht von ${otherName}: ${last.body ? last.body.slice(0, 120) : "Bild"}`);
+          setAnnounce(`Neue Nachricht von ${people.get(last.senderId)?.displayName ?? otherName}: ${last.body ? last.body.slice(0, 120) : "Bild"}`);
           if (nearBottom.current) requestAnimationFrame(() => scrollToBottom(true));
           else setNewBelow(true);
           await markReadAction(thread.id);
@@ -176,6 +199,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
     } catch {
       /* Netzwerk – nächster Versuch beim nächsten Intervall */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread.id, otherName, router]);
 
   // Echtzeit: neue Nachricht oder Lesebestätigung in genau dieser Unterhaltung → sofort abholen
@@ -242,6 +266,24 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
     });
 
   const menu: MenuItem[] = [
+    ...(group
+      ? [
+          { label: "Gruppeninfo", icon: <Info size={15} />, onSelect: () => setInfoOpen(true) },
+          {
+            label: "Gruppe verlassen",
+            icon: <LogOut size={15} />,
+            danger: true,
+            onSelect: () =>
+              confirm("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") &&
+              start(async () => {
+                const r = await leaveGroupAction(thread.id);
+                if (!r.ok) return toast(r.error, "error");
+                toast(r.message ?? "");
+                router.push("/nachrichten");
+              }),
+          },
+        ]
+      : []),
     ...(!isRequest
       ? [
           {
@@ -290,7 +332,17 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
         <Link href={backHref} className="grid size-9 place-items-center text-muted hover:text-ink md:hidden" aria-label="Zurück zur Übersicht">
           <ArrowLeft size={18} />
         </Link>
-        {thread.other ? (
+        {group ? (
+          <button type="button" onClick={() => setInfoOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <GroupAvatar avatars={group.members.filter((p) => !p.me).slice(0, 2).map((p) => ({ name: p.displayName, avatarUrl: p.avatarUrl }))} size={38} />
+            <span className="min-w-0">
+              <span className="block truncate font-semibold hover:underline">{group.title}</span>
+              <span className="block truncate text-xs text-muted">
+                {group.members.filter((p) => !p.pending).length} Mitglieder · {group.members.filter((p) => !p.me && !p.pending).map((p) => p.displayName.split(" ")[0]).slice(0, 4).join(", ")}
+              </span>
+            </span>
+          </button>
+        ) : thread.other ? (
           <Link href={`/u/${thread.other.handle}`} className="flex min-w-0 flex-1 items-center gap-3">
             <Avatar src={thread.other.avatarUrl} name={otherName} size={36} />
             <span className="min-w-0">
@@ -343,8 +395,14 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
                     <span className="h-px flex-1 bg-line" />
                   </p>
                 )}
-                <Bubble m={m} otherName={otherName} onReport={() => setReportId(m.id)} showTime={showTime} />
-                {lastMine?.id === m.id && (
+                <Bubble
+                  m={m}
+                  otherName={otherName}
+                  onReport={() => setReportId(m.id)}
+                  showTime={showTime}
+                  sender={group && !m.mine && !m.system && (i === 0 || messages[i - 1]!.senderId !== m.senderId || messages[i - 1]!.system || sep) ? (people.get(m.senderId) ?? { displayName: "Ehemaliges Mitglied", avatarUrl: null, handle: "" }) : null}
+                />
+                {!group && lastMine?.id === m.id && (
                   <p className="mt-0.5 text-right text-[11px] text-muted" aria-live="polite">
                     {lastMineRead ? "Gelesen" : otherPending ? "Als Kontaktanfrage zugestellt" : "Zugestellt"}
                   </p>
@@ -362,6 +420,15 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
 
       <p className="sr-only" aria-live="polite" role="status">{announce}</p>
 
+      {isRequest && group && (
+        <div className="border-t border-line bg-sunken px-4 py-3">
+          <p className="text-sm">Du wurdest in die Gruppe <strong className="font-semibold">{group.title}</strong> eingeladen. Erst wenn du annimmst, sehen die anderen, dass du dabei bist.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button size="sm" disabled={pending} onClick={() => respond(true)}>Beitreten</Button>
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => respond(false)}>Ablehnen</Button>
+          </div>
+        </div>
+      )}
       {isRequest && thread.other && (
         <div className="border-t border-line bg-sunken px-4 py-3">
           <p className="text-sm"><strong className="font-semibold">{otherName}</strong> möchte dir schreiben. {otherName} sieht nicht, ob du die Nachricht gelesen hast, bis du annimmst.</p>
@@ -385,15 +452,18 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
         disabledReason={
           thread.messagingRestrictedUntil
             ? `Deine Nachrichtenfunktion ist bis ${formatDate(thread.messagingRestrictedUntil, { day: "numeric", month: "long" })} eingeschränkt.`
-            : thread.other?.declined
+            : group
+              ? "In dieser Gruppe ist sonst niemand mehr."
+              : thread.other?.declined
               ? "Diese Unterhaltung ist geschlossen."
               : !thread.other?.active
                 ? "Dieses Konto kann derzeit keine Nachrichten empfangen."
                 : undefined
         }
-        placeholder={isRequest ? "Antworten nimmt die Anfrage an …" : `Nachricht an ${otherName} …`}
+        placeholder={isRequest ? (group ? "Schreiben tritt der Gruppe bei …" : "Antworten nimmt die Anfrage an …") : `Nachricht an ${otherName} …`}
       />
 
+      {group && <GroupInfo open={infoOpen} onClose={() => setInfoOpen(false)} conversationId={thread.id} group={group} />}
       {reportId && <ReportDialog open onClose={() => setReportId(null)} targetType="MESSAGE" targetId={reportId} />}
       {thread.other && <ReportDialog open={reportUser} onClose={() => setReportUser(false)} targetType="USER" targetId={thread.other.id} />}
     </section>

@@ -79,7 +79,7 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Folgen, Melden, Blockieren (wechselseitig), Stummschalten
 - [x] Ranking: Frische, Interessen-Match, Qualität, Diversität (Autor-Deckel), kein reines Follower-Ranking
 - [x] Verkaufsposts gekennzeichnet; Dedupe im Feed
-- ⏳ Umfragen, Entwürfe, geplante Veröffentlichung, Koautoren
+- ✅ Umfragen (2–4 Antworten, 1/3/7 Tage, Mehrfachauswahl) · ⏳ Entwürfe, geplante Veröffentlichung, Koautoren
 
 ### WP4 – Projekte (PROJ-001 … PROJ-035) – Produktkern
 - [x] Projekt-CRUD mit allen Feldern aus §10.2, Status §10.3
@@ -116,12 +116,12 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 ### WP9 – Communities (GROUP-001 … GROUP-030)
 - [x] Öffentlich / Beitrittsanfrage / Privat, Regeln, Rollen, Anheften, Ankündigungen
 - [x] Gruppenmoderation (Community-Moderator-Rolle)
-- ⏳ Events, Wettbewerbe, Workshops
+- ✅ Events/Workshops/Tauschbörsen (Zusagen, Plätze, Erinnerung, .ics) · ✅ Challenges · ⏳ Wettbewerbe mit Einreichungen
 
 ### WP10 – Nachrichten (MSG-001 … MSG-020)
 - [x] Direktnachrichten, Käufer↔Verkäufer-Kontext, Bilder, Archiv, Melden
 - [x] Kontaktanfragen beschränken, Rate Limit, Warnung bei verdächtigen Zahlungslinks
-- ⏳ Gruppenchats · ❗ keine E2E-Werbung (§16.3)
+- ✅ Gruppenchats (bis 25, Admins, Einladungen nach DM-Einstellung) · ❗ keine E2E-Werbung (§16.3)
 
 ### WP11 – Materialien (MAT-001 … MAT-030)
 - [x] Materialdatenbank, Projekt-Materiallisten mit Mengen
@@ -223,6 +223,4 @@ keine JS-Fehler) sowie End-to-End-Abläufen:
 - `RESEND_API_KEY` für echte E-Mails; Apple-Login-Schlüssel.
 - Rechtstexte juristisch prüfen (Platzhalter `[Firma]`, `[Adresse]`).
 - Video-Transkodierung (ffmpeg-Worker) – Videos werden derzeit unverändert ausgeliefert.
-- Verkäufer-Antwort auf Bewertungen (Feld vorhanden, UI fehlt).
-- Hinweis an Moderation bei Beitrittsanfragen (derzeit nur Zähler).
 - **iOS-App: Schlussphase** (WP19).
