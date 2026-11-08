@@ -56,7 +56,8 @@ export async function publish(userIds: string[], e: LiveEvent) {
   const u = [...new Set(userIds)].filter(Boolean);
   if (!u.length) return;
   try {
-    await db.$queryRaw`SELECT pg_notify(${CHANNEL}, ${JSON.stringify({ u, e } satisfies Payload)})`;
+    // $executeRaw: pg_notify liefert void – $queryRaw kann diese Spalte nicht deserialisieren
+    await db.$executeRaw`SELECT pg_notify(${CHANNEL}, ${JSON.stringify({ u, e } satisfies Payload)})`;
   } catch {
     /* Echtzeit ist ein Komfort – Polling fängt es auf */
   }

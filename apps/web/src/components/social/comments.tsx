@@ -19,6 +19,7 @@ export function Comments({
   viewer,
   placeholder = "Kommentieren …",
   questionsMode,
+  canModerate,
 }: {
   targetType: TargetType;
   targetId: string;
@@ -26,6 +27,8 @@ export function Comments({
   viewer: { id: string; displayName: string; avatarUrl: string | null } | null;
   placeholder?: string;
   questionsMode?: boolean;
+  /** Eigentümer:in des Inhalts darf Kommentare darunter entfernen */
+  canModerate?: boolean;
 }) {
   const [items, setItems] = useState<CommentView[] | null>(initial ?? null);
   const [, start] = useTransition();
@@ -49,7 +52,7 @@ export function Comments({
         {items === null && <li className="spec">Lade Kommentare …</li>}
         {items?.length === 0 && <li className="text-sm text-muted">{questionsMode ? "Noch keine Fragen. Was möchtest du wissen?" : "Noch keine Kommentare. Sag als Erste:r etwas Nettes."}</li>}
         {items?.map((c) => (
-          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} />
+          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} />
         ))}
       </ul>
     </div>
@@ -94,7 +97,11 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
           autoFocus={autoFocus}
           maxLength={2000}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit();
+            // Enter sendet (wie im Chat), Umschalt+Enter für eine neue Zeile
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
           }}
           className="block min-h-10 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[15px] outline-none field-sizing-content focus:border-moss"
         />
@@ -108,7 +115,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
   );
 }
 
-function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c: CommentView | CommentView["replies"][number]; targetType: TargetType; targetId: string; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; onChange: () => void; isReply?: boolean }) {
+function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canModerate }: { c: CommentView | CommentView["replies"][number]; targetType: TargetType; targetId: string; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; onChange: () => void; isReply?: boolean; canModerate?: boolean }) {
   const [replying, setReplying] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [, start] = useTransition();
@@ -136,10 +143,10 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c
           {viewer && viewer.id !== c.author.id && (
             <button type="button" onClick={() => setReporting(true)} className="text-xs text-muted hover:text-ink">Melden</button>
           )}
-          {viewer && viewer.id === c.author.id && (
+          {viewer && (viewer.id === c.author.id || canModerate) && (
             <button
               type="button"
-              onClick={() => confirm("Kommentar löschen?") && start(async () => { const r = await deleteCommentAction(c.id); if (r.ok) onChange(); })}
+              onClick={() => confirm(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?") && start(async () => { const r = await deleteCommentAction(c.id); if (r.ok) onChange(); })}
               className="text-xs text-muted hover:text-danger"
             >
               Löschen
@@ -164,7 +171,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c
         {replies.length > 0 && (
           <ul className="border-l border-line pl-4">
             {replies.map((r) => (
-              <CommentItem key={r.id} c={r} targetType={targetType} targetId={targetId} viewer={viewer} onChange={onChange} isReply />
+              <CommentItem key={r.id} c={r} targetType={targetType} targetId={targetId} viewer={viewer} onChange={onChange} isReply canModerate={canModerate} />
             ))}
           </ul>
         )}

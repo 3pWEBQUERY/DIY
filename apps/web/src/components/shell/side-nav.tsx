@@ -125,7 +125,8 @@ export function SideNav({ user, collapsed: initial = false }: { user: ShellUser;
 
         <ul className="flex flex-1 flex-col gap-px overflow-y-auto overflow-x-hidden px-3 scrollbar-none">
           {items.map((item, i) => {
-            const active = isActive(pathname, item.href, item.match);
+            // „Profil“ nur auf dem eigenen Profil markieren, nicht bei fremden Profilen/Projekten
+            const active = item.href === "/profil" && user ? pathname === `/u/${user.handle}` || pathname.startsWith(`/u/${user.handle}/`) || pathname === "/profil" : isActive(pathname, item.href, item.match);
             const count = item.badge ? counts[item.badge] : 0;
             const Icon = item.icon;
             if (item.href === "/erstellen") {

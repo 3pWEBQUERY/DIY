@@ -354,5 +354,7 @@ export async function getPostForViewer(postId: string, viewerId: string | null) 
   const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true, communityId: true } });
   if (!p || !(await canViewContent(viewerId, { ownerId: p.authorId, visibility: p.visibility, state: p.state }))) return null;
   if (p.communityId && !(await canViewCommunityContentOf(p.communityId, viewerId))) return null;
-  return (await hydratePosts([postId], viewerId))[0] ?? null;
+  const view = (await hydratePosts([postId], viewerId))[0] ?? null;
+  // Für die Autorin/den Autor sichtbar machen, dass der Beitrag nicht öffentlich ist
+  return view ? { ...view, moderationState: p.state === "HIDDEN" || p.state === "REMOVED" ? p.state : null } : null;
 }

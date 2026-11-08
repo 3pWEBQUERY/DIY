@@ -119,6 +119,7 @@ export function ShareButton({ url, title, variant = "inline", label = false }: {
 }
 
 export function FollowButton({ userId, following: initial, size = "md", className }: { userId: string; following: boolean; size?: "sm" | "md"; className?: string }) {
+  const router = useRouter();
   const [following, setFollowing] = useState(initial);
   const [pending, start] = useTransition();
   const authRedirect = useAuthRedirect();
@@ -137,7 +138,7 @@ export function FollowButton({ userId, following: initial, size = "md", classNam
           if (!r.ok) {
             setFollowing(!next);
             if (!authRedirect(r.code)) toast(r.error, "error");
-          }
+          } else router.refresh(); // Follower-Zahlen auf der Seite nachziehen
         });
       }}
     >

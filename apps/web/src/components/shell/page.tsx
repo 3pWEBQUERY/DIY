@@ -52,7 +52,7 @@ export function PageHeader({
       {kicker && <p className="spec mb-3 flex items-center gap-2"><span className="inline-block h-px w-6 bg-rule-strong" />{kicker}</p>}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="display text-[2.4rem] text-balance sm:text-5xl">{title}</h1>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {description && <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted text-pretty">{description}</p>}
       {children}

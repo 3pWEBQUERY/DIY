@@ -24,7 +24,8 @@ ENV DATABASE_URL=postgresql://build:build@localhost:5432/build SESSION_SECRET=bu
 RUN pnpm --filter @werkraum/web build
 
 FROM base AS runner
-ENV NODE_ENV=production
+# Serverseitige Zeitangaben in Schweizer Zeit (sonst UTC)
+ENV NODE_ENV=production TZ=Europe/Zurich
 WORKDIR /app
 COPY --from=build /app /app
 RUN mkdir -p /app/apps/web/.data && chown -R node:node /app/apps/web/.data /app/apps/web/.next

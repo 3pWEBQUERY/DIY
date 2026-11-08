@@ -10,8 +10,8 @@ import { SettingsSection } from "./section";
 import { updatePrivacyAction } from "@/app/(app)/einstellungen/actions";
 
 const DM_HINT: Record<(typeof DM_POLICIES)[number], string> = {
-  EVERYONE: "Nachrichten von Personen, denen du nicht folgst, landen als Anfrage in einem separaten Ordner.",
-  FOLLOWING: "Empfohlen. Andere können dir keine neue Unterhaltung starten.",
+  EVERYONE: "Alle Mitglieder können dir direkt schreiben – Nachrichten landen in deinem Posteingang.",
+  FOLLOWING: "Empfohlen. Personen, denen du folgst, schreiben dir direkt; alle anderen landen als Anfrage unter „Anfragen“, die du annehmen oder ablehnen kannst.",
   NOBODY: "Neue Unterhaltungen sind nur im Zusammenhang mit einer Bestellung möglich.",
 };
 

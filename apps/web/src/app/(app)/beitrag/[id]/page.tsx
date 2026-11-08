@@ -6,6 +6,7 @@ import { currentUser } from "@/server/auth/session";
 import { getPostForViewer } from "@/server/social/posts";
 import { Page } from "@/components/shell/page";
 import { PostCard } from "@/components/social/post-card";
+import { Notice } from "@/components/ui/misc";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -31,6 +32,11 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
       <Link href="/feed" className="mb-6 inline-flex items-center gap-2 text-sm text-muted hover:text-ink">
         <ArrowLeft size={15} /> Zurück
       </Link>
+      {post.moderationState && (
+        <Notice tone="warn" className="mb-6" title={post.moderationState === "HIDDEN" ? "Dieser Beitrag ist ausgeblendet" : "Dieser Beitrag wurde entfernt"}>
+          Nur du siehst ihn noch. Die Begründung findest du in deinen <Link href="/benachrichtigungen" className="font-semibold underline underline-offset-2">Benachrichtigungen</Link> – dort kannst du auch Einspruch erheben.
+        </Notice>
+      )}
       <PostCard post={post} viewer={viewer} defaultOpenComments />
     </Page>
   );

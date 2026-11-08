@@ -201,7 +201,8 @@ export async function listOwnContent(userId: string, handle: string, opts: { typ
       })(),
       updatedAt: p.updatedAt,
       href: p.state === "REMOVED" ? null : `/beitrag/${p.id}`,
-      manageHref: `/studio/inhalte/beitrag/${p.id}`,
+      // Entfernte Beiträge lassen sich nicht mehr bearbeiten → zur Benachrichtigung mit Einspruchsmöglichkeit
+      manageHref: p.state === "REMOVED" ? "/benachrichtigungen" : `/studio/inhalte/beitrag/${p.id}`,
       meta: `${p.likeCount} Gefällt-mir · ${p.commentCount} Kommentare`,
     })),
     ...projects.map((p) => {

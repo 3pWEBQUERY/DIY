@@ -54,7 +54,7 @@ export function SignUpForm({ apple }: { apple: boolean }) {
         <Field label="Anzeigename" error={fields.displayName} hint="So erscheinst du in der Community. Jederzeit änderbar.">
           {(p) => <Input {...p} name="displayName" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required />}
         </Field>
-        <Field label="Benutzername" error={fields.handle ?? (avail && !avail.ok ? avail.reason : undefined)} hint={handle ? `Deine Profiladresse: werkraum.ch/u/${handle}` : "Eindeutig, für deine Profil-URL"}>
+        <Field label="Benutzername" error={fields.handle ?? (avail && !avail.ok ? avail.reason : undefined)} hint={handle ? `Deine Profiladresse: werkuno.ch/u/${handle}` : "Eindeutig, für deine Profil-URL"}>
           {(p) => (
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">@</span>

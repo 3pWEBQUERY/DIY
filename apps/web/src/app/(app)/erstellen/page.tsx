@@ -34,7 +34,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
       <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
         <section aria-labelledby="quick">
           <h2 id="quick" className="spec mb-3 text-ink">01 — Schnell teilen</h2>
-          <Composer viewer={{ displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl }} projects={projects} defaultProjectId={sp.projekt} categories={await categoryOptions()} />
+          <Composer viewer={{ displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl }} projects={projects} defaultProjectId={sp.projekt} categories={await categoryOptions()} openAfterPost />
         </section>
         <section aria-labelledby="more">
           <h2 id="more" className="spec mb-3 text-ink">02 — Mehr erschaffen</h2>

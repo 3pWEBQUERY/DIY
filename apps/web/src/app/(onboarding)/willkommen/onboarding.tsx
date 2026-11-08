@@ -114,7 +114,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
           {step === 0 && (
             <div className="space-y-5">
               <Field label="Anzeigename">{(p) => <Input {...p} value={data.displayName} onChange={(e) => setData({ ...data, displayName: e.target.value })} />}</Field>
-              <Field label="Benutzername" error={handleState && !handleState.ok ? handleState.reason : undefined} hint={`werkraum.ch/u/${data.handle}`}>
+              <Field label="Benutzername" error={handleState && !handleState.ok ? handleState.reason : undefined} hint={`werkuno.ch/u/${data.handle}`}>
                 {(p) => (
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">@</span>

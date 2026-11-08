@@ -23,6 +23,7 @@ export function Composer({
   compact,
   onPosted,
   categories = CATEGORIES,
+  openAfterPost,
 }: {
   viewer: { displayName: string; avatarUrl: string | null };
   projects: { id: string; title: string }[];
@@ -31,6 +32,8 @@ export function Composer({
   onPosted?: () => void;
   /** Angebotene (aktive) Kategorien; Standard: alle */
   categories?: readonly CategoryOption[];
+  /** Nach dem Veröffentlichen direkt zum neuen Beitrag wechseln (z. B. auf /erstellen) */
+  openAfterPost?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(!compact);
@@ -59,7 +62,8 @@ export function Composer({
         setMedia([]);
         setOpen(!compact);
         onPosted?.();
-        router.refresh();
+        if (openAfterPost && r.data?.id) router.push(`/beitrag/${r.data.id}`);
+        else router.refresh();
       } else toast(r.error, "error");
     });
   }

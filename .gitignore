@@ -10,3 +10,7 @@ apps/web/src/generated
 .turbo
 tsconfig.tsbuildinfo
 next-env.d.ts
+
+# Lokaler Medienspeicher (Entwicklung) – nie einchecken
+.data
+apps/web/.data

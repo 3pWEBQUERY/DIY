@@ -28,15 +28,16 @@ const KIND_LABEL: Partial<Record<string, string>> = {
 
 /** @handle als Links, Zeilenumbrüche erhalten. Kein HTML-Rendering (XSS-sicher). */
 export function RichText({ text, className }: { text: string; className?: string }) {
-  const parts = text.split(/(@[a-z0-9._]{3,24}|https?:\/\/[^\s]+)/g);
+  // Handles enden nie auf Punkt/Unterstrich; Satzzeichen am Ende gehören weder zum Handle noch zur URL
+  const parts = text.split(/(@[a-z0-9][a-z0-9._]{1,22}[a-z0-9]|https?:\/\/[^\s]+?(?=[.,;:!?)\]]*(?:\s|$)))/gi);
   return (
     <p className={cn("whitespace-pre-line text-pretty", className)}>
       {parts.map((p, i) =>
-        p.startsWith("@") ? (
-          <Link key={i} href={`/u/${p.slice(1)}`} className="font-semibold text-moss hover:underline">
+        i % 2 === 1 && p.startsWith("@") ? (
+          <Link key={i} href={`/u/${p.slice(1).toLowerCase()}`} className="font-semibold text-moss hover:underline">
             {p}
           </Link>
-        ) : /^https?:\/\//.test(p) ? (
+        ) : i % 2 === 1 && /^https?:\/\//.test(p) ? (
           <a key={i} href={p} rel="nofollow noopener ugc" target="_blank" className="text-moss underline underline-offset-2 break-all">
             {p.replace(/^https?:\/\//, "").slice(0, 40)}
             {p.length > 48 ? "…" : ""}
@@ -259,7 +260,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
 
       {showComments && (
         <div className="mt-5 border-t border-line pt-5 animate-fade">
-          <Comments targetType="POST" targetId={post.id} viewer={viewer} />
+          <Comments targetType="POST" targetId={post.id} viewer={viewer} canModerate={post.viewer.isAuthor} />
         </div>
       )}
 
