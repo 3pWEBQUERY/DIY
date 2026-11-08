@@ -200,6 +200,8 @@ export function notificationParts(n: NotificationLike): NotificationParts {
       const kind = str(data.kind);
       if (kind === "approved") return { lead: null, text: `Deine Beitrittsanfrage${title ? ` für ${title}` : ""} wurde angenommen.`, excerpt: null };
       if (kind === "join_request") return { lead: actors(name, count), text: `${count > 1 ? "möchten" : "möchte"} der Community${title ? ` ${title}` : ""} beitreten.`, excerpt: null };
+      if (kind === "event") return { lead: null, text: str(data.message) ?? "Neuigkeiten zu einem Event.", excerpt: null };
+      if (kind === "event_going") return { lead: actors(name, count), text: `${count > 1 ? "sind" : "ist"} bei deinem Event${title ? ` ${title}` : ""} dabei.`, excerpt: null };
       if (kind === "dissolved") return { lead: null, text: `Die Community${title ? ` ${title}` : ""} wurde von der Gründerin bzw. dem Gründer aufgelöst.`, excerpt: null };
       return { lead: name ?? "Jemand", text: `lädt dich in die Community${title ? ` ${title}` : ""} ein.`, excerpt: null };
     }

@@ -20,7 +20,7 @@ export const MAIN_NAV: NavItem[] = [
   { href: "/entdecken", label: "Entdecken", hint: "Trends, Kategorien & Suche", icon: Compass, match: ["/entdecken", "/suche"] },
   { href: "/erstellen", label: "Erstellen", hint: "Beitrag, Projekt, Anleitung oder Produkt", icon: PenLine, auth: true },
   { href: "/projekte", label: "Projekte", hint: "Projekte & Schritt-für-Schritt-Anleitungen", icon: Layers, match: ["/projekte", "/anleitungen"] },
-  { href: "/communities", label: "Communities", hint: "Gruppen rund um dein Handwerk", icon: Users, match: ["/communities", "/c/"] },
+  { href: "/communities", label: "Communities", hint: "Gruppen rund um dein Handwerk", icon: Users, match: ["/communities", "/c/", "/events"] },
   { href: "/markt", label: "Marktplatz", hint: "Material, Werkzeug & Pläne von Makern", icon: Store, match: ["/markt", "/warenkorb", "/kasse"] },
   { href: "/blogs", label: "Blogs", hint: "Längere Texte aus den Werkstätten", icon: BookOpen, match: ["/blogs"] },
   { href: "/nachrichten", label: "Nachrichten", hint: "Direktnachrichten & Anfragen", icon: MessageSquare, auth: true, badge: "messages" },

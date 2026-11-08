@@ -300,6 +300,8 @@ model User {
   @@index([status])
   @@index([createdAt])
   pollVotes       PollVote[]
+  organizedEvents CommunityEvent[] @relation("eventOrganizer")
+  eventAttendance EventAttendee[]
 }
 
 model UserProfile {
@@ -1057,6 +1059,7 @@ model Community {
 
   search         Unsupported("tsvector")? // generiert, siehe Migration init
   @@index([category])
+  events      CommunityEvent[]
 }
 
 model CommunityMember {
@@ -1825,4 +1828,48 @@ model PollVote {
 
   @@id([pollId, userId, optionId])
   @@index([userId])
+}
+
+/// Treffen, Workshops und Tauschbörsen innerhalb einer Community.
+model CommunityEvent {
+  id             String          @id @default(cuid())
+  communityId    String
+  community      Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  organizerId    String
+  organizer      User            @relation("eventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  title          String
+  description    String          @default("")
+  kind           String          @default("MEETUP") // MEETUP | WORKSHOP | SWAP | OTHER
+  mode           String          @default("IN_PERSON") // IN_PERSON | ONLINE
+  startsAt       DateTime
+  endsAt         DateTime
+  locationName   String          @default("")
+  address        String          @default("")
+  onlineUrl      String          @default("")
+  capacity       Int?
+  costNote       String          @default("")
+  state          String          @default("SCHEDULED") // SCHEDULED | CANCELLED
+  cancelReason   String          @default("")
+  goingCount     Int             @default(0)
+  interestedCount Int            @default(0)
+  reminderSentAt DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  attendees      EventAttendee[]
+
+  @@index([communityId, startsAt])
+  @@index([state, startsAt])
+}
+
+model EventAttendee {
+  eventId   String
+  event     CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String         // GOING | INTERESTED
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@id([eventId, userId])
+  @@index([userId, status])
 }

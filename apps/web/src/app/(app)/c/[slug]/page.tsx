@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, Lock, Settings, Trophy } from "lucide-react";
+import { ArrowUpRight, CalendarPlus, Lock, Settings, Trophy } from "lucide-react";
+import { listCommunityEvents, nextCommunityEvent } from "@/server/communities/events";
+import { EventCard } from "@/components/events/event-card";
 import { COMMUNITY_ROLE_LABEL, COMMUNITY_VISIBILITY_LABEL, PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import {
@@ -24,7 +26,7 @@ import { Cover } from "@/components/ui/media";
 import { LinkButton } from "@/components/ui/button";
 import { formatDate, pluralize } from "@/lib/utils";
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ tab?: string; nach?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ tab?: string; nach?: string; zeit?: string }> };
 
 const load = cache(async (slug: string) => {
   const viewer = await currentUser();
@@ -48,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const TABS = [
   { key: "beitraege", label: "Beiträge" },
   { key: "projekte", label: "Projekte" },
+  { key: "events", label: "Events" },
   { key: "mitglieder", label: "Mitglieder" },
   { key: "regeln", label: "Regeln" },
   { key: "ueber", label: "Über" },
@@ -94,6 +97,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
   if (!data) notFound();
   const { community: c, membership, canView, isMember, isMod, muted } = data;
   const tab = (TABS.find((t) => t.key === sp.tab) ?? TABS[0]).key;
+  const nextEvent = canView && tab === "beitraege" ? await nextCommunityEvent(c.id, viewer?.id) : null;
   const viewerLite = viewer?.profile ? { id: viewer.id, displayName: viewer.profile.displayName, avatarUrl: viewer.profile.avatarUrl } : null;
   const cat = categoryBySlug(c.category);
   const base = `/c/${c.slug}`;
@@ -134,6 +138,37 @@ export default async function CommunityPage({ params, searchParams }: Props) {
             <CommunityFeed communityId={c.id} pinned={pinned} initial={posts.items} cursor={posts.nextCursor} viewer={viewerLite} isMod={isMod} />
           )}
         </div>
+      </div>
+    );
+  } else if (tab === "events") {
+    const past = sp.zeit === "vergangen";
+    const list = await listCommunityEvents(c.id, viewer, past ? "past" : "upcoming");
+    body = (
+      <div className="mx-auto max-w-[760px]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-full border border-line-strong bg-card p-1 text-[13px]">
+            <Link href={`${base}?tab=events`} className={`rounded-full px-3.5 py-1.5 ${!past ? "bg-moss font-semibold text-paper" : "text-ink-2 hover:text-ink"}`}>Kommende</Link>
+            <Link href={`${base}?tab=events&zeit=vergangen`} className={`rounded-full px-3.5 py-1.5 ${past ? "bg-moss font-semibold text-paper" : "text-ink-2 hover:text-ink"}`}>Vergangene</Link>
+          </div>
+          {isMember && !muted && (
+            <LinkButton href={`${base}/events/neu`}>
+              <CalendarPlus size={15} aria-hidden /> Event erstellen
+            </LinkButton>
+          )}
+        </div>
+        {list.length ? (
+          <ul className="grid gap-3">
+            {list.map((e) => (
+              <li key={e.id}><EventCard e={e} showCommunity={false} /></li>
+            ))}
+          </ul>
+        ) : (
+          <Empty
+            title={past ? "Noch keine vergangenen Events" : "Keine Events geplant"}
+            body={past ? undefined : isMember ? "Lade zu einem Treffen, Workshop oder einer Tauschbörse ein – vor Ort oder online." : "Tritt bei, um Events zu erstellen und teilzunehmen."}
+            action={!past && isMember && !muted ? <LinkButton href={`${base}/events/neu`} variant="outline">Event erstellen</LinkButton> : undefined}
+          />
+        )}
       </div>
     );
   } else if (tab === "projekte") {
@@ -295,6 +330,15 @@ export default async function CommunityPage({ params, searchParams }: Props) {
 
       <div className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-6 lg:px-10">
         {canView && data.challenge && <ChallengeBanner ch={data.challenge} />}
+        {canView && tab === "beitraege" && nextEvent && (
+          <aside aria-label="Nächstes Event" className="mx-auto mb-8 max-w-[660px]">
+            <p className="spec mb-2 flex items-center justify-between">
+              <span>Nächstes Event</span>
+              <Link href={`${base}?tab=events`} className="normal-case tracking-normal text-muted hover:text-ink">Alle Events</Link>
+            </p>
+            <EventCard e={nextEvent} showCommunity={false} />
+          </aside>
+        )}
         {membership?.state === "INVITED" && canView && (
           <Notice tone="moss" className="mb-8" title="Du wurdest eingeladen">Nimm die Einladung oben an, um mitzumachen.</Notice>
         )}

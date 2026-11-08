@@ -2,6 +2,7 @@ import "server-only";
 import { fail } from "@/server/errors";
 import { requireCommunityModerator } from "@/server/authz";
 import * as cs from "@/server/communities/service";
+import * as ev from "@/server/communities/events";
 import * as blog from "@/server/blog/service";
 import * as msg from "@/server/messaging/service";
 import { listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
@@ -81,6 +82,22 @@ export const communityRoutes: RouteDef[] = [
     await cs.setRules(c.p.id!, rules ?? []);
     return { ok: true };
   }),
+  // ── Events ──
+  GET("/events", async (c) => {
+    const mode = str(c.q, "mode");
+    return ev.eventsOverview(await viewer(), { mode: mode === "ONLINE" || mode === "IN_PERSON" ? mode : null, category: str(c.q, "category") ?? null });
+  }),
+  GET("/events/:id", async (c) => need(await ev.getEvent(c.p.id!, await viewer()), "Event nicht gefunden.")),
+  GET("/communities/:id/events", async (c) => ev.listCommunityEvents(c.p.id!, await viewer(), str(c.q, "when") === "past" ? "past" : "upcoming")),
+  POST("/communities/:id/events", async (c) => ev.createEvent(await me(), c.p.id!, await c.json())),
+  PATCH("/events/:id", async (c) => ev.updateEvent(await me(), c.p.id!, await c.json())),
+  POST("/events/:id/cancel", async (c) => ev.cancelEvent(await me(), c.p.id!, String((await c.json<{ reason?: string }>()).reason ?? ""))),
+  // { status: "GOING" | "INTERESTED" | null }
+  POST("/events/:id/rsvp", async (c) => {
+    const s = (await c.json<{ status?: string | null }>()).status;
+    return ev.setAttendance(await me(), c.p.id!, s === "GOING" || s === "INTERESTED" ? s : null);
+  }),
+
   POST("/communities/:id/join", async (c) => cs.joinCommunity(await me(), c.p.id!)),
   POST("/communities/:id/leave", async (c) => cs.leaveCommunity(await me(), c.p.id!)),
   POST("/communities/:id/requests/:userId", async (c) => {

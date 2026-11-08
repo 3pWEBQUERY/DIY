@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, Package, ListChecks, Menu, MessageSquare, ChevronLeft } from "lucide-react";
+import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { cn, pad } from "@/lib/utils";
 import { MAIN_NAV, MOBILE_NAV } from "./nav-config";
@@ -242,6 +242,7 @@ export function secondaryLinks(user: NonNullable<ShellUser>, cart: number, hide:
   return [
     { href: "/gespeichert", icon: <Bookmark size={14} />, label: "Gespeichert" },
     { href: "/einkaufslisten", icon: <ListChecks size={14} />, label: "Einkaufslisten" },
+    { href: "/events", icon: <CalendarDays size={14} />, label: "Events" },
     { href: "/warenkorb", icon: <ShoppingBag size={14} />, label: cart ? `Korb · ${cart}` : "Warenkorb" },
     { href: "/bestellungen", icon: <Package size={14} />, label: "Bestellungen" },
     { href: "/studio", icon: <LayoutDashboard size={14} />, label: "Studio" },

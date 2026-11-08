@@ -1,7 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Plus, Search } from "lucide-react";
+import { ArrowRight, Plus, Search, CalendarDays } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { browseCategories, effectiveCategories } from "@/server/categories/settings";
 import { communityCategoryCounts, listCommunities, viewerInvitations } from "@/server/communities/service";
@@ -33,9 +33,14 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
       title="Gemeinsam werkeln"
       description="Gruppen rund um ein Handwerk, eine Region oder ein Projekt. Stell Fragen, zeig Zwischenstände, mach bei Challenges mit."
       actions={
-        <LinkButton href={user ? "/communities/neu" : "/anmelden?weiter=/communities/neu"} variant="ink">
-          <Plus size={15} /> Community gründen
-        </LinkButton>
+        <>
+          <LinkButton href="/events" variant="outline">
+            <CalendarDays size={15} /> Events
+          </LinkButton>
+          <LinkButton href={user ? "/communities/neu" : "/anmelden?weiter=/communities/neu"} variant="ink">
+            <Plus size={15} /> Community gründen
+          </LinkButton>
+        </>
       }
     >
       <Form role="search" action="/communities" className="mt-8 flex max-w-xl items-center border-b border-rule">

@@ -371,3 +371,35 @@ export const conversationStartSchema = z.object({
 });
 
 export type MessageSendInput = z.infer<typeof messageSendSchema>;
+
+// ───────────────────────── Events (Communities) ─────────────────────────
+
+export const EVENT_KINDS = ["MEETUP", "WORKSHOP", "SWAP", "OTHER"] as const;
+export const EVENT_KIND_LABEL: Record<(typeof EVENT_KINDS)[number], string> = { MEETUP: "Treffen", WORKSHOP: "Workshop", SWAP: "Tauschbörse", OTHER: "Sonstiges" };
+export const EVENT_MODES = ["IN_PERSON", "ONLINE"] as const;
+export const EVENT_MODE_LABEL: Record<(typeof EVENT_MODES)[number], string> = { IN_PERSON: "Vor Ort", ONLINE: "Online" };
+
+export const eventUpsertSchema = z
+  .object({
+    title: z.string().trim().min(3, "Mindestens 3 Zeichen").max(120, "Höchstens 120 Zeichen"),
+    description: z.string().trim().max(4000).default(""),
+    kind: z.enum(EVENT_KINDS).default("MEETUP"),
+    mode: z.enum(EVENT_MODES).default("IN_PERSON"),
+    startsAt: z.coerce.date({ message: "Bitte Beginn angeben" }),
+    endsAt: z.coerce.date({ message: "Bitte Ende angeben" }),
+    locationName: z.string().trim().max(120).default(""),
+    address: z.string().trim().max(200).default(""),
+    onlineUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((u) => !u || /^https:\/\/[^\s]+$/i.test(u), "Bitte einen https://-Link angeben")
+      .default(""),
+    capacity: z.coerce.number().int().min(1, "Mindestens 1 Platz").max(10000).nullable().optional(),
+    costNote: z.string().trim().max(120).default(""),
+  })
+  .refine((e) => e.endsAt > e.startsAt, { message: "Das Ende muss nach dem Beginn liegen", path: ["endsAt"] })
+  .refine((e) => e.endsAt.getTime() - e.startsAt.getTime() <= 14 * 86400_000, { message: "Höchstens 14 Tage Dauer", path: ["endsAt"] })
+  .refine((e) => e.mode !== "IN_PERSON" || e.locationName.length > 0 || e.address.length > 0, { message: "Wo findet es statt?", path: ["locationName"] })
+  .refine((e) => e.mode !== "ONLINE" || e.onlineUrl.length > 0, { message: "Link zum Online-Treffen angeben", path: ["onlineUrl"] });
+export type EventUpsertInput = z.infer<typeof eventUpsertSchema>;

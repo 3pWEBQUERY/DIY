@@ -21,6 +21,7 @@ import { notificationHref, notificationText } from "@/server/notifications-forma
 import { deliverPendingPushes } from "@/server/push/service";
 import { captureError } from "@/server/monitoring";
 import { notifyEndedPolls } from "@/server/social/posts";
+import { sendEventReminders } from "@/server/communities/events";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -48,6 +49,7 @@ const Q = {
   outbox: "outbox.dispatch",
   push: "push.deliver",
   polls: "poll.ended",
+  events: "event.reminders",
 } as const;
 
 async function dispatchOutbox(boss: PgBoss) {
@@ -230,6 +232,7 @@ async function main() {
   await boss.work(Q.reservations, guarded(Q.reservations, async () => void (await releaseReservations?.())));
   await boss.work(Q.scheduled, guarded(Q.scheduled, async () => void (await publishScheduled?.())));
   await boss.work(Q.polls, guarded(Q.polls, async () => void (await notifyEndedPolls())));
+  await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
 
   await boss.schedule(Q.outbox, "* * * * *");
   await boss.schedule(Q.emailInstant, "*/2 * * * *");
@@ -239,6 +242,7 @@ async function main() {
   await boss.schedule(Q.cleanup, "30 3 * * *", null, { tz: "Europe/Zurich" });
   await boss.schedule(Q.push, "* * * * *");
   await boss.schedule(Q.polls, "* * * * *");
+  await boss.schedule(Q.events, "*/5 * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);
