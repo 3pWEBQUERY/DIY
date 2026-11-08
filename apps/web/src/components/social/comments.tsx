@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { TargetType } from "@/generated/prisma/enums";
@@ -146,7 +147,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
           {viewer && (viewer.id === c.author.id || canModerate) && (
             <button
               type="button"
-              onClick={() => confirm(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?") && start(async () => { const r = await deleteCommentAction(c.id); if (r.ok) onChange(); })}
+              onClick={async () => (await confirmDialog(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?")) && start(async () => { const r = await deleteCommentAction(c.id); if (r.ok) onChange(); })}
               className="text-xs text-muted hover:text-danger"
             >
               Löschen

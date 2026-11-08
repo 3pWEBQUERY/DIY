@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useAction } from "@/lib/use-action";
 import { Button } from "@/components/ui/button";
 import { resetHiddenAction, unblockAction, unmuteAction } from "@/app/(app)/einstellungen/actions";
@@ -20,7 +21,7 @@ export function UnblockButton({ userId, name }: { userId: string; name: string }
       size="sm"
       variant="outline"
       disabled={pending}
-      onClick={() => window.confirm(`Blockierung von ${name} aufheben? Ihr könnt danach wieder Inhalte voneinander sehen.`) && run(userId)}
+      onClick={async () => (await confirmDialog(`Blockierung von ${name} aufheben? Ihr könnt danach wieder Inhalte voneinander sehen.`)) && run(userId)}
       aria-label={`Blockierung von ${name} aufheben`}
     >
       Blockierung aufheben

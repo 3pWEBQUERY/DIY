@@ -325,11 +325,9 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
 
 /* ───────────────────────── Auszahlungen ───────────────────────── */
 
-export async function recordPayout(accountId: string, p: Pick<Stripe.Payout, "id" | "amount" | "currency" | "status" | "arrival_date">) {
-  const shop = await db.shop.findUnique({ where: { stripeAccountId: accountId }, select: { id: true } });
-  if (!shop) return;
-  const data = { amountMinor: p.amount, currency: p.currency.toUpperCase(), status: p.status, arrivalAt: p.arrival_date ? new Date(p.arrival_date * 1000) : null };
-  await db.payoutRecord.upsert({ where: { providerRef: p.id }, create: { shopId: shop.id, providerRef: p.id, ...data }, update: data });
+export async function recordPayout(accountId: string, p: Pick<Stripe.Payout, "id" | "amount" | "currency" | "status" | "arrival_date" | "automatic" | "failure_code" | "failure_message">) {
+  const { recordPayout: save } = await import("./payouts");
+  await save(accountId, p);
 }
 
 /* ───────────────────────── Webhook-Verarbeitung ───────────────────────── */

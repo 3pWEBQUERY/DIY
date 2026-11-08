@@ -1,11 +1,12 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { refreshStripeAction, setShopPausedAction, simulateVerificationAction, startOnboardingAction, stripeDashboardAction } from "@/app/studio/shop/actions";
+import { refreshStripeAction, setShopPausedAction, simulateVerificationAction, startOnboardingAction } from "@/app/studio/shop/actions";
 
 /** Weiter zu Stripe Connect (Express) – Konto wird bei Bedarf serverseitig angelegt. */
 export function StripeOnboardingButton({ label = "Auszahlungskonto verbinden" }: { label?: string }) {
@@ -23,25 +24,6 @@ export function StripeOnboardingButton({ label = "Auszahlungskonto verbinden" }:
     >
       {pending ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={15} />}
       {label}
-    </Button>
-  );
-}
-
-export function StripeDashboardButton() {
-  const [pending, start] = useTransition();
-  return (
-    <Button
-      variant="outline"
-      disabled={pending}
-      onClick={() =>
-        start(async () => {
-          const r = await stripeDashboardAction();
-          if (r.ok) window.open(r.data.url, "_blank", "noopener");
-          else toast(r.error, "error");
-        })
-      }
-    >
-      <ExternalLink size={15} /> Stripe-Dashboard öffnen
     </Button>
   );
 }
@@ -102,8 +84,8 @@ export function PauseShopButton({ paused }: { paused: boolean }) {
     <Button
       variant={paused ? "primary" : "outline"}
       disabled={pending}
-      onClick={() => {
-        if (!paused && !confirm("Shop pausieren? Deine Produkte bleiben sichtbar, können aber nicht gekauft werden. Offene Bestellungen sind nicht betroffen.")) return;
+      onClick={async () => {
+        if (!paused && !(await confirmDialog("Shop pausieren? Deine Produkte bleiben sichtbar, können aber nicht gekauft werden. Offene Bestellungen sind nicht betroffen."))) return;
         start(async () => {
           const r = await setShopPausedAction(!paused);
           if (r.ok) {

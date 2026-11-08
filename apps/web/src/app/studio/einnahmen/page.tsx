@@ -9,7 +9,8 @@ import { formatBps } from "@/server/commerce/rules";
 import { paymentsMode } from "@/server/commerce/stripe";
 import { getSetting } from "@/server/settings";
 import { PageHeader, TabLinks } from "@/components/shell/page";
-import { StripeDashboardButton } from "@/components/commerce/shop-controls";
+import { PayoutPanel } from "@/components/commerce/payout-panel";
+import { getPayoutOverview, PAYOUT_STATUS_LABEL } from "@/server/commerce/payouts";
 import { Empty, Notice, SectionTitle, Stat } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
 
@@ -22,16 +23,16 @@ const RANGES: { key: RevenueRange; label: string }[] = [
   { key: "alle", label: "Gesamt" },
 ];
 
-const PAYOUT_LABEL: Record<string, string> = { paid: "Ausgezahlt", pending: "Unterwegs", in_transit: "Unterwegs", failed: "Fehlgeschlagen", canceled: "Storniert" };
+const PAYOUT_TONE: Record<string, string> = { paid: "bg-moss-soft text-moss-ink", failed: "bg-danger-soft text-danger", canceled: "bg-sunken text-muted" };
 
 /** Einnahmen mit ehrlichen Bezeichnungen (§20.4): was eingenommen, erstattet, an Gebühren abgezogen und ausgezahlt wurde. */
-export default async function RevenuePage({ searchParams }: { searchParams: Promise<{ zeitraum?: string }> }) {
+export default async function RevenuePage({ searchParams }: { searchParams: Promise<{ zeitraum?: string; stripe?: string }> }) {
   const [sp, user] = await Promise.all([searchParams, currentUser()]);
   if (!user) redirect("/anmelden?weiter=/studio/einnahmen");
   const shop = await getMyShop(user.id);
   if (!shop) redirect("/studio/shop");
   const range = (RANGES.find((r) => r.key === sp.zeitraum)?.key ?? "30") as RevenueRange;
-  const [r, feeBps] = await Promise.all([shopRevenue(shop.id, range), getSetting("commerce.feeBps")]);
+  const [r, feeBps, payout] = await Promise.all([shopRevenue(shop.id, range), getSetting("commerce.feeBps"), getPayoutOverview(user)]);
   const c = r.currency as Currency;
   const m = (n: number) => formatMoney(n, c);
   const mode = paymentsMode();
@@ -47,14 +48,24 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
         </Notice>
       )}
 
-      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 border-b border-line pb-8 md:grid-cols-4">
+      {sp.stripe === "bank" && (
+        <Notice tone="moss" className="mt-6" title="Zurück von Stripe">
+          Änderungen am Bankkonto werden von Stripe geprüft und erscheinen hier, sobald sie übernommen sind.
+        </Notice>
+      )}
+
+      <div className="mt-8">
+        <PayoutPanel data={payout} />
+      </div>
+
+      <dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-b border-line pb-8 md:grid-cols-4">
         <Stat label="Umsatz brutto" value={m(r.gross)} note={`${r.orderCount} bezahlte Bestellungen, inkl. Versand`} />
         <Stat label="Erstattet" value={r.refunds ? `− ${m(r.refunds)}` : m(0)} note={r.pendingRefunds ? `${m(r.pendingRefunds)} in Bearbeitung` : "bestätigte Rückzahlungen"} />
         <Stat label="Plattformgebühr" value={`− ${m(r.fees)}`} note={`${formatBps(feeBps)} auf den Warenwert, bei Erstattung anteilig zurück`} />
         <Stat label="Netto für dich" value={m(r.net)} note="vor Gebühren des Zahlungsanbieters" />
       </dl>
       <p className="mt-4 max-w-3xl text-[12.5px] leading-relaxed text-muted">
-        „Netto“ ist Brutto minus Erstattungen minus Plattformgebühr. Stripe zieht seine eigenen Zahlungsgebühren separat ab; den genauen Auszahlungsbetrag siehst du unten bzw. im Stripe-Dashboard. Offene
+        „Netto“ ist Brutto minus Erstattungen minus Plattformgebühr. Stripe zieht seine eigenen Zahlungsgebühren separat ab; den genauen Auszahlungsbetrag siehst du bei den Auszahlungen. Offene
         oder abgebrochene Zahlungen sind nicht enthalten.
       </p>
 
@@ -112,34 +123,42 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
         </section>
 
         <aside className="space-y-8">
-          <section aria-labelledby="auszahlungen">
-            <SectionTitle n="02" title={<span id="auszahlungen">Auszahlungen</span>} />
-            {!r.connected ? (
-              <p className="mt-4 text-[13.5px] text-muted">
-                Noch kein Auszahlungskonto verbunden. <Link href="/studio/shop" className="font-semibold text-ink underline">Jetzt verbinden</Link>
-              </p>
-            ) : r.payouts.length === 0 ? (
+          <section aria-labelledby="auszahlungsverlauf">
+            <SectionTitle n="02" title={<span id="auszahlungsverlauf">Auszahlungen</span>} />
+            {payout.payouts.length === 0 ? (
               <p className="mt-4 text-[13.5px] leading-relaxed text-muted">
-                Noch keine Auszahlungen. Stripe zahlt verfügbare Guthaben automatisch nach dem Auszahlungsplan deines Kontos aus{!r.payoutsEnabled ? " – sobald Auszahlungen freigeschaltet sind" : ""}.
+                {!r.connected ? (
+                  <>
+                    Noch kein Auszahlungskonto verbunden.{" "}
+                    <Link href="/studio/shop" className="font-semibold text-ink underline">
+                      Jetzt verbinden
+                    </Link>
+                  </>
+                ) : (
+                  "Noch keine Auszahlungen. Du wirst über jede Auszahlung benachrichtigt – auch über automatische."
+                )}
               </p>
             ) : (
-              <ul className="mt-2 divide-y divide-line text-[14px]">
-                {r.payouts.map((p) => (
-                  <li key={p.id} className="flex items-baseline justify-between gap-3 py-2.5">
-                    <span>
-                      <span className="num font-semibold">{formatMoney(p.amountMinor, p.currency as Currency)}</span>
-                      <span className="spec ml-2">{PAYOUT_LABEL[p.status] ?? p.status}</span>
-                    </span>
-                    <span className="spec">{formatDate(p.arrivalAt ?? p.createdAt, { day: "numeric", month: "short", year: "numeric" })}</span>
+              <ul className="mt-1 divide-y divide-line">
+                {payout.payouts.map((p) => (
+                  <li key={p.id} className="py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="num text-[15px] font-semibold">{formatMoney(p.amountMinor, p.currency as Currency)}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-medium ${PAYOUT_TONE[p.status] ?? "bg-warn-soft text-warn"}`}>{PAYOUT_STATUS_LABEL[p.status] ?? p.status}</span>
+                    </div>
+                    <p className="mt-0.5 text-[12.5px] text-muted">
+                      {p.automatic ? "Automatisch" : "Beantragt"} · {formatDate(p.createdAt, { day: "numeric", month: "short", year: "numeric" })}
+                      {p.arrivalAt && p.status !== "failed" && p.status !== "canceled" && <> · {p.status === "paid" ? "gutgeschrieben am" : "Ankunft ca."} {formatDate(p.arrivalAt, { day: "numeric", month: "short" })}</>}
+                    </p>
+                    {p.failureMessage && <p className="mt-1 text-[12.5px] text-danger">{p.failureMessage}</p>}
                   </li>
                 ))}
               </ul>
             )}
-            {r.paidOut > 0 && <p className="mt-3 text-[13px] text-muted">Insgesamt ausgezahlt: <span className="num font-semibold text-ink">{m(r.paidOut)}</span></p>}
-            {r.connected && mode === "stripe" && (
-              <div className="mt-5">
-                <StripeDashboardButton />
-              </div>
+            {r.paidOut > 0 && (
+              <p className="mt-3 border-t border-line pt-3 text-[13px] text-muted">
+                Insgesamt ausgezahlt: <span className="num font-semibold text-ink">{m(r.paidOut)}</span>
+              </p>
             )}
           </section>
         </aside>

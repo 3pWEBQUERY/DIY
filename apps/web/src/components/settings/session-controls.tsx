@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { LogOut } from "lucide-react";
 import { useAction } from "@/lib/use-action";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,8 @@ export function RevokeOthersButton({ count }: { count: number }) {
     <Button
       variant="outline"
       disabled={pending || count === 0}
-      onClick={() => {
-        if (window.confirm(`${count} andere Sitzung${count === 1 ? "" : "en"} beenden?`)) run();
+      onClick={async () => {
+        if ((await confirmDialog(`${count} andere Sitzung${count === 1 ? "" : "en"} beenden?`))) run();
       }}
     >
       Alle anderen abmelden

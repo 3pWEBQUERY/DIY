@@ -4,11 +4,18 @@
  * Meldet Browserfehler an die Fehlerüberwachung (/api/v1/errors).
  * Fehler mit `digest` stammen vom Server und sind dort bereits erfasst.
  */
+import { isStaleDeployError, promptReload } from "./stale-deploy";
+
 let sent = 0;
 const seen = new Set<string>();
 
 export function reportClientError(error: unknown, kind: "error" | "unhandledrejection" | "boundary" = "error") {
   try {
+    // Veraltete Seite nach einem Deploy: kein Fehler, sondern „bitte neu laden“
+    if (isStaleDeployError(error)) {
+      promptReload();
+      return;
+    }
     const e = error instanceof Error ? error : new Error(typeof error === "string" ? error : "Unbekannter Fehler");
     if ((e as { digest?: string }).digest) return;
     const key = `${e.name}:${e.message}`;

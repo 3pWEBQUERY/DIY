@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -128,7 +129,7 @@ export function GroupInfo({ open, onClose, conversationId, group }: { open: bool
                       <ShieldCheck size={15} />
                     </button>
                   )}
-                  <button type="button" disabled={pending} onClick={() => confirm(`${m.displayName} aus der Gruppe entfernen?`) && exec(() => removeGroupMemberAction(conversationId, m.id))} className="grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-danger" aria-label={`${m.displayName} entfernen`} title="Entfernen">
+                  <button type="button" disabled={pending} onClick={async () => (await confirmDialog(`${m.displayName} aus der Gruppe entfernen?`)) && exec(() => removeGroupMemberAction(conversationId, m.id))} className="grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-danger" aria-label={`${m.displayName} entfernen`} title="Entfernen">
                     <UserMinus size={15} />
                   </button>
                 </span>
@@ -143,8 +144,8 @@ export function GroupInfo({ open, onClose, conversationId, group }: { open: bool
           variant="ghost"
           className="text-danger"
           disabled={pending}
-          onClick={() =>
-            confirm("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") &&
+          onClick={async () =>
+            (await confirmDialog("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.")) &&
             start(async () => {
               const r = await leaveGroupAction(conversationId);
               if (!r.ok) return toast(r.error, "error");

@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -101,8 +102,8 @@ export function ProjectOwnerBar({ project, ownerHandle }: { project: { id: strin
       label: "Projekt löschen",
       icon: <Trash2 size={15} />,
       danger: true,
-      onSelect: () => {
-        if (!confirm("Projekt endgültig löschen? Journal, Galerie und Materialliste werden entfernt. Verknüpfte Beiträge und Anleitungen bleiben bestehen.")) return;
+      onSelect: async () => {
+        if (!(await confirmDialog("Projekt endgültig löschen? Journal, Galerie und Materialliste werden entfernt. Verknüpfte Beiträge und Anleitungen bleiben bestehen."))) return;
         start(async () => {
           const r = await deleteProjectAction(project.id);
           if (r.ok) {

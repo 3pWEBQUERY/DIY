@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -284,7 +285,7 @@ export function TutorialEditor({
                 onMedia={(next) => setSteps((prev) => prev.map((x) => (x.uid === s.uid ? { ...x, media: typeof next === "function" ? next(x.media) : next } : x)))}
                 onMove={(d) => moveStep(i, d)}
                 onDuplicate={() => setSteps((prev) => [...prev.slice(0, i + 1), { ...s, uid: crypto.randomUUID(), stableKey: undefined, title: `${s.title} (Kopie)`.slice(0, 140), media: [], open: true }, ...prev.slice(i + 1)])}
-                onRemove={() => steps.length > 1 && confirm(`Schritt ${i + 1} entfernen?`) && setSteps((prev) => prev.filter((x) => x.uid !== s.uid))}
+                onRemove={async () => steps.length > 1 && (await confirmDialog(`Schritt ${i + 1} entfernen?`)) && setSteps((prev) => prev.filter((x) => x.uid !== s.uid))}
               />
             ))}
           </ol>

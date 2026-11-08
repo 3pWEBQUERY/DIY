@@ -2,9 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BRAND } from "@/config/brand";
 import { Toaster } from "@/components/ui/toast";
+import { ConfirmHost } from "@/components/ui/confirm";
 import { Suspense } from "react";
 import { NavProgress } from "@/components/shell/page-transition";
 import { ErrorReporter } from "@/components/shell/error-reporter";
+import { VersionWatcher } from "@/components/shell/version-watcher";
 import { categoryRegistrySnapshot } from "@werkraum/shared";
 import { CategoryRegistrySync } from "@/components/shell/category-registry";
 
@@ -32,12 +34,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="de-CH">
       <body className="min-h-dvh">
         <ErrorReporter />
+        <VersionWatcher />
         <CategoryRegistrySync data={categoryRegistrySnapshot()} />
         <a href="#main" className="skip-link">
           Zum Inhalt springen
         </a>
         {children}
         <Toaster />
+        <ConfirmHost />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>

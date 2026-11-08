@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ORDER_STATUS_LABEL, ORDER_TRANSITIONS, formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
@@ -151,14 +152,14 @@ export function SellerOrderActions({
         {dialog === "refund" && (
           <form
             className="space-y-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const amountMinor = parseMoneyInput(refund.amount);
               if (!amountMinor) {
                 setFields({ amountMinor: "Bitte einen gültigen Betrag angeben" });
                 return;
               }
-              if (!confirm(`${formatMoney(amountMinor, currency)} erstatten? Das kann nicht rückgängig gemacht werden.`)) return;
+              if (!(await confirmDialog(`${formatMoney(amountMinor, currency)} erstatten? Das kann nicht rückgängig gemacht werden.`))) return;
               start(async () => done(await refundOrderAction(orderId, { amountMinor, reason: refund.reason })));
             }}
           >

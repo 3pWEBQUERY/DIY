@@ -178,6 +178,21 @@ export function notificationParts(n: NotificationLike): NotificationParts {
       };
     }
     case "ORDER_STATUS": {
+      if (str(data.kind) === "payout") {
+        const amount = str(data.amount) ?? "Deine Auszahlung";
+        const arrival = str(data.arrival);
+        const day = arrival ? new Date(arrival).toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Zurich" }) : null;
+        switch (str(data.status)) {
+          case "paid":
+            return { lead: null, text: `Auszahlung von ${amount} wurde deinem Bankkonto gutgeschrieben.`, excerpt: null };
+          case "failed":
+            return { lead: null, text: `Auszahlung von ${amount} ist fehlgeschlagen. Das Geld ist wieder in deinem Guthaben.`, excerpt: str(data.reason) };
+          case "canceled":
+            return { lead: null, text: `Auszahlung von ${amount} wurde storniert. Das Geld ist wieder in deinem Guthaben.`, excerpt: null };
+          default:
+            return { lead: null, text: `Automatische Auszahlung von ${amount} ist unterwegs${day ? ` – voraussichtlich am ${day} auf deinem Konto` : ""}.`, excerpt: null };
+        }
+      }
       if (str(data.kind) === "review") return { lead: name ?? "Jemand", text: `hat${title ? ` ${title}` : " deinen Artikel"} bewertet${str(data.stars) ? ` (${str(data.stars)} von 5)` : ""}.`, excerpt };
       const number = str(data.number);
       const status = str(data.status) as OrderStatus | null;

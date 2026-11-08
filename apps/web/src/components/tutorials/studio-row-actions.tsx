@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { EyeOff, Eye, Pencil, Trash2 } from "lucide-react";
@@ -30,7 +31,7 @@ export function TutorialRowActions({ id, title, state, hasVersion }: { id: strin
       label: "Löschen",
       icon: <Trash2 size={15} />,
       danger: true,
-      onSelect: () => confirm(`«${title}» endgültig löschen? Alle Versionen und Fortschritte gehen verloren.`) && run(() => deleteTutorialAction(id)),
+      onSelect: async () => (await confirmDialog(`«${title}» endgültig löschen? Alle Versionen und Fortschritte gehen verloren.`)) && run(() => deleteTutorialAction(id)),
     },
   ];
   return <MoreMenu items={items} label={`Aktionen für ${title}`} />;

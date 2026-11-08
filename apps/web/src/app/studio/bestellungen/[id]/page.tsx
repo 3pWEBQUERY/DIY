@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BRAND } from "@/config/brand";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { MessageSquare } from "lucide-react";
@@ -66,7 +67,11 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
 
       {payment?.status === "DISPUTED" && (
         <Notice tone="danger" className="mb-8 max-w-3xl" title="Zahlung angefochten">
-          Die Karteninhaberin bzw. der Karteninhaber hat die Zahlung bei der Bank angefochten. Reiche Belege (Versandnachweis, Kommunikation) im Stripe-Dashboard ein. Erstattungen sind während des Verfahrens gesperrt.
+          Die Karteninhaberin bzw. der Karteninhaber hat die Zahlung bei der Bank angefochten. Schick uns Belege (Versandnachweis, Sendungsnummer, Nachrichten) an{" "}
+          <a href={`mailto:${BRAND.supportEmail}?subject=${encodeURIComponent(`Anfechtung Bestellung ${o.number}`)}`} className="font-semibold underline">
+            {BRAND.supportEmail}
+          </a>{" "}
+          – wir reichen sie bei der Bank ein. Erstattungen sind während des Verfahrens gesperrt.
         </Notice>
       )}
       {status === "PROBLEM" && payment?.status !== "DISPUTED" && (

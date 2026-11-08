@@ -19,6 +19,9 @@ COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
+# Fester Schlüssel → Server-Action-IDs bleiben über Deploys gleich (offene Seiten funktionieren
+# nach einem Update weiter). Railway reicht die gleichnamige Service-Variable als Build-Argument durch.
+ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 COPY . .
 # Build braucht keine echte DB; Seiten mit DB-Zugriff werden dynamisch gerendert
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build SESSION_SECRET=build-time-secret-not-used-at-runtime-000

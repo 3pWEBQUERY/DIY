@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { MessageCircle, Repeat2, Pencil, Trash2, ArrowUpRight } from "lucide-react";
@@ -144,8 +145,8 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
       label: "Löschen",
       icon: <Trash2 size={15} />,
       danger: true,
-      onSelect: () =>
-        confirm("Beitrag endgültig löschen?") &&
+      onSelect: async () =>
+        (await confirmDialog("Beitrag endgültig löschen?")) &&
         start(async () => {
           const r = await deletePostAction(post.id);
           if (r.ok) {

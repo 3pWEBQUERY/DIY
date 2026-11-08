@@ -99,6 +99,66 @@ export async function createOnboardingLink(accountId: string) {
   return link.url;
 }
 
+/** Bankkonto/Angaben ändern – Stripe-gehostetes Formular, Rückkehr zu Werkuno. */
+export async function createAccountUpdateLink(accountId: string, returnPath = "/studio/einnahmen") {
+  const link = await stripe().v2.core.accountLinks.create({
+    account: accountId,
+    use_case: {
+      type: "account_update",
+      account_update: {
+        refresh_url: appUrl(`${returnPath}?stripe=erneut`),
+        return_url: appUrl(`${returnPath}?stripe=bank`),
+        collection_options: { fields: "eventually_due" },
+      },
+    },
+  });
+  return link.url;
+}
+
+/* ───────────────────────── Connect: Guthaben & Auszahlungen ───────────────────────── */
+
+export type PayoutInterval = "manual" | "daily" | "weekly" | "monthly";
+export type PayoutSchedule = { interval: PayoutInterval; weeklyAnchor: string | null; monthlyAnchor: number | null; delayDays: number | null };
+
+/** Guthaben des Verkäuferkontos (verfügbar = auszahlbar, ausstehend = noch in der Sperrfrist). */
+export async function connectedBalance(accountId: string, currency: string) {
+  const b = await stripe().balance.retrieve({}, { stripeAccount: accountId });
+  const cur = currency.toLowerCase();
+  const sum = (rows: { amount: number; currency: string }[]) => rows.filter((r) => r.currency === cur).reduce((n, r) => n + r.amount, 0);
+  return { available: sum(b.available), pending: sum(b.pending) };
+}
+
+/** Auszahlungsplan und Bankkonto (letzte 4 Ziffern) des Verkäuferkontos. */
+export async function connectedPayoutSettings(accountId: string): Promise<{ schedule: PayoutSchedule | null; bank: { name: string | null; last4: string; currency: string } | null }> {
+  const a = await stripe().accounts.retrieve(accountId);
+  const sch = a.settings?.payouts?.schedule;
+  const ext = a.external_accounts?.data?.find((x) => x.object === "bank_account" && x.default_for_currency) ?? a.external_accounts?.data?.[0];
+  const bank = ext && ext.object === "bank_account" ? { name: ext.bank_name ?? null, last4: ext.last4, currency: ext.currency.toUpperCase() } : null;
+  return {
+    schedule: sch ? { interval: (sch.interval as PayoutInterval) ?? "daily", weeklyAnchor: sch.weekly_anchor ?? null, monthlyAnchor: sch.monthly_anchor ?? null, delayDays: sch.delay_days ?? null } : null,
+    bank,
+  };
+}
+
+export async function updatePayoutSchedule(accountId: string, s: { interval: PayoutInterval; weeklyAnchor?: string | null; monthlyAnchor?: number | null }) {
+  const schedule: Stripe.AccountUpdateParams.Settings.Payouts.Schedule = { interval: s.interval };
+  if (s.interval === "weekly") schedule.weekly_anchor = (s.weeklyAnchor ?? "monday") as Stripe.AccountUpdateParams.Settings.Payouts.Schedule.WeeklyAnchor;
+  if (s.interval === "monthly") schedule.monthly_anchor = s.monthlyAnchor ?? 1;
+  await stripe().accounts.update(accountId, { settings: { payouts: { schedule } } });
+}
+
+export async function createConnectedPayout(accountId: string, input: { amountMinor: number; currency: string; idempotencyKey: string }) {
+  return stripe().payouts.create(
+    { amount: input.amountMinor, currency: input.currency.toLowerCase(), description: "Werkuno", metadata: { source: "werkuno" } },
+    { stripeAccount: accountId, idempotencyKey: input.idempotencyKey },
+  );
+}
+
+export async function listConnectedPayouts(accountId: string, limit = 20) {
+  const r = await stripe().payouts.list({ limit }, { stripeAccount: accountId });
+  return r.data;
+}
+
 export async function createDashboardLink(accountId: string) {
   const link = await stripe().accounts.createLoginLink(accountId);
   return link.url;

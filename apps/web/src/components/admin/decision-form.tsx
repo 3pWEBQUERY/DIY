@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState } from "react";
 import { MODERATION_ACTION_LABEL, type ModerationActionKind } from "@werkraum/shared";
 import type { ActionResult } from "@/server/errors";
@@ -38,10 +39,10 @@ export function DecisionForm({
   return (
     <form
       className="space-y-5"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
-        if (sev >= 4 && !window.confirm(`${MODERATION_ACTION_LABEL[choice]} wirklich verhängen?`)) return;
+        if (sev >= 4 && !(await confirmDialog(`${MODERATION_ACTION_LABEL[choice]} wirklich verhängen?`))) return;
         run({
           action: choice,
           reason: String(fd.get("reason") ?? ""),

@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -229,10 +230,10 @@ export function ArticleEditor({
     else toast(r.error, "error");
   }
 
-  function restore(rev: Revision) {
+  async function restore(rev: Revision) {
     if (!id) return;
-    if (dirty && !confirm("Du hast ungespeicherte Änderungen. Trotzdem diese Revision wiederherstellen?")) return;
-    if (!dirty && !confirm(`Revision vom ${formatDate(rev.createdAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} wiederherstellen?`)) return;
+    if (dirty && !(await confirmDialog("Du hast ungespeicherte Änderungen. Trotzdem diese Revision wiederherstellen?"))) return;
+    if (!dirty && !(await confirmDialog(`Revision vom ${formatDate(rev.createdAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} wiederherstellen?`))) return;
     startAct(async () => {
       const r = await restoreRevisionAction(id, rev.id);
       if (r.ok) {
@@ -273,9 +274,9 @@ export function ArticleEditor({
             <Button
               variant="ghost"
               disabled={acting || !id}
-              onClick={() =>
+              onClick={async () =>
                 id &&
-                confirm(state === "SCHEDULED" ? "Planung aufheben und zum Entwurf machen?" : "Artikel offline nehmen? Er ist dann nur noch für dich sichtbar.") &&
+                (await confirmDialog(state === "SCHEDULED" ? { title: "Planung aufheben und zum Entwurf machen?", confirmLabel: "Zum Entwurf machen" } : { title: "Artikel offline nehmen?", body: "Er ist dann nur noch für dich sichtbar.", confirmLabel: "Offline nehmen", tone: "danger" })) &&
                 startAct(async () => {
                   const r = await unpublishArticleAction(id);
                   if (r.ok) {
@@ -476,8 +477,8 @@ export function ArticleEditor({
               <button
                 type="button"
                 disabled={acting}
-                onClick={() =>
-                  confirm("Artikel endgültig löschen? Das kann nicht rückgängig gemacht werden.") &&
+                onClick={async () =>
+                  (await confirmDialog("Artikel endgültig löschen? Das kann nicht rückgängig gemacht werden.")) &&
                   startAct(async () => {
                     const r = await deleteArticleAction(id);
                     if (r.ok) {

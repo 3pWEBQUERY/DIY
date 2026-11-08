@@ -137,3 +137,58 @@ export async function replyToReview(user: SessionUser, reviewId: string, text: s
   }
   return { reply: reply || null };
 }
+
+// ───────────────────────── Profil ─────────────────────────
+
+/**
+ * Bewertungen für die Profilseite. Shops sehen immer den Bereich (erhalten), reine Käufer:innen
+ * nur, wenn sie selbst Bewertungen abgegeben haben (abgegeben).
+ */
+export async function profileReviewCounts(userId: string, shopId: string | null, viewerId: string | null | undefined) {
+  const rel = await relationsFor(viewerId);
+  const hidden = rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {};
+  const [given, received] = await Promise.all([
+    db.review.count({ where: { authorId: userId, state: "PUBLISHED" } }),
+    shopId ? db.review.count({ where: { order: { shopId }, state: "PUBLISHED", ...hidden } }) : Promise.resolve(0),
+  ]);
+  return { given, received };
+}
+
+/** Verteilung 5…1 Sterne (Shopbewertung, sonst Produktbewertung) für die Übersicht. */
+export async function shopRatingDistribution(shopId: string) {
+  const rows = await db.$queryRaw<{ stars: number; n: bigint }[]>`
+    SELECT ROUND(COALESCE(r."sellerRating", r."productRating"))::int AS stars, COUNT(*) AS n
+    FROM "Review" r JOIN "Order" o ON o."id" = r."orderId"
+    WHERE o."shopId" = ${shopId} AND r."state" = 'PUBLISHED'
+    GROUP BY 1`;
+  const dist = [5, 4, 3, 2, 1].map((s) => ({ stars: s, n: Number(rows.find((r) => r.stars === s)?.n ?? 0) }));
+  return dist;
+}
+
+const reviewSelect = {
+  id: true,
+  productRating: true,
+  sellerRating: true,
+  body: true,
+  sellerReply: true,
+  createdAt: true,
+  orderItem: { select: { variantName: true } },
+  product: { select: { title: true, slug: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true, status: true } } } },
+  author: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
+} as const;
+
+export async function listReceivedReviews(shopId: string, viewerId: string | null | undefined, take = 30) {
+  const rel = await relationsFor(viewerId);
+  return db.review.findMany({
+    where: { order: { shopId }, state: "PUBLISHED", ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}) },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: reviewSelect,
+  });
+}
+
+export async function listGivenReviews(authorId: string, take = 30) {
+  return db.review.findMany({ where: { authorId, state: "PUBLISHED" }, orderBy: { createdAt: "desc" }, take, select: reviewSelect });
+}
+
+export type ProfileReview = Awaited<ReturnType<typeof listGivenReviews>>[number];

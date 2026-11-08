@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
@@ -92,8 +93,8 @@ export function EditCollectionButtons({ collection }: { collection: Collection }
         variant="ghost"
         size="sm"
         aria-label="Sammlung löschen"
-        onClick={() =>
-          confirm(`Sammlung «${collection.title}» löschen? Die Inhalte bleiben unter «Gespeichert».`) &&
+        onClick={async () =>
+          (await confirmDialog(`Sammlung «${collection.title}» löschen? Die Inhalte bleiben unter «Gespeichert».`)) &&
           start(async () => {
             const r = await deleteCollectionAction(collection.id);
             if (r.ok) {

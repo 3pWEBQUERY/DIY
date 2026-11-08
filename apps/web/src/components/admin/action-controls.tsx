@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState, type ReactNode } from "react";
 import type { ActionResult } from "@/server/errors";
 import { useAction } from "@/lib/use-action";
@@ -35,8 +36,8 @@ export function ActionButton({
       className={className}
       disabled={pending}
       aria-busy={pending}
-      onClick={() => {
-        if (confirm && !window.confirm(confirm)) return;
+      onClick={async () => {
+        if (confirm && !(await confirmDialog(confirm))) return;
         run();
       }}
     >

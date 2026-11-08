@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -114,8 +115,8 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
       label: "Liste löschen",
       icon: <Trash2 size={15} />,
       danger: true,
-      onSelect: () =>
-        confirm(`«${title}» löschen?`) &&
+      onSelect: async () =>
+        (await confirmDialog(`«${title}» löschen?`)) &&
         start(async () => {
           const r = await deleteShoppingListAction(list.id);
           if (r.ok) router.push("/einkaufslisten");

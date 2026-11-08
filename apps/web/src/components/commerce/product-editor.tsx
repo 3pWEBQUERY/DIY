@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { CategoryOption } from "@/server/categories/types";
 import { minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
 import { saveProductAction } from "@/app/studio/produkte/actions";
+import { isStaleDeployError, promptReload } from "@/lib/stale-deploy";
 
 export type ProductEditorInitial = {
   id: string | null;
@@ -173,7 +174,13 @@ export function ProductEditor({
           status,
         },
         { shipsFrom: v.shipsFrom, digitalMediaId: isDigital ? (digital?.mediaId ?? null) : null, announce: announce && status === "ACTIVE", announceText },
-      );
+      ).catch((e: unknown) => {
+        // Nach einem Deploy: neu laden anbieten, Eingaben bleiben bis dahin erhalten
+        if (!isStaleDeployError(e)) throw e;
+        promptReload();
+        return null;
+      });
+      if (!r) return;
       if (r.ok) {
         setFields({});
         toast(

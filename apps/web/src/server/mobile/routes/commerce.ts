@@ -9,6 +9,7 @@ import * as orders from "@/server/commerce/orders";
 import { createReview, listProductReviews, listShopReviews } from "@/server/commerce/reviews";
 import { shopRevenue, type RevenueRange } from "@/server/commerce/revenue";
 import { paymentsMode } from "@/server/commerce/stripe";
+import * as payouts from "@/server/commerce/payouts";
 import { shopSlugSchema } from "@werkraum/shared";
 import { browseCategories, categoryOptions } from "@/server/categories/settings";
 import { getSetting } from "@/server/settings";
@@ -172,6 +173,11 @@ export const commerceRoutes: RouteDef[] = [
   }),
   POST("/studio/shop/stripe-onboarding", async () => ({ url: await shops.startStripeOnboarding(await me()) })),
   POST("/studio/shop/stripe-dashboard", async () => ({ url: await shops.stripeDashboardLink(await me()) })),
+  // Guthaben & Auszahlungen (statt Stripe-Dashboard)
+  GET("/studio/payouts", async () => payouts.getPayoutOverview(await me())),
+  POST("/studio/payouts", async (c) => payouts.requestPayout(await me(), await c.json<unknown>().catch(() => ({})))),
+  PUT("/studio/payouts/schedule", async (c) => payouts.setPayoutSchedule(await me(), await c.json<unknown>())),
+  POST("/studio/payouts/bank-link", async () => ({ url: await payouts.bankUpdateLink(await me()) })),
   POST("/studio/shop/stripe-refresh", async () => {
     const s = await shops.refreshStripeStatus(await me());
     return { status: s?.status ?? null };

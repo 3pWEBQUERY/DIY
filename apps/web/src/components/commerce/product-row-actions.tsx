@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { MoreMenu, type MenuItem } from "@/components/social/actions";
@@ -26,7 +27,7 @@ export function ProductRowActions({ id, status, href, canDelete, shopActive }: {
     items.push({
       label: "Löschen",
       danger: true,
-      onSelect: () => confirm("Produkt endgültig löschen?") && run(() => deleteProductAction(id)),
+      onSelect: async () => (await confirmDialog("Produkt endgültig löschen?")) && run(() => deleteProductAction(id)),
     });
   if (status === "DISABLED") return <span className="spec">Gesperrt</span>;
   return <MoreMenu items={items} label="Aktionen" />;

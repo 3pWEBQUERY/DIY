@@ -10,6 +10,8 @@ import { toast } from "@/components/ui/toast";
 import { Dialog } from "@/components/ui/dialog";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Textarea, Label } from "@/components/ui/field";
+import { confirmDialog } from "@/components/ui/confirm";
+import { ShareSheet } from "./share-sheet";
 import { likeAction, bookmarkAction, reportAction, hideAction, muteAction, blockAction, followAction } from "@/app/(app)/social-actions";
 
 function useAuthRedirect() {
@@ -87,34 +89,27 @@ export function SaveButton({ type, id, saved: initial, label }: { type: TargetTy
  * Teilen – überall gleich: `inline` in Aktionsleisten (nur Symbol), `button` in Seitenköpfen
  * (runder Umriss-Button in derselben Höhe wie die übrigen Kopf-Buttons).
  */
-export function ShareButton({ url, title, variant = "inline", label = false }: { url: string; title: string; variant?: "inline" | "button"; label?: boolean }) {
+export function ShareButton({ url, title, text, image, variant = "inline", label = false }: { url: string; title: string; text?: string; image?: string | null; variant?: "inline" | "button"; label?: boolean }) {
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      type="button"
-      aria-label="Teilen"
-      title="Teilen"
-      className={
-        variant === "button"
-          ? cn(buttonClass("outline", "md"), label ? "" : "size-11 px-0")
-          : "inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink"
-      }
-      onClick={async () => {
-        const full = new URL(url, location.origin).toString();
-        if (navigator.share) {
-          try {
-            await navigator.share({ title, url: full });
-            return;
-          } catch {
-            /* abgebrochen */
-          }
+    <>
+      <button
+        type="button"
+        aria-label="Teilen"
+        aria-haspopup="dialog"
+        title="Teilen"
+        className={
+          variant === "button"
+            ? cn(buttonClass("outline", "md"), label ? "" : "size-11 px-0")
+            : "inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-ink"
         }
-        await navigator.clipboard.writeText(full);
-        toast("Link kopiert.");
-      }}
-    >
-      <Share2 size={17} strokeWidth={1.7} />
-      {label && <span>Teilen</span>}
-    </button>
+        onClick={() => setOpen(true)}
+      >
+        <Share2 size={17} strokeWidth={1.7} />
+        {label && <span>Teilen</span>}
+      </button>
+      <ShareSheet open={open} onClose={() => setOpen(false)} url={url} title={title} text={text} image={image} />
+    </>
   );
 }
 
@@ -269,7 +264,7 @@ export function useSafetyMenu(opts: { targetType: TargetType; targetId: string; 
     { label: "Melden", icon: <Flag size={15} />, onSelect: () => setReportOpen(true) },
     { label: "Nicht interessiert", icon: <EyeOff size={15} />, onSelect: () => run(hideAction(opts.targetType, opts.targetId)) },
     { label: `${opts.authorName} stummschalten`, icon: <VolumeX size={15} />, onSelect: () => run(muteAction(opts.authorId, true)) },
-    { label: `${opts.authorName} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: () => confirm(`${opts.authorName} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`) && run(blockAction(opts.authorId, true)) },
+    { label: `${opts.authorName} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => (await confirmDialog(`${opts.authorName} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) && run(blockAction(opts.authorId, true)) },
   ];
   const dialog = <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} targetType={opts.targetType} targetId={opts.targetId} />;
   return { items, dialog };

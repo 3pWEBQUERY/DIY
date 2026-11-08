@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -273,8 +274,8 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
             label: "Gruppe verlassen",
             icon: <LogOut size={15} />,
             danger: true,
-            onSelect: () =>
-              confirm("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") &&
+            onSelect: async () =>
+              (await confirmDialog("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.")) &&
               start(async () => {
                 const r = await leaveGroupAction(thread.id);
                 if (!r.ok) return toast(r.error, "error");
@@ -308,8 +309,8 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
             label: `${otherName} blockieren`,
             icon: <Ban size={15} />,
             danger: true,
-            onSelect: () =>
-              confirm(`${otherName} blockieren? Ihr könnt euch dann keine Nachrichten mehr schicken.`) &&
+            onSelect: async () =>
+              (await confirmDialog(`${otherName} blockieren? Ihr könnt euch dann keine Nachrichten mehr schicken.`)) &&
               start(async () => {
                 const r = await blockAction(thread.other!.id, true);
                 if (r.ok) {

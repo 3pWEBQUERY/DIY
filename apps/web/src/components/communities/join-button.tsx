@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Clock, LogOut } from "lucide-react";
@@ -55,7 +56,7 @@ export function JoinButton({
       () => joinCommunityAction(communityId),
       (s) => (s === "ACTIVE" ? "Willkommen in der Community!" : s === "PENDING" ? "Anfrage gesendet. Die Moderation entscheidet bald." : undefined),
     );
-  const leave = (confirmText: string, done: string) => confirm(confirmText) && run(() => leaveCommunityAction(communityId), () => done);
+  const leave = async (confirmText: string, done: string) => (await confirmDialog(confirmText)) && run(() => leaveCommunityAction(communityId), () => done);
 
   if (state === "BANNED") return <Button variant="outline" disabled>Kein Beitritt möglich</Button>;
 

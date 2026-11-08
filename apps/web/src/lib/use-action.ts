@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/server/errors";
 import { toast } from "@/components/ui/toast";
+import { isStaleDeployError, promptReload } from "./stale-deploy";
 
 /**
  * Client-Helfer für Server Actions mit einheitlicher Fehlerstruktur.
@@ -22,7 +23,18 @@ export function useAction<A extends unknown[], T>(
     return new Promise<ActionResult<T>>((resolve) => {
       start(async () => {
         setError(null);
-        const res = await action(...args);
+        let res: ActionResult<T>;
+        try {
+          res = await action(...args);
+        } catch (e) {
+          // Nach einem Deploy: Seite neu laden statt Fehlerseite – Eingaben bleiben bis dahin stehen
+          if (!isStaleDeployError(e)) throw e;
+          promptReload();
+          const stale = { ok: false as const, code: "UNAVAILABLE" as const, error: "Werkuno wurde aktualisiert – bitte lade die Seite neu." };
+          setError(stale.error);
+          resolve(stale);
+          return;
+        }
         if (res.ok) {
           setFields({});
           const msg = typeof opts.success === "function" ? opts.success(res.data) : (opts.success ?? res.message);

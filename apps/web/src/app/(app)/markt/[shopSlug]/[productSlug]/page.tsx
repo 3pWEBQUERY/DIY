@@ -150,7 +150,7 @@ export default async function ProductPage({ params }: Params) {
 
           <div className="mt-6 flex items-center gap-5 border-y border-line py-3">
             <SaveButton type="PRODUCT" id={p.id} saved={p.viewer.saved} label />
-            <ShareButton url={href} title={p.title} />
+            <ShareButton url={href} title={p.title} image={p.coverUrl} />
             {p.saveCount > 0 && <span className="spec ml-auto">{p.saveCount} × gemerkt</span>}
           </div>
 

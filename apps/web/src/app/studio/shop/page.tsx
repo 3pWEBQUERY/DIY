@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Check, Circle, Minus } from "lucide-react";
+import { Banknote, Check, Circle, Minus } from "lucide-react";
 import { SHOP_STATUS_LABEL } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getMyShop } from "@/server/commerce/shops";
@@ -9,8 +9,9 @@ import { paymentsMode } from "@/server/commerce/stripe";
 import { formatBps } from "@/server/commerce/rules";
 import { getSetting } from "@/server/settings";
 import { PageHeader } from "@/components/shell/page";
+import { LinkButton } from "@/components/ui/button";
 import { ShopWizard, type ShopFormValues } from "@/components/commerce/shop-wizard";
-import { PauseShopButton, RefreshStripeButton, SimulateVerificationButton, StripeDashboardButton, StripeOnboardingButton } from "@/components/commerce/shop-controls";
+import { PauseShopButton, RefreshStripeButton, SimulateVerificationButton, StripeOnboardingButton } from "@/components/commerce/shop-controls";
 import { Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 import { describeStripeNote } from "@/lib/stripe-status";
@@ -200,7 +201,9 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
             </ol>
             {accountConnected && mode === "stripe" && (
               <div className="mt-6">
-                <StripeDashboardButton />
+                <LinkButton href="/studio/einnahmen#auszahlungen" variant="outline">
+                  <Banknote size={15} aria-hidden /> Guthaben & Auszahlungen
+                </LinkButton>
               </div>
             )}
           </section>

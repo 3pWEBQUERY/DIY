@@ -27,10 +27,6 @@ export async function startOnboardingAction() {
   return act(async () => ({ url: await shops.startStripeOnboarding(await requireUser()) }));
 }
 
-export async function stripeDashboardAction() {
-  return act(async () => ({ url: await shops.stripeDashboardLink(await requireUser()) }));
-}
-
 export async function refreshStripeAction() {
   return act(async () => {
     const s = await shops.refreshStripeStatus(await requireUser());

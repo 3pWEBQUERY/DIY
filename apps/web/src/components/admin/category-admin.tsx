@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState } from "react";
 import { GitMerge, Pencil, Trash2 } from "lucide-react";
 import type { ActionResult } from "@/server/errors";
@@ -156,8 +157,8 @@ export function DeleteEntryButton({ action, confirm, redirect }: { action: () =>
       variant="ghost"
       disabled={pending}
       aria-busy={pending}
-      onClick={() => {
-        if (window.confirm(confirm)) run();
+      onClick={async () => {
+        if ((await confirmDialog(confirm))) run();
       }}
     >
       <Trash2 size={14} aria-hidden /> Löschen

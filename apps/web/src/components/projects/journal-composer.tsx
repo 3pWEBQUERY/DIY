@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
@@ -139,8 +140,8 @@ export function DeleteJournalEntry({ id, className }: { id: string; className?: 
       disabled={pending}
       aria-label="Eintrag löschen"
       className={cn("grid size-8 place-items-center text-muted hover:bg-sunken hover:text-danger rounded-xl", className)}
-      onClick={() => {
-        if (!confirm("Diesen Journaleintrag löschen? Ein geteilter Feed-Beitrag bleibt bestehen.")) return;
+      onClick={async () => {
+        if (!(await confirmDialog("Diesen Journaleintrag löschen? Ein geteilter Feed-Beitrag bleibt bestehen."))) return;
         start(async () => {
           const r = await deleteProjectUpdateAction(id);
           if (r.ok) {

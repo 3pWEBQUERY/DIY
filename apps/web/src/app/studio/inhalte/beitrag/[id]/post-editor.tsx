@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
@@ -57,8 +58,8 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
     });
   }
 
-  function publishNow() {
-    if (dirty && !confirm("Ungespeicherte Änderungen gehen verloren. Trotzdem veröffentlichen? (Speichere zuerst, um sie zu übernehmen.)")) return;
+  async function publishNow() {
+    if (dirty && !(await confirmDialog("Ungespeicherte Änderungen gehen verloren. Trotzdem veröffentlichen? (Speichere zuerst, um sie zu übernehmen.)"))) return;
     startPublish(async () => {
       const r = await publishDraftAction(post.id);
       if (r.ok) {
@@ -79,8 +80,8 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
     });
   }
 
-  function remove() {
-    if (!confirm(isDraft ? "Diesen Entwurf endgültig löschen?" : "Diesen Beitrag endgültig löschen? Kommentare und Reaktionen verschwinden ebenfalls aus der Ansicht.")) return;
+  async function remove() {
+    if (!(await confirmDialog(isDraft ? "Diesen Entwurf endgültig löschen?" : "Diesen Beitrag endgültig löschen? Kommentare und Reaktionen verschwinden ebenfalls aus der Ansicht."))) return;
     startDelete(async () => {
       const r = await removePostAction(post.id);
       if (r.ok) {

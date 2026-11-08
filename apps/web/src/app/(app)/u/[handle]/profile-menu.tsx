@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Flag, VolumeX, Volume2, Ban } from "lucide-react";
@@ -27,7 +28,7 @@ export function ProfileSafetyMenu({ userId, name, muted }: { userId: string; nam
           muted
             ? { label: "Stummschaltung aufheben", icon: <Volume2 size={15} />, onSelect: () => run(muteAction(userId, false)) }
             : { label: "Stummschalten", icon: <VolumeX size={15} />, onSelect: () => run(muteAction(userId, true)) },
-          { label: `${name} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: () => confirm(`${name} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`) && run(blockAction(userId, true)) },
+          { label: `${name} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => (await confirmDialog(`${name} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) && run(blockAction(userId, true)) },
         ]}
       />
       <ReportDialog open={report} onClose={() => setReport(false)} targetType="USER" targetId={userId} />

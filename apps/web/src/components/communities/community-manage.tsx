@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -204,7 +205,7 @@ export function MembersManager({ communityId, members, viewer }: { communityId: 
                           disabled={pending}
                           aria-label={`Leitung an ${m.displayName} übertragen`}
                           title="Leitung übertragen"
-                          onClick={() => confirm(`Leitung an ${m.displayName} übertragen? Du wirst Admin.`) && run(() => transferOwnershipAction(communityId, m.userId))}
+                          onClick={async () => (await confirmDialog(`Leitung an ${m.displayName} übertragen? Du wirst Admin.`)) && run(() => transferOwnershipAction(communityId, m.userId))}
                         >
                           <Crown size={14} />
                         </Button>
@@ -341,7 +342,7 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
                       {formatDate(c.startsAt, { day: "numeric", month: "short" })} – {formatDate(c.endsAt, { day: "numeric", month: "short", year: "numeric" })}
                     </p>
                   </div>
-                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => confirm("Challenge löschen?") && run(() => deleteChallengeAction(communityId, c.id))} aria-label={`${c.title} löschen`}>
+                  <Button size="sm" variant="ghost" disabled={pending} onClick={async () => (await confirmDialog("Challenge löschen?")) && run(() => deleteChallengeAction(communityId, c.id))} aria-label={`${c.title} löschen`}>
                     <X size={14} />
                   </Button>
                 </li>
@@ -388,7 +389,7 @@ export function RemoveProjectButton({ communityId, projectId, label }: { communi
     <button
       type="button"
       disabled={pending}
-      onClick={() => confirm(`„${label}“ aus der Community entfernen?`) && run(() => removeCommunityProjectAction(communityId, projectId))}
+      onClick={async () => (await confirmDialog(`„${label}“ aus der Community entfernen?`)) && run(() => removeCommunityProjectAction(communityId, projectId))}
       className="text-xs text-muted hover:text-danger"
     >
       Entfernen

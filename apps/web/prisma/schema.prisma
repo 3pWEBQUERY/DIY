@@ -1516,7 +1516,13 @@ model PayoutRecord {
   currency    String
   status      String
   arrivalAt   DateTime?
+  /// automatisch nach Auszahlungsplan (Stripe) oder über Werkuno beantragt
+  automatic   Boolean  @default(true)
+  failureMessage String?
+  /// bereits benachrichtigte Status (gegen doppelte Benachrichtigungen bei Webhook + Abgleich)
+  notified    String[] @default([])
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 }
 
 /// Eingehende Provider-Webhooks – Idempotenz über eindeutige Event-ID (§13.6).

@@ -23,6 +23,7 @@ import { captureError } from "@/server/monitoring";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { sendEventReminders } from "@/server/communities/events";
 import { syncPendingConnectAccounts } from "@/server/commerce/shops";
+import { syncPayouts } from "@/server/commerce/payouts";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -264,7 +265,11 @@ async function main() {
   await boss.work(Q.polls, guarded(Q.polls, async () => void (await notifyEndedPolls())));
   await boss.work(Q.posts, guarded(Q.posts, async () => void (await publishScheduledPosts())));
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
-  await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => void (await syncPendingConnectAccounts())));
+  await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => {
+      await syncPendingConnectAccounts();
+      // Auszahlungen abgleichen (Benachrichtigung auch, falls ein Webhook ausbleibt) – halbstündlich
+      if (new Date().getMinutes() % 30 < 10) await syncPayouts();
+    }));
 
   await boss.schedule(Q.outbox, "* * * * *");
   await boss.schedule(Q.emailInstant, "*/2 * * * *");

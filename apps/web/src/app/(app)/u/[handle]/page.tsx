@@ -20,14 +20,16 @@ import { Cover } from "@/components/ui/media";
 import { Glyph } from "@/components/ui/glyphs";
 import { LinkButton } from "@/components/ui/button";
 import { TabLinks } from "@/components/shell/page";
+import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
+import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
 import { cn, formatDate, compactNumber } from "@/lib/utils";
 
-type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string }> };
+type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string; art?: string }> };
 
 async function load(handle: string) {
   const profile = await db.userProfile.findUnique({
     where: { handle: handle.toLowerCase() },
-    include: { user: { select: { id: true, status: true, createdAt: true, role: true, shop: { select: { slug: true, name: true, status: true, tagline: true } } } } },
+    include: { user: { select: { id: true, status: true, createdAt: true, role: true, shop: { select: { id: true, slug: true, name: true, status: true, tagline: true, ratingAvg: true, ratingCount: true } } } } },
   });
   if (!profile) {
     const r = await db.handleRedirect.findUnique({ where: { oldHandle: handle.toLowerCase() }, include: { profile: { select: { handle: true } } } });
@@ -50,7 +52,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-const TAB_KEYS = ["beitraege", "projekte", "anleitungen", "shop", "sammlungen", "ueber"] as const;
+const TAB_KEYS = ["beitraege", "projekte", "anleitungen", "shop", "bewertungen", "sammlungen", "ueber"] as const;
 type Tab = (typeof TAB_KEYS)[number];
 
 /** Creator-Profil (UI-04, PRD §12). Nicht genutzte Bereiche werden ausgeblendet. */
@@ -70,6 +72,10 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   const muted = rel.muted.includes(userId);
 
   const base = await baseFeedWhere(viewerId, { includeMuted: true });
+  // Bewertungen: Shops (öffentlich) immer, reine Käufer:innen nur mit abgegebenen Bewertungen
+  const shop = profile.user.shop && ["ACTIVE", "PAUSED"].includes(profile.user.shop.status) ? profile.user.shop : null;
+  const reviewCounts = blocked ? { given: 0, received: 0 } : await profileReviewCounts(userId, shop?.id ?? null, viewerId);
+  const showReviews = !!shop || reviewCounts.given > 0;
   const [projects, tutorials, posts, products, collections, articles, followsYou] = blocked
     ? [null, null, null, [], [], 0, false]
     : await Promise.all([
@@ -89,11 +95,20 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     { key: "projekte" as Tab, label: "Projekte", count: projects?.items.length ?? 0 },
     ...(tutorials?.items.length ? [{ key: "anleitungen" as Tab, label: "Anleitungen", count: tutorials.items.length }] : []),
     ...(products.length ? [{ key: "shop" as Tab, label: "Shop", count: products.length }] : []),
+    ...(showReviews ? [{ key: "bewertungen" as Tab, label: "Bewertungen", count: shop ? reviewCounts.received : reviewCounts.given }] : []),
     ...(collections.length ? [{ key: "sammlungen" as Tab, label: "Sammlungen", count: collections.length }] : []),
     { key: "ueber" as Tab, label: "Über mich" },
   ];
   const requested = TAB_KEYS.includes(sp.tab as Tab) ? (sp.tab as Tab) : null;
   const tab: Tab = requested && tabs.some((t) => t.key === requested) ? requested : (projects?.items.length ?? 0) > 0 && !requested ? "projekte" : "beitraege";
+  const reviewView: "erhalten" | "abgegeben" = shop && (sp.art !== "abgegeben" || !reviewCounts.given) ? "erhalten" : "abgegeben";
+  const [reviewList, ratingDist] =
+    tab === "bewertungen"
+      ? await Promise.all([
+          reviewView === "erhalten" && shop ? listReceivedReviews(shop.id, viewerId) : listGivenReviews(userId),
+          reviewView === "erhalten" && shop && reviewCounts.received ? shopRatingDistribution(shop.id) : Promise.resolve(null),
+        ])
+      : [[], null];
   const links = (Array.isArray(profile.links) ? profile.links : []) as { label?: string; url: string }[];
   const viewerSlim = viewer?.profile ? { id: viewer.id, displayName: viewer.profile.displayName, avatarUrl: viewer.profile.avatarUrl } : null;
 
@@ -159,7 +174,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : !viewer ? (
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
-            <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} />
+            <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} image={profile.avatarUrl} />
             {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
           </div>
         </header>
@@ -205,6 +220,46 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                     </div>
                   </div>
                 )}
+                {tab === "bewertungen" && (
+                  <div>
+                    {shop && reviewCounts.given > 0 && (
+                      <div className="mb-5 inline-flex rounded-xl bg-sunken p-1 text-[13px]" role="tablist" aria-label="Bewertungen">
+                        {(
+                          [
+                            ["erhalten", `Erhalten · ${reviewCounts.received}`],
+                            ["abgegeben", `Abgegeben · ${reviewCounts.given}`],
+                          ] as const
+                        ).map(([k, l]) => (
+                          <Link
+                            key={k}
+                            role="tab"
+                            aria-selected={reviewView === k}
+                            scroll={false}
+                            href={`/u/${profile.handle}?tab=bewertungen${k === "abgegeben" ? "&art=abgegeben" : ""}`}
+                            className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted transition-colors hover:text-ink", reviewView === k && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}
+                          >
+                            {l}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                    {reviewView === "erhalten" && shop ? (
+                      reviewList.length ? (
+                        <>
+                          {ratingDist && <RatingSummary avg={shop.ratingAvg} count={reviewCounts.received} dist={ratingDist} />}
+                          <ReceivedReviewList reviews={reviewList} />
+                        </>
+                      ) : (
+                        <Empty
+                          title="Noch keine Bewertungen"
+                          body={isSelf ? "Sobald Käufer:innen eine Bestellung bewerten, erscheinen ihre Bewertungen hier." : `${shop.name} hat noch keine Bewertungen erhalten.`}
+                        />
+                      )
+                    ) : (
+                      <GivenReviewList reviews={reviewList} />
+                    )}
+                  </div>
+                )}
                 {tab === "sammlungen" && (
                   <ul className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
                     {collections.map((c) => (
@@ -238,6 +293,19 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                   </div>
                 ))}
               </dl>
+              {shop && (
+                <Link href={`/u/${profile.handle}?tab=bewertungen`} className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm hover:border-rule-strong">
+                  {reviewCounts.received ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="num font-semibold">{shop.ratingAvg.toLocaleString("de-CH", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+                      <Stars value={shop.ratingAvg} size={12} />
+                    </span>
+                  ) : (
+                    <span className="text-muted">Noch keine Bewertungen</span>
+                  )}
+                  {reviewCounts.received > 0 && <span className="text-xs text-muted">{reviewCounts.received} {reviewCounts.received === 1 ? "Bewertung" : "Bewertungen"}</span>}
+                </Link>
+              )}
               {profile.bio && tab !== "ueber" && <p className="text-[15px] leading-relaxed text-ink-2 whitespace-pre-line">{profile.bio}</p>}
               {profile.categories.length > 0 && (
                 <div>
