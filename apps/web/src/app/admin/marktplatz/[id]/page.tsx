@@ -15,6 +15,7 @@ import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { decideProductAction, decideShopAction, rejectShopVerificationAction, setProductFeaturedAction, updateShopAction } from "../actions";
 import { AuditList, CasesTable, NameLink, ReviewsTable, SHOP_STATUS, StatGrid, Thumb, VERIF, kindLabel, money, orderLabel, orderTone, paymentLabel, productTone, shopTone, stockOf, verifTone } from "../shared";
+import { describeStripeNote } from "@/lib/stripe-status";
 
 export const metadata: Metadata = { title: "Shop verwalten" };
 
@@ -111,7 +112,7 @@ export default async function ShopDetailPage({ params }: { params: Promise<{ id:
       {v?.state === "REJECTED" && s.status === "DRAFT" && (
         <Notice className="mb-8" title="Antrag abgelehnt">
           {v.reviewedAt ? `Am ${dateTime(v.reviewedAt)}. ` : ""}
-          {v.notes || "Ohne Notiz."}
+          {describeStripeNote(v.notes)?.text ?? (v.notes || "Ohne Notiz.")}
         </Notice>
       )}
 
@@ -269,7 +270,7 @@ export default async function ShopDetailPage({ params }: { params: Promise<{ id:
               <div><dt className="spec">Status</dt><dd><Badge tone={verifTone(v?.state ?? "NOT_STARTED")}>{VERIF[v?.state ?? "NOT_STARTED"]}</Badge></dd></div>
               {v?.businessName && <div><dt className="spec">Firma</dt><dd>{v.businessName}</dd></div>}
               {v?.reviewedAt && <div><dt className="spec">Geprüft</dt><dd>{dateTime(v.reviewedAt)}{!v.reviewedBy ? " · automatisch" : ""}</dd></div>}
-              {v?.notes && <div><dt className="spec">Prüfnotiz</dt><dd className="whitespace-pre-wrap text-ink-2">{v.notes}</dd></div>}
+              {v?.notes && <div><dt className="spec">Prüfnotiz</dt><dd className="whitespace-pre-wrap text-ink-2">{describeStripeNote(v.notes) ? `${describeStripeNote(v.notes)!.title} (${v.notes.replace(/^Stripe:\s*/, "Stripe-Code: ")})` : v.notes}</dd></div>}
               {isAdmin ? (
                 <>
                   {v?.legalName && <div><dt className="spec">Rechtlicher Name</dt><dd>{v.legalName}</dd></div>}

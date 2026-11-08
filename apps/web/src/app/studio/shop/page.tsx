@@ -13,6 +13,7 @@ import { ShopWizard, type ShopFormValues } from "@/components/commerce/shop-wiza
 import { PauseShopButton, RefreshStripeButton, SimulateVerificationButton, StripeDashboardButton, StripeOnboardingButton } from "@/components/commerce/shop-controls";
 import { Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
+import { describeStripeNote } from "@/lib/stripe-status";
 
 export const metadata: Metadata = { title: "Shopverwaltung" };
 
@@ -68,7 +69,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
         />
         {v?.state === "REJECTED" && (
           <Notice tone="danger" className="mb-8 max-w-2xl" title="Dein Antrag wurde nicht freigegeben">
-            {v.notes || "Bitte prüfe deine Angaben und reiche den Antrag erneut ein."}
+            {describeStripeNote(v.notes)?.text ?? (v.notes || "Bitte prüfe deine Angaben und reiche den Antrag erneut ein.")}
           </Notice>
         )}
         {!shop && (
@@ -98,6 +99,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
   const accountConnected = !!shop.stripeAccountId;
   const active = shop.status === "ACTIVE" || shop.status === "PAUSED";
   const verified = v?.state === "VERIFIED";
+  const stripeNote = describeStripeNote(v?.notes);
   // Stripe-Modus: nur ein echtes, bei Stripe ausgefülltes Konto zählt – eine manuelle Freigabe ersetzt es nicht
   const stripeDetailsDone = accountConnected && (shop.chargesEnabled || (!!v && v.state !== "NOT_STARTED" && !/ausstehend/.test(v.notes ?? "")));
   const connectDone = mode === "stripe" ? stripeDetailsDone : accountConnected || verified;
@@ -168,9 +170,19 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
                 done={shop.chargesEnabled || (verified && mode !== "stripe")}
                 active={connectDone && !shop.chargesEnabled}
                 title="Zahlungen empfangen"
-                body={accountConnected && !shop.chargesEnabled ? (v?.notes ? `Stripe prüft noch: ${v.notes.replace(/^Stripe: /, "")}` : "Stripe prüft deine Angaben – das dauert meist nur wenige Minuten.") : undefined}
+                body={
+                  accountConnected && !shop.chargesEnabled ? (
+                    <span className="block">
+                      <span className={cn("mb-0.5 inline-flex items-center gap-1.5 font-semibold", stripeNote?.tone === "problem" ? "text-danger" : stripeNote?.tone === "action" ? "text-clay-ink" : "text-ink")}>
+                        {stripeNote?.tone === "info" && <span className="size-1.5 animate-pulse rounded-full bg-moss" aria-hidden />}
+                        {stripeNote?.title ?? "Wird geprüft"}
+                      </span>
+                      <span className="block">{stripeNote?.text ?? "Stripe prüft deine Angaben – das dauert meist nur wenige Minuten."}</span>
+                    </span>
+                  ) : undefined
+                }
               >
-                {connectDone && !shop.chargesEnabled && mode === "stripe" && <StripeOnboardingButton label="Angaben bei Stripe ergänzen" />}
+                {connectDone && !shop.chargesEnabled && mode === "stripe" && stripeNote?.needsAction !== false && <StripeOnboardingButton label="Angaben bei Stripe ergänzen" />}
               </Step>
               <Step done={shop.payoutsEnabled || (verified && mode !== "stripe")} active={shop.chargesEnabled && !shop.payoutsEnabled} title="Auszahlungen aktiv" />
               <Step
