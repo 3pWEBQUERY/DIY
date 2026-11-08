@@ -10,6 +10,7 @@ import { AddressBlock } from "@/components/commerce/order-parts";
 import { PrintButton } from "@/components/commerce/buyer-order-actions";
 import { Wordmark } from "@/components/shell/wordmark";
 import { formatDate } from "@/lib/utils";
+import { orderBuyer } from "@/server/account/customer";
 
 export const metadata: Metadata = { title: "Beleg", robots: { index: false } };
 
@@ -73,7 +74,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           </div>
           <div>
             <p className="spec mb-2">Käufer:in</p>
-            <AddressBlock address={o.shippingAddress} className="text-[13.5px]" />
+            <AddressBlock address={orderBuyer(o).billing} className="text-[13.5px]" />
           </div>
         </div>
 

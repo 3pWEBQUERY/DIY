@@ -8,6 +8,7 @@ import { deleteAccount } from "@/server/identity/service";
 import { setBlock, setMute } from "@/server/social/interactions";
 import * as account from "@/server/account/service";
 import * as mfa from "@/server/auth/mfa";
+import * as customer from "@/server/account/customer";
 
 /** Server Actions der Einstellungen. Jede Aktion prüft die Sitzung serverseitig. */
 
@@ -178,4 +179,15 @@ export async function disableMfaAction(code: string) {
     revalidatePath("/einstellungen/sicherheit");
     return null;
   }, "Zwei-Faktor-Anmeldung deaktiviert.");
+}
+
+/* ───────── Persönliche Angaben für Bestellungen ───────── */
+
+export async function saveCustomerDetailsAction(input: unknown) {
+  return act(async () => {
+    const u = await requireUser();
+    await customer.saveCustomerDetails(u.id, input);
+    revalidatePath("/einstellungen/konto");
+    return null;
+  }, "Angaben gespeichert. Sie werden bei deinen nächsten Bestellungen verwendet.");
 }

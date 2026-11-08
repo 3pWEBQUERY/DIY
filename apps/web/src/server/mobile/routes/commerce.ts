@@ -12,6 +12,7 @@ import { paymentsMode } from "@/server/commerce/stripe";
 import { shopSlugSchema } from "@werkraum/shared";
 import { browseCategories, categoryOptions } from "@/server/categories/settings";
 import { getSetting } from "@/server/settings";
+import { getCustomerDetails, saveCustomerDetails } from "@/server/account/customer";
 import { DELETE, GET, PATCH, POST, PUT, int, me, need, str, viewer, viewerId, type RouteDef } from "../router";
 
 /** Marktplatz, Warenkorb, Kasse, Bestellungen, Shop & Verkauf (PRD §13, §20.3). */
@@ -110,11 +111,13 @@ export const commerceRoutes: RouteDef[] = [
   GET("/checkout", async () => {
     const u = await me();
     const view = await cart.getCartView(u.id);
-    const last = await db.order.findFirst({ where: { buyerId: u.id }, orderBy: { createdAt: "desc" }, select: { shippingAddress: true } });
-    const address = (last?.shippingAddress as Record<string, string> | null) ?? { name: u.profile.displayName };
+    const details = await getCustomerDetails(u.id);
     const digitalOnly = view.groups.length > 0 && view.groups.every((g) => g.lines.every((l) => l.isDigital));
-    return { cart: view, address, digitalOnly };
+    // details = gespeicherte Angaben (null → beim ersten Kauf Pflichtformular, dann POST /checkout mit `details`)
+    return { cart: view, details, detailsRequired: !details, digitalOnly };
   }),
+  GET("/me/customer-details", async () => ({ details: await getCustomerDetails((await me()).id) })),
+  PUT("/me/customer-details", async (c) => ({ details: await saveCustomerDetails((await me()).id, await c.json()) })),
   POST("/checkout", async (c) => checkout.startCheckout(await me(), await c.json())),
   POST("/orders/:id/resume", async (c) => ({ url: await checkout.resumePayment(await me(), c.p.id!) })),
   POST("/orders/:id/abandon", async (c) => {

@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { formatMoney } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
-import { db } from "@/server/db";
 import { getCartView } from "@/server/commerce/cart";
+import { getCustomerDetails } from "@/server/account/customer";
 import { CheckoutForm } from "@/components/commerce/checkout-form";
 import { FeeSummary } from "@/components/commerce/order-parts";
 import { Notice } from "@/components/ui/misc";
@@ -33,8 +33,7 @@ export default async function CheckoutPage() {
     );
   }
 
-  const last = await db.order.findFirst({ where: { buyerId: user.id }, orderBy: { createdAt: "desc" }, select: { shippingAddress: true } });
-  const initial = (last?.shippingAddress as Record<string, string> | null) ?? { name: user.profile.displayName };
+  const saved = await getCustomerDetails(user.id);
   const digitalOnly = cart.groups.every((g) => g.lines.every((l) => l.isDigital));
 
   return (
@@ -51,7 +50,7 @@ export default async function CheckoutPage() {
       </header>
 
       <div className="grid gap-12 lg:grid-cols-[1fr_380px]">
-        <CheckoutForm initial={initial} totalMinor={cart.totals.total} currency="CHF" orderCount={cart.groups.length} mode={cart.mode === "stripe" ? "stripe" : "simulated"} digitalOnly={digitalOnly} />
+        <CheckoutForm saved={saved} totalMinor={cart.totals.total} currency="CHF" orderCount={cart.groups.length} mode={cart.mode === "stripe" ? "stripe" : "simulated"} digitalOnly={digitalOnly} />
 
         <aside className="lg:sticky lg:top-6 lg:h-fit">
           <div className="border border-rule bg-card rounded-2xl">

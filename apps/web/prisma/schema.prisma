@@ -302,6 +302,7 @@ model User {
   pollVotes       PollVote[]
   organizedEvents CommunityEvent[] @relation("eventOrganizer")
   eventAttendance EventAttendee[]
+  customerDetails CustomerDetails?
 }
 
 model UserProfile {
@@ -1364,6 +1365,8 @@ model Order {
   platformFeeMinor Int
   feeBps          Int
   shippingAddress Json
+  /// Käuferangaben zum Bestellzeitpunkt (Name, Rechnungsadresse, Telefon) – bleiben unverändert
+  buyerDetails    Json?
   buyerNote       String      @default("")
   checkoutSessionId String?   @unique
   reservationExpiresAt DateTime?
@@ -1885,4 +1888,20 @@ model EventAttendee {
 
   @@id([eventId, userId])
   @@index([userId, status])
+}
+
+/// Persönliche Angaben für Bestellungen – einmal erfasst, bei jeder Bestellung verwendet.
+model CustomerDetails {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  line1      String
+  line2      String   @default("")
+  postalCode String
+  city       String
+  country    String
+  phone      String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

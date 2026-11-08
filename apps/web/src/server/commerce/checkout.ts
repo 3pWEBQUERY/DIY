@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveOrderParty } from "@/server/account/customer";
 import { checkoutSchema, formatMoney, type Currency } from "@werkraum/shared";
 import { db, type Prisma } from "@/server/db";
 import { AppError, fail } from "@/server/errors";
@@ -73,6 +74,8 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
   const mode = paymentsMode();
   if (mode === "disabled") throw fail.unavailable(PAYMENTS_DISABLED_MESSAGE);
   await limit("checkout", user.id);
+  // Wer bestellt? Name und Adresse sind Pflicht (einmal angeben, danach gespeichert)
+  const party = await resolveOrderParty(user.id, data);
 
   const cached = await claimIdempotencyKey(user.id, data.idempotencyKey);
   if (cached) return cached;
@@ -169,7 +172,8 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
               totalMinor: g.fees.total,
               platformFeeMinor: g.fees.platformFee,
               feeBps,
-              shippingAddress: data.address,
+              shippingAddress: party.shippingAddress,
+              buyerDetails: party.buyerDetails,
               buyerNote: data.buyerNote,
               reservationExpiresAt,
               items: {

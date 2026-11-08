@@ -10,6 +10,7 @@ import { PageHeader, TabLinks } from "@/components/shell/page";
 import { PaymentStatusBadge } from "@/components/commerce/order-parts";
 import { Empty } from "@/components/ui/misc";
 import { formatDate, relativeTime } from "@/lib/utils";
+import { orderBuyer } from "@/server/account/customer";
 
 export const metadata: Metadata = { title: "Bestellungen" };
 
@@ -86,7 +87,10 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
                       {o.items.length > 1 && <p className="text-[12.5px] text-muted">und {o.items.length - 1} weitere</p>}
                       {o.items.every((i) => i.isDigital) && <p className="spec">Digital</p>}
                     </td>
-                    <td className="py-3 pr-4 text-ink-2">{o.buyer.profile?.displayName ?? "Ehemaliges Mitglied"}</td>
+                    <td className="py-3 pr-4 text-ink-2">
+                      <span className="block">{orderBuyer(o).name ?? o.buyer.profile?.displayName ?? "Ehemaliges Mitglied"}</span>
+                      {o.buyer.profile && <span className="block text-[12px] text-muted">@{o.buyer.profile.handle}</span>}
+                    </td>
                     <td className="py-3 pr-4">{o.payments[0] && <PaymentStatusBadge status={o.payments[0].status} />}</td>
                     <td className="num py-3 text-right font-semibold">{formatMoney(o.totalMinor, o.currency as Currency)}</td>
                   </tr>

@@ -185,7 +185,7 @@ export async function deleteAccount(userId: string, password: string | null) {
 /** Datenexport (Auskunftsrecht, §23.1). */
 export async function exportUserData(userId: string) {
   const [user, posts, projects, tutorials, articles, comments, orders, follows, bookmarks, messages] = await Promise.all([
-    db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, createdAt: true, locale: true, profile: true, preference: true } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, createdAt: true, locale: true, profile: true, preference: true, customerDetails: true } }),
     db.post.findMany({ where: { authorId: userId }, select: { id: true, body: true, createdAt: true, visibility: true } }),
     db.project.findMany({ where: { ownerId: userId }, include: { updates: true, materials: true, tools: true } }),
     db.tutorial.findMany({ where: { authorId: userId }, include: { versions: { include: { steps: true } } } }),

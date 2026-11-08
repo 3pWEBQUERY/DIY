@@ -90,8 +90,46 @@ export const cartUpdateSchema = z.object({
   quantity: z.coerce.number().int().min(0).max(99),
 });
 
+/**
+ * Persönliche Angaben für Bestellungen – einmal erfasst, im Konto gespeichert und bei jeder
+ * Bestellung verwendet (Rechnungsadresse; Lieferadresse, sofern nicht abweichend).
+ */
+const personName = z
+  .string()
+  .trim()
+  .min(1, "Pflichtfeld")
+  .max(60, "Höchstens 60 Zeichen")
+  .regex(/^[\p{L}][\p{L}\p{M}' .-]*$/u, "Bitte nur Buchstaben verwenden");
+const POSTAL: Record<(typeof SHIP_COUNTRIES)[number], RegExp> = { CH: /^\d{4}$/, LI: /^\d{4}$/, AT: /^\d{4}$/, DE: /^\d{5}$/ };
+export const customerDetailsSchema = z
+  .object({
+    firstName: personName,
+    lastName: personName,
+    line1: z.string().trim().min(3, "Strasse und Hausnummer angeben").max(200),
+    line2: z.string().trim().max(200).default(""),
+    postalCode: z.string().trim().min(1, "PLZ angeben").max(12),
+    city: z.string().trim().min(2, "Ort angeben").max(100),
+    country: z.enum(SHIP_COUNTRIES),
+    phone: z
+      .string()
+      .trim()
+      .max(30)
+      .refine((v) => !v || /^\+?[0-9 ()/.-]{7,}$/.test(v), "Ungültige Telefonnummer")
+      .default(""),
+  })
+  .superRefine((d, ctx) => {
+    if (!POSTAL[d.country].test(d.postalCode)) ctx.addIssue({ code: "custom", path: ["postalCode"], message: d.country === "DE" ? "5-stellige PLZ" : "4-stellige PLZ" });
+  });
+export type CustomerDetails = z.infer<typeof customerDetailsSchema>;
+export const customerFullName = (d: Pick<CustomerDetails, "firstName" | "lastName">) => `${d.firstName} ${d.lastName}`.trim();
+
 export const checkoutSchema = z.object({
-  address: shippingAddressSchema,
+  /** Abweichende Lieferadresse (nur mit shipToOther). Ältere App-Versionen senden nur `address`. */
+  address: shippingAddressSchema.optional(),
+  /** Neue/geänderte persönliche Angaben; ohne Angabe werden die gespeicherten verwendet. */
+  details: customerDetailsSchema.optional(),
+  saveDetails: z.boolean().default(true),
+  shipToOther: z.boolean().default(false),
   buyerNote: z.string().trim().max(1000).default(""),
   idempotencyKey: z.string().trim().min(16).max(80),
   /** Vom Client angezeigter Gesamtbetrag – weicht er ab, muss der Käufer neu bestätigen. */

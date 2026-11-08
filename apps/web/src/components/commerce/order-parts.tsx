@@ -1,4 +1,4 @@
-import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL, formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
+import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL, formatMoney, type Currency, type OrderStatus, COUNTRY_LABEL } from "@werkraum/shared";
 import { Badge } from "@/components/ui/misc";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -109,7 +109,8 @@ export function OrderTimeline({ events, className }: { events: TimelineEvent[]; 
 /** Lieferadresse (aus dem Json-Feld der Bestellung). */
 export function AddressBlock({ address, className }: { address: unknown; className?: string }) {
   const a = (address ?? {}) as Record<string, string>;
-  const lines = [a.name, a.line1, a.line2, [a.postalCode, a.city].filter(Boolean).join(" "), a.country].filter(Boolean);
+  const country = a.country ? (COUNTRY_LABEL[a.country as keyof typeof COUNTRY_LABEL] ?? a.country) : "";
+  const lines = [a.name, a.line1, a.line2, [a.postalCode, a.city].filter(Boolean).join(" "), country].filter(Boolean);
   return (
     <address className={cn("not-italic text-[14px] leading-relaxed", className)}>
       {lines.map((l, i) => (

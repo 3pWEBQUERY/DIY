@@ -6,6 +6,7 @@ import { formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
 import { currentUser, requirePageUser } from "@/server/auth/session";
 import { getSellerOrder } from "@/server/commerce/orders";
 import { canSellerCancel, formatBps, netPlatformFee, refundableAmount } from "@/server/commerce/rules";
+import { orderBuyer } from "@/server/account/customer";
 import { AddressBlock, FeeSummary, OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from "@/components/commerce/order-parts";
 import { SellerOrderActions } from "@/components/commerce/seller-order-actions";
 import { Avatar, Notice, SectionTitle } from "@/components/ui/misc";
@@ -29,6 +30,8 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
   const netFee = netPlatformFee(o.platformFeeMinor, o.totalMinor, refunded);
   const digitalOnly = o.items.every((i) => i.isDigital);
   const buyer = o.buyer.profile;
+  const party = orderBuyer(o);
+  const sameAddress = JSON.stringify(party.billing) === JSON.stringify(o.shippingAddress);
   const actorName = (actorId: string | null) => (!actorId ? "System / Zahlungsanbieter" : actorId === o.buyerId ? "Käufer:in" : actorId === o.shop.ownerId ? "Du" : "Team");
 
   return (
@@ -175,19 +178,28 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
             )}
           </section>
 
+          <section>
+            <p className="spec mb-2">Käufer:in</p>
+            {party.name ? <p className="text-[15px] font-semibold">{party.name}</p> : <p className="text-[14px] text-muted">Keine Angaben (ältere Bestellung)</p>}
+            {buyer && (
+              <Link href={`/u/${buyer.handle}`} className="mt-1.5 flex items-center gap-2 text-[13px] text-muted hover:text-ink hover:underline">
+                <Avatar src={buyer.avatarUrl} name={buyer.displayName} size={22} />@{buyer.handle}
+              </Link>
+            )}
+            {party.phone && (
+              <a href={`tel:${party.phone.replace(/[^+0-9]/g, "")}`} className="mt-1.5 block text-[13px] text-ink-2 hover:underline">
+                {party.phone}
+              </a>
+            )}
+          </section>
+          <section>
+            <p className="spec mb-2">Rechnungsadresse</p>
+            <AddressBlock address={party.billing} />
+          </section>
           {!digitalOnly && (
             <section>
               <p className="spec mb-2">Lieferadresse</p>
-              <AddressBlock address={o.shippingAddress} />
-            </section>
-          )}
-          {buyer && (
-            <section>
-              <p className="spec mb-2">Käufer:in</p>
-              <Link href={`/u/${buyer.handle}`} className="flex items-center gap-2.5 hover:underline">
-                <Avatar src={buyer.avatarUrl} name={buyer.displayName} size={30} />
-                <span className="text-[14px]">{buyer.displayName}</span>
-              </Link>
+              {sameAddress ? <p className="text-[14px] text-muted">Wie Rechnungsadresse</p> : <AddressBlock address={o.shippingAddress} />}
             </section>
           )}
         </aside>

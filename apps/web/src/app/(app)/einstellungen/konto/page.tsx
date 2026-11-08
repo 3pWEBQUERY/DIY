@@ -7,12 +7,14 @@ import { ChangePasswordForm, DeleteAccountButton, ResendVerificationButton } fro
 import { Badge, Notice } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
+import { getCustomerDetails } from "@/server/account/customer";
+import { CustomerDetailsForm } from "@/components/settings/customer-details-form";
 
 export const metadata: Metadata = { title: "Konto & Daten" };
 
 export default async function AccountSettingsPage() {
   const user = await requirePageUser("/einstellungen/konto", { allowSuspended: true });
-  const a = await accountOverview(user.id);
+  const [a, details] = await Promise.all([accountOverview(user.id), getCustomerDetails(user.id)]);
 
   return (
     <div>
@@ -34,14 +36,23 @@ export default async function AccountSettingsPage() {
         <ChangePasswordForm hasPassword={a.hasPassword} />
       </SettingsSection>
 
-      <SettingsSection n="03" title="Deine Daten herunterladen" description="Du hast jederzeit das Recht auf Auskunft und Datenübertragbarkeit. Der Export enthält dein Profil, Beiträge, Projekte inklusive Journal und Materiallisten, Anleitungen, Artikel, Kommentare, Bestellungen, gefolgte Profile, Gespeichertes und deine gesendeten Nachrichten – als maschinenlesbare JSON-Datei.">
+      <SettingsSection
+        n="03"
+        id="angaben"
+        title="Angaben für Bestellungen"
+        description="Name und Adresse für Rechnung und Versand. Sie werden bei jeder Bestellung verwendet und nur an den Shop weitergegeben, bei dem du bestellst – nie öffentlich angezeigt."
+      >
+        <CustomerDetailsForm initial={details} />
+      </SettingsSection>
+
+      <SettingsSection n="04" title="Deine Daten herunterladen" description="Du hast jederzeit das Recht auf Auskunft und Datenübertragbarkeit. Der Export enthält dein Profil, Beiträge, Projekte inklusive Journal und Materiallisten, Anleitungen, Artikel, Kommentare, Bestellungen, gefolgte Profile, Gespeichertes und deine gesendeten Nachrichten – als maschinenlesbare JSON-Datei.">
         <a href="/api/v1/me/export" download className={buttonClass("outline", "md")}>
           <Download size={16} aria-hidden /> Datenexport herunterladen (JSON)
         </a>
         <p className="mt-2 text-xs text-muted">Medien (Fotos, Videos) sind als Links enthalten. Der Export wird bei jedem Klick neu erstellt.</p>
       </SettingsSection>
 
-      <SettingsSection n="04" title="Konto löschen" id="loeschen">
+      <SettingsSection n="05" title="Konto löschen" id="loeschen">
         <div className="grid gap-6 border border-danger/30 p-5 sm:grid-cols-2 rounded-2xl">
           <div>
             <p className="spec mb-2 text-danger">Wird gelöscht bzw. entfernt</p>
