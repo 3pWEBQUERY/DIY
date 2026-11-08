@@ -6,12 +6,30 @@ import { cn } from "@/lib/utils";
 
 export type UploadedMedia = { id: string; alt: string; preview: string; state: "uploading" | "ready" | "error"; progress: number; kind: "IMAGE" | "VIDEO" | "FILE" };
 
+/** Länge eines Videos im Browser lesen (null, wenn der Browser das Format nicht kennt, z. B. HEVC). */
+function videoDuration(file: File) {
+  return new Promise<number | null>((resolve) => {
+    const v = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    const done = (d: number | null) => {
+      URL.revokeObjectURL(url);
+      resolve(d);
+    };
+    v.preload = "metadata";
+    v.onloadedmetadata = () => done(Number.isFinite(v.duration) ? v.duration : null);
+    v.onerror = () => done(null);
+    setTimeout(() => done(null), 5000);
+    v.src = url;
+  });
+}
+
 /** Upload-Ablauf: Anmelden → direkt in Bucket PUT → Abschluss melden (§25.6). */
 export async function uploadFile(file: File, purpose: "public" | "private" = "public", onProgress?: (p: number) => void) {
+  const durationSec = file.type.startsWith("video/") ? await videoDuration(file) : null;
   const res = await fetch("/api/v1/media", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mime: file.type || "application/octet-stream", bytes: file.size, purpose }),
+    body: JSON.stringify({ mime: file.type || "application/octet-stream", bytes: file.size, purpose, durationSec }),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error?.message ?? "Upload nicht möglich");
@@ -71,9 +89,26 @@ export function MediaPicker({
       try {
         const r = await uploadFile(file, "public", (p) => onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, progress: p } : m))));
         onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, id: r.mediaId, state: "ready", progress: 1, preview: r.variants?.sm ?? preview } : m)));
+        if (kind === "VIDEO") void watchVideo(r.mediaId);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Upload fehlgeschlagen");
         onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, state: "error" } : m)));
+      }
+    }
+  }
+
+  /** Videos werden im Hintergrund umgewandelt – eine Ablehnung (z. B. zu lang) sofort anzeigen. */
+  async function watchVideo(mediaId: string) {
+    for (let i = 0; i < 90; i++) {
+      await new Promise((r) => setTimeout(r, i < 10 ? 1500 : 4000));
+      const res = await fetch(`/api/v1/media/${mediaId}/status`, { cache: "no-store" }).catch(() => null);
+      if (!res?.ok) return;
+      const { data } = (await res.json()) as { data: { state: string; error: string | null; variants: Record<string, string> } };
+      if (data.state === "READY") return;
+      if (data.state === "FAILED") {
+        setError(data.error ?? "Das Video konnte nicht verarbeitet werden.");
+        onChange((prev) => prev.map((m) => (m.id === mediaId ? { ...m, state: "error" } : m)));
+        return;
       }
     }
   }

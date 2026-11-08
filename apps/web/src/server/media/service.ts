@@ -27,7 +27,7 @@ const EXT: Record<string, string> = {
 };
 
 /** Schritt 1–3 der Media Pipeline: Upload anfordern → Berechtigung & Typ prüfen → signierte Ziel-URL. */
-export async function requestUpload(user: SessionUser, input: { mime: string; bytes: number; purpose?: "public" | "private" }) {
+export async function requestUpload(user: SessionUser, input: { mime: string; bytes: number; purpose?: "public" | "private"; durationSec?: number | null }) {
   await limit("upload", user.id);
   const mime = input.mime.toLowerCase();
   const isImage = IMAGE_TYPES.includes(mime);
@@ -39,6 +39,13 @@ export async function requestUpload(user: SessionUser, input: { mime: string; by
   const maxMb = isImage ? await getSetting("media.maxImageMb") : isVideo ? await getSetting("media.maxVideoMb") : 100;
   if (!Number.isFinite(input.bytes) || input.bytes <= 0 || input.bytes > maxMb * 1024 * 1024) {
     throw fail.invalid(`Die Datei ist zu gross (max. ${maxMb} MB).`);
+  }
+  // Frühe Prüfung mit der vom Browser gelesenen Länge; verbindlich prüft der Worker per ffprobe
+  if (isVideo && typeof input.durationSec === "number" && Number.isFinite(input.durationSec)) {
+    const maxSec = await getSetting("media.maxVideoSeconds");
+    if (input.durationSec > maxSec + 1) {
+      throw fail.invalid(`Das Video ist zu lang (${Math.round(input.durationSec)} Sek.). Erlaubt sind höchstens ${maxSec >= 60 ? `${Math.round(maxSec / 60)} Min.` : `${maxSec} Sek.`}`);
+    }
   }
   const isPrivate = input.purpose === "private";
   const media = await db.media.create({
@@ -100,9 +107,11 @@ export async function completeUpload(user: SessionUser, mediaId: string) {
 /** Medien einer Inhaltsentität zuordnen – nur eigene, verarbeitete Medien (§25.6 Nr. 7). */
 export async function attachMedia(tx: Tx, ownerId: string, ids: string[]) {
   if (!ids.length) return;
-  const rows = await tx.media.findMany({ where: { id: { in: ids } }, select: { id: true, ownerId: true, state: true } });
+  const rows = await tx.media.findMany({ where: { id: { in: ids } }, select: { id: true, ownerId: true, state: true, processingError: true } });
   if (rows.length !== new Set(ids).size || rows.some((r) => r.ownerId !== ownerId)) throw fail.forbidden("Ungültige Medien.");
-  if (rows.some((r) => r.state === "FAILED" || r.state === "PENDING")) throw fail.invalid("Mindestens ein Medium ist noch nicht hochgeladen.");
+  const failed = rows.find((r) => r.state === "FAILED");
+  if (failed) throw fail.invalid(failed.processingError ? `${failed.processingError} Entferne die Datei, um fortzufahren.` : "Eine Datei konnte nicht verarbeitet werden. Entferne sie, um fortzufahren.");
+  if (rows.some((r) => r.state === "PENDING")) throw fail.invalid("Mindestens ein Medium ist noch nicht hochgeladen.");
   await tx.media.updateMany({ where: { id: { in: ids } }, data: { attachedAt: new Date() } });
 }
 
@@ -111,4 +120,11 @@ export async function mediaCoverUrl(mediaId: string | undefined | null) {
   const m = await db.media.findUnique({ where: { id: mediaId }, select: { variants: true } });
   const v = (m?.variants ?? {}) as Record<string, string>;
   return v.lg ?? v.md ?? null;
+}
+
+/** Verarbeitungsstand eines eigenen Mediums (Uploader fragt bei Videos nach). */
+export async function mediaStatus(user: SessionUser, mediaId: string) {
+  const m = await db.media.findUnique({ where: { id: mediaId }, select: { ownerId: true, state: true, processingError: true, variants: true } });
+  if (!m || m.ownerId !== user.id) throw fail.notFound();
+  return { state: m.state, error: m.processingError, variants: m.variants as Record<string, string> };
 }

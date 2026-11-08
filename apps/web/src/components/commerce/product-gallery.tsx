@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MediaImage, Plate, type Variants } from "@/components/ui/media";
 import { cn } from "@/lib/utils";
+import { VideoPlayer } from "@/components/media/video";
 
 type Item = { id: string; alt: string; variants: Variants; kind: string };
 
@@ -15,7 +16,7 @@ export function ProductGallery({ items, seed, category, title }: { items: Item[]
       <div className="crop relative aspect-[4/5] overflow-hidden border border-line bg-sunken rounded-2xl">
         {current ? (
           current.kind === "VIDEO" ? (
-            <video src={(current.variants as Record<string, string>).video} controls playsInline preload="metadata" className="h-full w-full bg-ink object-contain" aria-label={current.alt || title} />
+            <VideoPlayer variants={current.variants as Record<string, string>} alt={current.alt || title} />
           ) : (
             <MediaImage variants={current.variants} alt={current.alt || title} priority sizes="(min-width: 1024px) 560px, 100vw" className="absolute inset-0" />
           )

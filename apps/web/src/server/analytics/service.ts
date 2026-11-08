@@ -89,6 +89,8 @@ export async function track(name: AnalyticsEventName, input: TrackInput = {}, tx
       select: { id: true },
     });
   } catch (e) {
+    // Konto inzwischen gelöscht (Ereignis kam verzögert aus der Outbox) → ohne Personenbezug erfassen
+    if ((e as { code?: string }).code === "P2003" && input.userId && !tx) return track(name, { ...input, userId: null }, tx);
     console.warn(JSON.stringify({ level: "warn", msg: "analytics_track_failed", event: name, err: e instanceof Error ? e.message : String(e) }));
     return null;
   }

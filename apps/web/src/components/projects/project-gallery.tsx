@@ -3,8 +3,9 @@
 import { useState, type KeyboardEvent } from "react";
 import { MediaImage, Plate, type Variants } from "@/components/ui/media";
 import { cn, pad } from "@/lib/utils";
+import { VideoPlayer } from "@/components/media/video";
 
-type Item = { id: string; alt: string; caption?: string; kind: "IMAGE" | "VIDEO" | "FILE"; variants: Variants & { video?: string }; width: number | null; height: number | null };
+type Item = { id: string; alt: string; caption?: string; kind: "IMAGE" | "VIDEO" | "FILE"; variants: Variants & { video?: string; poster?: string }; width: number | null; height: number | null };
 
 /**
  * Projektgalerie: grosses Bild + Kontaktbogen (Thumbnails). Pfeiltasten wechseln das Bild.
@@ -43,8 +44,8 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
         onKeyDown={onKey}
         aria-live="polite"
       >
-        {cur.kind === "VIDEO" && cur.variants.video ? (
-          <video key={cur.id} src={cur.variants.video} controls playsInline preload="metadata" className="absolute inset-0 h-full w-full bg-ink object-contain" aria-label={cur.alt || "Video"} />
+        {cur.kind === "VIDEO" ? (
+          <VideoPlayer key={cur.id} variants={cur.variants} alt={cur.alt} className="absolute inset-0" />
         ) : (
           <MediaImage key={cur.id} variants={cur.variants} alt={cur.alt || title} priority={idx === start} sizes="(min-width: 1024px) 720px, 100vw" className="absolute inset-0 animate-fade" />
         )}
@@ -76,7 +77,10 @@ export function ProjectGallery({ items, title, seed, category, initialId }: { it
                 className={cn("relative block aspect-square w-full overflow-hidden border transition-colors rounded-2xl", i === idx ? "border-moss ring-2 ring-moss/25" : "border-line opacity-70 hover:opacity-100")}
               >
                 {m.kind === "VIDEO" ? (
-                  <span className="absolute inset-0 grid place-items-center bg-ink font-mono text-[10px] text-paper">VIDEO</span>
+                  <span className="absolute inset-0 grid place-items-center bg-ink font-mono text-[10px] text-paper">
+                    {(m.variants.sm || m.variants.poster) && <MediaImage variants={{ sm: m.variants.sm ?? m.variants.poster, md: m.variants.sm ?? m.variants.poster }} alt="" sizes="80px" className="absolute inset-0 opacity-80" />}
+                    <span className="relative">▶</span>
+                  </span>
                 ) : (
                   <MediaImage variants={{ sm: m.variants.thumb ?? m.variants.sm, md: m.variants.sm ?? m.variants.md }} alt="" sizes="80px" className="absolute inset-0" />
                 )}

@@ -17,6 +17,7 @@ import { Comments } from "./comments";
 import { PollBlock } from "./poll";
 import { deletePostAction, repostAction, updatePostAction } from "@/app/(app)/social-actions";
 import { useRouter } from "next/navigation";
+import { VideoPlayer } from "@/components/media/video";
 
 const KIND_LABEL: Partial<Record<string, string>> = {
   PROJECT_UPDATE: "Fortschritt",
@@ -61,7 +62,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
     return (
       <div className="relative overflow-hidden rounded-2xl bg-sunken" style={{ aspectRatio: ratio }}>
         {m.kind === "VIDEO" ? (
-          <video src={m.variants.video} controls playsInline preload="metadata" className="h-full w-full bg-ink object-contain" aria-label={m.alt || "Video"} />
+          <VideoPlayer variants={m.variants} alt={m.alt} />
         ) : (
           <MediaImage variants={m.variants} alt={m.alt} className="absolute inset-0" />
         )}
@@ -80,7 +81,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
         {media.map((m, i) => (
           <div key={m.id} className="relative aspect-[4/5] w-full shrink-0 snap-center bg-sunken" aria-roledescription="Folie" aria-label={`${i + 1} von ${media.length}`}>
             {m.kind === "VIDEO" ? (
-              <video src={m.variants.video} controls playsInline preload="metadata" className="h-full w-full bg-ink object-contain" />
+              <VideoPlayer variants={m.variants} alt={m.alt} />
             ) : (
               <MediaImage variants={m.variants} alt={m.alt} className="absolute inset-0" />
             )}

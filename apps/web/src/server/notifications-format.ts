@@ -191,6 +191,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
         const outcome = data.outcome === "OVERTURNED" ? "Wir haben deinem Einspruch stattgegeben und die Massnahme aufgehoben." : "Dein Einspruch wurde geprüft. Die Entscheidung bleibt bestehen.";
         return { lead: null, text: `${caseNo}: ${outcome}`, excerpt: str(data.publicNote) };
       }
+      if (kind === "MEDIA_FAILED") return { lead: null, text: str(data.message) ?? "Ein Video konnte nicht verarbeitet werden.", excerpt: null };
       if (kind === "SYSTEM_ERROR") return { lead: null, text: str(data.message) ?? "Ein neuer Fehler wurde erfasst.", excerpt: null };
       if (kind === "ACCOUNT") return { lead: null, text: str(data.message) ?? "Es gibt eine Änderung an deinem Konto.", excerpt: str(data.publicNote) };
       const action = str(data.action) as ModerationActionKind | null;

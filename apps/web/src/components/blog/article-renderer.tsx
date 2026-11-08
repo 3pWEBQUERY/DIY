@@ -130,7 +130,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
       return (
         <figure className="-mx-4 my-10 sm:mx-0">
           {src && m?.state === "READY" ? (
-            <video src={src} controls playsInline preload="metadata" className="block w-full bg-ink" aria-label={b.caption || "Video"} />
+            <video src={src} poster={m?.variants.poster ?? m?.variants.sm} controls playsInline preload="metadata" className="block w-full bg-ink" aria-label={b.caption || "Video"} />
           ) : (
             <div className="grid aspect-video place-items-center bg-sunken font-sans text-sm text-muted">Video wird noch verarbeitet.</div>
           )}
