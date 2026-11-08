@@ -299,6 +299,7 @@ model User {
 
   @@index([status])
   @@index([createdAt])
+  pollVotes       PollVote[]
 }
 
 model UserProfile {
@@ -491,6 +492,7 @@ model Post {
 
   media         PostMedia[]
   comments      Comment[]
+  poll          Poll?
 
   search         Unsupported("tsvector")? // generiert, siehe Migration init
   @@index([authorId, publishedAt])
@@ -1782,4 +1784,45 @@ model ErrorOccurrence {
 
   @@index([groupId, createdAt])
   @@index([createdAt])
+}
+
+/// Umfrage zu einem Beitrag (Frage = Beitragstext). Ergebnisse erst nach Abstimmung oder Ende sichtbar.
+model Poll {
+  id          String       @id @default(cuid())
+  postId      String       @unique
+  post        Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  endsAt      DateTime
+  multiple    Boolean      @default(false)
+  voterCount  Int          @default(0)
+  endNotifiedAt DateTime?
+  createdAt   DateTime     @default(now())
+  options     PollOption[]
+  votes       PollVote[]
+
+  @@index([endsAt, endNotifiedAt])
+}
+
+model PollOption {
+  id        String     @id @default(cuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label     String
+  position  Int
+  voteCount Int        @default(0)
+  votes     PollVote[]
+
+  @@index([pollId, position])
+}
+
+model PollVote {
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@id([pollId, userId, optionId])
+  @@index([userId])
 }

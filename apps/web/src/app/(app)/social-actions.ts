@@ -18,6 +18,10 @@ export async function createPostAction(input: unknown) {
   }, "Veröffentlicht.");
 }
 
+export async function votePollAction(postId: string, optionIds: string[]) {
+  return act(async () => posts.votePoll(await requireUser(), postId, optionIds), "Danke für deine Stimme.");
+}
+
 export async function updatePostAction(id: string, input: { body: string; category?: string; visibility?: string }) {
   return act(async () => {
     const u = await requireUser();

@@ -6,6 +6,8 @@ import { EyeOff, Megaphone, Pin, PinOff, RotateCcw } from "lucide-react";
 import type { PostView } from "@/server/social/posts";
 import { PostCard } from "@/components/social/post-card";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
+import { PollEditor, emptyPoll, pollReady, type PollDraft } from "@/components/social/poll-editor";
+import { ListChecks } from "lucide-react";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Label, Textarea } from "@/components/ui/field";
@@ -29,17 +31,19 @@ export function CommunityComposer({ communityId, communityName, viewer, isMod }:
   const [body, setBody] = useState("");
   const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [announce, setAnnounce] = useState(false);
+  const [poll, setPoll] = useState<PollDraft | null>(null);
   const [pending, start] = useTransition();
   const uploading = media.some((m) => m.state === "uploading");
   const ready = media.filter((m) => m.state === "ready");
-  const canPost = (body.trim() || ready.length) && !uploading;
+  const canPost = (body.trim() || ready.length) && !uploading && pollReady(poll) && (!poll || !!body.trim());
   const submit = () =>
     start(async () => {
-      const r = await createCommunityPostAction(communityId, { body, media: ready.map((m) => ({ id: m.id, alt: m.alt })), isAnnouncement: announce });
+      const r = await createCommunityPostAction(communityId, { body, media: ready.map((m) => ({ id: m.id, alt: m.alt })), isAnnouncement: announce, poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined });
       if (r.ok) {
         toast("Veröffentlicht.");
         setBody("");
         setMedia([]);
+        setPoll(null);
         setAnnounce(false);
         setOpen(false);
         router.refresh();
@@ -69,10 +73,20 @@ export function CommunityComposer({ communityId, communityName, viewer, isMod }:
       </div>
       {open && (
         <div className="border-t border-line p-4 animate-fade">
+          {poll && (
+            <div className="mb-3">
+              <PollEditor value={poll} onChange={setPoll} onRemove={() => setPoll(null)} />
+            </div>
+          )}
           <MediaPicker value={media} onChange={setMedia} compact />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             {isMod ? <Checkbox label={<span className="inline-flex items-center gap-1.5"><Megaphone size={14} /> Als Ankündigung</span>} checked={announce} onChange={(e) => setAnnounce(e.target.checked)} /> : <span className="font-mono text-[11px] text-muted num">{body.length}/5000</span>}
             <div className="flex gap-2">
+              {!poll && (
+                <Button variant="outline" onClick={() => setPoll(emptyPoll())}>
+                  <ListChecks size={15} aria-hidden /> Umfrage
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => setOpen(false)}>Abbrechen</Button>
               <Button disabled={!canPost || pending} onClick={submit}>
                 {uploading ? "Lädt hoch …" : pending ? "Veröffentlicht …" : "Veröffentlichen"}

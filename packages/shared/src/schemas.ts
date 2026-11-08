@@ -43,6 +43,19 @@ export const mediaRefSchema = z.object({
   alt: z.string().trim().max(500).default(""),
 });
 
+/** Umfrage: Frage ist der Beitragstext; 2–4 Antworten, Laufzeit 1/3/7 Tage. */
+export const POLL_DURATIONS_HOURS = [24, 72, 168] as const;
+export const pollInputSchema = z.object({
+  options: z
+    .array(z.string().trim().min(1, "Antwort ist leer").max(80, "Höchstens 80 Zeichen"))
+    .min(2, "Mindestens zwei Antworten")
+    .max(4, "Höchstens vier Antworten")
+    .refine((o) => new Set(o.map((x) => x.toLowerCase())).size === o.length, "Jede Antwort nur einmal"),
+  durationHours: z.coerce.number().refine((h) => (POLL_DURATIONS_HOURS as readonly number[]).includes(h), "Ungültige Laufzeit").default(72),
+  multiple: z.boolean().default(false),
+});
+export type PollInput = z.infer<typeof pollInputSchema>;
+
 export const postCreateSchema = z
   .object({
     body: z.string().trim().max(5000).default(""),
@@ -51,10 +64,13 @@ export const postCreateSchema = z
     projectId: z.string().optional(),
     visibility: visibilitySchema.default("PUBLIC"),
     repostOfId: z.string().optional(),
+    poll: pollInputSchema.optional(),
   })
   .refine((p) => p.body.length > 0 || p.media.length > 0 || p.repostOfId, {
     message: "Ein Beitrag braucht Text, Medien oder einen Repost",
-  });
+  })
+  .refine((p) => !p.poll || p.body.length > 0, { message: "Formuliere deine Frage im Text", path: ["body"] })
+  .refine((p) => !p.poll || !p.repostOfId, { message: "Reposts können keine Umfrage enthalten", path: ["poll"] });
 
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1, "Kommentar ist leer").max(2000),
@@ -323,6 +339,7 @@ export const communityPostSchema = z.object({
   body: z.string().trim().max(5000).default(""),
   media: z.array(mediaRefSchema).max(10).default([]),
   isAnnouncement: z.boolean().default(false),
+  poll: pollInputSchema.optional(),
 });
 
 export const communityChallengeSchema = z

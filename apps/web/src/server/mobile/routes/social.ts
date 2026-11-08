@@ -64,6 +64,11 @@ export const socialRoutes: RouteDef[] = [
     await posts.deletePost(await me(), c.p.id!);
     return { ok: true };
   }),
+  // Umfrage: { optionIds: string[] } → aktualisierte Umfrage (mit Ergebnissen)
+  POST("/posts/:id/poll", async (c) => {
+    const b = await c.json<{ optionIds?: unknown }>();
+    return posts.votePoll(await me(), c.p.id!, Array.isArray(b.optionIds) ? b.optionIds.map(String) : []);
+  }),
   POST("/posts/:id/repost", async (c) => {
     const u = await me();
     const { body } = await c.json<{ body?: string }>();

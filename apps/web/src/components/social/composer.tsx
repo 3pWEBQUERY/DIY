@@ -11,6 +11,8 @@ import { createPostAction } from "@/app/(app)/social-actions";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
 import type { CategoryOption } from "@/server/categories/types";
+import { ListChecks } from "lucide-react";
+import { PollEditor, emptyPoll, pollReady, type PollDraft } from "./poll-editor";
 
 /**
  * Beitragseditor – so einfach wie in einem modernen sozialen Netzwerk (§5.4, §9.3).
@@ -42,10 +44,11 @@ export function Composer({
   const [category, setCategory] = useState("");
   const [projectId, setProjectId] = useState(defaultProjectId ?? "");
   const [visibility, setVisibility] = useState<(typeof VISIBILITY)[number]>("PUBLIC");
+  const [poll, setPoll] = useState<PollDraft | null>(null);
   const [pending, start] = useTransition();
   const uploading = media.some((m) => m.state === "uploading");
   const missingAlt = media.some((m) => m.kind === "IMAGE" && m.state === "ready" && !m.alt.trim());
-  const canPost = (body.trim() || media.some((m) => m.state === "ready")) && !uploading;
+  const canPost = (body.trim() || media.some((m) => m.state === "ready")) && !uploading && pollReady(poll) && (!poll || !!body.trim());
 
   function submit() {
     start(async () => {
@@ -55,11 +58,13 @@ export function Composer({
         category: category || undefined,
         projectId: projectId || undefined,
         visibility,
+        poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined,
       });
       if (r.ok) {
         toast("Veröffentlicht.");
         setBody("");
         setMedia([]);
+        setPoll(null);
         setOpen(!compact);
         onPosted?.();
         if (openAfterPost && r.data?.id) router.push(`/beitrag/${r.data.id}`);
@@ -81,14 +86,24 @@ export function Composer({
             onChange={(e) => setBody(e.target.value)}
             maxLength={5000}
             rows={open ? 3 : 1}
-            placeholder="Was entsteht gerade auf deiner Werkbank?"
+            placeholder={poll ? "Stelle deine Frage …" : "Was entsteht gerade auf deiner Werkbank?"}
             className="block w-full resize-none bg-transparent pt-2 text-[16px] leading-relaxed outline-none placeholder:text-muted field-sizing-content"
           />
         </div>
       </div>
       {open && (
         <div className="border-t border-line p-4 animate-fade">
+          {poll ? (
+            <div className="mb-4">
+              <PollEditor value={poll} onChange={setPoll} onRemove={() => setPoll(null)} />
+            </div>
+          ) : null}
           <MediaPicker value={media} onChange={setMedia} />
+          {!poll && (
+            <button type="button" onClick={() => setPoll(emptyPoll())} className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl border border-line-strong bg-card px-3.5 text-[13px] font-semibold hover:border-rule-strong">
+              <ListChecks size={15} aria-hidden /> Umfrage hinzufügen
+            </button>
+          )}
           {missingAlt && <p className="mt-2 text-xs text-warn">Tipp: Beschreibe deine Bilder kurz – das hilft Menschen mit Screenreader.</p>}
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <label className="block">

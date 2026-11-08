@@ -21,6 +21,7 @@ export const postInclude = {
   product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, shop: { select: { slug: true, name: true } } } },
   article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
+  poll: { select: { id: true, endsAt: true, multiple: true, voterCount: true, options: { orderBy: { position: "asc" }, select: { id: true, label: true, voteCount: true } } } },
   repostOf: {
     select: {
       id: true,
@@ -38,7 +39,30 @@ type PostRow = Prisma.PostGetPayload<{ include: typeof postInclude }>;
 
 export type PostView = ReturnType<typeof toView>;
 
-function toView(p: PostRow, viewer: { liked: Set<string>; saved: Set<string>; id?: string | null }) {
+type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null };
+
+/**
+ * Umfrage für die Anzeige. Stimmenzahlen erst nach eigener Abstimmung, nach Ende oder für die
+ * Autorin/den Autor – so beeinflusst der Zwischenstand niemanden.
+ */
+function pollView(p: PostRow, viewer: ViewerState) {
+  if (!p.poll) return null;
+  const voted = viewer.votes.get(p.poll.id) ?? [];
+  const ended = p.poll.endsAt.getTime() <= Date.now();
+  const showResults = ended || voted.length > 0 || viewer.id === p.authorId;
+  return {
+    id: p.poll.id,
+    endsAt: p.poll.endsAt.toISOString(),
+    ended,
+    multiple: p.poll.multiple,
+    voterCount: p.poll.voterCount,
+    showResults,
+    viewerVotes: voted,
+    options: p.poll.options.map((o) => ({ id: o.id, label: o.label, votes: showResults ? o.voteCount : null })),
+  };
+}
+
+function toView(p: PostRow, viewer: ViewerState) {
   return {
     id: p.id,
     kind: p.kind,
@@ -70,18 +94,22 @@ function toView(p: PostRow, viewer: { liked: Set<string>; saved: Set<string>; id
             cover: (p.repostOf.media[0]?.media.variants as Record<string, string> | undefined) ?? null,
           }
         : null,
+    poll: pollView(p, viewer),
     counts: { likes: p.likeCount, comments: p.commentCount, saves: p.saveCount, reposts: p.repostCount },
     viewer: { liked: viewer.liked.has(p.id), saved: viewer.saved.has(p.id), isAuthor: viewer.id === p.authorId },
   };
 }
 
-async function viewerState(viewerId: string | null | undefined, ids: string[]) {
-  if (!viewerId || !ids.length) return { liked: new Set<string>(), saved: new Set<string>(), id: viewerId };
-  const [likes, saves] = await Promise.all([
+async function viewerState(viewerId: string | null | undefined, ids: string[]): Promise<ViewerState> {
+  if (!viewerId || !ids.length) return { liked: new Set<string>(), saved: new Set<string>(), votes: new Map(), id: viewerId };
+  const [likes, saves, votes] = await Promise.all([
     db.reaction.findMany({ where: { userId: viewerId, targetType: "POST", targetId: { in: ids } }, select: { targetId: true } }),
     db.bookmark.findMany({ where: { userId: viewerId, targetType: "POST", targetId: { in: ids } }, select: { targetId: true } }),
+    db.pollVote.findMany({ where: { userId: viewerId, poll: { postId: { in: ids } } }, select: { pollId: true, optionId: true } }),
   ]);
-  return { liked: new Set(likes.map((l) => l.targetId)), saved: new Set(saves.map((s) => s.targetId)), id: viewerId };
+  const byPoll = new Map<string, string[]>();
+  for (const v of votes) byPoll.set(v.pollId, [...(byPoll.get(v.pollId) ?? []), v.optionId]);
+  return { liked: new Set(likes.map((l) => l.targetId)), saved: new Set(saves.map((s) => s.targetId)), votes: byPoll, id: viewerId };
 }
 
 /** Lädt Beiträge in gegebener Reihenfolge inkl. Betrachterstatus. */
@@ -255,6 +283,16 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
       await attachMedia(tx, user.id, data.media.map((m) => m.id));
       await tx.postMedia.createMany({ data: data.media.map((m, i) => ({ postId: p.id, mediaId: m.id, position: i, alt: m.alt })) });
     }
+    if (data.poll) {
+      await tx.poll.create({
+        data: {
+          postId: p.id,
+          endsAt: new Date(Date.now() + data.poll.durationHours * 3600_000),
+          multiple: data.poll.multiple,
+          options: { create: data.poll.options.map((label, position) => ({ label, position })) },
+        },
+      });
+    }
     if (data.repostOfId) await tx.post.update({ where: { id: data.repostOfId }, data: { repostCount: { increment: 1 } } });
     await tx.userProfile.update({ where: { userId: user.id }, data: { postCount: { increment: 1 } } });
     await emit({ type: "PostPublished", postId: p.id, authorId: user.id }, tx);
@@ -359,4 +397,52 @@ export async function getPostForViewer(postId: string, viewerId: string | null) 
   const view = (await hydratePosts([postId], viewerId))[0] ?? null;
   // Für die Autorin/den Autor sichtbar machen, dass der Beitrag nicht öffentlich ist
   return view ? { ...view, moderationState: p.state === "HIDDEN" || p.state === "REMOVED" ? p.state : null } : null;
+}
+
+// ───────────────────────── Umfragen ─────────────────────────
+
+/** Stimme abgeben (einmalig, nicht änderbar). Bei Mehrfachauswahl mehrere Antworten auf einmal. */
+export async function votePoll(user: SessionUser, postId: string, optionIds: string[]) {
+  await limit("like", user.id);
+  const post = await db.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, visibility: true, state: true, communityId: true, poll: { select: { id: true, endsAt: true, multiple: true, options: { select: { id: true } } } } } });
+  if (!post?.poll || !(await canViewContent(user.id, { ownerId: post.authorId, visibility: post.visibility, state: post.state }))) throw fail.notFound("Umfrage nicht gefunden.");
+  if (post.communityId && !(await canViewCommunityContentOf(post.communityId, user.id))) throw fail.notFound("Umfrage nicht gefunden.");
+  const poll = post.poll;
+  if (poll.endsAt.getTime() <= Date.now()) throw fail.conflict("Diese Umfrage ist bereits beendet.");
+  const chosen = [...new Set(optionIds)];
+  const valid = new Set(poll.options.map((o) => o.id));
+  if (!chosen.length || chosen.some((id) => !valid.has(id))) throw fail.invalid("Bitte wähle eine Antwort.");
+  if (!poll.multiple && chosen.length > 1) throw fail.invalid("Hier ist nur eine Antwort möglich.");
+  try {
+    await db.$transaction(async (tx) => {
+      if (await tx.pollVote.findFirst({ where: { pollId: poll.id, userId: user.id }, select: { pollId: true } })) throw fail.conflict("Du hast bereits abgestimmt.");
+      await tx.pollVote.createMany({ data: chosen.map((optionId) => ({ pollId: poll.id, optionId, userId: user.id })) });
+      await tx.pollOption.updateMany({ where: { id: { in: chosen } }, data: { voteCount: { increment: 1 } } });
+      await tx.poll.update({ where: { id: poll.id }, data: { voterCount: { increment: 1 } } });
+    });
+  } catch (e) {
+    // Doppelklick/zwei Tabs: Primärschlüssel verhindert doppelte Stimmen
+    if ((e as { code?: string }).code === "P2002") throw fail.conflict("Du hast bereits abgestimmt.");
+    throw e;
+  }
+  const [view] = await hydratePosts([postId], user.id);
+  return view?.poll ?? null;
+}
+
+/** Beendete Umfragen: Autor:in benachrichtigen (Worker, minütlich). */
+export async function notifyEndedPolls() {
+  const ended = await db.poll.findMany({ where: { endsAt: { lte: new Date() }, endNotifiedAt: null }, take: 100, select: { id: true, voterCount: true, post: { select: { id: true, authorId: true, body: true } } } });
+  for (const p of ended) {
+    const claimed = await db.poll.updateMany({ where: { id: p.id, endNotifiedAt: null }, data: { endNotifiedAt: new Date() } });
+    if (!claimed.count) continue;
+    await notify({
+      recipientId: p.post.authorId,
+      type: "PROJECT_ACTIVITY",
+      targetType: "POST",
+      targetId: p.post.id,
+      data: { kind: "POLL_ENDED", message: `Deine Umfrage ist beendet – ${p.voterCount} ${p.voterCount === 1 ? "Stimme" : "Stimmen"}.`, excerpt: p.post.body.slice(0, 120), href: `/beitrag/${p.post.id}` },
+      bundle: false,
+    }).catch(() => {});
+  }
+  return ended.length;
 }

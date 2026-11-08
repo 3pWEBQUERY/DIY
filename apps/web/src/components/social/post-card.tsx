@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { cn, relativeTime, compactNumber } from "@/lib/utils";
 import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu, type MenuItem } from "./actions";
 import { Comments } from "./comments";
+import { PollBlock } from "./poll";
 import { deletePostAction, repostAction, updatePostAction } from "@/app/(app)/social-actions";
 import { useRouter } from "next/navigation";
 
@@ -196,6 +197,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
 
       <div className={cn("mt-3", (post.project || post.tutorial || post.product || post.article) && "border-l border-rule pl-3")}>
         {post.body && <RichText text={post.body} className="text-[15.5px] leading-relaxed text-ink-2" />}
+        {post.poll && <PollBlock postId={post.id} poll={post.poll} signedIn={!!viewer} />}
 
         {post.repostOf && (
           <Link href={`/beitrag/${post.repostOf.id}`} className="mt-3 block border border-line p-3.5 hover:border-rule-strong rounded-2xl">
