@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { getProfileSettings } from "@/server/account/service";
 import { ProfileForm } from "@/components/settings/profile-form";
 
 export const metadata: Metadata = { title: "Profil" };
 
 export default async function ProfileSettingsPage() {
-  const user = await requireUser({ allowSuspended: true });
+  const user = await requirePageUser("/einstellungen/profil", { allowSuspended: true });
   const p = await getProfileSettings(user.id);
   return (
     <div>

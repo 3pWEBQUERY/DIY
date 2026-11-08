@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Download } from "lucide-react";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { accountOverview } from "@/server/account/service";
 import { SettingsSection } from "@/components/settings/section";
 import { ChangePasswordForm, DeleteAccountButton, ResendVerificationButton } from "@/components/settings/account-forms";
@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/utils";
 export const metadata: Metadata = { title: "Konto & Daten" };
 
 export default async function AccountSettingsPage() {
-  const user = await requireUser({ allowSuspended: true });
+  const user = await requirePageUser("/einstellungen/konto", { allowSuspended: true });
   const a = await accountOverview(user.id);
 
   return (

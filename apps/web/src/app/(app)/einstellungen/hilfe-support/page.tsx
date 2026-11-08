@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { SUPPORT_STATUS_LABEL, SUPPORT_TOPIC_LABEL, type SupportStatus, type SupportTopic } from "@werkraum/shared";
-import { requireUser } from "@/server/auth/session";
+import { requirePageUser } from "@/server/auth/session";
 import { listOwnTickets } from "@/server/account/service";
 import { SettingsSection } from "@/components/settings/section";
 import { SupportForm } from "@/components/settings/support-form";
@@ -18,7 +18,7 @@ const QUICK = [
 ];
 
 export default async function SupportSettingsPage() {
-  const user = await requireUser({ allowSuspended: true });
+  const user = await requirePageUser("/einstellungen/hilfe-support", { allowSuspended: true });
   const tickets = await listOwnTickets(user.id);
   return (
     <div>

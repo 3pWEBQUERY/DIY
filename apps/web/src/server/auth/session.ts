@@ -118,11 +118,11 @@ export async function requireUser(opts: { allowSuspended?: boolean } = {}) {
  * Für Seiten (Server Components): Wie requireUser, leitet aber nicht angemeldete
  * Besucher:innen zur Anmeldung weiter statt einen Fehler zu werfen.
  */
-export async function requirePageUser(returnTo?: string) {
+export async function requirePageUser(returnTo?: string, opts?: Parameters<typeof requireUser>[0]) {
   const s = await getSession();
   if (!s?.user.profile) {
     const { redirect } = await import("next/navigation");
     redirect(`/anmelden${returnTo ? `?weiter=${encodeURIComponent(returnTo)}` : ""}`);
   }
-  return requireUser();
+  return requireUser(opts);
 }
