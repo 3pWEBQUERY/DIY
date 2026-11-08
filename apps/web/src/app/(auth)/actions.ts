@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { act } from "@/server/errors";
 import * as identity from "@/server/identity/service";
 import { destroySession } from "@/server/auth/session";
+import { verifyMfaLogin } from "@/server/auth/mfa";
 
 import { safeNext } from "@/lib/safe-next";
 
@@ -16,8 +17,10 @@ export async function signUpAction(input: Record<string, unknown>) {
 
 export async function signInAction(input: Record<string, unknown>) {
   return act(async () => {
-    await identity.signIn(input);
-    return { next: safeNext(input.weiter) ?? "/feed" };
+    const r = await identity.signIn(input);
+    const next = safeNext(input.weiter) ?? "/feed";
+    // Zweiter Faktor aktiv → erst Code eingeben
+    return { next: r.mfaRequired ? `/anmelden/zwei-faktor?weiter=${encodeURIComponent(next)}` : next };
   });
 }
 
@@ -34,9 +37,23 @@ export async function requestResetAction(email: string) {
 
 export async function resetPasswordAction(tokenRaw: string, password: string) {
   return act(async () => {
-    await identity.resetPassword(tokenRaw, password);
-    return null;
+    const r = await identity.resetPassword(tokenRaw, password);
+    return { next: r.mfaRequired ? "/anmelden/zwei-faktor" : "/feed" };
   }, "Passwort geändert. Alle anderen Sitzungen wurden abgemeldet.");
+}
+
+/** Login, Schritt 2: Code aus der Authenticator-App oder Wiederherstellungscode. */
+export async function verifyMfaAction(input: { code: string; kind: "totp" | "recovery"; weiter?: string }) {
+  return act(async () => {
+    await verifyMfaLogin(String(input.code ?? ""), input.kind === "recovery" ? "recovery" : "totp");
+    return { next: safeNext(input.weiter) ?? "/feed" };
+  });
+}
+
+/** Ausstehende Anmeldung verwerfen (anderes Konto / abbrechen). */
+export async function cancelMfaAction() {
+  await destroySession();
+  redirect("/anmelden");
 }
 
 export async function signOutAction() {

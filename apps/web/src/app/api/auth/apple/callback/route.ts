@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
   }
   try {
     const { userId, isNew } = await resolveAppleUser(code, typeof form.get("user") === "string" ? (form.get("user") as string) : null);
-    await createSession(userId);
+    const s = await createSession(userId);
+    if (s.mfaRequired) return NextResponse.redirect(new URL("/anmelden/zwei-faktor", base), 303);
     // Erstanmeldung: 18+ und Interessen im Onboarding bestätigen
     return NextResponse.redirect(new URL(isNew ? "/willkommen" : "/feed", base), 303);
   } catch (e) {

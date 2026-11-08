@@ -12,7 +12,8 @@ import { fail } from "@/server/errors";
 export const POST = api(async (req) => {
   const b = await body<{ email: string; password: string }>(req);
   const r = await signIn(b);
-  return { token: r.token, userId: r.userId };
+  // mfaRequired: Token ist erst nach POST /api/v1/auth/session/mfa gültig
+  return { token: r.token, userId: r.userId, mfaRequired: r.mfaRequired };
 });
 
 export const DELETE = api(async (req) => {

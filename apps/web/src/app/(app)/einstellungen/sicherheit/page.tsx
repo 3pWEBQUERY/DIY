@@ -10,20 +10,38 @@ import { RevokeOthersButton, RevokeSessionButton, SignOutButton } from "@/compon
 import { Badge, Notice } from "@/components/ui/misc";
 import { formatDate, relativeTime } from "@/lib/utils";
 import { BrowserLogo } from "@/components/settings/browser-logo";
+import { TwoFactorSettings } from "@/components/settings/two-factor";
+import { mfaRequiredFor, mfaStatus } from "@/server/auth/mfa";
 
 export const metadata: Metadata = { title: "Sicherheit" };
 export const dynamic = "force-dynamic";
 
-export default async function SecuritySettingsPage() {
+export default async function SecuritySettingsPage({ searchParams }: { searchParams: Promise<{ zweifaktor?: string }> }) {
+  const sp = await searchParams;
   const s = await getSession();
   if (!s) redirect("/anmelden?weiter=/einstellungen/sicherheit");
-  const [sessions, events] = await Promise.all([listSessions(s.user.id, s.sessionId), securityEvents(s.user.id)]);
+  const [sessions, events, mfa] = await Promise.all([listSessions(s.user.id, s.sessionId), securityEvents(s.user.id), mfaStatus(s.user.id)]);
+  const mfaRequired = mfaRequiredFor(s.user);
   const others = sessions.filter((x) => !x.current).length;
 
   return (
     <div>
+      {mfaRequired && !mfa.enabled && (
+        <Notice tone={sp.zweifaktor === "pflicht" ? "danger" : "warn"} title="Zwei-Faktor-Anmeldung einrichten" className="mb-10">
+          Dein Konto hat Moderations- oder Admin-Rechte. Damit niemand mit einem erratenen oder gestohlenen Passwort darauf zugreifen kann, ist ein zweiter Faktor Pflicht. Bis er eingerichtet ist, sind Admin-Bereich und Moderationswerkzeuge gesperrt.
+        </Notice>
+      )}
       <SettingsSection
         n="01"
+        id="zwei-faktor"
+        title="Zwei-Faktor-Anmeldung"
+        description="Zusätzlich zum Passwort fragen wir bei der Anmeldung nach einem Code aus einer Authenticator-App. Selbst wer dein Passwort kennt, kommt so nicht in dein Konto."
+      >
+        <TwoFactorSettings enabled={mfa.enabled} enabledAt={mfa.enabledAt?.toISOString() ?? null} recoveryCodesLeft={mfa.recoveryCodesLeft} required={mfaRequired} email={s.user.email} />
+      </SettingsSection>
+
+      <SettingsSection
+        n="02"
         title="Angemeldete Geräte"
         description="Alle Geräte und Browser, auf denen du gerade angemeldet bist. Kommt dir etwas unbekannt vor, beende die Sitzung und ändere dein Passwort."
       >
@@ -58,7 +76,7 @@ export default async function SecuritySettingsPage() {
         </div>
       </SettingsSection>
 
-      <SettingsSection n="02" title="Sicherheitsereignisse" description="Anmeldungen von neuen Geräten, Passwortänderungen und beendete Sitzungen.">
+      <SettingsSection n="03" title="Sicherheitsereignisse" description="Anmeldungen von neuen Geräten, Passwortänderungen und beendete Sitzungen.">
         {events.length ? (
           <ol className="border-l border-rule pl-5">
             {events.map((e) => (
@@ -73,7 +91,7 @@ export default async function SecuritySettingsPage() {
         )}
       </SettingsSection>
 
-      <SettingsSection n="03" title="Empfehlungen">
+      <SettingsSection n="04" title="Empfehlungen">
         <Notice tone="moss" title="So schützt du dein Konto">
           <ul className="mt-1 space-y-1">
             <li className="flex gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0" aria-hidden /> Nutze ein Passwort, das du nirgends sonst verwendest.</li>

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ArrowRight, Bookmark, Plus, Sparkles, Users } from "lucide-react";
 import { PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
-import { currentUser } from "@/server/auth/session";
+import { currentUser, getPendingMfaSession } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { categoryOptions } from "@/server/categories/settings";
 import { getFeed, type FeedKind } from "@/server/social/posts";
@@ -29,7 +29,7 @@ const TABS: { key: FeedKind; label: string; param: string }[] = [
 export default async function FeedPage({ searchParams }: { searchParams: Promise<{ ansicht?: string; tipp?: string }> }) {
   const sp = await searchParams;
   const user = await currentUser();
-  if (!user) redirect("/entdecken");
+  if (!user) redirect((await getPendingMfaSession()) ? "/anmelden/zwei-faktor" : "/entdecken");
   if (!user.onboardedAt && sp.tipp !== "aus") redirect("/willkommen");
   const tab = TABS.find((t) => t.param === sp.ansicht) ?? TABS[0]!;
   const interests = user.profile?.categories ?? [];

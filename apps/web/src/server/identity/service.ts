@@ -85,7 +85,7 @@ export async function signIn(input: unknown) {
   if (user.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");
   if (user.status === "DELETED") throw fail.invalid("E-Mail oder Passwort ist nicht korrekt.");
   const s = await createSession(user.id);
-  if (s.isNewDevice) {
+  if (s.isNewDevice && !s.mfaRequired) {
     // Sicherheitswarnung bei Anmeldung von neuem Gerät (§8.1)
     await notify({ recipientId: user.id, type: "SECURITY", data: { device: s.deviceLabel }, bundle: false });
     await sendMail(
@@ -95,7 +95,8 @@ export async function signIn(input: unknown) {
       { cta: { label: "Sitzungen prüfen", url: `${env().APP_URL}/einstellungen/sicherheit` } },
     ).catch(() => {});
   }
-  return { userId: user.id, token: s.rawToken };
+  // mfaRequired: Passwort korrekt, Session wartet auf den zweiten Faktor
+  return { userId: user.id, token: s.rawToken, mfaRequired: s.mfaRequired };
 }
 
 export async function verifyEmail(raw: string) {
@@ -134,7 +135,8 @@ export async function resetPassword(raw: string, password: string) {
     db.session.updateMany({ where: { userId: t.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
   await audit({ actorId: t.userId, action: "auth.password_reset", targetType: "USER", targetId: t.userId });
-  await createSession(t.userId);
+  const s = await createSession(t.userId);
+  return { mfaRequired: s.mfaRequired };
 }
 
 export async function changePassword(userId: string, current: string, next: string) {

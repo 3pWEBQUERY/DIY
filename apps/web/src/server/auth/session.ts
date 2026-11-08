@@ -22,9 +22,15 @@ export async function clientIpHash() {
   return sha256(`${process.env.SESSION_SECRET}:${ip}`).slice(0, 32);
 }
 
-/** Legt eine Session an und setzt das httpOnly-Cookie. Gibt `isNewDevice` für Sicherheitswarnungen zurück. */
+/**
+ * Legt eine Session an und setzt das httpOnly-Cookie. Gibt `isNewDevice` für Sicherheitswarnungen zurück.
+ * Hat das Konto die Zwei-Faktor-Anmeldung aktiv, ist die Session zunächst „ausstehend“
+ * (`mfaRequired`) und gilt erst nach dem zweiten Faktor als angemeldet.
+ */
 export async function createSession(userId: string) {
   const raw = token(32);
+  const mfa = await db.user.findUnique({ where: { id: userId }, select: { totpEnabledAt: true } });
+  const mfaPending = !!mfa?.totpEnabledAt;
   const h = await headers();
   const ua = h.get("user-agent");
   const label = deviceLabel(ua);
@@ -32,7 +38,7 @@ export async function createSession(userId: string) {
   const known = await db.session.findFirst({ where: { userId, OR: [{ deviceLabel: label }, { ipHash }] }, select: { id: true } });
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
   await db.session.create({
-    data: { id: sha256(raw), userId, userAgent: ua?.slice(0, 300), ipHash, deviceLabel: label, expiresAt },
+    data: { id: sha256(raw), userId, userAgent: ua?.slice(0, 300), ipHash, deviceLabel: label, expiresAt, mfaPending },
   });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, raw, {
@@ -42,7 +48,7 @@ export async function createSession(userId: string) {
     path: "/",
     expires: expiresAt,
   });
-  return { isNewDevice: !known, deviceLabel: label, rawToken: raw };
+  return { isNewDevice: !known, deviceLabel: label, rawToken: raw, mfaRequired: mfaPending };
 }
 
 export async function destroySession() {
@@ -71,6 +77,7 @@ const userSelect = {
   suspendedUntil: true,
   messagingRestrictedUntil: true,
   emailVerifiedAt: true,
+  totpEnabledAt: true,
   onboardedAt: true,
   createdAt: true,
   profile: {
@@ -84,9 +91,11 @@ export const getSession = cache(async () => {
   if (!raw) return null;
   const session = await db.session.findUnique({
     where: { id: sha256(raw) },
-    select: { id: true, expiresAt: true, revokedAt: true, lastUsedAt: true, user: { select: userSelect } },
+    select: { id: true, expiresAt: true, revokedAt: true, lastUsedAt: true, mfaPending: true, user: { select: userSelect } },
   });
   if (!session || session.revokedAt || session.expiresAt < new Date()) return null;
+  // Zweiter Faktor noch offen → wie nicht angemeldet behandeln
+  if (session.mfaPending) return null;
   const u = session.user;
   if (u.status === "BANNED" || u.status === "DELETED") return null;
   if (Date.now() - session.lastUsedAt.getTime() > TOUCH_INTERVAL_MS) {
@@ -122,7 +131,26 @@ export async function requirePageUser(returnTo?: string, opts?: Parameters<typeo
   const s = await getSession();
   if (!s?.user.profile) {
     const { redirect } = await import("next/navigation");
-    redirect(`/anmelden${returnTo ? `?weiter=${encodeURIComponent(returnTo)}` : ""}`);
+    const q = returnTo ? `?weiter=${encodeURIComponent(returnTo)}` : "";
+    // Passwort bestätigt, zweiter Faktor fehlt → direkt zur Code-Eingabe
+    if (!s && (await getPendingMfaSession())) redirect(`/anmelden/zwei-faktor${q}`);
+    redirect(`/anmelden${q}`);
   }
   return requireUser(opts);
+}
+
+/**
+ * Session, deren Passwort-Schritt erfolgreich war, die aber noch auf den zweiten Faktor wartet
+ * (Seite /anmelden/zwei-faktor bzw. API /auth/session/mfa).
+ */
+export async function getPendingMfaSession() {
+  const raw = await tokenFromRequest();
+  if (!raw) return null;
+  const s = await db.session.findUnique({
+    where: { id: sha256(raw) },
+    select: { id: true, mfaPending: true, revokedAt: true, expiresAt: true, user: { select: { id: true, email: true, status: true, totpSecret: true, totpEnabledAt: true, totpLastStep: true } } },
+  });
+  if (!s || !s.mfaPending || s.revokedAt || s.expiresAt < new Date()) return null;
+  if (s.user.status === "BANNED" || s.user.status === "DELETED" || !s.user.totpEnabledAt) return null;
+  return s;
 }

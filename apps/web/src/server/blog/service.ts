@@ -102,6 +102,7 @@ async function loadActor(userId: string): Promise<SessionUser | null> {
       suspendedUntil: true,
       messagingRestrictedUntil: true,
       emailVerifiedAt: true,
+      totpEnabledAt: true,
       onboardedAt: true,
       createdAt: true,
       profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true } },

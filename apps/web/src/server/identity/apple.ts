@@ -112,5 +112,5 @@ export async function signInWithAppleIdToken(idToken: string, displayName: strin
   if (u.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");
   if (u.status === "DELETED") throw fail.forbidden("Dieses Konto wurde gelöscht.");
   const s = await createSession(userId);
-  return { userId, isNew, token: s.rawToken };
+  return { userId, isNew, token: s.rawToken, mfaRequired: s.mfaRequired };
 }

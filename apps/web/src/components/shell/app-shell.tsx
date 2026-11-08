@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
-import { hasRole } from "@/server/authz";
+import { hasRoleIgnoringMfa } from "@/server/authz";
 import { SideNav, BottomNav, MobileMoreMenu, type ShellUser } from "./side-nav";
 import { CommandPalette } from "./command-palette";
 import { Wordmark } from "./wordmark";
@@ -20,7 +20,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         handle: user.profile.handle,
         displayName: user.profile.displayName,
         avatarUrl: user.profile.avatarUrl,
-        isStaff: hasRole(user, "PLATFORM_MODERATOR"),
+        isStaff: hasRoleIgnoringMfa(user, "PLATFORM_MODERATOR"),
         hasShop: !!user.shop,
       }
     : null;

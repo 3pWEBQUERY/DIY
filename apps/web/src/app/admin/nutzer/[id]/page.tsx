@@ -13,7 +13,7 @@ import { Table, Td, Th, Tr, EmptyRow, RiskMeter } from "@/components/admin/ui";
 import { dateTime, num, shortDate } from "@/components/admin/format";
 import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
-import { changeRoleAction, revokeSessionsAction, suspendUserAction, unsuspendUserAction, verifyEmailAction } from "../actions";
+import { changeRoleAction, resetMfaAction, revokeSessionsAction, suspendUserAction, unsuspendUserAction, verifyEmailAction } from "../actions";
 
 export const metadata: Metadata = { title: "Nutzer" };
 
@@ -84,6 +84,17 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           )}
           {(canSanction || self) && counts.sessions > 0 && (
             <ActionButton action={revokeSessionsAction.bind(null, u.id)} label={`Sitzungen beenden (${counts.sessions})`} confirm="Alle aktiven Sitzungen dieses Kontos beenden?" />
+          )}
+          {isSuper && !self && u.totpEnabledAt && u.status !== "DELETED" && (
+            <ReasonButton
+              action={resetMfaAction.bind(null, u.id)}
+              label="Zwei-Faktor zurücksetzen"
+              variant="outline"
+              title="Zwei-Faktor-Anmeldung zurücksetzen"
+              description="Nur nach Identitätsprüfung, z. B. wenn Handy und Wiederherstellungscodes verloren sind. Alle Sitzungen werden beendet; die Person richtet den zweiten Faktor neu ein."
+              confirmLabel="Zurücksetzen"
+              confirmVariant="danger"
+            />
           )}
           {isAdmin && !u.emailVerifiedAt && u.status !== "DELETED" && <ActionButton action={verifyEmailAction.bind(null, u.id)} label="E-Mail bestätigen" confirm="E-Mail-Adresse manuell als bestätigt markieren?" />}
           {isAdmin && !self && roleChoices.length > 0 && u.status !== "DELETED" && (
@@ -190,6 +201,12 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <dd className="text-muted">{u.emailVerifiedAt ? `bestätigt ${shortDate(u.emailVerifiedAt)}` : "nicht bestätigt"}</dd>
               </div>
               <div><dt className="spec">Anmeldung</dt><dd>{[u.authAccounts.length ? u.authAccounts.map((a) => (a.provider === "apple" ? "Apple" : a.provider)).join(", ") : null, "E-Mail/Passwort"].filter(Boolean).join(" · ")}</dd></div>
+              <div>
+                <dt className="spec">Zwei-Faktor</dt>
+                <dd className={u.totpEnabledAt ? "" : u.role !== "MEMBER" ? "font-semibold text-danger" : "text-muted"}>
+                  {u.totpEnabledAt ? `aktiv seit ${shortDate(u.totpEnabledAt)}` : u.role !== "MEMBER" ? "fehlt – Pflicht für diese Rolle" : "nicht eingerichtet"}
+                </dd>
+              </div>
               <div><dt className="spec">Registriert</dt><dd>{dateTime(u.createdAt)}</dd></div>
               <div><dt className="spec">Zuletzt aktiv</dt><dd>{u.lastSeenAt ? relativeTime(u.lastSeenAt) : "–"}</dd></div>
               <div><dt className="spec">18+ bestätigt</dt><dd>{u.adultConfirmedAt ? shortDate(u.adultConfirmedAt) : "–"}</dd></div>

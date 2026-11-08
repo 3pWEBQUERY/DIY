@@ -67,6 +67,7 @@ export async function getUserDetail(actor: Actor, userId: string) {
       suspendedUntil: true,
       messagingRestrictedUntil: true,
       emailVerifiedAt: true,
+      totpEnabledAt: true,
       adultConfirmedAt: true,
       onboardedAt: true,
       lastSeenAt: true,

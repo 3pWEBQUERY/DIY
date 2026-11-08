@@ -8,7 +8,7 @@ import { resetPasswordAction } from "../../actions";
 
 export default function ResetPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
-  const { run, pending, fields, error } = useAction(resetPasswordAction, { redirect: "/feed" });
+  const { run, pending, fields, error } = useAction(resetPasswordAction, { redirect: (d) => d.next });
   return (
     <>
       <p className="spec mb-3">Sicherheit</p>

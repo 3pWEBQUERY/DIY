@@ -230,6 +230,12 @@ model User {
   email           String        @unique
   emailVerifiedAt DateTime?
   passwordHash    String?
+  /// Zwei-Faktor (TOTP): Geheimnis AES-256-GCM-verschlüsselt; aktiv erst mit totpEnabledAt
+  totpSecret      String?
+  totpEnabledAt   DateTime?
+  /// Zuletzt akzeptierter 30-s-Zeitschritt (verhindert Wiederverwendung eines Codes)
+  totpLastStep    Int?
+  mfaRecoveryCodes MfaRecoveryCode[]
   role            PlatformRole  @default(MEMBER)
   status          AccountStatus @default(ACTIVE)
   suspendedUntil  DateTime?
@@ -340,10 +346,24 @@ model Session {
   expiresAt   DateTime
   lastUsedAt  DateTime @default(now())
   revokedAt   DateTime?
+  /// Passwort korrekt, zweiter Faktor steht noch aus – gilt bis dahin als nicht angemeldet
+  mfaPending  Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Einmal verwendbare Wiederherstellungscodes für die Zwei-Faktor-Anmeldung (nur als Hash gespeichert)
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuthAccount {

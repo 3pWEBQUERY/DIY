@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PlatformRole } from "@/server/db";
 import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
+import { adminResetMfa } from "@/server/auth/mfa";
 import { changeRole, revokeUserSessions, suspendUser, unsuspendUser, verifyEmailManually } from "@/server/admin/users";
 
 type ReasonInput = { reason: string; publicNote?: string; days?: number | null; choice?: string };
@@ -56,4 +57,13 @@ export async function revokeSessionsAction(userId: string) {
     refresh(userId);
     return r;
   }, "Alle Sitzungen wurden beendet.");
+}
+
+export async function resetMfaAction(userId: string, input: ReasonInput) {
+  return act(async () => {
+    const u = await requireRole("SUPERADMIN");
+    await adminResetMfa(u, userId, input.reason);
+    refresh(userId);
+    return null;
+  }, "Zwei-Faktor-Anmeldung zurückgesetzt, Sitzungen beendet.");
 }

@@ -24,6 +24,10 @@ export const LIMITS = {
   signIn: [10, 600],
   // Unabhängig von der IP: schützt ein einzelnes Konto auch bei wechselnden Absenderadressen
   signInAccount: [30, 3600],
+  // Zweiter Faktor: wenige Versuche, damit 6-stellige Codes nicht durchprobiert werden können
+  mfaFail: [10, 900],
+  mfaFailDay: [30, 86400],
+  mfaManage: [20, 3600],
   signUp: [5, 3600],
   passwordReset: [5, 3600],
   post: [30, 3600],
@@ -40,4 +44,11 @@ export const LIMITS = {
 export function limit(action: keyof typeof LIMITS, subject: string) {
   const [n, w] = LIMITS[action];
   return rateLimit(`${action}:${subject}`, n, w);
+}
+
+/** Ist das Limit für eine Aktion bereits erreicht? (zählt nicht hoch) */
+export async function isLimited(action: keyof typeof LIMITS, subject: string) {
+  const [n] = LIMITS[action];
+  const b = await db.rateLimitBucket.findUnique({ where: { key: `${action}:${subject}` }, select: { count: true, resetAt: true } });
+  return !!b && b.resetAt > new Date() && b.count >= n;
 }

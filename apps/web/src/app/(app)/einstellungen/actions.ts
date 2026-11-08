@@ -7,6 +7,7 @@ import { destroySession, getSession, requireUser } from "@/server/auth/session";
 import { deleteAccount } from "@/server/identity/service";
 import { setBlock, setMute } from "@/server/social/interactions";
 import * as account from "@/server/account/service";
+import * as mfa from "@/server/auth/mfa";
 
 /** Server Actions der Einstellungen. Jede Aktion prüft die Sitzung serverseitig. */
 
@@ -141,4 +142,40 @@ export async function createTicketAction(input: unknown) {
     revalidatePath("/einstellungen/hilfe-support");
     return r;
   }, "Danke! Wir haben dir eine Bestätigung per E-Mail geschickt.");
+}
+
+/* ───────── Zwei-Faktor-Anmeldung ───────── */
+
+async function mfaUser() {
+  const s = await getSession();
+  if (!s) throw fail.auth();
+  return s.user;
+}
+
+export async function startMfaSetupAction() {
+  return act(async () => mfa.startMfaSetup(await mfaUser()));
+}
+
+export async function confirmMfaSetupAction(code: string) {
+  return act(async () => {
+    const r = await mfa.confirmMfaSetup(await mfaUser(), code);
+    revalidatePath("/einstellungen/sicherheit");
+    return r;
+  }, "Zwei-Faktor-Anmeldung aktiviert.");
+}
+
+export async function regenerateRecoveryCodesAction(code: string) {
+  return act(async () => {
+    const r = await mfa.regenerateRecoveryCodes(await mfaUser(), code);
+    revalidatePath("/einstellungen/sicherheit");
+    return r;
+  }, "Neue Wiederherstellungscodes erstellt. Die alten sind ungültig.");
+}
+
+export async function disableMfaAction(code: string) {
+  return act(async () => {
+    await mfa.disableMfa(await mfaUser(), code);
+    revalidatePath("/einstellungen/sicherheit");
+    return null;
+  }, "Zwei-Faktor-Anmeldung deaktiviert.");
 }

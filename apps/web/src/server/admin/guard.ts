@@ -2,7 +2,7 @@ import "server-only";
 import { notFound, redirect } from "next/navigation";
 import type { PlatformRole } from "@/generated/prisma/client";
 import { currentUser } from "@/server/auth/session";
-import { hasRole } from "@/server/authz";
+import { hasRoleIgnoringMfa } from "@/server/authz";
 
 /**
  * Seitenschutz für /admin (§7.3). Server Actions prüfen zusätzlich selbst per
@@ -12,8 +12,10 @@ import { hasRole } from "@/server/authz";
 export async function adminPage(min: PlatformRole = "PLATFORM_MODERATOR", path = "/admin") {
   const user = await currentUser();
   if (!user?.profile) redirect(`/anmelden?weiter=${encodeURIComponent(path)}`);
-  if (!hasRole(user, min)) notFound();
+  if (!hasRoleIgnoringMfa(user, min)) notFound();
   if (user.status !== "ACTIVE") notFound();
+  // Pflicht: Zwei-Faktor-Anmeldung für den Admin-Bereich
+  if (!user.totpEnabledAt) redirect("/einstellungen/sicherheit?zweifaktor=pflicht");
   return user as typeof user & { profile: NonNullable<typeof user.profile> };
 }
 
