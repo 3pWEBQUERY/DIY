@@ -14,12 +14,12 @@ export function Signet({ size = 28, className }: { size?: number; className?: st
  * Wortmarke „Werkuno“ als Logo-Bild. `compact` zeigt nur das Bildzeichen,
  * `tone="light"` die helle Variante für dunkle Flächen (z. B. Admin-Kopfzeile).
  */
-export function Wordmark({ className, compact, tone = "dark", height = 32 }: { className?: string; compact?: boolean; tone?: "dark" | "light"; height?: number }) {
+export function Wordmark({ className, compact, tone = "dark", height = 32 }: { className?: string; compact?: boolean; tone?: "dark" | "light" | "mono"; height?: number }) {
   if (compact) return <Signet size={Math.round(height * 1.15)} className={className} />;
   const width = Math.round(height * LOGO_RATIO);
   return (
     <Image
-      src={tone === "light" ? "/brand/werkuno-logo-light.png" : "/brand/werkuno-logo.png"}
+      src={tone === "mono" ? "/brand/werkuno-logo-mono-light.png" : tone === "light" ? "/brand/werkuno-logo-light.png" : "/brand/werkuno-logo.png"}
       alt={BRAND.wordmark}
       width={width}
       height={height}
