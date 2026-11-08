@@ -68,14 +68,24 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PROBLEM: ["IN_PROGRESS", "SHIPPED", "COMPLETED", "CANCELLED"],
 };
 
-export const PRODUCT_KIND = ["UNIQUE", "SMALL_BATCH", "MADE_TO_ORDER", "KIT", "DIGITAL"] as const;
+export const PRODUCT_KIND = ["UNIQUE", "SMALL_BATCH", "MADE_TO_ORDER", "KIT", "RAW", "DIGITAL"] as const;
 export type ProductKind = (typeof PRODUCT_KIND)[number];
 export const PRODUCT_KIND_LABEL: Record<ProductKind, string> = {
   UNIQUE: "Einzelstück",
   SMALL_BATCH: "Kleinserie",
   MADE_TO_ORDER: "Auf Bestellung",
   KIT: "DIY-Materialset",
+  RAW: "Unbearbeiteter Artikel",
   DIGITAL: "Digitale Anleitung",
+};
+/** Kurze Erklärung je Angebotsart (Editor, Filter). */
+export const PRODUCT_KIND_HINT: Record<ProductKind, string> = {
+  UNIQUE: "Ein fertiges Stück, das es genau einmal gibt.",
+  SMALL_BATCH: "Mehrere gleiche, fertige Stücke.",
+  MADE_TO_ORDER: "Wird erst nach der Bestellung gefertigt.",
+  KIT: "Material und Anleitung zum Selbermachen.",
+  RAW: "Noch nicht bearbeitet – Rohmaterial, Fundstück oder Möbel mit Potenzial zum Aufarbeiten.",
+  DIGITAL: "Datei zum Herunterladen, z. B. eine Anleitung oder ein Schnittmuster.",
 };
 
 export const REPORT_REASONS = [

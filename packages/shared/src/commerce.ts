@@ -167,3 +167,10 @@ export const reviewCreateSchema = z.object({
 export type ShopSetupInput = z.infer<typeof shopSetupSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type ReviewCreateInput = z.infer<typeof reviewCreateSchema>;
+
+/** Höhe × Breite × Tiefe (Millimeter) für die Anzeige, z. B. „H 18 × B 24 × T 10 cm“. */
+export function formatDimensions(d: { heightMm?: number | null; widthMm?: number | null; depthMm?: number | null }) {
+  const cm = (mm: number) => (Math.round(mm) / 10).toLocaleString("de-CH", { maximumFractionDigits: 1 });
+  const parts = [d.heightMm ? `H ${cm(d.heightMm)}` : null, d.widthMm ? `B ${cm(d.widthMm)}` : null, d.depthMm ? `T ${cm(d.depthMm)}` : null].filter(Boolean);
+  return parts.length ? `${parts.join(" × ")} cm` : "";
+}

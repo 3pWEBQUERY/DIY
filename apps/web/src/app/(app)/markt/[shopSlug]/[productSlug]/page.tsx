@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import type { Metadata } from "next";
 import { ShieldAlert, Star } from "lucide-react";
-import { COUNTRY_LABEL, PRODUCT_KIND_LABEL, PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency, type ShipCountry } from "@werkraum/shared";
+import { COUNTRY_LABEL, PRODUCT_KIND_LABEL, PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency, type ShipCountry, formatDimensions } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { countProductView, getProductPage, moreFromShop } from "@/server/commerce/products";
 import { listProductReviews } from "@/server/commerce/reviews";
@@ -53,6 +53,7 @@ export default async function ProductPage({ params }: Params) {
   const [reviews, more] = await Promise.all([listProductReviews(p.id, user?.id, 20), moreFromShop(p.shopId, p.id, 4)]);
   const currency = (p.currency === "EUR" ? "EUR" : "CHF") as Currency;
   const isDigital = p.kind === "DIGITAL";
+  const dims = formatDimensions(p);
   const owner = p.shop.owner.profile!;
   const cat = categoryBySlug(p.category);
   const gallery = p.media
@@ -155,16 +156,30 @@ export default async function ProductPage({ params }: Params) {
 
           {/* Datenblatt */}
           <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 text-[14px]">
-            {p.materials && (
+            {(p.materialList.length > 0 || p.materials) && (
               <div className="col-span-2">
                 <dt className="spec">Materialien</dt>
-                <dd className="mt-1">{p.materials}</dd>
+                <dd className="mt-1">
+                  {p.materialList.length > 1 ? (
+                    <ul className="space-y-0.5">
+                      {p.materialList.map((m, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="mt-[9px] size-1 shrink-0 rounded-full bg-rule-strong" aria-hidden />
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    p.materialList[0] ?? p.materials
+                  )}
+                </dd>
               </div>
             )}
-            {p.dimensions && (
+            {(dims || p.dimensions) && (
               <div className="col-span-2 sm:col-span-1">
                 <dt className="spec">Masse</dt>
-                <dd className="mt-1 num">{p.dimensions}</dd>
+                {dims && <dd className="mt-1 num">{dims}</dd>}
+                {p.dimensions && <dd className={dims ? "text-[13px] text-ink-2" : "mt-1 num"}>{p.dimensions}</dd>}
               </div>
             )}
             {isDigital ? (

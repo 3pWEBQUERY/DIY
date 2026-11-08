@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
-import { CATEGORIES, COUNTRY_LABEL, PRODUCT_KIND, PRODUCT_KIND_LABEL, SHIP_COUNTRIES, computeFees, formatMoney, type ProductKind } from "@werkraum/shared";
+import { CATEGORIES, COUNTRY_LABEL, PRODUCT_KIND, PRODUCT_KIND_HINT, PRODUCT_KIND_LABEL, SHIP_COUNTRIES, computeFees, formatMoney, type ProductKind } from "@werkraum/shared";
 import { MediaPicker, uploadFile, type UploadedMedia } from "@/components/media/uploader";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -24,8 +24,11 @@ export type ProductEditorInitial = {
   priceMinor: number;
   stock: number;
   reserved: number;
-  materials: string;
+  materialList: string[];
   dimensions: string;
+  heightMm: number | null;
+  widthMm: number | null;
+  depthMm: number | null;
   productionDays: number;
   shippingMinor: number;
   shipsFrom: string;
@@ -40,13 +43,18 @@ export type ProductEditorInitial = {
   publishedAt: string | null;
 };
 
-const KIND_HINT: Record<ProductKind, string> = {
-  UNIQUE: "Genau ein Stück, nicht wiederholbar.",
-  SMALL_BATCH: "Wenige gleiche Stücke mit Bestand.",
-  MADE_TO_ORDER: "Wird nach der Bestellung gefertigt.",
-  KIT: "Material und Anleitung zum Selbermachen.",
-  DIGITAL: "Muster oder Anleitung als PDF/ZIP.",
-};
+const KIND_HINT = PRODUCT_KIND_HINT;
+
+/** Millimeter → Eingabe in Zentimetern („18“, „2.5“). */
+const mmToCm = (mm: number | null) => (mm == null ? "" : String(Math.round(mm) / 10).replace(/\.0$/, ""));
+/** Eingabe in Zentimetern → Millimeter (null = leer); undefined = ungültig. */
+function cmToMm(v: string): number | null | undefined {
+  const t = v.trim().replace(",", ".");
+  if (!t) return null;
+  const n = Number(t);
+  if (!Number.isFinite(n) || n <= 0 || n > 10_000) return undefined;
+  return Math.max(1, Math.round(n * 10));
+}
 
 /**
  * Produkteditor (§13.4): alle Pflicht- und Zusatzangaben, Varianten mit Bestand,
@@ -78,6 +86,10 @@ export function ProductEditor({
     price: initial.priceMinor ? minorToInput(initial.priceMinor) : "",
     shipping: minorToInput(initial.shippingMinor),
     returnPolicy: initial.returnPolicy || (initial.id ? "" : shopReturnPolicy),
+    materialList: initial.materialList.length ? initial.materialList : [""],
+    heightCm: mmToCm(initial.heightMm),
+    widthCm: mmToCm(initial.widthMm),
+    depthCm: mmToCm(initial.depthMm),
   }));
   const [media, setMedia] = useState<UploadedMedia[]>(initial.media);
   const [digital, setDigital] = useState(initial.digital);
@@ -123,6 +135,12 @@ export function ProductEditor({
     if (ship == null) errs.shippingMinor = "Bitte gib gültige Versandkosten an";
     const variants = v.variants.map((x) => ({ name: x.name.trim(), priceDeltaMinor: Math.round((Number(x.priceDelta.replace(",", ".")) || 0) * 100), stock: x.stock }));
     if (variants.some((x) => !x.name)) errs.variants = "Jede Variante braucht einen Namen";
+    if (v.kind === "RAW" && v.description.trim().length < 20) errs.description = "Beschreibe den Zustand des Artikels (mind. 20 Zeichen)";
+    const materialList = v.materialList.map((m) => m.trim()).filter(Boolean);
+    const dims = { height: cmToMm(v.heightCm), width: cmToMm(v.widthCm), depth: cmToMm(v.depthCm) };
+    if (dims.height === undefined) errs.heightMm = "Bitte eine Zahl in cm angeben";
+    if (dims.width === undefined) errs.widthMm = "Bitte eine Zahl in cm angeben";
+    if (dims.depth === undefined) errs.depthMm = "Bitte eine Zahl in cm angeben";
     if (Object.keys(errs).length) {
       setFields(errs);
       toast(Object.values(errs)[0]!, "error");
@@ -139,8 +157,11 @@ export function ProductEditor({
           priceMinor: price,
           currency: "CHF",
           stock: v.stock,
-          materials: v.materials,
+          materialList: materialList,
           dimensions: v.dimensions,
+          heightMm: dims.height,
+          widthMm: dims.width,
+          depthMm: dims.depth,
           productionDays: v.productionDays,
           shippingMinor: ship,
           safetyInfo: v.safetyInfo,
@@ -220,7 +241,12 @@ export function ProductEditor({
               </Select>
             )}
           </Field>
-          <Field label="Beschreibung" optional error={fields.description} hint="Wie ist es entstanden, wofür eignet es sich, wie pflegt man es?">
+          <Field
+            label="Beschreibung"
+            optional={v.kind !== "RAW"}
+            error={fields.description}
+            hint={v.kind === "RAW" ? "Beschreibe den Zustand ehrlich: Herkunft, Gebrauchsspuren, Schäden – und was man daraus machen könnte." : "Wie ist es entstanden, wofür eignet es sich, wie pflegt man es?"}
+          >
             {(p) => <Textarea {...p} rows={7} value={v.description} onChange={(e) => set("description", e.target.value)} maxLength={10000} />}
           </Field>
         </section>
@@ -344,12 +370,63 @@ export function ProductEditor({
         ) : (
           <section className="space-y-5">
             <SectionTitle n="04" title="Herstellung & Versand" />
-            <Field label="Materialien" optional hint="Z.B. „100 % Baumwolle, Buchenholz, geölt“ – wichtig für Allergien und Pflege.">
-              {(p) => <Input {...p} value={v.materials} onChange={(e) => set("materials", e.target.value)} maxLength={1000} />}
-            </Field>
-            <Field label="Masse" optional hint="Z.B. „Ø 24 cm, Höhe 18 cm, 320 g“">
-              {(p) => <Input {...p} value={v.dimensions} onChange={(e) => set("dimensions", e.target.value)} maxLength={200} />}
-            </Field>
+            <fieldset>
+              <legend className="mb-1.5 text-[13px] font-semibold">
+                Materialien <span className="font-normal text-muted">optional</span>
+              </legend>
+              <p className="mb-2.5 text-[13px] text-muted">Eine Angabe pro Feld, z. B. „100 % Baumwolle“ oder „Buchenholz, geölt“ – wichtig für Allergien und Pflege.</p>
+              <ol className="space-y-2">
+                {v.materialList.map((m, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <span className="w-5 shrink-0 text-right font-mono text-[11px] text-muted num">{i + 1}</span>
+                    <Input
+                      value={m}
+                      onChange={(e) => set("materialList", v.materialList.map((x, k) => (k === i ? e.target.value : x)))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (m.trim() && v.materialList.length < 20) set("materialList", [...v.materialList, ""]);
+                        }
+                      }}
+                      maxLength={200}
+                      aria-label={`Material ${i + 1}`}
+                      placeholder={i === 0 ? "z. B. 100 % Baumwolle" : "Weiteres Material"}
+                      autoFocus={i > 0 && i === v.materialList.length - 1 && !m}
+                    />
+                    {v.materialList.length > 1 && (
+                      <button type="button" onClick={() => set("materialList", v.materialList.filter((_, k) => k !== i))} className="grid size-10 shrink-0 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink" aria-label={`Material ${i + 1} entfernen`}>
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ol>
+              {v.materialList.length < 20 && (
+                <button type="button" onClick={() => set("materialList", [...v.materialList, ""])} className="mt-2 ml-7 inline-flex items-center gap-1.5 text-[13px] font-semibold text-moss hover:underline">
+                  <Plus size={14} /> Weiteres Material
+                </button>
+              )}
+            </fieldset>
+            <fieldset>
+              <legend className="mb-1.5 text-[13px] font-semibold">
+                Masse <span className="font-normal text-muted">optional · in Zentimetern</span>
+              </legend>
+              <div className="grid grid-cols-3 gap-3">
+                {([["heightCm", "Höhe", "heightMm"], ["widthCm", "Breite", "widthMm"], ["depthCm", "Tiefe", "depthMm"]] as const).map(([k, label, err]) => (
+                  <Field key={k} label={label} error={fields[err]}>
+                    {(p) => (
+                      <span className="relative block">
+                        <Input {...p} inputMode="decimal" value={v[k]} onChange={(e) => set(k, e.target.value)} placeholder="–" className="num pr-10" />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-muted">cm</span>
+                      </span>
+                    )}
+                  </Field>
+                ))}
+              </div>
+              <Field className="mt-3" label="Weitere Angaben" optional hint="Z. B. „Ø 24 cm“, „Gewicht 320 g“ oder „Fadenstärke 4 mm“.">
+                {(p) => <Input {...p} value={v.dimensions} onChange={(e) => set("dimensions", e.target.value)} maxLength={200} />}
+              </Field>
+            </fieldset>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Bearbeitungszeit (Tage)" error={fields.productionDays}>
                 {(p) => <Input {...p} type="number" min={0} max={365} value={v.productionDays} onChange={(e) => set("productionDays", Math.max(0, Number(e.target.value) || 0))} className="num" />}

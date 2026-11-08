@@ -202,7 +202,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
                   <span className="spec hidden sm:inline">Sortiert nach Verkäufen &amp; Bewertungen</span>
                 }
               />
-              <ul className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {shops.map((s) => (
                   <li key={s.id}>
                     <ShopCard shop={s} />

@@ -273,6 +273,7 @@ function coverFrom(variants: unknown) {
 export async function upsertProduct(user: SessionUser, productId: string | null, input: unknown, extraInput: unknown = {}) {
   const data = productUpsertSchema.parse(input);
   await requireFlag("marketplace", user.id);
+  if (data.kind === "RAW" && data.description.trim().length < 20) throw fail.invalid("Beschreibe den Zustand des Artikels (mind. 20 Zeichen).", { description: "Zustand beschreiben (mind. 20 Zeichen)" });
   await assertCategoryAllowed(data.category, productId ? (await db.product.findUnique({ where: { id: productId }, select: { category: true } }))?.category : null);
   const extra = extraSchema.parse(extraInput);
   const shop = await requireOwnShop(user, { writable: true });
@@ -325,8 +326,13 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
       category: data.category,
       priceMinor: data.priceMinor,
       currency: data.currency,
-      materials: data.materials,
+      // Neue Clients senden eine Liste; ältere nur Freitext → beide Felder konsistent halten
+      materialList: data.materialList ?? (data.materials ? [data.materials] : []),
+      materials: data.materialList ? data.materialList.join(", ") : data.materials,
       dimensions: data.dimensions,
+      ...(data.heightMm !== undefined ? { heightMm: data.heightMm } : {}),
+      ...(data.widthMm !== undefined ? { widthMm: data.widthMm } : {}),
+      ...(data.depthMm !== undefined ? { depthMm: data.depthMm } : {}),
       productionDays: data.productionDays,
       shippingMinor: isDigital ? 0 : data.shippingMinor,
       shipsFrom: extra.shipsFrom ?? existing?.shipsFrom ?? shop.country,

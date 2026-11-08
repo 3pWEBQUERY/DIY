@@ -144,6 +144,7 @@ enum ProductKind {
   MADE_TO_ORDER
   KIT
   DIGITAL
+  RAW
 }
 
 enum ProductStatus {
@@ -1249,8 +1250,16 @@ model Product {
   priceMinor     Int
   currency       String        @default("CHF")
   status         ProductStatus @default(DRAFT)
+  /// Kurzfassung (kommagetrennt) – für Suche und ältere App-Versionen
   materials      String        @default("")
+  /// Einzelne Materialangaben, z. B. „100 % Baumwolle“, „Buchenholz, geölt“
+  materialList   String[]      @default([])
+  /// Zusätzliche Masse/Angaben (z. B. Durchmesser, Gewicht)
   dimensions     String        @default("")
+  /// Höhe, Breite, Tiefe in Millimetern
+  heightMm       Int?
+  widthMm        Int?
+  depthMm        Int?
   productionDays Int           @default(3)
   shippingMinor  Int           @default(900)
   shipsFrom      String        @default("CH")

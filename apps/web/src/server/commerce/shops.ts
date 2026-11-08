@@ -295,7 +295,7 @@ export type ShopCardData = {
   ratingCount: number;
   salesCount: number;
   productCount: number;
-  owner: { handle: string; displayName: string; avatarUrl: string | null };
+  owner: { handle: string; displayName: string; avatarUrl: string | null; region?: string | null };
   covers: { id: string; url: string | null; category: string }[];
 };
 
@@ -325,7 +325,7 @@ export async function listShops(opts: { take?: number; viewerId?: string | null;
       ratingAvg: true,
       ratingCount: true,
       salesCount: true,
-      owner: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
+      owner: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true, region: true } } } },
       _count: { select: { products: { where: { status: "ACTIVE" } } } },
       products: { where: productWhere, orderBy: { publishedAt: "desc" }, take: 3, select: { id: true, coverUrl: true, category: true } },
     },
@@ -340,7 +340,7 @@ export async function listShops(opts: { take?: number; viewerId?: string | null;
     ratingCount: s.ratingCount,
     salesCount: s.salesCount,
     productCount: s._count.products,
-    owner: { handle: s.owner.profile?.handle ?? "", displayName: s.owner.profile?.displayName ?? s.name, avatarUrl: s.owner.profile?.avatarUrl ?? null },
+    owner: { handle: s.owner.profile?.handle ?? "", displayName: s.owner.profile?.displayName ?? s.name, avatarUrl: s.owner.profile?.avatarUrl ?? null, region: s.owner.profile?.region ?? null },
     covers: s.products.map((p) => ({ id: p.id, url: p.coverUrl, category: p.category })),
   }));
 }

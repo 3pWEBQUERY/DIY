@@ -167,8 +167,15 @@ export const productUpsertSchema = z.object({
   priceMinor: z.coerce.number().int().min(100, "Mindestpreis CHF 1.00").max(5_000_000),
   currency: z.enum(["CHF", "EUR"]).default("CHF"),
   stock: z.coerce.number().int().min(0).max(100_000).default(1),
+  /** Ältere Clients: ein Freitextfeld. Neu: `materialList` (eine Angabe pro Eintrag). */
   materials: z.string().trim().max(1000).default(""),
+  materialList: z.array(z.string().trim().min(1).max(200, "Höchstens 200 Zeichen")).max(20, "Höchstens 20 Materialangaben").optional(),
+  /** Zusätzliche Masse (z. B. Ø, Gewicht) */
   dimensions: z.string().trim().max(200).default(""),
+  /** Höhe, Breite, Tiefe in Millimetern (UI erfasst Zentimeter) */
+  heightMm: z.coerce.number().int().min(1).max(100_000).nullable().optional(),
+  widthMm: z.coerce.number().int().min(1).max(100_000).nullable().optional(),
+  depthMm: z.coerce.number().int().min(1).max(100_000).nullable().optional(),
   productionDays: z.coerce.number().int().min(0).max(365).default(3),
   shippingMinor: z.coerce.number().int().min(0).max(100_000).default(900),
   safetyInfo: z.string().trim().max(2000).default(""),
