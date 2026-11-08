@@ -210,7 +210,34 @@ async function optional<T>(path: string, fn: string): Promise<(() => Promise<T>)
   }
 }
 
+/**
+ * Beim Deploy startet der Worker oft vor dem Web-Dienst, der die Migrationen einspielt.
+ * Bis alle Migrationen der eigenen Version angewendet sind, warten (max. 10 Minuten),
+ * sonst laufen Jobs gegen ein veraltetes Schema.
+ */
+async function waitForMigrations() {
+  const { readdir } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  const dir = join(process.cwd(), "prisma", "migrations");
+  const expected = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory()).map((d) => d.name);
+  if (!expected.length) return;
+  const deadline = Date.now() + 10 * 60_000;
+  for (let i = 0; ; i++) {
+    const rows = await db.$queryRaw<{ migration_name: string }[]>`SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`.catch(() => []);
+    const done = new Set(rows.map((r) => r.migration_name));
+    const missing = expected.filter((m) => !done.has(m));
+    if (!missing.length) return;
+    if (Date.now() > deadline) {
+      warn("migrations_pending_timeout", { missing });
+      return;
+    }
+    if (i === 0) log("waiting_for_migrations", { missing });
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+}
+
 async function main() {
+  await waitForMigrations();
   const boss = new PgBoss({ connectionString: process.env.DATABASE_URL!, schema: "pgboss" });
   boss.on("error", (e) => warn("pgboss_error", { err: String(e) }));
   await boss.start();
