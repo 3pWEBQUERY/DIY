@@ -44,29 +44,57 @@ export function appUrl(path = "") {
   return new URL(path, env().APP_URL).toString();
 }
 
-/* ───────────────────────── Connect: Verkäuferkonten ───────────────────────── */
+/* ───────────────────────── Connect: Verkäuferkonten (Accounts v2) ───────────────────────── */
 
-export async function createExpressAccount(input: { shopId: string; email: string; country: string; sellerType: "PRIVATE" | "BUSINESS"; shopUrl: string; shopName: string }) {
-  return stripe().accounts.create(
-    {
-      type: "express",
-      country: input.country,
-      email: input.email,
-      business_type: input.sellerType === "BUSINESS" ? "company" : "individual",
-      capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-      business_profile: { url: input.shopUrl, name: input.shopName, product_description: "Handgemachte Produkte und DIY-Materialien über Werkuno" },
-      metadata: { shopId: input.shopId },
-    },
-    { idempotencyKey: `acct-create:${input.shopId}` },
-  );
+/**
+ * Stripe verlangt für neue Connect-Integrationen Accounts v2 (v1 `accounts.create` wird abgelehnt).
+ * Unser Modell: Destination Charges ohne `on_behalf_of` → Werkuno ist Händler gegenüber der
+ * Käuferschaft, der Shop ist „Recipient“ und erhält Überweisungen (stripe_balance.stripe_transfers).
+ * Express-Dashboard für Auszahlungen/Bankkonto; Gebühren und Verluste trägt die Plattform.
+ */
+export type ConnectStatus = { accountId: string; chargesEnabled: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean; disabledReason: string | null; currentlyDue: number };
+
+const CURRENCY: Record<string, string> = { CH: "chf", LI: "chf", DE: "eur", AT: "eur" };
+
+export async function createConnectedAccount(input: { shopId: string; email: string; country: string; sellerType: "PRIVATE" | "BUSINESS"; shopUrl: string; shopName: string }) {
+  const country = input.country.toUpperCase();
+  const base = {
+    contact_email: input.email,
+    display_name: input.shopName,
+    dashboard: "express" as const,
+    identity: { country: country.toLowerCase(), entity_type: input.sellerType === "BUSINESS" ? "company" : "individual" },
+    configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+    include: ["configuration.recipient" as const, "requirements" as const],
+    metadata: { shopId: input.shopId },
+  };
+  const defaults = (feesCollector: "application" | "application_express") => ({
+    currency: CURRENCY[country] ?? "chf",
+    locales: ["de" as const],
+    profile: { business_url: input.shopUrl, doing_business_as: input.shopName, product_description: "Handgemachte Produkte und DIY-Materialien über Werkuno" },
+    responsibilities: { fees_collector: feesCollector, losses_collector: "application" as const },
+  });
+  try {
+    return await stripe().v2.core.accounts.create({ ...base, defaults: defaults("application") }, { idempotencyKey: `acct-v2:${input.shopId}` });
+  } catch (e) {
+    // Manche Konten-Setups verlangen für das Express-Dashboard die Express-Preisvariante
+    if (/fees_collector|responsibilit/i.test((e as Error).message ?? "")) {
+      return stripe().v2.core.accounts.create({ ...base, defaults: defaults("application_express") }, { idempotencyKey: `acct-v2x:${input.shopId}` });
+    }
+    throw e;
+  }
 }
 
 export async function createOnboardingLink(accountId: string) {
-  const link = await stripe().accountLinks.create({
+  const link = await stripe().v2.core.accountLinks.create({
     account: accountId,
-    type: "account_onboarding",
-    refresh_url: appUrl("/studio/shop?stripe=erneut"),
-    return_url: appUrl("/studio/shop?stripe=zurueck"),
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        refresh_url: appUrl("/studio/shop?stripe=erneut"),
+        return_url: appUrl("/studio/shop?stripe=zurueck"),
+        collection_options: { fields: "eventually_due" },
+      },
+    },
   });
   return link.url;
 }
@@ -76,12 +104,36 @@ export async function createDashboardLink(accountId: string) {
   return link.url;
 }
 
-export async function retrieveAccount(accountId: string) {
-  return stripe().accounts.retrieve(accountId);
+type V2Account = {
+  id: string;
+  configuration?: { recipient?: { capabilities?: { stripe_balance?: { stripe_transfers?: { status?: string }; payouts?: { status?: string } } } } };
+  requirements?: { entries?: { awaiting_action_from?: string; impact?: { restricts_capabilities?: unknown[] } }[] };
+};
+
+/** Status eines v2-Kontos in unser Format übersetzen. */
+export function accountStatusV2(a: V2Account): ConnectStatus {
+  const sb = a.configuration?.recipient?.capabilities?.stripe_balance;
+  const transfers = sb?.stripe_transfers?.status ?? "pending";
+  const payouts = sb?.payouts?.status ?? transfers;
+  const userDue = (a.requirements?.entries ?? []).filter((e) => e.awaiting_action_from === "user").length;
+  return {
+    accountId: a.id,
+    chargesEnabled: transfers === "active",
+    payoutsEnabled: payouts === "active",
+    detailsSubmitted: userDue === 0,
+    disabledReason: transfers === "rejected" ? "rejected.other" : transfers === "restricted" && userDue === 0 ? "under_review" : null,
+    currentlyDue: userDue,
+  };
 }
 
-/** Relevante Felder eines Connect-Kontos für unsere Verifizierungslogik. */
-export function accountStatus(a: Pick<Stripe.Account, "id" | "charges_enabled" | "payouts_enabled" | "details_submitted" | "requirements">) {
+export async function retrieveConnectStatus(accountId: string): Promise<ConnectStatus> {
+  if (!accountId.startsWith("acct_")) throw new Error("Ungültige Konto-ID");
+  const a = await stripe().v2.core.accounts.retrieve(accountId, { include: ["configuration.recipient", "requirements"] });
+  return accountStatusV2(a as unknown as V2Account);
+}
+
+/** Webhook `account.updated` (v1-Ereignisse) ins gleiche Format übersetzen. */
+export function accountStatus(a: Pick<Stripe.Account, "id" | "charges_enabled" | "payouts_enabled" | "details_submitted" | "requirements">): ConnectStatus {
   return {
     accountId: a.id,
     chargesEnabled: !!a.charges_enabled,
@@ -90,6 +142,11 @@ export function accountStatus(a: Pick<Stripe.Account, "id" | "charges_enabled" |
     disabledReason: a.requirements?.disabled_reason ?? null,
     currentlyDue: a.requirements?.currently_due?.length ?? 0,
   };
+}
+
+/** Verständliche Meldung für Stripe-Fehler (Details landen in der Fehlerüberwachung). */
+export function isStripeError(e: unknown): e is { type: string; message: string; code?: string } {
+  return !!e && typeof e === "object" && typeof (e as { type?: unknown }).type === "string" && String((e as { type: string }).type).startsWith("Stripe");
 }
 
 /* ───────────────────────── Checkout ───────────────────────── */

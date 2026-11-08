@@ -22,6 +22,7 @@ import { deliverPendingPushes } from "@/server/push/service";
 import { captureError } from "@/server/monitoring";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { sendEventReminders } from "@/server/communities/events";
+import { syncPendingConnectAccounts } from "@/server/commerce/shops";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -51,6 +52,7 @@ const Q = {
   polls: "poll.ended",
   posts: "post.scheduled",
   events: "event.reminders",
+  stripeSync: "stripe.sync",
 } as const;
 
 async function dispatchOutbox(boss: PgBoss) {
@@ -262,6 +264,7 @@ async function main() {
   await boss.work(Q.polls, guarded(Q.polls, async () => void (await notifyEndedPolls())));
   await boss.work(Q.posts, guarded(Q.posts, async () => void (await publishScheduledPosts())));
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
+  await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => void (await syncPendingConnectAccounts())));
 
   await boss.schedule(Q.outbox, "* * * * *");
   await boss.schedule(Q.emailInstant, "*/2 * * * *");
@@ -273,6 +276,7 @@ async function main() {
   await boss.schedule(Q.polls, "* * * * *");
   await boss.schedule(Q.posts, "* * * * *");
   await boss.schedule(Q.events, "*/5 * * * *");
+  await boss.schedule(Q.stripeSync, "*/10 * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);

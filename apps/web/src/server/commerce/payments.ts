@@ -9,7 +9,7 @@ import { token } from "@/server/crypto";
 import { commitSale, lockOrder, OutOfStockError, refreshSoldOut } from "./inventory";
 import { cancelPendingOrderTx } from "./reservations";
 import { paymentStatusAfterRefund, refundableAmount } from "./rules";
-import { createRefund, expireCheckoutSession, listRefunds, type Stripe } from "./stripe";
+import { createRefund, expireCheckoutSession, listRefunds, type Stripe, accountStatus } from "./stripe";
 import { applyAccountStatus } from "./shops";
 
 /**
@@ -414,7 +414,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
       return;
     }
     case "account.updated": {
-      await applyAccountStatus(event.data.object);
+      await applyAccountStatus(accountStatus(event.data.object));
       return;
     }
     case "payout.created":

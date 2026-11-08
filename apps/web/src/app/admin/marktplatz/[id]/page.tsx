@@ -70,7 +70,7 @@ export default async function ShopDetailPage({ params }: { params: Promise<{ id:
         </div>
         <div className="flex flex-wrap gap-2">
           {(s.status === "PENDING_VERIFICATION" || s.status === "DRAFT") && (
-            <ReasonButton action={decideShopAction.bind(null, s.id, "APPROVE")} label="Freigeben" variant="primary" confirmVariant="primary" title={`„${s.name}“ freigeben`} description="Manuelle Freigabe nach Prüfung von Identität, Angebot und Richtlinien. Die Prüfung wird protokolliert." reasonLabel="Prüfnotiz" confirmLabel="Shop freigeben" />
+            <ReasonButton action={decideShopAction.bind(null, s.id, "APPROVE")} label="Freigeben" variant="primary" confirmVariant="primary" title={`„${s.name}“ freigeben`} description="Manuelle Freigabe nach Prüfung von Identität, Angebot und Richtlinien. Die Prüfung wird protokolliert. Käufe sind erst möglich, wenn der Shop zusätzlich sein Auszahlungskonto bei Stripe verbunden hat." reasonLabel="Prüfnotiz" confirmLabel="Shop freigeben" />
           )}
           {s.status === "PENDING_VERIFICATION" && (
             <ReasonButton

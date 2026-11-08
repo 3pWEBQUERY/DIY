@@ -98,6 +98,9 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
   const accountConnected = !!shop.stripeAccountId;
   const active = shop.status === "ACTIVE" || shop.status === "PAUSED";
   const verified = v?.state === "VERIFIED";
+  // Stripe-Modus: nur ein echtes, bei Stripe ausgefülltes Konto zählt – eine manuelle Freigabe ersetzt es nicht
+  const stripeDetailsDone = accountConnected && (shop.chargesEnabled || (!!v && v.state !== "NOT_STARTED" && !/ausstehend/.test(v.notes ?? "")));
+  const connectDone = mode === "stripe" ? stripeDetailsDone : accountConnected || verified;
 
   return (
     <div>
@@ -135,6 +138,16 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
                 Die Verifizierung über Stripe ist freigeschaltet, sobald die Zahlungsabwicklung aktiviert ist. Dein Antrag bleibt gespeichert.
               </Notice>
             )}
+            {mode === "stripe" && sp.stripe === "erneut" && (
+              <Notice tone="warn" className="mt-5" title="Der Stripe-Link ist abgelaufen">
+                Das passiert, wenn die Seite länger offen war. Klicke einfach erneut auf „Auszahlungskonto verbinden“.
+              </Notice>
+            )}
+            {mode === "stripe" && !accountConnected && verified && (
+              <Notice tone="warn" className="mt-5" title="Auszahlungskonto fehlt noch">
+                Dein Shop ist freigegeben. Damit Kundinnen und Kunden bezahlen können und du Auszahlungen erhältst, verbinde jetzt dein Auszahlungskonto bei Stripe.
+              </Notice>
+            )}
             {mode === "simulated" && !active && (
               <Notice tone="warn" className="mt-5" title="Testmodus">
                 Stripe ist in dieser Umgebung nicht konfiguriert. Du kannst die Verifizierung simulieren, um den Ablauf zu testen.
@@ -143,24 +156,35 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
             <ol className="relative ml-2 mt-6 border-l border-line">
               <Step done title="Antrag eingereicht" body="Shop- und Anbieterangaben liegen vor." />
               <Step
-                done={accountConnected || verified}
-                active={!accountConnected && !verified}
+                done={connectDone}
+                active={!connectDone}
                 title="Auszahlungskonto verbinden"
                 body="Bei Stripe bestätigst du Identität und Bankverbindung. Werkuno sieht keine Kontodaten."
               >
-                {!accountConnected && !verified && mode === "stripe" && <StripeOnboardingButton />}
+                {!connectDone && mode === "stripe" && <StripeOnboardingButton label={accountConnected ? "Angaben bei Stripe fortsetzen" : "Auszahlungskonto verbinden"} />}
                 {!verified && mode === "simulated" && <SimulateVerificationButton />}
               </Step>
               <Step
                 done={shop.chargesEnabled || (verified && mode !== "stripe")}
-                active={accountConnected && !shop.chargesEnabled}
+                active={connectDone && !shop.chargesEnabled}
                 title="Zahlungen empfangen"
                 body={accountConnected && !shop.chargesEnabled ? (v?.notes ? `Stripe prüft noch: ${v.notes.replace(/^Stripe: /, "")}` : "Stripe prüft deine Angaben – das dauert meist nur wenige Minuten.") : undefined}
               >
-                {accountConnected && !shop.chargesEnabled && mode === "stripe" && <StripeOnboardingButton label="Angaben bei Stripe ergänzen" />}
+                {connectDone && !shop.chargesEnabled && mode === "stripe" && <StripeOnboardingButton label="Angaben bei Stripe ergänzen" />}
               </Step>
               <Step done={shop.payoutsEnabled || (verified && mode !== "stripe")} active={shop.chargesEnabled && !shop.payoutsEnabled} title="Auszahlungen aktiv" />
-              <Step done={active} active={verified && !active} title="Shop aktiv" body={active ? "Du kannst Produkte veröffentlichen." : "Sobald Stripe die Prüfung abschliesst, wird dein Shop automatisch aktiv."} />
+              <Step
+                done={active && (mode !== "stripe" || shop.chargesEnabled)}
+                active={!active || (mode === "stripe" && !shop.chargesEnabled)}
+                title="Shop aktiv"
+                body={
+                  active && mode === "stripe" && !shop.chargesEnabled
+                    ? "Freigegeben – Käufe sind möglich, sobald Stripe dein Auszahlungskonto bestätigt hat."
+                    : active
+                      ? "Du kannst Produkte veröffentlichen."
+                      : "Sobald Stripe die Prüfung abschliesst, wird dein Shop automatisch aktiv."
+                }
+              />
             </ol>
             {accountConnected && mode === "stripe" && (
               <div className="mt-6">

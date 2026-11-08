@@ -6,7 +6,7 @@ import { audit } from "@/server/audit";
 import { hasRole } from "@/server/authz";
 import { isBlockedBetween } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
-import { accountStatus, appUrl, createDashboardLink, createExpressAccount, createOnboardingLink, paymentsMode, retrieveAccount, type Stripe } from "./stripe";
+import { appUrl, createConnectedAccount, createDashboardLink, createOnboardingLink, isStripeError, paymentsMode, retrieveConnectStatus, type ConnectStatus } from "./stripe";
 import { requireFlag } from "@/server/flags";
 
 /**
@@ -75,9 +75,7 @@ export async function saveShop(user: SessionUser, input: unknown, opts: { submit
   };
 
   return db.$transaction(async (tx) => {
-    const shop = existing
-      ? await tx.shop.update({ where: { id: existing.id }, data: shopData })
-      : await tx.shop.create({ data: { ...shopData, ownerId: user.id, status: "DRAFT" } });
+    const shop = existing ? await tx.shop.update({ where: { id: existing.id }, data: shopData }) : await tx.shop.create({ data: { ...shopData, ownerId: user.id, status: "DRAFT" } });
     await tx.sellerVerification.upsert({
       where: { shopId: shop.id },
       create: { shopId: shop.id, ...verification },
@@ -114,20 +112,28 @@ export async function startStripeOnboarding(user: SessionUser) {
   const shop = await requireOwnShop(user, { writable: true });
   if (shop.status === "DRAFT") throw fail.invalid("Bitte reiche zuerst deine Shop-Angaben ein.");
   let accountId = shop.stripeAccountId;
-  if (!accountId) {
-    const account = await createExpressAccount({
-      shopId: shop.id,
-      email: user.email,
-      country: shop.country,
-      sellerType: shop.sellerType,
-      shopUrl: appUrl(`/markt/${shop.slug}`),
-      shopName: shop.name,
-    });
-    accountId = account.id;
-    await db.shop.update({ where: { id: shop.id }, data: { stripeAccountId: accountId } });
-    await db.sellerVerification.update({ where: { shopId: shop.id }, data: { providerRef: accountId, state: "PENDING" } });
+  try {
+    if (!accountId) {
+      const account = await createConnectedAccount({
+        shopId: shop.id,
+        email: user.email,
+        country: shop.country,
+        sellerType: shop.sellerType,
+        shopUrl: appUrl(`/markt/${shop.slug}`),
+        shopName: shop.name,
+      });
+      accountId = account.id;
+      await db.shop.update({ where: { id: shop.id }, data: { stripeAccountId: accountId } });
+      await db.sellerVerification.update({ where: { shopId: shop.id }, data: { providerRef: accountId, state: "PENDING" } });
+    }
+    return await createOnboardingLink(accountId);
+  } catch (e) {
+    if (!isStripeError(e)) throw e;
+    // Für die Administration in der Fehlerüberwachung festhalten, der Person verständlich antworten
+    const { captureError } = await import("@/server/monitoring");
+    await captureError(e, { source: "SERVER", path: "/studio/shop", userId: user.id, meta: { stripe: "onboarding", code: e.code ?? null } });
+    throw fail.unavailable("Stripe konnte die Verbindung gerade nicht herstellen. Bitte versuche es in ein paar Minuten erneut – die Administration ist informiert.");
   }
-  return createOnboardingLink(accountId);
 }
 
 /** Express-Dashboard (Auszahlungen, Bankkonto) für verifizierte Verkäufer. */
@@ -143,14 +149,36 @@ export async function refreshStripeStatus(user: SessionUser) {
   if (paymentsMode() !== "stripe") return getMyShop(user.id);
   const shop = await requireOwnShop(user);
   if (!shop.stripeAccountId) return getMyShop(user.id);
-  const account = await retrieveAccount(shop.stripeAccountId);
-  await applyAccountStatus(account);
+  await applyAccountStatus(await retrieveConnectStatus(shop.stripeAccountId));
   return getMyShop(user.id);
 }
 
+/**
+ * Worker (alle 10 Min.): Konten, deren Prüfung bei Stripe noch läuft, abgleichen – so wird ein
+ * Shop auch aktiv, wenn die Person nach dem Onboarding nicht zurück auf die Seite kommt.
+ */
+export async function syncPendingConnectAccounts() {
+  if (paymentsMode() !== "stripe") return 0;
+  const shops = await db.shop.findMany({
+    where: { stripeAccountId: { not: null }, OR: [{ chargesEnabled: false }, { payoutsEnabled: false }, { status: "PENDING_VERIFICATION" }], status: { not: "SUSPENDED" } },
+    take: 50,
+    select: { stripeAccountId: true },
+  });
+  let n = 0;
+  for (const s of shops) {
+    try {
+      await applyAccountStatus(await retrieveConnectStatus(s.stripeAccountId!));
+      n++;
+    } catch (e) {
+      const { captureError } = await import("@/server/monitoring");
+      await captureError(e, { source: "WORKER", path: "stripe.sync" });
+    }
+  }
+  return n;
+}
+
 /** Webhook `account.updated` bzw. manuelle Aktualisierung: Verifizierungsstatus übernehmen. */
-export async function applyAccountStatus(account: Stripe.Account) {
-  const s = accountStatus(account);
+export async function applyAccountStatus(s: ConnectStatus) {
   const shop = await db.shop.findUnique({ where: { stripeAccountId: s.accountId }, include: shopWithVerification });
   if (!shop) return null;
   return db.$transaction(async (tx) => {
@@ -209,7 +237,10 @@ export async function reviewShopVerification(admin: SessionUser, shopId: string,
         update: { state: "REJECTED", reviewedBy: admin.id, reviewedAt: new Date(), notes: note.slice(0, 1000) },
       });
     }
-    await audit({ actorId: admin.id, action: decision === "APPROVE" ? "shop.verification.approve" : "shop.verification.reject", targetType: "Shop", targetId: shopId, meta: { from: shop.status } }, tx);
+    await audit(
+      { actorId: admin.id, action: decision === "APPROVE" ? "shop.verification.approve" : "shop.verification.reject", targetType: "Shop", targetId: shopId, meta: { from: shop.status } },
+      tx,
+    );
     return tx.shop.findUniqueOrThrow({ where: { id: shopId }, include: shopWithVerification });
   });
 }
