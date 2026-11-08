@@ -118,30 +118,28 @@ export function FlagSwitch({ flagKey, enabled, toggle }: { flagKey: string; enab
   return <Switch checked={enabled} disabled={pending} onChange={(v) => run(flagKey, v)} label={`Feature ${flagKey}`} />;
 }
 
-export function NewFlagForm({ action }: { action: (input: unknown) => Promise<ActionResult<unknown>> }) {
-  const { run, pending, fields } = useAction(action);
+/** Rollout in Prozent (0–100): Anteil der angemeldeten Konten, für die das Flag gilt. */
+export function FlagRollout({ flagKey, rollout, save }: { flagKey: string; rollout: number; save: (key: string, rollout: number) => Promise<ActionResult<unknown>> }) {
+  const { run, pending } = useAction(save);
+  const [v, setV] = useState(String(rollout));
+  const dirty = Number(v) !== rollout;
   return (
     <form
-      className="grid items-end gap-3 sm:grid-cols-[1fr_2fr_100px_auto]"
+      className="flex items-center justify-end gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        const form = e.currentTarget;
-        const fd = new FormData(form);
-        run({ key: fd.get("key"), description: fd.get("description"), rollout: fd.get("rollout"), enabled: false }).then((res) => res.ok && form.reset());
+        run(flagKey, Number(v));
       }}
     >
-      <Field label="Schlüssel" error={fields.key}>
-        {(p) => <Input name="key" required placeholder="z.B. shop.digital_bundles" pattern="[a-z0-9_.\-]+" className="h-9 font-mono text-[13px]" {...p} />}
-      </Field>
-      <Field label="Beschreibung" error={fields.description}>
-        {(p) => <Input name="description" maxLength={300} className="h-9 text-[13px]" {...p} />}
-      </Field>
-      <Field label="Rollout %" error={fields.rollout}>
-        {(p) => <Input name="rollout" type="number" min={0} max={100} defaultValue={100} className="h-9 text-[13px]" {...p} />}
-      </Field>
-      <Button type="submit" variant="outline" disabled={pending} className="h-9">
-        Anlegen
-      </Button>
+      <span className="relative">
+        <Input value={v} onChange={(e) => setV(e.target.value.replace(/\D/g, "").slice(0, 3))} inputMode="numeric" aria-label={`Rollout ${flagKey} in Prozent`} className="h-9 w-[72px] pr-6 text-right text-[13px]" />
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
+      </span>
+      {dirty && (
+        <Button type="submit" size="sm" variant="outline" disabled={pending || Number(v) > 100}>
+          Speichern
+        </Button>
+      )}
     </form>
   );
 }

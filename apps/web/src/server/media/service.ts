@@ -5,6 +5,7 @@ import { limit } from "@/server/ratelimit";
 import { storage, ensureBucketCors } from "@/server/storage";
 import { getSetting } from "@/server/settings";
 import type { SessionUser } from "@/server/auth/session";
+import { requireFlag } from "@/server/flags";
 
 /** Erlaubte Typen (§25.6 Dateityp-Prüfung). SVG bewusst ausgeschlossen (XSS-Risiko). */
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/avif"];
@@ -33,6 +34,7 @@ export async function requestUpload(user: SessionUser, input: { mime: string; by
   const isVideo = VIDEO_TYPES.includes(mime);
   const isFile = FILE_TYPES.includes(mime);
   if (!isImage && !isVideo && !isFile) throw fail.invalid("Dieser Dateityp wird nicht unterstützt.");
+  if (isVideo) await requireFlag("uploads.video", user.id);
   if (isFile && input.purpose !== "private") throw fail.invalid("Dateien sind nur für digitale Produkte erlaubt.");
   const maxMb = isImage ? await getSetting("media.maxImageMb") : isVideo ? await getSetting("media.maxVideoMb") : 100;
   if (!Number.isFinite(input.bytes) || input.bytes <= 0 || input.bytes > maxMb * 1024 * 1024) {

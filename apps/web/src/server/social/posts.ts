@@ -151,8 +151,10 @@ export async function getFeed(kind: FeedKind, viewer: { id: string; interests: s
 
   // Für dich: Kandidaten der letzten 21 Tage → Ranking → Offset-Cursor auf Snapshot
   const [asOfRaw, offsetRaw] = (cursor ?? "").split("|");
-  const asOf = asOfRaw ? new Date(Number(asOfRaw)) : new Date();
-  const offset = Number(offsetRaw ?? 0) || 0;
+  // Ungültiger Cursor (manipuliert/alt) → von vorn beginnen statt Fehler
+  const asOfParsed = asOfRaw ? new Date(Number(asOfRaw)) : null;
+  const asOf = asOfParsed && !Number.isNaN(asOfParsed.getTime()) ? asOfParsed : new Date();
+  const offset = Math.max(0, Math.min(10_000, Math.floor(Number(offsetRaw ?? 0)) || 0));
   const pageSize = 15;
   const rel = await relationsFor(viewerId);
   const pref = viewerId ? await db.userPreference.findUnique({ where: { userId: viewerId }, select: { hiddenCategories: true } }) : null;

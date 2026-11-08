@@ -1743,3 +1743,43 @@ model RateLimitBucket {
   count     Int
   resetAt   DateTime
 }
+
+/// Fehlerüberwachung: gleichartige Fehler werden über einen Fingerabdruck gruppiert.
+model ErrorGroup {
+  id          String            @id @default(cuid())
+  fingerprint String            @unique
+  source      String            // SERVER | CLIENT | WORKER
+  name        String
+  message     String
+  stack       String?
+  lastPath    String?
+  count       Int               @default(1)
+  usersHit    Int               @default(0)
+  firstSeenAt DateTime          @default(now())
+  lastSeenAt  DateTime          @default(now())
+  /// Erledigt markiert; tritt der Fehler erneut auf, wird er wieder geöffnet (Regression)
+  resolvedAt  DateTime?
+  ignoredAt   DateTime?
+  lastAlertAt DateTime?
+  release     String?
+  occurrences ErrorOccurrence[]
+
+  @@index([resolvedAt, ignoredAt, lastSeenAt])
+}
+
+model ErrorOccurrence {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     ErrorGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  path      String?
+  method    String?
+  userId    String?
+  userAgent String?
+  release   String?
+  digest    String?
+  meta      Json       @default("{}")
+
+  @@index([groupId, createdAt])
+  @@index([createdAt])
+}

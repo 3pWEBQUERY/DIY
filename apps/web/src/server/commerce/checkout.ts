@@ -11,6 +11,7 @@ import { cancelPendingOrderTx } from "./reservations";
 import { formatOrderNumber, groupByShop, grandTotal, unitPrice } from "./rules";
 import { createCheckoutSession, expireCheckoutSession, paymentsMode, PAYMENTS_DISABLED_MESSAGE, retrieveCheckoutSession } from "./stripe";
 import { markOrderPaid, markPaymentFailed } from "./payments";
+import { requireFlag } from "@/server/flags";
 
 /**
  * Checkout (§13.5, §31.4 Nr. 8):
@@ -68,6 +69,7 @@ async function abandonOwnPending(userId: string) {
 
 export async function startCheckout(user: SessionUser, input: unknown): Promise<CheckoutResponse> {
   const data = checkoutSchema.parse(input);
+  await requireFlag("marketplace", user.id);
   const mode = paymentsMode();
   if (mode === "disabled") throw fail.unavailable(PAYMENTS_DISABLED_MESSAGE);
   await limit("checkout", user.id);

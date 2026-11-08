@@ -9,6 +9,7 @@ import { sendMail } from "@/server/mail";
 import { notify } from "@/server/notifications";
 import { audit } from "@/server/audit";
 import { env } from "@/server/env";
+import { requireFlag } from "@/server/flags";
 
 const VERIFY_HOURS = 48;
 const RESET_MINUTES = 60;
@@ -46,6 +47,7 @@ export async function sendVerification(userId: string, email: string) {
 }
 
 export async function signUp(input: unknown) {
+  await requireFlag("signup");
   const data = signUpSchema.parse(input);
   await limit("signUp", await clientIpHash());
   const avail = await isHandleAvailable(data.handle);

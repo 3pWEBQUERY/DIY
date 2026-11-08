@@ -7,6 +7,7 @@ import { adminNavCounts } from "@/server/admin/kpis";
 import { Wordmark } from "@/components/shell/wordmark";
 import { AdminNav, AdminMobileNav, type AdminNavGroup } from "@/components/admin/admin-nav";
 import { PageTransition } from "@/components/shell/page-transition";
+import { openErrorCount } from "@/server/admin/errors";
 
 export const metadata: Metadata = {
   title: { default: "Administration", template: "%s · Administration" },
@@ -60,6 +61,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/support", label: "Support", badge: c.tickets },
         ...(isAdmin
           ? [
+              { href: "/admin/fehler", label: "Fehler", badge: isAdmin ? await openErrorCount() : 0 },
               { href: "/admin/system", label: "Systemkonfiguration" },
               { href: "/admin/audit", label: "Audit-Protokoll" },
             ]

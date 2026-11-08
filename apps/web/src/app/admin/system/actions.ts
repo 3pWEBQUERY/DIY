@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
-import { resetSetting, toggleFlag, updateSetting, upsertFlag } from "@/server/admin/system";
+import { resetSetting, setFlagRollout, toggleFlag, updateSetting } from "@/server/admin/system";
 
 export async function updateSettingAction(key: string, value: unknown) {
   return act(async () => {
@@ -27,16 +27,17 @@ export async function toggleFlagAction(key: string, enabled: boolean) {
   return act(async () => {
     const u = await requireRole("ADMIN");
     await toggleFlag(u, key, enabled);
-    revalidatePath("/admin/system");
+    // Navigation und Seiten aller Bereiche neu rendern
+    revalidatePath("/", "layout");
     return null;
   }, enabled ? "Feature aktiviert." : "Feature deaktiviert.");
 }
 
-export async function upsertFlagAction(input: unknown) {
+export async function setFlagRolloutAction(key: string, rollout: number) {
   return act(async () => {
     const u = await requireRole("ADMIN");
-    await upsertFlag(u, input);
-    revalidatePath("/admin/system");
+    await setFlagRollout(u, key, rollout);
+    revalidatePath("/", "layout");
     return null;
-  }, "Feature-Flag gespeichert.");
+  }, "Rollout gespeichert.");
 }

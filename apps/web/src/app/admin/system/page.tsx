@@ -3,10 +3,10 @@ import { hasRole } from "@/server/authz";
 import { adminPage } from "@/server/admin/guard";
 import { listFlags, listSettings } from "@/server/admin/system";
 import { AdminHeader, Table, Td, Th, Tr, EmptyRow } from "@/components/admin/ui";
-import { FlagSwitch, NewFlagForm, SettingControl } from "@/components/admin/system-controls";
+import { FlagRollout, FlagSwitch, SettingControl } from "@/components/admin/system-controls";
 import { Notice, SectionTitle } from "@/components/ui/misc";
 import { dateTime } from "@/components/admin/format";
-import { resetSettingAction, toggleFlagAction, updateSettingAction, upsertFlagAction } from "./actions";
+import { resetSettingAction, setFlagRolloutAction, toggleFlagAction, updateSettingAction } from "./actions";
 
 export const metadata: Metadata = { title: "Systemkonfiguration" };
 
@@ -18,7 +18,7 @@ export default async function SystemPage() {
 
   return (
     <div>
-      <AdminHeader n="13" title="Systemkonfiguration" description="Plattformweite Parameter und Feature-Flags. Jede Änderung wird mit altem und neuem Wert im Audit-Protokoll festgehalten und wirkt beim nächsten Request." />
+      <AdminHeader n="14" title="Systemkonfiguration" description="Plattformweite Parameter und Feature-Flags. Jede Änderung wird mit altem und neuem Wert im Audit-Protokoll festgehalten und wirkt beim nächsten Request." />
       <Notice tone="warn" className="mb-8" title="Mit Bedacht ändern">
         Änderungen an Provision und Checkout betreffen laufende Verkäufe sofort. Provisionsänderungen müssen Verkäufern vorab angekündigt werden (Marktplatz-Richtlinien) und sind der Superadministration vorbehalten.
       </Notice>
@@ -60,24 +60,31 @@ export default async function SystemPage() {
 
       <section aria-labelledby="flags">
         <SectionTitle n={String(groups.length + 1).padStart(2, "0")} title={<span id="flags">Feature-Flags</span>} />
-        <Table className="mt-3" caption="Feature-Flags">
+        <p className="mt-3 max-w-2xl text-sm text-muted">
+          Schalter für ganze Bereiche – wirken sofort, ohne Deploy, in Web und App. Mit einem Rollout unter 100 % gilt ein Flag nur für diesen Anteil der angemeldeten Konten (immer dieselben); Gäste sehen den Bereich dann nicht.
+        </p>
+        <Table className="mt-4" caption="Feature-Flags">
           <thead>
             <tr>
-              <Th>Schlüssel</Th>
-              <Th>Beschreibung</Th>
+              <Th>Bereich</Th>
+              <Th>Wirkung</Th>
               <Th align="right">Rollout</Th>
               <Th>Geändert</Th>
               <Th align="right">Aktiv</Th>
             </tr>
           </thead>
           <tbody>
-            {flags.length === 0 && <EmptyRow cols={5}>Noch keine Feature-Flags.</EmptyRow>}
             {flags.map((f) => (
               <Tr key={f.key}>
-                <Td mono className="font-semibold">{f.key}</Td>
-                <Td className="text-ink-2">{f.description || "–"}</Td>
-                <Td align="right">{f.rollout} %</Td>
-                <Td className="whitespace-nowrap text-muted">{dateTime(f.updatedAt)}</Td>
+                <Td>
+                  <p className="font-semibold">{f.label}</p>
+                  <p className="font-mono text-[11px] text-muted">{f.key}</p>
+                </Td>
+                <Td className="max-w-md text-[13px] text-ink-2">{f.description}</Td>
+                <Td align="right">
+                  <FlagRollout flagKey={f.key} rollout={f.rollout} save={setFlagRolloutAction} />
+                </Td>
+                <Td className="whitespace-nowrap text-muted">{f.updatedAt ? dateTime(f.updatedAt) : "Standard"}</Td>
                 <Td align="right">
                   <FlagSwitch flagKey={f.key} enabled={f.enabled} toggle={toggleFlagAction} />
                 </Td>
@@ -85,10 +92,6 @@ export default async function SystemPage() {
             ))}
           </tbody>
         </Table>
-        <div className="mt-5 border border-line bg-card p-4 rounded-2xl">
-          <p className="spec mb-3">Neues Flag (startet deaktiviert)</p>
-          <NewFlagForm action={upsertFlagAction} />
-        </div>
       </section>
     </div>
   );

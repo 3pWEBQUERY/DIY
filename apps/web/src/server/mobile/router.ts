@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 import { AppError, STATUS, fail, toResult } from "@/server/errors";
 import { currentUser, getSession, requireUser } from "@/server/auth/session";
+import { requireFlag } from "@/server/flags";
 
 /**
  * Mobile-API (iOS) unter /api/v1/app/* – dünne REST-Schicht über die bestehenden
@@ -37,6 +38,8 @@ export const DELETE = (path: string, h: Handler) => route("DELETE", path, h);
 
 export const me = () => requireUser();
 export const meAllowSuspended = () => requireUser({ allowSuspended: true });
+const MARKET_PREFIXES = new Set(["market", "cart", "checkout"]);
+
 export const viewer = () => currentUser();
 export async function viewerId() {
   return (await currentUser())?.id ?? null;
@@ -115,6 +118,10 @@ export async function dispatch(routes: RouteDef[], req: NextRequest, parts: stri
       if (pathMatched) throw new AppError("VALIDATION", "Methode nicht erlaubt.");
       throw fail.notFound("Unbekannter Endpunkt.");
     }
+    // Marktplatz per Feature-Flag pausiert → Kauf- und Shop-Endpunkte gesperrt (Bestellungen bleiben lesbar)
+    if (MARKET_PREFIXES.has(parts[0] ?? "") || (parts[0] === "studio" && (parts[1] === "products" || parts[1] === "shop"))) {
+      await requireFlag("marketplace", await viewerId());
+    }
     let cached: unknown;
     const ctx: Ctx = {
       req,
@@ -135,7 +142,7 @@ export async function dispatch(routes: RouteDef[], req: NextRequest, parts: stri
     if (data instanceof Response) return data;
     return new NextResponse(serialize(data), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   } catch (e) {
-    const r = toResult(e);
+    const r = toResult(e, { path: req.nextUrl.pathname, method: req.method });
     if (r.ok) return NextResponse.json({ data: null });
     return NextResponse.json({ error: { code: r.code, message: r.error, fields: r.fields } }, { status: STATUS[r.code] });
   }

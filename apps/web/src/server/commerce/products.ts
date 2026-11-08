@@ -14,6 +14,7 @@ import { slugify } from "@/lib/utils";
 import { available, isSoldOut } from "./rules";
 import { requireOwnShop } from "./shops";
 import { assertCategoryAllowed } from "@/server/categories/settings";
+import { requireFlag } from "@/server/flags";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -271,6 +272,7 @@ function coverFrom(variants: unknown) {
  */
 export async function upsertProduct(user: SessionUser, productId: string | null, input: unknown, extraInput: unknown = {}) {
   const data = productUpsertSchema.parse(input);
+  await requireFlag("marketplace", user.id);
   await assertCategoryAllowed(data.category, productId ? (await db.product.findUnique({ where: { id: productId }, select: { category: true } }))?.category : null);
   const extra = extraSchema.parse(extraInput);
   const shop = await requireOwnShop(user, { writable: true });

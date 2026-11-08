@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-error";
 import { Button } from "@/components/ui/button";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, "boundary");
   }, [error]);
   return (
     <main id="main" className="grid min-h-[70dvh] place-items-center px-6">

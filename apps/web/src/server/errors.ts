@@ -51,21 +51,38 @@ function isNextControlFlow(e: unknown) {
   return typeof d === "string" && (d.startsWith("NEXT_REDIRECT") || d.startsWith("NEXT_HTTP_ERROR_FALLBACK") || d === "NEXT_NOT_FOUND");
 }
 
-export function toResult(e: unknown): ActionResult<never> {
+/**
+ * Wird beim Serverstart von der Fehlerüberwachung gesetzt (siehe instrumentation.ts).
+ * Auf globalThis, weil Instrumentation und Routen in getrennten Bundles laufen.
+ */
+const REPORTER = Symbol.for("werkuno.unhandledReporter");
+type Reporter = (e: unknown, ctx?: { path?: string; method?: string }) => void;
+export function setUnhandledReporter(fn: Reporter) {
+  (globalThis as Record<symbol, Reporter | undefined>)[REPORTER] = fn;
+}
+
+export function toResult(e: unknown, ctx?: { path?: string; method?: string }): ActionResult<never> {
   if (isNextControlFlow(e)) throw e;
   if (e instanceof AppError) return { ok: false, code: e.code, error: e.message, fields: e.fields };
   if (e instanceof ZodError) {
     const fields = zodFields(e);
     return { ok: false, code: "VALIDATION", error: Object.values(fields)[0] ?? "Ungültige Eingabe", fields };
   }
-  console.error(
-    JSON.stringify({
-      level: "error",
-      msg: "unhandled",
-      err: e instanceof Error ? e.message : String(e),
-      stack: e instanceof Error ? e.stack : undefined,
-    }),
-  );
+  // Postgres lehnt Nullbytes/ungültige Kodierung ab – das ist eine fehlerhafte Eingabe, kein Serverfehler
+  if (e instanceof Error && /invalid byte sequence for encoding|22021|22P05/.test(e.message)) {
+    return { ok: false, code: "VALIDATION", error: "Die Anfrage enthält ungültige Zeichen." };
+  }
+  const unhandledReporter = (globalThis as Record<symbol, Reporter | undefined>)[REPORTER];
+  if (unhandledReporter) unhandledReporter(e, ctx);
+  else
+    console.error(
+      JSON.stringify({
+        level: "error",
+        msg: "unhandled",
+        err: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      }),
+    );
   return { ok: false, code: "INTERNAL", error: "Etwas ist schiefgelaufen. Bitte versuche es erneut." };
 }
 

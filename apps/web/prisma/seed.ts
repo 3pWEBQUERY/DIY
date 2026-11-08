@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProjectStatus } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/server/crypto";
+import { purgeDemo } from "./demo-purge";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -67,9 +68,8 @@ async function baseData() {
   for (const [slugv, name] of [["werkstattwissen", "Werkstattwissen"], ["materialkunde", "Materialkunde"], ["erfahrungsbericht", "Erfahrungsbericht"], ["inspiration", "Inspiration"]]) {
     await db.articleCategory.upsert({ where: { slug: slugv! }, create: { slug: slugv!, name: name! }, update: {} });
   }
-  await db.featureFlag.upsert({ where: { key: "marketplace" }, create: { key: "marketplace", enabled: true, description: "Marktplatz für verifizierte Verkäufer" }, update: {} });
-  await db.featureFlag.upsert({ where: { key: "digital-products" }, create: { key: "digital-products", enabled: false, description: "Verkauf digitaler Anleitungen (Web)" }, update: {} });
-  await db.featureFlag.upsert({ where: { key: "local-feed" }, create: { key: "local-feed", enabled: false, description: "Feed „Lokal“ (Phase 4)" }, update: {} });
+  // Feature-Flags sind im Code definiert (src/server/flags.ts); alte Einträge ohne Wirkung entfernen
+  await db.featureFlag.deleteMany({ where: { key: { in: ["digital-products", "local-feed"] } } });
 }
 
 /** Umbenennung WERKRAUM → Werkuno für bereits angelegte Redaktionsdaten (idempotent). */
@@ -863,6 +863,8 @@ async function main() {
   await baseData();
   const a = await admin();
   if (process.env.SEED_DEMO === "true") await demo(a.id);
+  // Demo-Daten entfernen (einmalig vor dem Start): PURGE_DEMO=true, Testlauf mit PURGE_DEMO=dry-run
+  else if (process.env.PURGE_DEMO === "true" || process.env.PURGE_DEMO === "dry-run") await purgeDemo(db, { adminId: a.id, dryRun: process.env.PURGE_DEMO === "dry-run" });
   console.log("✓ Seed abgeschlossen");
 }
 

@@ -13,6 +13,7 @@ import { createPost, listPosts } from "@/server/social/posts";
 import { slugify } from "@/lib/utils";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { audit } from "@/server/audit";
+import { requireFlag } from "@/server/flags";
 
 /**
  * Communities (PRD §15): Sichtbarkeit PUBLIC / REQUEST / PRIVATE, Rollen, Beitritt,
@@ -371,6 +372,7 @@ export async function listChallenges(communityId: string) {
 
 export async function createCommunity(user: SessionUser, input: unknown) {
   const data = communityUpsertSchema.parse(input);
+  await requireFlag("communities.create", user.id);
   await assertCategoryAllowed(data.category);
   await rateLimit(`community-create:${user.id}`, 5, 86400);
   const slug = data.slug ?? slugify(data.name, 48);

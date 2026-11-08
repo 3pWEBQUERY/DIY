@@ -19,6 +19,19 @@ import { track, isQualifiedComment } from "@/server/analytics/service";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
 import { notificationHref, notificationText } from "@/server/notifications-format";
 import { deliverPendingPushes } from "@/server/push/service";
+import { captureError } from "@/server/monitoring";
+
+/** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
+function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
+  return async (...a: A) => {
+    try {
+      return await fn(...a);
+    } catch (e) {
+      await captureError(e, { source: "WORKER", path: queue });
+      throw e;
+    }
+  };
+}
 
 const log = (msg: string, extra: Record<string, unknown> = {}) => console.log(JSON.stringify({ level: "info", svc: "worker", msg, ...extra }));
 const warn = (msg: string, extra: Record<string, unknown> = {}) => console.warn(JSON.stringify({ level: "warn", svc: "worker", msg, ...extra }));
@@ -74,6 +87,7 @@ async function dispatchOutbox(boss: PgBoss) {
       await db.outboxEvent.update({ where: { id: e.id }, data: { publishedAt: new Date(), attempts: { increment: 1 } } });
     } catch (err) {
       warn("outbox_failed", { id: e.id, type: e.type, err: String(err) });
+      await captureError(err, { source: "WORKER", path: `outbox:${e.type}`, meta: { eventId: e.id } });
       await db.outboxEvent.update({ where: { id: e.id }, data: { attempts: { increment: 1 } } });
     }
   }
@@ -141,6 +155,7 @@ async function sendEmails(mode: "instant" | "digest") {
       if (!("failed" in r && r.failed)) await db.notification.updateMany({ where: { id: { in: list.map((n) => n.id) } }, data: { emailedAt: new Date() } });
     } catch (err) {
       warn("email_failed", { err: String(err) });
+      await captureError(err, { source: "WORKER", path: "email" });
     }
   }
 }
@@ -175,7 +190,10 @@ async function cleanup() {
     db.rateLimitBucket.deleteMany({ where: { resetAt: { lt: new Date() } } }),
     db.idempotencyKey.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 2 * day) } } }),
   ]);
-  log("cleanup", { media: stale.length, sessions: sessions.count, tokens: tokens.count, buckets: buckets.count, idem: idem.count });
+  // Fehlerüberwachung: Einzelvorkommen 30 Tage, erledigte Fehlergruppen 90 Tage
+  const errs = await db.errorOccurrence.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 30 * day) } } });
+  await db.errorGroup.deleteMany({ where: { resolvedAt: { not: null }, lastSeenAt: { lt: new Date(Date.now() - 90 * day) } } });
+  log("cleanup", { errors: errs.count, media: stale.length, sessions: sessions.count, tokens: tokens.count, buckets: buckets.count, idem: idem.count });
 }
 
 async function optional<T>(path: string, fn: string): Promise<(() => Promise<T>) | null> {
@@ -193,22 +211,22 @@ async function main() {
   await boss.start();
   for (const q of Object.values(Q)) await boss.createQueue(q).catch(() => {});
 
-  await boss.work<{ mediaId: string }>(Q.media, { batchSize: 2 }, async (jobs) => {
+  await boss.work<{ mediaId: string }>(Q.media, { batchSize: 2 }, guarded(Q.media, async (jobs) => {
     for (const j of jobs) await processMedia(j.data.mediaId);
-  });
-  await boss.work<{ postId: string; authorId: string }>(Q.fanout, async (jobs) => {
+  }));
+  await boss.work<{ postId: string; authorId: string }>(Q.fanout, guarded(Q.fanout, async (jobs) => {
     for (const j of jobs) await fanoutPost(j.data.postId, j.data.authorId);
-  });
-  await boss.work(Q.outbox, async () => dispatchOutbox(boss));
-  await boss.work(Q.emailInstant, async () => sendEmails("instant"));
-  await boss.work(Q.emailDigest, async () => sendEmails("digest"));
-  await boss.work(Q.cleanup, async () => cleanup());
-  await boss.work(Q.push, async () => void (await deliverPendingPushes()));
+  }));
+  await boss.work(Q.outbox, guarded(Q.outbox, async () => dispatchOutbox(boss)));
+  await boss.work(Q.emailInstant, guarded(Q.emailInstant, async () => sendEmails("instant")));
+  await boss.work(Q.emailDigest, guarded(Q.emailDigest, async () => sendEmails("digest")));
+  await boss.work(Q.cleanup, guarded(Q.cleanup, async () => cleanup()));
+  await boss.work(Q.push, guarded(Q.push, async () => void (await deliverPendingPushes())));
 
   const releaseReservations = await optional<unknown>("@/server/commerce/reservations", "releaseExpiredReservations");
   const publishScheduled = await optional<unknown>("@/server/blog/service", "publishScheduledArticles");
-  await boss.work(Q.reservations, async () => void (await releaseReservations?.()));
-  await boss.work(Q.scheduled, async () => void (await publishScheduled?.()));
+  await boss.work(Q.reservations, guarded(Q.reservations, async () => void (await releaseReservations?.())));
+  await boss.work(Q.scheduled, guarded(Q.scheduled, async () => void (await publishScheduled?.())));
 
   await boss.schedule(Q.outbox, "* * * * *");
   await boss.schedule(Q.emailInstant, "*/2 * * * *");
@@ -219,9 +237,9 @@ async function main() {
   await boss.schedule(Q.push, "* * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
-  const tick = setInterval(() => dispatchOutbox(boss).catch((e) => warn("outbox_tick", { err: String(e) })), 3000);
+  const tick = setInterval(() => dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);
   // iOS-Push zeitnah zustellen (Cron ist nur die Rückfallebene)
-  const pushTick = setInterval(() => deliverPendingPushes().catch((e) => warn("push_tick", { err: String(e) })), 10_000);
+  const pushTick = setInterval(() => deliverPendingPushes().catch((e) => captureError(e, { source: "WORKER", path: "push_tick" })), 10_000);
   log("worker_started", { queues: Object.values(Q) });
 
   const stop = async () => {

@@ -100,3 +100,21 @@ aws s3 sync s3://$S3_BUCKET ./bucket-backup --endpoint-url "$S3_ENDPOINT"
 - Storage: beliebiger S3-kompatibler Speicher (MinIO, Cloudflare R2, Exoscale SOS in der Schweiz).
 - Queues: pg-boss liegt im Schema `pgboss` derselben Datenbank – kein weiterer Dienst nötig.
 - Externe Dienste (Stripe, Resend, Apple) sind über Adapter in `src/server/*` gekapselt.
+
+## Demo-Daten entfernen
+Einmalig vor dem Start: in Railway (Service `web`) `SEED_DEMO` entfernen und `PURGE_DEMO=true` setzen → beim
+nächsten Deploy löscht der Seed alle Konten `@demo.werkraum.local` samt Inhalten, Bestellungen, Gesprächen und
+redaktionellen Demo-Sammlungen; Zähler echter Konten werden neu berechnet. Testlauf ohne Löschen: `PURGE_DEMO=dry-run`.
+Danach `PURGE_DEMO` wieder entfernen (ohne Demo-Konten passiert ohnehin nichts).
+
+## Feature-Flags
+Definiert in `src/server/flags.ts`, geschaltet unter Admin → System (sofort wirksam, Web und App):
+`marketplace`, `signup`, `communities.create`, `messages.new`, `uploads.video`, `realtime`.
+Rollout < 100 % gilt stabil für einen Anteil angemeldeter Konten. Serverseitig über `requireFlag()` erzwungen,
+die App erhält den Stand über `GET /api/v1/app/bootstrap` (`flags`).
+
+## Fehlerüberwachung
+Eigene Lösung ohne Fremddienst (`src/server/monitoring.ts`): unerwartete Fehler aus Server (Actions, API,
+Rendern), Browser (`/api/v1/errors`) und Worker werden gruppiert gespeichert → Admin → Fehler. Neue Fehler und
+Rückfälle erledigter Fehler erzeugen eine Benachrichtigung an Administration (max. 1×/h je Fehler; per E-Mail,
+sobald `RESEND_API_KEY` gesetzt ist). Einzelvorkommen werden nach 30 Tagen gelöscht.

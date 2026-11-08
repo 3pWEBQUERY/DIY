@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-error";
 import { Button, buttonClass } from "@/components/ui/button";
 
 /**
@@ -11,6 +12,7 @@ import { Button, buttonClass } from "@/components/ui/button";
 export function SegmentError({ error, reset, home = "/feed" }: { error: Error & { digest?: string }; reset: () => void; home?: string }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, "boundary");
   }, [error]);
   return (
     <div className="grid min-h-[60dvh] place-items-center px-6">

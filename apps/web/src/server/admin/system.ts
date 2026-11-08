@@ -5,6 +5,7 @@ import { fail } from "@/server/errors";
 import { audit, verifyAuditChain } from "@/server/audit";
 import { hasRole } from "@/server/authz";
 import { SETTING_DEFAULTS, type SettingKey } from "@/server/settings";
+import { FLAGS, FLAG_KEYS, type FlagKey } from "@/server/flags";
 import type { SessionUser } from "@/server/auth/session";
 
 /** Systemkonfiguration & Audit-Protokoll – nur ADMIN (§24.3). */
@@ -67,32 +68,34 @@ export async function resetSetting(actor: Actor, key: string) {
   });
 }
 
+/** Alle wirksamen Flags (Liste im Code) mit gespeichertem Zustand bzw. Standardwert. */
 export async function listFlags() {
-  return db.featureFlag.findMany({ orderBy: { key: "asc" } });
+  const rows = new Map((await db.featureFlag.findMany()).map((r) => [r.key, r]));
+  return FLAG_KEYS.map((key) => {
+    const r = rows.get(key);
+    return { key, label: FLAGS[key].label, description: FLAGS[key].description, enabled: r ? r.enabled : FLAGS[key].default, rollout: r?.rollout ?? 100, updatedAt: r?.updatedAt ?? null, isDefault: !r };
+  });
 }
 
-const flagSchema = z.object({
-  key: z.string().trim().toLowerCase().min(3).max(64).regex(/^[a-z0-9_.-]+$/, "Nur a–z, 0–9, Punkt, Bindestrich, Unterstrich"),
-  description: z.string().trim().max(300).default(""),
-  rollout: z.coerce.number().int().min(0).max(100).default(100),
-  enabled: z.boolean().default(false),
-});
+const flagKeySchema = z.enum(FLAG_KEYS as [FlagKey, ...FlagKey[]], { message: "Unbekanntes Feature-Flag." });
 
-export async function upsertFlag(actor: Actor, input: unknown) {
+export async function setFlagRollout(actor: Actor, key: string, rollout: number) {
   admin(actor);
-  const d = flagSchema.parse(input);
-  const prev = await db.featureFlag.findUnique({ where: { key: d.key } });
+  const k = flagKeySchema.parse(key);
+  const r = z.coerce.number().int().min(0).max(100).parse(rollout);
   await db.$transaction(async (tx) => {
-    await tx.featureFlag.upsert({ where: { key: d.key }, create: d, update: d });
-    await audit({ actorId: actor.id, action: prev ? "admin.flag_updated" : "admin.flag_created", targetType: "FEATURE_FLAG", targetId: d.key, meta: { enabled: d.enabled, rollout: d.rollout, wasEnabled: prev?.enabled ?? null } }, tx);
+    const prev = await tx.featureFlag.findUnique({ where: { key: k } });
+    await tx.featureFlag.upsert({ where: { key: k }, create: { key: k, enabled: FLAGS[k].default, rollout: r, description: FLAGS[k].label }, update: { rollout: r } });
+    await audit({ actorId: actor.id, action: "admin.flag_rollout", targetType: "FEATURE_FLAG", targetId: k, meta: { rollout: r, was: prev?.rollout ?? 100 } }, tx);
   });
 }
 
 export async function toggleFlag(actor: Actor, key: string, enabled: boolean) {
   admin(actor);
+  const k = flagKeySchema.parse(key);
   await db.$transaction(async (tx) => {
-    const f = await tx.featureFlag.update({ where: { key }, data: { enabled } });
-    await audit({ actorId: actor.id, action: "admin.flag_toggled", targetType: "FEATURE_FLAG", targetId: key, meta: { enabled, rollout: f.rollout } }, tx);
+    const f = await tx.featureFlag.upsert({ where: { key: k }, create: { key: k, enabled, description: FLAGS[k].label }, update: { enabled } });
+    await audit({ actorId: actor.id, action: "admin.flag_toggled", targetType: "FEATURE_FLAG", targetId: k, meta: { enabled, rollout: f.rollout } }, tx);
   });
 }
 

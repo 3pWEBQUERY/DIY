@@ -4,6 +4,7 @@ import { BRAND } from "@/config/brand";
 import { Toaster } from "@/components/ui/toast";
 import { Suspense } from "react";
 import { NavProgress } from "@/components/shell/page-transition";
+import { ErrorReporter } from "@/components/shell/error-reporter";
 import { categoryRegistrySnapshot } from "@werkraum/shared";
 import { CategoryRegistrySync } from "@/components/shell/category-registry";
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de-CH">
       <body className="min-h-dvh">
+        <ErrorReporter />
         <CategoryRegistrySync data={categoryRegistrySnapshot()} />
         <a href="#main" className="skip-link">
           Zum Inhalt springen

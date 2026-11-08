@@ -9,6 +9,7 @@ import type { SessionUser } from "@/server/auth/session";
 import type { Variants } from "@/components/ui/media";
 import { available, groupByShop, grandTotal, unitPrice } from "./rules";
 import { paymentsMode } from "./stripe";
+import { requireFlag } from "@/server/flags";
 
 /**
  * Warenkorb (§13.5): ein Warenkorb je Konto, Positionen je Produkt/Variante.
@@ -141,6 +142,7 @@ async function ensureCart(userId: string) {
 
 export async function addToCart(user: SessionUser, input: unknown) {
   const data = cartAddSchema.parse(input);
+  await requireFlag("marketplace", user.id);
   await rateLimit(`cart:${user.id}`, 120, 3600);
   const p = await db.product.findUnique({
     where: { id: data.productId },

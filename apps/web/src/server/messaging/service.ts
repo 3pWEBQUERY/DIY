@@ -10,6 +10,7 @@ import { relationsFor, isBlockedBetween } from "@/server/visibility";
 import { attachMedia } from "@/server/media/service";
 import type { SessionUser } from "@/server/auth/session";
 import { publish } from "@/server/realtime/bus";
+import { requireFlag } from "@/server/flags";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -427,6 +428,7 @@ export async function startConversation(user: SessionUser, input: unknown) {
     case "closed":
       throw fail.forbidden(`${prep.recipient.displayName} nimmt keine Direktnachrichten an.`);
     case "ok":
+      await requireFlag("messages.new", user.id);
       break;
   }
   await limit("newConversation", user.id);

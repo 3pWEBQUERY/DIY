@@ -19,7 +19,7 @@ export function api<C = unknown>(handler: (req: NextRequest, ctx: C) => Promise<
       if (data instanceof Response) return data;
       return NextResponse.json({ data }, { headers: { "Cache-Control": "no-store" } });
     } catch (e) {
-      const r = toResult(e);
+      const r = toResult(e, { path: req.nextUrl.pathname, method: req.method });
       if (r.ok) return NextResponse.json({ data: null });
       return NextResponse.json({ error: { code: r.code, message: r.error, fields: r.fields } }, { status: STATUS[r.code] });
     }

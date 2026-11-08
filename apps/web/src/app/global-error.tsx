@@ -1,7 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-error";
+
 /** Letzte Rückfallebene, falls selbst das Root-Layout scheitert (eigenes <html>, keine App-Styles). */
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => reportClientError(error, "boundary"), [error]);
   return (
     <html lang="de-CH">
       <body style={{ margin: 0, minHeight: "100dvh", display: "grid", placeItems: "center", background: "#FAF8F5", color: "#262427", fontFamily: "system-ui, sans-serif" }}>

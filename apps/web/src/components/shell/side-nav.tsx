@@ -61,10 +61,10 @@ function useWide() {
   return wide;
 }
 
-export function SideNav({ user, collapsed: initial = false }: { user: ShellUser; collapsed?: boolean }) {
+export function SideNav({ user, collapsed: initial = false, hide = [] }: { user: ShellUser; collapsed?: boolean; hide?: string[] }) {
   const counts = useLiveCounts();
   const pathname = usePathname();
-  const items = MAIN_NAV.filter((i) => !i.auth || user);
+  const items = MAIN_NAV.filter((i) => (!i.auth || user) && !hide.includes(i.href));
   const [collapsed, setCollapsed] = useState(initial);
   const wide = useWide();
   const rail = collapsed || !wide; // Tooltips nur, wenn keine Beschriftung sichtbar ist
@@ -185,7 +185,7 @@ export function SideNav({ user, collapsed: initial = false }: { user: ShellUser;
           {user ? (
             <>
               <div className="mb-2 grid grid-cols-1 gap-px nav-open:grid-cols-2">
-                {secondaryLinks(user, counts.cart).map((l) => (
+                {secondaryLinks(user, counts.cart, hide).map((l) => (
                   <Tip key={l.href} disabled={!rail} content={<TipBody label={l.label} />}>
                     <MiniLink {...l} />
                   </Tip>
@@ -238,7 +238,7 @@ export function SideNav({ user, collapsed: initial = false }: { user: ShellUser;
 }
 
 /** Sekundäre Bereiche (§6.2 „Weitere Funktionen“) – gleiche Liste für Rail, Tablet und Mobil. */
-export function secondaryLinks(user: NonNullable<ShellUser>, cart: number) {
+export function secondaryLinks(user: NonNullable<ShellUser>, cart: number, hide: string[] = []) {
   return [
     { href: "/gespeichert", icon: <Bookmark size={14} />, label: "Gespeichert" },
     { href: "/einkaufslisten", icon: <ListChecks size={14} />, label: "Einkaufslisten" },
@@ -247,7 +247,7 @@ export function secondaryLinks(user: NonNullable<ShellUser>, cart: number) {
     { href: "/studio", icon: <LayoutDashboard size={14} />, label: "Studio" },
     ...(user.isStaff ? [{ href: "/admin", icon: <ShieldCheck size={14} />, label: "Admin" }] : []),
     { href: "/einstellungen", icon: <Settings size={14} />, label: "Einstellungen" },
-  ];
+  ].filter((l) => !hide.includes(l.href));
 }
 
 function MiniLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
@@ -268,7 +268,7 @@ function MiniLink({ href, icon, label }: { href: string; icon: React.ReactNode; 
 }
 
 /** iPhone/Mobil: Menü „Mehr“ in der Kopfzeile mit allen sekundären Bereichen. */
-export function MobileMoreMenu({ user }: { user: NonNullable<ShellUser> }) {
+export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUser>; hide?: string[] }) {
   const { cart, messages } = useLiveCounts();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -283,7 +283,7 @@ export function MobileMoreMenu({ user }: { user: NonNullable<ShellUser> }) {
       </button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Mehr">
         <ul className="-mx-2 divide-y divide-line">
-          {[{ href: "/nachrichten", icon: <MessageSquare size={18} />, label: "Nachrichten" }, ...secondaryLinks(user, cart)].map((l) => (
+          {[{ href: "/nachrichten", icon: <MessageSquare size={18} />, label: "Nachrichten" }, ...secondaryLinks(user, cart, hide)].map((l) => (
             <li key={l.href}>
               <Link href={l.href} className={cn("flex h-12 items-center gap-3 px-2 text-[15px] hover:bg-sunken rounded-xl", pathname.startsWith(l.href) && "font-semibold")}>
                 <span className="text-muted [&_svg]:size-[18px]">{l.icon}</span>
@@ -301,10 +301,10 @@ export function MobileMoreMenu({ user }: { user: NonNullable<ShellUser> }) {
 }
 
 /** iPhone/Mobil: native Bottom Navigation mit Safe Area (§28.5). */
-export function BottomNav({ user }: { user: ShellUser }) {
+export function BottomNav({ user, hide = [] }: { user: ShellUser; hide?: string[] }) {
   const counts = useLiveCounts();
   const pathname = usePathname();
-  const items = MAIN_NAV.filter((i) => MOBILE_NAV.includes(i.href));
+  const items = MAIN_NAV.filter((i) => MOBILE_NAV.includes(i.href) && !hide.includes(i.href));
   return (
     <nav aria-label="Navigation" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper safe-bottom md:hidden">
       <ul className="grid grid-cols-5">

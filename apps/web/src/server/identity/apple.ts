@@ -7,6 +7,7 @@ import { isHandleAvailable } from "./service";
 import { createPublicKey, createVerify } from "node:crypto";
 import { fail } from "@/server/errors";
 import { createSession } from "@/server/auth/session";
+import { requireFlag } from "@/server/flags";
 
 export function appleClient() {
   const e = env();
@@ -54,6 +55,7 @@ async function linkAppleClaims(claims: AppleClaims, displayName: string | null) 
       break;
     }
   }
+  await requireFlag("signup");
   const user = await db.user.create({
     data: {
       // Unbestätigte Adresse, die schon ein anderes Konto nutzt → Platzhalter statt Konflikt/Übernahme

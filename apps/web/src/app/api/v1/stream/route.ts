@@ -1,4 +1,5 @@
 import { currentUser } from "@/server/auth/session";
+import { flagEnabled } from "@/server/flags";
 import { subscribe, type LiveEvent } from "@/server/realtime/bus";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,8 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+  // Live-Updates abgeschaltet: 204 beendet EventSource ohne Neuverbindung, Zähler laufen per Abfrage weiter
+  if (!(await flagEnabled("realtime", user.id))) return new Response(null, { status: 204 });
   const enc = new TextEncoder();
   let cleanup = () => {};
   const stream = new ReadableStream<Uint8Array>({

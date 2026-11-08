@@ -20,15 +20,18 @@ import { rateLimit } from "@/server/ratelimit";
 import { registerPushDevice, unregisterPushDevice } from "@/server/push/service";
 import { apnsConfigured } from "@/server/push/apns";
 import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, session, viewer, type RouteDef } from "../router";
+import { flagsFor } from "@/server/flags";
 
 /** Identität, Onboarding, Bootstrap, Konto & Einstellungen (PRD §8, §23, §7). */
 export const identityRoutes: RouteDef[] = [
   // ── Bootstrap: alles, was die App beim Start braucht ──
   GET("/bootstrap", async () => {
     const [u, categories] = await Promise.all([viewer(), effectiveCategories()]);
-    const feeBps = await getSetting("commerce.feeBps");
+    const [feeBps, flags] = await Promise.all([getSetting("commerce.feeBps"), flagsFor(u?.id)]);
     const base = {
       categories,
+      // Feature-Flags (Admin → System): z. B. marketplace=false → Marktplatz-Tab ausblenden
+      flags,
       payments: { mode: paymentsMode(), feeBps },
       features: { apple: features.apple(), appleNative: !!process.env.APPLE_IOS_CLIENT_ID, push: apnsConfigured() },
       serverTime: new Date().toISOString(),

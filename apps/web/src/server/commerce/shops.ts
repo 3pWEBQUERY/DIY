@@ -7,6 +7,7 @@ import { hasRole } from "@/server/authz";
 import { isBlockedBetween } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
 import { accountStatus, appUrl, createDashboardLink, createExpressAccount, createOnboardingLink, paymentsMode, retrieveAccount, type Stripe } from "./stripe";
+import { requireFlag } from "@/server/flags";
 
 /**
  * Shop-Eröffnung & Verkäuferverifizierung (PRD §13.2).
@@ -43,6 +44,7 @@ export async function isShopSlugAvailable(slug: string, exceptShopId?: string) {
  */
 export async function saveShop(user: SessionUser, input: unknown, opts: { submit?: boolean } = {}) {
   const data = shopSetupSchema.parse(input);
+  await requireFlag("marketplace", user.id);
   if (!user.emailVerifiedAt && opts.submit) throw fail.forbidden("Bitte bestätige zuerst deine E-Mail-Adresse.");
   const existing = await db.shop.findUnique({ where: { ownerId: user.id }, include: shopWithVerification });
   if (existing?.status === "SUSPENDED") throw fail.forbidden("Dein Shop ist gesperrt.");
