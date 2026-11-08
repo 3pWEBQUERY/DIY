@@ -1,5 +1,5 @@
 import "server-only";
-import { postCreateSchema, type PostCreateInput } from "@werkraum/shared";
+import { isValidSchedule, postCreateSchema, type PostCreateInput } from "@werkraum/shared";
 import { db, type Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import { emit } from "@/server/events";
@@ -260,10 +260,16 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
       throw fail.invalid("Dieser Beitrag kann nicht geteilt werden.");
     }
   }
+  const later = data.publish !== "now";
+  if (later) {
+    const drafts = await db.post.count({ where: { authorId: user.id, state: "DRAFT", articleId: null } });
+    if (drafts >= 100) throw fail.invalid("Du hast bereits 100 Entwürfe. Veröffentliche oder lösche zuerst einige.");
+  }
   const post = await db.$transaction(async (tx) => {
     const p = await tx.post.create({
       data: {
         authorId: user.id,
+        ...(later ? { state: "DRAFT" as const, scheduledAt: data.publish === "schedule" ? data.scheduledAt : null, publishedAt: data.scheduledAt ?? new Date() } : {}),
         body: data.body,
         category: data.category,
         visibility: extra.communityId ? "PUBLIC" : data.visibility,
@@ -293,12 +299,13 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
         },
       });
     }
+    if (later) return p; // Entwurf: keine Zähler, kein Feed, keine Benachrichtigungen – erst bei Veröffentlichung
     if (data.repostOfId) await tx.post.update({ where: { id: data.repostOfId }, data: { repostCount: { increment: 1 } } });
     await tx.userProfile.update({ where: { userId: user.id }, data: { postCount: { increment: 1 } } });
     await emit({ type: "PostPublished", postId: p.id, authorId: user.id }, tx);
     return p;
   });
-  await notifyMentions(data.body, user.id, post.id);
+  if (!later) await notifyMentions(data.body, user.id, post.id);
   return post;
 }
 
@@ -325,7 +332,7 @@ export async function updatePost(
         // Community-Beiträge bleiben öffentlich innerhalb der Community
         visibility: post.communityId ? "PUBLIC" : data.visibility,
         ...(input.projectId !== undefined ? { projectId: input.projectId || null } : {}),
-        editedAt: new Date(),
+        ...(post.state === "DRAFT" ? {} : { editedAt: new Date() }),
       },
     });
     if (input.media) {
@@ -361,6 +368,7 @@ export async function getPostForEdit(user: SessionUser, postId: string) {
     community: p.community,
     repostOf: p.repostOf,
     publishedAt: p.publishedAt.toISOString(),
+    scheduledAt: p.scheduledAt?.toISOString() ?? null,
     editedAt: p.editedAt?.toISOString() ?? null,
     counts: { likes: p.likeCount, comments: p.commentCount, saves: p.saveCount, reposts: p.repostCount },
     media: p.media.map((m) => ({ id: m.mediaId, alt: m.alt, kind: m.media.kind, preview: ((m.media.variants ?? {}) as Record<string, string>).sm ?? ((m.media.variants ?? {}) as Record<string, string>).video ?? "" })),
@@ -372,9 +380,14 @@ export async function deletePost(user: SessionUser, postId: string) {
   const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true } });
   if (!post || post.state === "REMOVED") throw fail.notFound();
   assertOwnerOrMod(user, post.authorId);
+  if (post.state === "DRAFT") {
+    // Nie veröffentlicht → endgültig löschen
+    await db.post.delete({ where: { id: postId } });
+    return;
+  }
   await db.$transaction([
     db.post.update({ where: { id: postId }, data: { state: "REMOVED" } }),
-    db.userProfile.update({ where: { userId: post.authorId }, data: { postCount: { decrement: 1 } } }),
+    ...(post.state === "PUBLISHED" ? [db.userProfile.update({ where: { userId: post.authorId }, data: { postCount: { decrement: 1 } } })] : []),
   ]);
 }
 
@@ -391,12 +404,14 @@ export async function canViewCommunityContentOf(communityId: string, viewerId: s
 }
 
 export async function getPostForViewer(postId: string, viewerId: string | null) {
-  const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true, communityId: true } });
+  const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true, communityId: true, scheduledAt: true } });
   if (!p || !(await canViewContent(viewerId, { ownerId: p.authorId, visibility: p.visibility, state: p.state }))) return null;
   if (p.communityId && !(await canViewCommunityContentOf(p.communityId, viewerId))) return null;
   const view = (await hydratePosts([postId], viewerId))[0] ?? null;
   // Für die Autorin/den Autor sichtbar machen, dass der Beitrag nicht öffentlich ist
-  return view ? { ...view, moderationState: p.state === "HIDDEN" || p.state === "REMOVED" ? p.state : null } : null;
+  return view
+    ? { ...view, moderationState: p.state === "HIDDEN" || p.state === "REMOVED" ? p.state : null, draft: p.state === "DRAFT" ? { scheduledAt: p.scheduledAt?.toISOString() ?? null } : null }
+    : null;
 }
 
 // ───────────────────────── Umfragen ─────────────────────────
@@ -408,6 +423,7 @@ export async function votePoll(user: SessionUser, postId: string, optionIds: str
   if (!post?.poll || !(await canViewContent(user.id, { ownerId: post.authorId, visibility: post.visibility, state: post.state }))) throw fail.notFound("Umfrage nicht gefunden.");
   if (post.communityId && !(await canViewCommunityContentOf(post.communityId, user.id))) throw fail.notFound("Umfrage nicht gefunden.");
   const poll = post.poll;
+  if (post.state === "DRAFT") throw fail.conflict("Diese Umfrage startet erst mit der Veröffentlichung.");
   if (poll.endsAt.getTime() <= Date.now()) throw fail.conflict("Diese Umfrage ist bereits beendet.");
   const chosen = [...new Set(optionIds)];
   const valid = new Set(poll.options.map((o) => o.id));
@@ -445,4 +461,83 @@ export async function notifyEndedPolls() {
     }).catch(() => {});
   }
   return ended.length;
+}
+
+// ───────────────────────── Entwürfe & geplante Veröffentlichung ─────────────────────────
+
+/**
+ * Entwurf veröffentlichen (atomar, genau einmal): Zähler, Feed-Verteilung, Erwähnungen.
+ * Umfragen laufen ab dem Veröffentlichungszeitpunkt (Laufzeit wird verschoben).
+ */
+async function publishDraftNow(postId: string) {
+  const now = new Date();
+  const done = await db.$transaction(async (tx) => {
+    const p = await tx.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, createdAt: true, body: true, poll: { select: { id: true, endsAt: true } } } });
+    if (!p || p.state !== "DRAFT") return null;
+    const claimed = await tx.post.updateMany({ where: { id: postId, state: "DRAFT" }, data: { state: "PUBLISHED", publishedAt: now, scheduledAt: null } });
+    if (!claimed.count) return null;
+    if (p.poll) await tx.poll.update({ where: { id: p.poll.id }, data: { endsAt: new Date(p.poll.endsAt.getTime() + (now.getTime() - p.createdAt.getTime())) } });
+    await tx.userProfile.update({ where: { userId: p.authorId }, data: { postCount: { increment: 1 } } });
+    await emit({ type: "PostPublished", postId, authorId: p.authorId }, tx);
+    return p;
+  });
+  if (done) await notifyMentions(done.body, done.authorId, postId);
+  return done;
+}
+
+async function ownDraft(user: SessionUser, postId: string) {
+  const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, body: true, _count: { select: { media: true } } } });
+  if (!p || p.authorId !== user.id) throw fail.notFound();
+  if (p.state !== "DRAFT") throw fail.conflict("Dieser Beitrag ist bereits veröffentlicht.");
+  return p;
+}
+
+/** Jetzt veröffentlichen. */
+export async function publishDraft(user: SessionUser, postId: string) {
+  const p = await ownDraft(user, postId);
+  if (!p.body.trim() && !p._count.media) throw fail.invalid("Ein Beitrag braucht Text oder Medien.");
+  await limit("post", user.id);
+  await publishDraftNow(postId);
+  return { id: postId };
+}
+
+/** Zeitpunkt setzen (planen) oder entfernen (bleibt Entwurf). */
+export async function scheduleDraft(user: SessionUser, postId: string, at: Date | null) {
+  await ownDraft(user, postId);
+  if (at && !isValidSchedule(at)) throw fail.invalid("Wähle einen Zeitpunkt zwischen 5 Minuten und einem Jahr ab jetzt.", { scheduledAt: "Ungültiger Zeitpunkt" });
+  await db.post.update({ where: { id: postId }, data: { scheduledAt: at, ...(at ? { publishedAt: at } : {}) } });
+  return { id: postId, scheduledAt: at?.toISOString() ?? null };
+}
+
+/** Eigene Entwürfe und geplante Beiträge (geplante zuerst, nach Zeitpunkt). */
+export async function listDrafts(userId: string, take = 50) {
+  const rows = await db.post.findMany({
+    where: { authorId: userId, state: "DRAFT", articleId: null, communityId: null },
+    orderBy: [{ scheduledAt: { sort: "asc", nulls: "last" } }, { updatedAt: "desc" }],
+    take,
+    select: { id: true },
+  });
+  const views = await hydratePosts(rows.map((r) => r.id), userId);
+  const sched = new Map((await db.post.findMany({ where: { id: { in: rows.map((r) => r.id) } }, select: { id: true, scheduledAt: true } })).map((r) => [r.id, r.scheduledAt]));
+  return views.map((v) => ({ ...v, scheduledAt: sched.get(v.id)?.toISOString() ?? null }));
+}
+
+/** Worker (minütlich): fällige geplante Beiträge veröffentlichen und Autor:in informieren. */
+export async function publishScheduledPosts() {
+  const due = await db.post.findMany({ where: { state: "DRAFT", scheduledAt: { lte: new Date() } }, orderBy: { scheduledAt: "asc" }, take: 50, select: { id: true } });
+  let n = 0;
+  for (const d of due) {
+    const p = await publishDraftNow(d.id);
+    if (!p) continue;
+    n++;
+    await notify({
+      recipientId: p.authorId,
+      type: "PROJECT_ACTIVITY",
+      targetType: "POST",
+      targetId: d.id,
+      bundle: false,
+      data: { kind: "SCHEDULED_PUBLISHED", message: "Dein geplanter Beitrag ist jetzt online.", excerpt: p.body.slice(0, 120), href: `/beitrag/${d.id}` },
+    }).catch(() => {});
+  }
+  return n;
 }

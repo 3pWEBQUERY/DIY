@@ -490,6 +490,8 @@ model Post {
   qualityScore  Float        @default(0.5)
   reachLimited  Boolean      @default(false)
   editedAt      DateTime?
+  /// Geplante Veröffentlichung (state = DRAFT bis dahin; der Worker veröffentlicht)
+  scheduledAt   DateTime?
   publishedAt   DateTime     @default(now())
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -504,6 +506,7 @@ model Post {
   @@index([category, publishedAt])
   @@index([communityId, isPinned, publishedAt])
   @@index([projectId])
+  @@index([state, scheduledAt])
 }
 
 model PostMedia {

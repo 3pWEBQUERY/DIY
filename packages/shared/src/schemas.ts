@@ -65,12 +65,23 @@ export const postCreateSchema = z
     visibility: visibilitySchema.default("PUBLIC"),
     repostOfId: z.string().optional(),
     poll: pollInputSchema.optional(),
+    /** now = sofort, draft = Entwurf, schedule = geplant (scheduledAt) */
+    publish: z.enum(["now", "draft", "schedule"]).default("now"),
+    scheduledAt: z.coerce.date().optional(),
   })
   .refine((p) => p.body.length > 0 || p.media.length > 0 || p.repostOfId, {
     message: "Ein Beitrag braucht Text, Medien oder einen Repost",
   })
   .refine((p) => !p.poll || p.body.length > 0, { message: "Formuliere deine Frage im Text", path: ["body"] })
-  .refine((p) => !p.poll || !p.repostOfId, { message: "Reposts können keine Umfrage enthalten", path: ["poll"] });
+  .refine((p) => !p.poll || !p.repostOfId, { message: "Reposts können keine Umfrage enthalten", path: ["poll"] })
+  .refine((p) => p.publish === "now" || !p.repostOfId, { message: "Geteilte Beiträge erscheinen sofort", path: ["publish"] })
+  .refine((p) => p.publish !== "schedule" || (!!p.scheduledAt && isValidSchedule(p.scheduledAt)), { message: "Wähle einen Zeitpunkt zwischen 5 Minuten und einem Jahr ab jetzt", path: ["scheduledAt"] });
+
+/** Geplante Veröffentlichung: frühestens in 5 Minuten, spätestens in einem Jahr. */
+export function isValidSchedule(d: Date, now = Date.now()) {
+  const t = d.getTime();
+  return Number.isFinite(t) && t >= now + 4 * 60_000 && t <= now + 366 * 86400_000;
+}
 
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1, "Kommentar ist leer").max(2000),

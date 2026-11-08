@@ -79,7 +79,7 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Folgen, Melden, Blockieren (wechselseitig), Stummschalten
 - [x] Ranking: Frische, Interessen-Match, Qualität, Diversität (Autor-Deckel), kein reines Follower-Ranking
 - [x] Verkaufsposts gekennzeichnet; Dedupe im Feed
-- ✅ Umfragen (2–4 Antworten, 1/3/7 Tage, Mehrfachauswahl) · ⏳ Entwürfe, geplante Veröffentlichung, Koautoren
+- ✅ Umfragen (2–4 Antworten, 1/3/7 Tage, Mehrfachauswahl) · ✅ Entwürfe und geplante Veröffentlichung · ⏳ Koautoren
 
 ### WP4 – Projekte (PROJ-001 … PROJ-035) – Produktkern
 - [x] Projekt-CRUD mit allen Feldern aus §10.2, Status §10.3

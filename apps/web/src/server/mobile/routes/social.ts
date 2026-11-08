@@ -48,6 +48,7 @@ export const socialRoutes: RouteDef[] = [
   }),
 
   // ── Beiträge ──
+  GET("/posts/drafts", async () => posts.listDrafts((await me()).id)),
   GET("/posts/:id", async (c) => need(await posts.getPostForViewer(c.p.id!, await viewerId()))),
   POST("/posts", async (c) => {
     const u = await me();
@@ -68,6 +69,13 @@ export const socialRoutes: RouteDef[] = [
   POST("/posts/:id/poll", async (c) => {
     const b = await c.json<{ optionIds?: unknown }>();
     return posts.votePoll(await me(), c.p.id!, Array.isArray(b.optionIds) ? b.optionIds.map(String) : []);
+  }),
+  // ── Entwürfe & geplante Beiträge (Erstellen: POST /posts mit publish: "draft" | "schedule", scheduledAt) ──
+  POST("/posts/:id/publish", async (c) => posts.publishDraft(await me(), c.p.id!)),
+  // { scheduledAt: ISO | null }
+  POST("/posts/:id/schedule", async (c) => {
+    const at = (await c.json<{ scheduledAt?: string | null }>()).scheduledAt;
+    return posts.scheduleDraft(await me(), c.p.id!, at ? new Date(at) : null);
   }),
   POST("/posts/:id/repost", async (c) => {
     const u = await me();

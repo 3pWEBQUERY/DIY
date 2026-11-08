@@ -147,7 +147,7 @@ export async function listOwnContent(userId: string, handle: string, opts: { typ
           where: { authorId: userId, projectUpdateId: null, NOT: { state: "DRAFT", articleId: { not: null } }, ...(st === "draft" ? { state: "DRAFT" } : st === "published" ? { state: "PUBLISHED" } : st === "archived" ? { state: { in: ["HIDDEN", "REMOVED"] } } : {}) },
           orderBy: { updatedAt: "desc" },
           take,
-          select: { id: true, body: true, kind: true, state: true, updatedAt: true, likeCount: true, commentCount: true },
+          select: { id: true, body: true, kind: true, state: true, scheduledAt: true, updatedAt: true, likeCount: true, commentCount: true },
         })
       : [],
     want("project")
@@ -197,7 +197,8 @@ export async function listOwnContent(userId: string, handle: string, opts: { typ
       title: p.body.replace(/\s+/g, " ").slice(0, 90) || "Beitrag ohne Text",
       ...(() => {
         const s = contentState(p.state);
-        return { state: s.state, stateLabel: s.label };
+        const planned = p.state === "DRAFT" && p.scheduledAt ? `Geplant · ${p.scheduledAt.toLocaleString("de-CH", { timeZone: "Europe/Zurich", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : null;
+        return { state: s.state, stateLabel: planned ?? s.label };
       })(),
       updatedAt: p.updatedAt,
       href: p.state === "REMOVED" ? null : `/beitrag/${p.id}`,

@@ -14,6 +14,8 @@ import { openOrAttachCase } from "@/server/moderation/cases";
 async function assertViewable(user: SessionUser, type: TargetType, id: string) {
   const meta = await targetMeta(type, id);
   if (!meta || !(await canViewContent(user.id, meta))) throw fail.notFound();
+  // Entwürfe: Reaktionen und Kommentare erst nach der Veröffentlichung
+  if (meta.state === "DRAFT") throw fail.conflict("Dieser Beitrag ist noch nicht veröffentlicht.");
   if (type === "POST") {
     const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });
     const { canViewCommunityContentOf } = await import("./posts");

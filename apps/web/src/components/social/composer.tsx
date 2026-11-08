@@ -11,13 +11,21 @@ import { createPostAction } from "@/app/(app)/social-actions";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
 import type { CategoryOption } from "@/server/categories/types";
-import { ListChecks } from "lucide-react";
+import { CalendarClock, ListChecks } from "lucide-react";
+import Link from "next/link";
+import { Input } from "@/components/ui/field";
 import { PollEditor, emptyPoll, pollReady, type PollDraft } from "./poll-editor";
 
 /**
  * Beitragseditor – so einfach wie in einem modernen sozialen Netzwerk (§5.4, §9.3).
  * Text, mehrere Medien mit Reihenfolge & Alt-Text, Kategorie, optionales Projekt, Sichtbarkeit.
  */
+/** „Jetzt + n Minuten“ als Wert für <input type="datetime-local"> (Ortszeit des Browsers). */
+function localInputNow(plusMinutes = 0) {
+  const d = new Date(Date.now() + plusMinutes * 60_000);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 export function Composer({
   viewer,
   projects,
@@ -45,14 +53,18 @@ export function Composer({
   const [projectId, setProjectId] = useState(defaultProjectId ?? "");
   const [visibility, setVisibility] = useState<(typeof VISIBILITY)[number]>("PUBLIC");
   const [poll, setPoll] = useState<PollDraft | null>(null);
+  const [later, setLater] = useState(false);
+  const [when, setWhen] = useState("");
   const [pending, start] = useTransition();
   const uploading = media.some((m) => m.state === "uploading");
   const missingAlt = media.some((m) => m.kind === "IMAGE" && m.state === "ready" && !m.alt.trim());
   const canPost = (body.trim() || media.some((m) => m.state === "ready")) && !uploading && pollReady(poll) && (!poll || !!body.trim());
 
-  function submit() {
+  function submit(mode: "now" | "draft" | "schedule" = "now") {
     start(async () => {
       const r = await createPostAction({
+        publish: mode,
+        scheduledAt: mode === "schedule" && when ? new Date(when).toISOString() : undefined,
         body,
         media: media.filter((m) => m.state === "ready").map((m) => ({ id: m.id, alt: m.alt })),
         category: category || undefined,
@@ -61,13 +73,21 @@ export function Composer({
         poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined,
       });
       if (r.ok) {
-        toast("Veröffentlicht.");
+        toast(
+          mode === "draft"
+            ? "Als Entwurf gespeichert – nur du siehst ihn."
+            : mode === "schedule"
+              ? `Geplant für ${new Date(when).toLocaleString("de-CH", { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}.`
+              : "Veröffentlicht.",
+        );
+        setLater(false);
+        setWhen("");
         setBody("");
         setMedia([]);
         setPoll(null);
         setOpen(!compact);
         onPosted?.();
-        if (openAfterPost && r.data?.id) router.push(`/beitrag/${r.data.id}`);
+        if (openAfterPost && r.data?.id) router.push(mode === "now" ? `/beitrag/${r.data.id}` : `/studio/inhalte/beitrag/${r.data.id}`);
         else router.refresh();
       } else toast(r.error, "error");
     });
@@ -139,11 +159,27 @@ export function Composer({
               {compact && (
                 <Button variant="ghost" onClick={() => setOpen(false)}>Abbrechen</Button>
               )}
-              <Button onClick={submit} disabled={!canPost || pending}>
+              <Button variant="outline" onClick={() => setLater((v) => !v)} aria-expanded={later} aria-controls="composer-later" disabled={pending}>
+                <CalendarClock size={15} aria-hidden /> Später
+              </Button>
+              <Button onClick={() => submit()} disabled={!canPost || pending}>
                 {uploading ? "Lädt hoch …" : pending ? "Veröffentlicht …" : "Veröffentlichen"}
               </Button>
             </div>
           </div>
+          {later && (
+            <div id="composer-later" className="mt-4 grid gap-4 rounded-2xl border border-line bg-paper p-4 sm:grid-cols-[1fr_auto] sm:items-end animate-fade">
+              <div>
+                <label htmlFor="composer-when" className="mb-1.5 block text-[13px] font-semibold">Veröffentlichen am</label>
+                <div className="flex gap-2">
+                  <Input id="composer-when" type="datetime-local" value={when} min={localInputNow(5)} onChange={(e) => setWhen(e.target.value)} className="h-10 max-w-[240px] text-sm" />
+                  <Button onClick={() => submit("schedule")} disabled={!canPost || pending || !when} className="h-10">Planen</Button>
+                </div>
+                <p className="mt-1.5 text-xs text-muted">Bis dahin ist der Beitrag nur für dich sichtbar. <Link href="/studio/inhalte?typ=post&zustand=draft" className="underline underline-offset-2 hover:text-ink">Entwürfe & geplante Beiträge</Link></p>
+              </div>
+              <Button variant="ghost" onClick={() => submit("draft")} disabled={!canPost || pending}>Als Entwurf speichern</Button>
+            </div>
+          )}
         </div>
       )}
     </section>

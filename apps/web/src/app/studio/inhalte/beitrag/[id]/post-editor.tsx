@@ -11,7 +11,9 @@ import { Field, Select, Textarea } from "@/components/ui/field";
 import { Notice } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
-import { removePostAction, savePostAction } from "./actions";
+import { publishDraftAction, removePostAction, savePostAction, scheduleDraftAction } from "./actions";
+import { Input } from "@/components/ui/field";
+import { CalendarClock, Send } from "lucide-react";
 
 export function PostEditor({ post, projects, categories = CATEGORIES }: { post: PostEditData; projects: { id: string; title: string }[]; categories?: readonly CategoryOption[] }) {
   const router = useRouter();
@@ -25,6 +27,9 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
   const [saving, startSave] = useTransition();
   const [deleting, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const isDraft = post.state === "DRAFT";
+  const [when, setWhen] = useState(post.scheduledAt ? toLocal(post.scheduledAt) : "");
+  const [publishing, startPublish] = useTransition();
 
   const uploading = media.some((m) => m.state === "uploading");
   const missingAlt = media.filter((m) => m.kind === "IMAGE" && m.state === "ready" && !m.alt.trim()).length;
@@ -52,8 +57,30 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
     });
   }
 
+  function publishNow() {
+    if (dirty && !confirm("Ungespeicherte Änderungen gehen verloren. Trotzdem veröffentlichen? (Speichere zuerst, um sie zu übernehmen.)")) return;
+    startPublish(async () => {
+      const r = await publishDraftAction(post.id);
+      if (r.ok) {
+        toast("Veröffentlicht.");
+        router.push(r.data.href);
+      } else toast(r.error, "error");
+    });
+  }
+
+  function schedule(at: string | null) {
+    startPublish(async () => {
+      const r = await scheduleDraftAction(post.id, at ? new Date(at).toISOString() : null);
+      if (r.ok) {
+        toast(r.message ?? "");
+        if (!at) setWhen("");
+        router.refresh();
+      } else toast(r.error, "error");
+    });
+  }
+
   function remove() {
-    if (!confirm("Diesen Beitrag endgültig löschen? Kommentare und Reaktionen verschwinden ebenfalls aus der Ansicht.")) return;
+    if (!confirm(isDraft ? "Diesen Entwurf endgültig löschen?" : "Diesen Beitrag endgültig löschen? Kommentare und Reaktionen verschwinden ebenfalls aus der Ansicht.")) return;
     startDelete(async () => {
       const r = await removePostAction(post.id);
       if (r.ok) {
@@ -125,19 +152,57 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
         </div>
       </section>
 
+      {isDraft && (
+        <section aria-labelledby="sec-publish">
+          <h2 id="sec-publish" className="spec mb-3 text-ink">04 — Veröffentlichung</h2>
+          <div className="rounded-2xl border border-line bg-card p-4">
+            <p className="text-sm text-ink-2">
+              {post.scheduledAt
+                ? `Geplant für ${new Date(post.scheduledAt).toLocaleString("de-CH", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}. Bis dahin ist der Beitrag nur für dich sichtbar.`
+                : "Entwurf – nur für dich sichtbar. Veröffentliche ihn jetzt oder plane einen Zeitpunkt."}
+            </p>
+            <div className="mt-4 flex flex-wrap items-end gap-2">
+              <label className="block">
+                <span className="mb-1.5 block text-[13px] font-semibold">Zeitpunkt</span>
+                <Input type="datetime-local" value={when} min={toLocal(new Date(Date.now() + 5 * 60_000).toISOString())} onChange={(e) => setWhen(e.target.value)} className="h-10 w-[230px] text-sm" />
+              </label>
+              <Button variant="outline" className="h-10" disabled={publishing || !when || when === (post.scheduledAt ? toLocal(post.scheduledAt) : "")} onClick={() => schedule(when)}>
+                <CalendarClock size={15} aria-hidden /> {post.scheduledAt ? "Neu planen" : "Planen"}
+              </Button>
+              {post.scheduledAt && (
+                <Button variant="ghost" className="h-10" disabled={publishing} onClick={() => schedule(null)}>
+                  Planung aufheben
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {error && <Notice tone="danger">{error}</Notice>}
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-paper px-4 py-4 sm:mx-0 sm:px-0">
         <Button variant="ghost" onClick={remove} disabled={deleting} className="text-danger hover:bg-danger-soft">
-          <Trash2 size={15} /> {deleting ? "Wird gelöscht …" : "Beitrag löschen"}
+          <Trash2 size={15} /> {deleting ? "Wird gelöscht …" : isDraft ? "Entwurf löschen" : "Beitrag löschen"}
         </Button>
         <div className="flex items-center gap-3">
           {dirty && <span className="spec">Ungespeicherte Änderungen</span>}
-          <Button onClick={save} disabled={!dirty || saving || uploading || (!body.trim() && !media.length && !post.repostOf)}>
-            {uploading ? "Lädt hoch …" : saving ? "Speichert …" : "Änderungen speichern"}
+          <Button variant={isDraft ? "outline" : "primary"} onClick={save} disabled={!dirty || saving || uploading || (!body.trim() && !media.length && !post.repostOf)}>
+            {uploading ? "Lädt hoch …" : saving ? "Speichert …" : isDraft ? "Entwurf speichern" : "Änderungen speichern"}
           </Button>
+          {isDraft && (
+            <Button onClick={publishNow} disabled={publishing || saving || uploading || (!body.trim() && !media.length)}>
+              <Send size={15} aria-hidden /> Jetzt veröffentlichen
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+/** ISO → Wert für <input type="datetime-local"> in Ortszeit. */
+function toLocal(iso: string) {
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }

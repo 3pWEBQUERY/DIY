@@ -141,6 +141,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
       return { lead: actors(name, count), text: `${plural ? "haben" : "hat"} dich${title ? ` in ${title}` : ""} erwähnt.`, excerpt };
     case "PROJECT_ACTIVITY": {
       const kind = str(data.kind) ?? (excerpt ? "COMMENT" : "LIKE");
+      if (kind === "SCHEDULED_PUBLISHED") return { lead: null, text: str(data.message) ?? "Dein geplanter Beitrag ist jetzt online.", excerpt: str(data.excerpt) };
       if (kind === "POLL_ENDED") return { lead: null, text: str(data.message) ?? "Deine Umfrage ist beendet.", excerpt: str(data.excerpt) };
       const p = title ? `dein Projekt ${title}` : "dein Projekt";
       if (kind === "COMMENT") return { lead: actors(name, count), text: `${plural ? "haben" : "hat"} ${p} kommentiert.`, excerpt };

@@ -37,7 +37,13 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           Nur du siehst ihn noch. Die Begründung findest du in deinen <Link href="/benachrichtigungen" className="font-semibold underline underline-offset-2">Benachrichtigungen</Link> – dort kannst du auch Einspruch erheben.
         </Notice>
       )}
-      <PostCard post={post} viewer={viewer} defaultOpenComments />
+      {post.draft && (
+        <Notice tone="moss" className="mb-6" title={post.draft.scheduledAt ? `Geplant für ${new Date(post.draft.scheduledAt).toLocaleString("de-CH", { timeZone: "Europe/Zurich", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}` : "Entwurf"}>
+          Vorschau – nur du siehst diesen Beitrag.{" "}
+          <Link href={`/studio/inhalte/beitrag/${post.id}`} className="font-semibold underline underline-offset-2">Bearbeiten oder veröffentlichen</Link>
+        </Notice>
+      )}
+      <PostCard post={post} viewer={viewer} defaultOpenComments={!post.draft} />
     </Page>
   );
 }
