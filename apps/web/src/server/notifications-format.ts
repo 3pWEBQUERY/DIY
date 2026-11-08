@@ -135,6 +135,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
         excerpt,
       };
     case "REPLY":
+      if (str(data.kind) === "review_reply") return { lead: name ?? "Der Shop", text: `hat auf deine Bewertung${title ? ` zu ${title}` : ""} geantwortet.`, excerpt };
       return { lead: name ?? "Jemand", text: `hat auf deinen Kommentar${title ? ` zu ${title}` : ""} geantwortet.`, excerpt };
     case "MENTION":
       return { lead: actors(name, count), text: `${plural ? "haben" : "hat"} dich${title ? ` in ${title}` : ""} erwähnt.`, excerpt };
@@ -169,6 +170,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
       };
     }
     case "ORDER_STATUS": {
+      if (str(data.kind) === "review") return { lead: name ?? "Jemand", text: `hat${title ? ` ${title}` : " deinen Artikel"} bewertet${str(data.stars) ? ` (${str(data.stars)} von 5)` : ""}.`, excerpt };
       const number = str(data.number);
       const status = str(data.status) as OrderStatus | null;
       const label = status && status in ORDER_STATUS_LABEL ? ORDER_STATUS_LABEL[status] : str(data.statusLabel);
@@ -195,6 +197,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
     case "COMMUNITY_INVITE": {
       const kind = str(data.kind);
       if (kind === "approved") return { lead: null, text: `Deine Beitrittsanfrage${title ? ` für ${title}` : ""} wurde angenommen.`, excerpt: null };
+      if (kind === "join_request") return { lead: actors(name, count), text: `${count > 1 ? "möchten" : "möchte"} der Community${title ? ` ${title}` : ""} beitreten.`, excerpt: null };
       if (kind === "dissolved") return { lead: null, text: `Die Community${title ? ` ${title}` : ""} wurde von der Gründerin bzw. dem Gründer aufgelöst.`, excerpt: null };
       return { lead: name ?? "Jemand", text: `lädt dich in die Community${title ? ` ${title}` : ""} ein.`, excerpt: null };
     }

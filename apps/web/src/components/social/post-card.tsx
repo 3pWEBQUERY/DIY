@@ -158,7 +158,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
   return (
     <article className="border-b border-line py-6 first:pt-2" aria-labelledby={`post-${post.id}-author`}>
       <header className="flex items-start gap-3">
-        <Link href={`/u/${post.author.handle}`} className="shrink-0">
+        <Link aria-label={`Profil von ${post.author.displayName}`} href={`/u/${post.author.handle}`} className="shrink-0">
           <Avatar src={post.author.avatarUrl} name={post.author.displayName} size={42} />
         </Link>
         <div className="min-w-0 flex-1">
@@ -276,7 +276,7 @@ function RepostDialog({ open, onClose, post }: { open: boolean; onClose: () => v
   const router = useRouter();
   return (
     <Dialog open={open} onClose={onClose} title="Mit Einordnung teilen" description="Erzähl, warum dich das inspiriert.">
-      <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Deine Gedanken (optional)" maxLength={5000} />
+      <Textarea aria-label="Deine Gedanken zum geteilten Beitrag" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Deine Gedanken (optional)" maxLength={5000} />
       <div className="mt-3 border border-line p-3 text-sm text-muted line-clamp-3 rounded-2xl">
         <strong className="text-ink">{post.author.displayName}:</strong> {post.body || "Medienbeitrag"}
       </div>
@@ -306,7 +306,7 @@ function EditDialog({ open, onClose, post }: { open: boolean; onClose: () => voi
   const router = useRouter();
   return (
     <Dialog open={open} onClose={onClose} title="Beitrag bearbeiten">
-      <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} maxLength={5000} />
+      <Textarea aria-label="Text des Beitrags" value={body} onChange={(e) => setBody(e.target.value)} rows={6} maxLength={5000} />
       <Button
         className="mt-4 w-full"
         disabled={pending}

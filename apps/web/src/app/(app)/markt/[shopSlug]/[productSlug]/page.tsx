@@ -17,6 +17,7 @@ import { SaveButton, ShareButton } from "@/components/social/actions";
 import { Avatar, Badge, Difficulty, Notice, SectionTitle } from "@/components/ui/misc";
 import { Plate, type Variants } from "@/components/ui/media";
 import { formatMinutes, relativeTime } from "@/lib/utils";
+import { ReviewReply } from "@/components/commerce/review-reply";
 
 type Params = { params: Promise<{ shopSlug: string; productSlug: string }> };
 
@@ -308,11 +309,12 @@ export default async function ProductPage({ params }: Params) {
                     </div>
                     {r.body && <p className="mt-3 text-[14.5px] leading-relaxed text-ink-2">{r.body}</p>}
                     {r.sellerReply && (
-                      <div className="mt-3 border-l border-rule pl-3 text-[13.5px] text-ink-2">
+                      <div className="mt-3 rounded-2xl bg-sunken px-4 py-3 text-[13.5px] text-ink-2">
                         <p className="spec mb-0.5">Antwort von {p.shop.name}</p>
                         {r.sellerReply}
                       </div>
                     )}
+                    {p.isOwner && <ReviewReply reviewId={r.id} current={r.sellerReply ?? null} path={`/markt/${shopSlug}/${productSlug}`} />}
                   </li>
                 ))}
               </ul>

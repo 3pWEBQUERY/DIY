@@ -6,17 +6,30 @@ import { BRAND } from "@/config/brand";
 export async function sendMail(to: string, subject: string, text: string, opts: { cta?: { label: string; url: string } } = {}) {
   const e = env();
   const html = renderMail(subject, text, opts.cta);
+  const masked = to.replace(/(.{2}).*@/, "$1…@");
   if (!features.email()) {
-    console.info(JSON.stringify({ level: "info", msg: "mail (dev)", to: to.replace(/(.{2}).*@/, "$1…@"), subject, cta: opts.cta?.url }));
+    // Links (enthalten Einmal-Tokens für Passwort/Verifizierung) nur lokal ausgeben – nie in Produktions-Logs
+    const dev = e.NODE_ENV !== "production";
+    console.info(JSON.stringify({ level: dev ? "info" : "warn", msg: dev ? "mail (dev)" : "mail_disabled_no_resend_key", to: masked, subject, ...(dev ? { cta: opts.cta?.url } : {}) }));
     return { delivered: false };
   }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${e.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: e.MAIL_FROM, to, subject, text: opts.cta ? `${text}\n\n${opts.cta.label}: ${opts.cta.url}` : text, html }),
-  });
-  if (!res.ok) throw new Error(`Mailversand fehlgeschlagen (${res.status})`);
-  return { delivered: true };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${e.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: e.MAIL_FROM, to, subject, text: opts.cta ? `${text}\n\n${opts.cta.label}: ${opts.cta.url}` : text, html }),
+    });
+    if (!res.ok) {
+      // Kein Throw: Registrierung/Passwort-Reset dürfen nicht an einem Mail-Ausfall scheitern
+      // (sonst halbe Konten bzw. erkennbare E-Mail-Adressen). Fehler wird geloggt.
+      console.error(JSON.stringify({ level: "error", msg: "mail_failed", status: res.status, to: masked, subject }));
+      return { delivered: false, failed: true };
+    }
+    return { delivered: true };
+  } catch (err) {
+    console.error(JSON.stringify({ level: "error", msg: "mail_failed", error: String(err).slice(0, 200), to: masked, subject }));
+    return { delivered: false, failed: true };
+  }
 }
 
 function esc(s: string) {

@@ -15,6 +15,28 @@ import { getSetting } from "@/server/settings";
 import { DELETE, GET, PATCH, POST, PUT, int, me, need, str, viewer, viewerId, type RouteDef } from "../router";
 
 /** Marktplatz, Warenkorb, Kasse, Bestellungen, Shop & Verkauf (PRD §13, §20.3). */
+
+/**
+ * Öffentliche Shop-/Produktdaten für die App bereinigen: keine Stripe-Konto-IDs, keine
+ * Medien-Schlüssel bezahlter Dateien, und Impressumsdaten (Name/Adresse) nur bei gewerblichen
+ * Verkäufer:innen – wie auf den Webseiten.
+ */
+function publicCommerce<T>(value: T): T {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!v || typeof v !== "object" || v instanceof Date) return v;
+    const o = v as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(o)) {
+      if (k === "stripeAccountId" || k === "digitalKey") continue;
+      if (k === "verification" && o.sellerType !== "BUSINESS") continue;
+      out[k] = walk(val);
+    }
+    return out;
+  };
+  return walk(value) as T;
+}
+
 export const commerceRoutes: RouteDef[] = [
   // ── Marktplatz ──
   GET("/market/products", async (c) => {
@@ -52,7 +74,7 @@ export const commerceRoutes: RouteDef[] = [
     const s = need(await shops.getPublicShop(c.p.slug!, vid), "Shop nicht gefunden.");
     const shopId = (s as unknown as { id?: string; shop?: { id: string } }).id ?? (s as unknown as { shop?: { id: string } }).shop?.id;
     const reviews = shopId ? await listShopReviews(shopId, vid, 12) : [];
-    return { ...(s as object), reviews };
+    return publicCommerce({ ...(s as object), reviews });
   }),
   GET("/market/products/:shopSlug/:productSlug", async (c) => {
     const vid = await viewerId();
@@ -65,7 +87,7 @@ export const commerceRoutes: RouteDef[] = [
       shopId && productId ? products.moreFromShop(shopId, productId, 6) : Promise.resolve([]),
     ]);
     if (productId) void products.countProductView(productId).catch(() => {});
-    return { ...(page as object), reviews, moreFromShop: more, payments: { mode: paymentsMode(), feeBps: await getSetting("commerce.feeBps") } };
+    return publicCommerce({ ...(page as object), reviews, moreFromShop: more, payments: { mode: paymentsMode(), feeBps: await getSetting("commerce.feeBps") } });
   }),
 
   // ── Warenkorb ──

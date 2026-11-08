@@ -8,6 +8,27 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  // Content-Security-Policy als zusätzliche Schutzschicht gegen eingeschleuste Inhalte.
+  // Inline-Skripte bleiben erlaubt (Next.js App Router); Fremd-Frames, Plugins und
+  // fremde Formularziele sind gesperrt.
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "worker-src 'self' blob:",
+      "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://checkout.stripe.com",
+    ].join("; "),
+  },
 ];
 
 const config: NextConfig = {

@@ -35,7 +35,9 @@ async function linkAppleClaims(claims: AppleClaims, displayName: string | null) 
   if (linked) return { userId: linked.userId, isNew: false };
 
   const email = claims.email?.toLowerCase();
-  if (email) {
+  const verified = claims.email_verified === true || claims.email_verified === "true";
+  // Mit bestehendem Konto nur verknüpfen, wenn Apple die Adresse bestätigt hat (Kontoübernahme verhindern)
+  if (email && verified) {
     const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
     if (existing) {
       await db.authAccount.create({ data: { userId: existing.id, provider: "apple", providerAccountId: claims.sub } });
@@ -54,7 +56,8 @@ async function linkAppleClaims(claims: AppleClaims, displayName: string | null) 
   }
   const user = await db.user.create({
     data: {
-      email: email ?? `apple-${claims.sub.slice(0, 12)}@privaterelay.invalid`,
+      // Unbestätigte Adresse, die schon ein anderes Konto nutzt → Platzhalter statt Konflikt/Übernahme
+      email: email && (verified || !(await db.user.findUnique({ where: { email }, select: { id: true } }))) ? email : `apple-${claims.sub.slice(0, 12)}@privaterelay.invalid`,
       emailVerifiedAt: claims.email_verified === true || claims.email_verified === "true" ? new Date() : null,
       termsAcceptedAt: new Date(),
       profile: { create: { handle, displayName: name } },

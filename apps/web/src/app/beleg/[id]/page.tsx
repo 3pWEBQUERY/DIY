@@ -77,7 +77,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        <table className="mt-6 w-full text-[14px]">
+        <div className="overflow-x-auto"><table className="mt-6 w-full text-[14px]">
           <thead>
             <tr className="border-b border-rule text-left">
               <th scope="col" className="spec py-2 font-normal">
@@ -152,7 +152,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
               </>
             )}
           </tfoot>
-        </table>
+        </table></div>
 
         <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
           <p>

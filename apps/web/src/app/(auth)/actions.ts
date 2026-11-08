@@ -5,9 +5,7 @@ import { act } from "@/server/errors";
 import * as identity from "@/server/identity/service";
 import { destroySession } from "@/server/auth/session";
 
-function safeNext(next: unknown) {
-  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : null;
-}
+import { safeNext } from "@/lib/safe-next";
 
 export async function signUpAction(input: Record<string, unknown>) {
   return act(async () => {

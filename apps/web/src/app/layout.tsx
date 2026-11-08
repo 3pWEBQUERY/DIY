@@ -16,7 +16,6 @@ export const metadata: Metadata = {
   applicationName: BRAND.name,
   openGraph: { type: "website", locale: "de_CH", siteName: BRAND.name },
   twitter: { card: "summary_large_image" },
-  alternates: { canonical: "/" },
   formatDetection: { telephone: false },
 };
 

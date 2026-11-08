@@ -127,7 +127,7 @@ export default async function TutorialPage({ params }: Params) {
           <h1 className="display mt-4 text-[2.5rem] text-balance sm:text-[3.4rem]">{t.title}</h1>
           {t.summary && <p className="mt-4 max-w-[52ch] font-serif text-[1.25rem] leading-relaxed text-ink-2 text-pretty">{t.summary}</p>}
           <div className="mt-6 flex items-center gap-3">
-            <Link href={`/u/${t.author.handle}`} className="shrink-0">
+            <Link aria-label={`Profil von ${t.author.displayName}`} href={`/u/${t.author.handle}`} className="shrink-0">
               <Avatar src={t.author.avatarUrl} name={t.author.displayName} size={40} />
             </Link>
             <div className="min-w-0 flex-1">

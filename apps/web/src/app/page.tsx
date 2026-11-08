@@ -14,6 +14,8 @@ import { Avatar, Difficulty } from "@/components/ui/misc";
 import { pad } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
 
+export const metadata = { alternates: { canonical: "/" } };
+
 export const revalidate = 300;
 
 async function landingData() {

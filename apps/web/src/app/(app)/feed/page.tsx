@@ -82,7 +82,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
           <ul className="divide-y divide-line">
             {creators.map((c) => (
               <li key={c.userId} className="flex items-center gap-3 py-3">
-                <Link href={`/u/${c.handle}`}><Avatar src={c.avatarUrl} name={c.displayName} size={38} /></Link>
+                <Link aria-label={`Profil von ${c.displayName}`} href={`/u/${c.handle}`}><Avatar src={c.avatarUrl} name={c.displayName} size={38} /></Link>
                 <div className="min-w-0 flex-1">
                   <Link href={`/u/${c.handle}`} className="block truncate text-sm font-semibold hover:underline">{c.displayName}</Link>
                   <p className="truncate text-xs text-muted">{c.categories.map((s) => categoryBySlug(s)?.short).filter(Boolean).slice(0, 2).join(" · ")} · {c.projectCount} Projekte</p>

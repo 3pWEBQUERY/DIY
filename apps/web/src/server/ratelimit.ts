@@ -22,6 +22,8 @@ export async function rateLimit(key: string, limit: number, windowSec: number) {
 /** Vordefinierte Limits je Aktion. */
 export const LIMITS = {
   signIn: [10, 600],
+  // Unabhängig von der IP: schützt ein einzelnes Konto auch bei wechselnden Absenderadressen
+  signInAccount: [30, 3600],
   signUp: [5, 3600],
   passwordReset: [5, 3600],
   post: [30, 3600],

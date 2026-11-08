@@ -81,7 +81,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
         <div className="min-w-0 space-y-12">
           <section aria-labelledby="positionen">
             <SectionTitle n="01" title={<span id="positionen">Artikel</span>} />
-            <table className="mt-2 w-full text-[14px]">
+            <div className="overflow-x-auto"><table className="mt-2 w-full text-[14px]">
               <tbody className="divide-y divide-line">
                 {o.items.map((it) => (
                   <tr key={it.id} className="align-top">
@@ -99,7 +99,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
             <div className="ml-auto mt-3 max-w-md border-t border-line pt-3">
               <FeeSummary subtotal={o.subtotalMinor} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} seller={{ platformFee: netFee, feeLabel: formatBps(o.feeBps) }} />
             </div>

@@ -1,5 +1,6 @@
 import "server-only";
 import { fail } from "@/server/errors";
+import { requireCommunityModerator } from "@/server/authz";
 import * as cs from "@/server/communities/service";
 import * as blog from "@/server/blog/service";
 import * as msg from "@/server/messaging/service";
@@ -43,15 +44,21 @@ export const communityRoutes: RouteDef[] = [
     if (!(await cs.canViewCommunityPost(c.p.id!, v))) return { items: [], nextCursor: null };
     return cs.listCommunityPosts(c.p.id!, v?.id ?? null, str(c.q, "cursor") ?? null);
   }),
-  GET("/communities/:id/members", async (c) => cs.listMembers(c.p.id!, { q: str(c.q, "q"), take: int(c.q, "take") ?? 60, cursor: str(c.q, "cursor") ?? null, viewerId: await viewerId() })),
+  GET("/communities/:id/members", async (c) => {
+    // Mitgliederliste nur, wenn die Community für diese Person sichtbar ist (private Communities)
+    if (!(await cs.canViewCommunityPost(c.p.id!, await viewer()))) return { items: [], nextCursor: null };
+    return cs.listMembers(c.p.id!, { q: str(c.q, "q"), take: int(c.q, "take") ?? 60, cursor: str(c.q, "cursor") ?? null, viewerId: await viewerId() });
+  }),
   GET("/communities/:id/projects", async (c) => {
     const v = await viewer();
+    if (!(await cs.canViewCommunityPost(c.p.id!, v))) return { projects: [], shareable: [] };
     const [projects, shareable] = await Promise.all([cs.listCommunityProjects(c.p.id!, v?.id ?? null), v ? cs.shareableProjects(v.id, c.p.id!) : Promise.resolve([])]);
     return { projects, shareable };
   }),
-  GET("/communities/:id/challenges", async (c) => cs.listChallenges(c.p.id!)),
+  GET("/communities/:id/challenges", async (c) => ((await cs.canViewCommunityPost(c.p.id!, await viewer())) ? cs.listChallenges(c.p.id!) : [])),
   GET("/communities/:id/manage", async (c) => {
-    const u = await me();
+    // Nur Community-Leitung bzw. Plattform-Moderation (wie /c/[slug]/verwalten im Web)
+    const u = await requireCommunityModerator(c.p.id!);
     const [requests, invited, banned, hidden, challenges, log, members, categories] = await Promise.all([
       cs.listByState(c.p.id!, "PENDING"),
       cs.listByState(c.p.id!, "INVITED"),

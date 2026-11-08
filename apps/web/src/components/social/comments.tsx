@@ -115,7 +115,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply }: { c
   const replies = "replies" in c ? c.replies : [];
   return (
     <li className={cn("flex gap-3", isReply && "mt-4")}>
-      <Link href={`/u/${c.author.handle}`} className="shrink-0">
+      <Link aria-label={`Profil von ${c.author.displayName}`} href={`/u/${c.author.handle}`} className="shrink-0">
         <Avatar src={c.author.avatarUrl} name={c.author.displayName} size={isReply ? 26 : 32} />
       </Link>
       <div className="min-w-0 flex-1">

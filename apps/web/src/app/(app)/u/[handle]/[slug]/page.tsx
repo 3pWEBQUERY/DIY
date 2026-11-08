@@ -146,7 +146,7 @@ export default async function ProjectPage({ params }: Params) {
           )}
 
           <div className="mt-6 flex items-center gap-3">
-            <Link href={`/u/${p.owner.handle}`} className="shrink-0">
+            <Link aria-label={`Profil von ${p.owner.displayName}`} href={`/u/${p.owner.handle}`} className="shrink-0">
               <Avatar src={p.owner.avatarUrl} name={p.owner.displayName} size={44} />
             </Link>
             <div className="min-w-0 flex-1">
@@ -502,7 +502,7 @@ function Materials({ p }: { p: ProjectPageView }) {
     <div className="mt-6 grid gap-10 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
       {p.materials.length > 0 && (
         <div className="min-w-0">
-          <table className="w-full border-collapse text-[14px]">
+          <div className="overflow-x-auto"><table className="w-full border-collapse text-[14px]">
             <caption className="spec mb-2 text-left">Material · {p.materials.length} Positionen</caption>
             <thead>
               <tr className="border-b border-rule text-left">
@@ -528,7 +528,7 @@ function Materials({ p }: { p: ProjectPageView }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           {!p.viewer.isOwner && (
             <p className="mt-3 text-[13px] text-muted">
               Willst du es nachbauen?{" "}

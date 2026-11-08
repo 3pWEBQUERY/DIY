@@ -17,6 +17,7 @@ import { sendMail } from "@/server/mail";
 import { storage } from "@/server/storage";
 import { track, isQualifiedComment } from "@/server/analytics/service";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
+import { notificationHref, notificationText } from "@/server/notifications-format";
 import { deliverPendingPushes } from "@/server/push/service";
 
 const log = (msg: string, extra: Record<string, unknown> = {}) => console.log(JSON.stringify({ level: "info", svc: "worker", msg, ...extra }));
@@ -104,17 +105,21 @@ async function sendEmails(mode: "instant" | "digest") {
     where: { emailedAt: null, createdAt: { lte: before } },
     orderBy: { createdAt: "asc" },
     take: 1000,
-    include: { recipient: { select: { email: true, status: true, emailVerifiedAt: true, preference: { select: { emailDigest: true } } } }, actor: { select: { profile: { select: { displayName: true } } } } },
+    include: { recipient: { select: { email: true, status: true, emailVerifiedAt: true, preference: { select: { emailDigest: true } } } }, actor: { select: { profile: { select: { displayName: true, handle: true } } } } },
   });
   const byUser = new Map<string, typeof pending>();
   for (const n of pending) {
     const digest = n.recipient.preference?.emailDigest ?? "DAILY";
-    const instant = ALWAYS_INSTANT.includes(n.type as NotificationType) || digest === "INSTANT";
-    if (n.recipient.status !== "ACTIVE" || digest === "OFF" && !ALWAYS_INSTANT.includes(n.type as NotificationType)) {
+    const critical = ALWAYS_INSTANT.includes(n.type as NotificationType);
+    const instant = critical || digest === "INSTANT";
+    // Keine Mails an inaktive Konten, abbestellte Digests oder (ausser Sicherheit/Bestellungen) unbestätigte Adressen
+    if (n.recipient.status !== "ACTIVE" || (digest === "OFF" && !critical) || (!n.recipient.emailVerifiedAt && !critical)) {
       await db.notification.update({ where: { id: n.id }, data: { emailedAt: new Date() } });
       continue;
     }
     if ((mode === "instant") !== instant) continue;
+    // Wöchentlicher Digest nur montags (der Digest-Job läuft täglich)
+    if (mode === "digest" && digest === "WEEKLY" && new Date().getUTCDay() !== 1) continue;
     const list = byUser.get(n.recipientId) ?? [];
     list.push(n);
     byUser.set(n.recipientId, list);
@@ -122,15 +127,18 @@ async function sendEmails(mode: "instant" | "digest") {
   for (const [, list] of byUser) {
     const to = list[0]!.recipient.email;
     if (to.endsWith(".invalid")) continue;
+    // Vollständige Sätze inkl. Titel/Bestellnummer statt nur „Typ: Name“
     const lines = list.map((n) => {
-      const who = n.actor?.profile?.displayName ?? "Werkuno";
-      const more = n.count > 1 ? ` (+${n.count - 1})` : "";
-      return `• ${NOTIFICATION_LABEL[n.type as NotificationType] ?? n.type}: ${who}${more}`;
+      const d = (n.data ?? {}) as Record<string, unknown>;
+      const excerpt = typeof d.excerpt === "string" && d.excerpt ? `\n  „${d.excerpt.slice(0, 140)}“` : "";
+      return `• ${notificationText(n)}${excerpt}`;
     });
+    const target = list.length === 1 ? notificationHref(list[0]!) : "/benachrichtigungen";
     const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
     try {
-      await sendMail(to, subject, `Das ist in deiner Werkstatt passiert:\n\n${lines.join("\n")}`, { cta: { label: "Ansehen", url: `${appUrl}/benachrichtigungen` } });
-      await db.notification.updateMany({ where: { id: { in: list.map((n) => n.id) } }, data: { emailedAt: new Date() } });
+      const r = await sendMail(to, subject, `Das ist in deiner Werkstatt passiert:\n\n${lines.join("\n\n")}`, { cta: { label: "Ansehen", url: `${appUrl}${target}` } });
+      // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut
+      if (!("failed" in r && r.failed)) await db.notification.updateMany({ where: { id: { in: list.map((n) => n.id) } }, data: { emailedAt: new Date() } });
     } catch (err) {
       warn("email_failed", { err: String(err) });
     }

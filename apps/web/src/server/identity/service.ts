@@ -75,6 +75,7 @@ export async function signUp(input: unknown) {
 export async function signIn(input: unknown) {
   const data = signInSchema.parse(input);
   await limit("signIn", `${await clientIpHash()}:${data.email}`);
+  await limit("signInAccount", data.email);
   const user = await db.user.findUnique({
     where: { email: data.email },
     select: { id: true, email: true, passwordHash: true, status: true, suspendedUntil: true },

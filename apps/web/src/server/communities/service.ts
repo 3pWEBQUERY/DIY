@@ -170,6 +170,8 @@ export async function canViewCommunityPost(communityId: string, viewer: Pick<Ses
   const c = await db.community.findUnique({ where: { id: communityId }, select: { visibility: true, state: true } });
   if (!c || c.state === "REMOVED") return false;
   const m = viewer ? await communityRole(communityId, viewer.id) : null;
+  // Von der Plattform ausgeblendete Communities: nur noch für Mitglieder und Moderation
+  if (c.state === "HIDDEN" && m?.state !== "ACTIVE" && !hasRole(viewer, "PLATFORM_MODERATOR")) return false;
   return canViewCommunityContent(c, m, viewer);
 }
 
@@ -442,6 +444,18 @@ export async function joinCommunity(user: SessionUser, communityId: string) {
     return { state: "ACTIVE" as const };
   }
   await db.communityMember.create({ data: { communityId, userId: user.id, state: "PENDING" } });
+  // Leitung informieren – gebündelt pro Community, damit viele Anfragen nur einen Eintrag ergeben
+  const leads = await db.communityMember.findMany({ where: { communityId, state: "ACTIVE", role: { in: ["OWNER", "ADMIN", "MODERATOR"] } }, select: { userId: true }, take: 20 });
+  for (const l of leads) {
+    await notify({
+      recipientId: l.userId,
+      type: "COMMUNITY_INVITE",
+      actorId: user.id,
+      targetType: "COMMUNITY",
+      targetId: communityId,
+      data: { kind: "join_request", title: c.name, href: `/c/${c.slug}/verwalten` },
+    }).catch(() => {});
+  }
   return { state: "PENDING" as const };
 }
 

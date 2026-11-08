@@ -26,6 +26,7 @@ export const postInclude = {
       id: true,
       body: true,
       state: true,
+      visibility: true,
       publishedAt: true,
       author: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
       media: { orderBy: { position: "asc" }, take: 1, include: { media: { select: { variants: true } } } },
@@ -59,7 +60,8 @@ function toView(p: PostRow, viewer: { liked: Set<string>; saved: Set<string>; id
     article: p.article ? { ...p.article, authorHandle: p.article.author.profile?.handle ?? "" } : null,
     community: p.community,
     repostOf:
-      p.repostOf && p.repostOf.state === "PUBLISHED"
+      // Original nur zeigen, solange es veröffentlicht und öffentlich ist (sonst Leck nach Sichtbarkeitswechsel)
+      p.repostOf && p.repostOf.state === "PUBLISHED" && p.repostOf.visibility === "PUBLIC"
         ? {
             id: p.repostOf.id,
             body: p.repostOf.body,

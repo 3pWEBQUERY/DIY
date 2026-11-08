@@ -180,7 +180,7 @@ export default async function ArticlePage({ params }: Props) {
 
             {/* Autorenbox */}
             <section aria-label="Über die Autorin / den Autor" className="mt-10 grid grid-cols-[auto_1fr] gap-5 border border-line bg-card p-6 rounded-2xl">
-              <Link href={`/u/${author.handle}`}><Avatar src={author.avatarUrl} name={author.displayName} size={64} /></Link>
+              <Link aria-label={`Profil von ${author.displayName}`} href={`/u/${author.handle}`}><Avatar src={author.avatarUrl} name={author.displayName} size={64} /></Link>
               <div className="min-w-0">
                 <p className="spec">Geschrieben von</p>
                 <p className="headline mt-1 text-xl"><Link href={`/u/${author.handle}`} className="hover:underline">{author.displayName}</Link></p>

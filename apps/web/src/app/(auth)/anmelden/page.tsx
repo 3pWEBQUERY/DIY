@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/server/auth/session";
 import { features } from "@/server/env";
 import { SignInForm } from "./sign-in-form";
+import { safeNext } from "@/lib/safe-next";
 
 export const metadata: Metadata = { title: "Anmelden", robots: { index: false } };
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ weiter?: string; fehler?: string }> }) {
   const sp = await searchParams;
-  if (await currentUser()) redirect(sp.weiter?.startsWith("/") ? sp.weiter : "/feed");
+  if (await currentUser()) redirect(safeNext(sp.weiter, "/feed")!);
   return (
     <>
       <p className="spec mb-3">Willkommen zurück</p>

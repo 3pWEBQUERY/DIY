@@ -88,7 +88,8 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
         if (!amountOk) await audit({ action: "payment.amount_mismatch", targetType: "Order", targetId: orderId, meta: { expected: order.totalMinor, received: input.amountMinor } }, tx);
 
         // Digitale Berechtigungen (§13.7)
-        for (const it of order.items.filter((i) => i.isDigital)) {
+        // Nur bei korrektem Betrag freischalten – bei Abweichung entscheidet erst die Prüfung
+        for (const it of amountOk ? order.items.filter((i) => i.isDigital) : []) {
           await tx.digitalEntitlement.upsert({
             where: { userId_productId: { userId: order.buyerId, productId: it.productId } },
             create: { userId: order.buyerId, productId: it.productId, orderItemId: it.id },

@@ -51,7 +51,7 @@ type Person = { userId: string; handle: string; displayName: string; avatarUrl: 
 function PersonCell({ p, children }: { p: Person; children?: React.ReactNode }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <Link href={`/u/${p.handle}`} className="shrink-0"><Avatar src={p.avatarUrl} name={p.displayName} size={36} /></Link>
+      <Link aria-label={`Profil von ${p.displayName}`} href={`/u/${p.handle}`} className="shrink-0"><Avatar src={p.avatarUrl} name={p.displayName} size={36} /></Link>
       <div className="min-w-0">
         <Link href={`/u/${p.handle}`} className="block truncate font-semibold hover:underline">{p.displayName}</Link>
         <p className="truncate text-xs text-muted">@{p.handle}{children}</p>
