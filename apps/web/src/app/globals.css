@@ -19,6 +19,7 @@
   --color-paper: #faf8f5;      /* Hintergrund */
   --color-card: #ffffff;       /* Karten */
   --color-sunken: #f3efeb;     /* abgesetzte Flächen */
+  --color-rail: #efe8e2;       /* Seitenleiste: eine Spur dunkler als der Inhalt */
   --color-ink: #262427;        /* Text */
   --color-ink-2: #3d393c;
   --color-muted: #77706d;      /* Sekundärtext (AA auf Hintergrund) */
