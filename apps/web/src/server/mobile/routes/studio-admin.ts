@@ -6,6 +6,7 @@ import { listStudioTutorials } from "@/server/tutorials/service";
 import { hasRole } from "@/server/authz";
 import * as moderation from "@/server/moderation/service";
 import * as users from "@/server/admin/users";
+import { maskEmail } from "@/server/admin/guard";
 import * as content from "@/server/admin/content";
 import { adminNavCounts, dashboardKpis } from "@/server/admin/kpis";
 import { DELETE, GET, PATCH, POST, PUT, int, me, str, type RouteDef } from "../router";
@@ -105,11 +106,16 @@ export const studioAdminRoutes: RouteDef[] = [
   GET("/admin/reports", async (c) => moderation.listReports(await moderator(), { reason: str(c.q, "reason") ?? null, targetType: (str(c.q, "targetType") as never) ?? null, page: int(c.q, "page") ?? 1 } as never)),
 
   // ── Nutzerverwaltung ──
-  GET("/admin/users", async (c) => users.listUsers(await moderator(), { q: str(c.q, "q") ?? null, status: str(c.q, "status") ?? null, role: str(c.q, "role") ?? null, page: int(c.q, "page") ?? 1 } as never)),
+  // E-Mail-Adressen wie im Web: in Listen immer maskiert, im Detail nur für die Administration im Klartext
+  GET("/admin/users", async (c) => {
+    const r = await users.listUsers(await moderator(), { q: str(c.q, "q") ?? null, status: str(c.q, "status") ?? null, role: str(c.q, "role") ?? null, page: int(c.q, "page") ?? 1 } as never);
+    return { ...r, rows: r.rows.map((row) => ({ ...row, email: maskEmail(row.email) })) };
+  }),
   GET("/admin/users/:id", async (c) => {
     const u = await moderator();
     const [detail, history] = await Promise.all([users.getUserDetail(u, c.p.id!), moderation.userModerationHistory(c.p.id!)]);
-    return { ...(detail as object), history };
+    const user = hasRole(u, "ADMIN") ? detail.user : { ...detail.user, email: maskEmail(detail.user.email) };
+    return { ...detail, user, history };
   }),
   POST("/admin/users/:id/suspend", async (c) => {
     const b = await c.json<{ days?: number | null; reason?: string; publicNote?: string }>();

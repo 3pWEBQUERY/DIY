@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db, type Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
+import { assertNotOwn } from "@/server/admin/own";
 import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
@@ -102,18 +103,21 @@ export async function setFeatured(actor: Actor, kind: ContentKind, id: string, f
   mod(actor);
   await db.$transaction(async (tx) => {
     if (kind === "PROJECT") {
-      const p = await tx.project.findUnique({ where: { id }, select: { state: true, visibility: true } });
+      const p = await tx.project.findUnique({ where: { id }, select: { state: true, visibility: true, ownerId: true } });
       if (!p) throw fail.notFound();
+      assertNotOwn(actor, p.ownerId);
       if (featured && (p.state !== "PUBLISHED" || p.visibility !== "PUBLIC")) throw fail.conflict("Nur öffentliche, veröffentlichte Projekte können hervorgehoben werden.");
       await tx.project.update({ where: { id }, data: { isFeatured: featured } });
     } else if (kind === "TUTORIAL") {
-      const t = await tx.tutorial.findUnique({ where: { id }, select: { state: true } });
+      const t = await tx.tutorial.findUnique({ where: { id }, select: { state: true, authorId: true } });
       if (!t) throw fail.notFound();
+      assertNotOwn(actor, t.authorId);
       if (featured && t.state !== "PUBLISHED") throw fail.conflict("Nur veröffentlichte Anleitungen können hervorgehoben werden.");
       await tx.tutorial.update({ where: { id }, data: { isFeatured: featured } });
     } else {
-      const c = await tx.community.findUnique({ where: { id }, select: { state: true } });
+      const c = await tx.community.findUnique({ where: { id }, select: { state: true, ownerId: true } });
       if (!c) throw fail.notFound();
+      assertNotOwn(actor, c.ownerId);
       if (featured && c.state !== "PUBLISHED") throw fail.conflict("Nur sichtbare Communities können hervorgehoben werden.");
       await tx.community.update({ where: { id }, data: { isFeatured: featured } });
     }
@@ -152,6 +156,7 @@ export async function setContentHidden(actor: Actor, kind: ContentKind, id: stri
       title = c.name;
     }
     await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: kind, targetId: id, meta: { reason: r } }, tx);
+    assertNotOwn(actor, ownerId);
     return { ownerId, title };
   });
   await notify({
@@ -248,9 +253,10 @@ export async function decideShop(actor: Actor, shopId: string, decision: ShopDec
   const n = z.string().trim().min(5, "Bitte begründe die Entscheidung").max(1000).parse(note);
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, status: true, ownerId: true, name: true } });
   if (!shop) throw fail.notFound();
+  assertNotOwn(actor, shop.ownerId);
   const next = { APPROVE: "ACTIVE", PAUSE: "PAUSED", SUSPEND: "SUSPENDED", REACTIVATE: "ACTIVE" } as const;
   const allowed: Record<ShopDecision, string[]> = {
-    APPROVE: ["PENDING_VERIFICATION", "DRAFT"],
+    APPROVE: ["PENDING_VERIFICATION"],
     PAUSE: ["ACTIVE"],
     SUSPEND: ["ACTIVE", "PAUSED", "PENDING_VERIFICATION"],
     REACTIVATE: ["PAUSED", "SUSPENDED"],

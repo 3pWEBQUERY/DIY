@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CATEGORY_SLUGS, VISIBILITY } from "@werkraum/shared";
 import { db, type ContentState, type Prisma, type TargetType, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
+import { assertNotOwn } from "@/server/admin/own";
 import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
@@ -465,8 +466,9 @@ export async function setDetailFeatured(actor: Actor, kind: DetailKind, id: stri
   if (k === "PROJECT" || k === "TUTORIAL") return setFeatured(actor, k, id, featured);
   if (k === "POST") throw fail.invalid("Beiträge können nicht hervorgehoben werden.");
   await db.$transaction(async (tx) => {
-    const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true } });
+    const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true, authorId: true } });
     if (!a) throw fail.notFound();
+    assertNotOwn(actor, a.authorId);
     if (featured && a.state !== "PUBLISHED") throw fail.conflict("Nur veröffentlichte Artikel können hervorgehoben werden.");
     await tx.blogArticle.update({ where: { id }, data: { isFeatured: featured } });
     await audit({ actorId: actor.id, action: featured ? "admin.content_featured" : "admin.content_unfeatured", targetType: "ARTICLE", targetId: id }, tx);
@@ -510,6 +512,7 @@ export async function setDetailHidden(actor: Actor, kind: DetailKind, id: string
       from = a.state;
     }
     await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: k, targetId: id, meta: { reason: r, from } }, tx);
+    assertNotOwn(actor, ownerId);
     return { ownerId, title };
   });
   await inform(owner.ownerId, hidden ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.` : `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`);
@@ -558,6 +561,7 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
       ({ ownerId, title, from } = { ownerId: p.authorId, title: postTitle(p.body), from: p.state });
     }
     await audit({ actorId: actor.id, action: "admin.content_removed", targetType: k, targetId: id, meta: { reason: d.reason, from } }, tx);
+    assertNotOwn(actor, ownerId);
     return { ownerId, title };
   });
   await inform(owner.ownerId, `Dein Inhalt „${owner.title}“ wurde entfernt.`, d.publicNote);
@@ -608,6 +612,7 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
       ({ ownerId, title } = { ownerId: p.authorId, title: postTitle(p.body) });
     }
     await audit({ actorId: actor.id, action: "admin.content_reinstated", targetType: k, targetId: id, meta: { reason: r, to } }, tx);
+    assertNotOwn(actor, ownerId);
     return { ownerId, title, to };
   });
   await inform(owner.ownerId, owner.to === "PUBLISHED" ? `Dein Inhalt „${owner.title}“ wurde wiederhergestellt und ist wieder sichtbar.` : `Dein Inhalt „${owner.title}“ wurde als Entwurf wiederhergestellt.`);
@@ -642,6 +647,7 @@ export async function moderateComment(actor: Actor, commentId: string, decision:
   const res = await db.$transaction(async (tx) => {
     const c = await tx.comment.findUnique({ where: { id: commentId }, select: { state: true, authorId: true, targetType: true, targetId: true, body: true } });
     if (!c) throw fail.notFound();
+    assertNotOwn(actor, c.authorId);
     const to: ContentState = dec === "HIDE" ? "HIDDEN" : dec === "REMOVE" ? "REMOVED" : "PUBLISHED";
     if (c.state === to) throw fail.conflict("Der Kommentar hat diesen Zustand bereits.");
     if (dec === "HIDE" && c.state !== "PUBLISHED") throw fail.conflict("Nur sichtbare Kommentare können ausgeblendet werden.");

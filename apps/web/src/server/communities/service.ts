@@ -605,13 +605,19 @@ export async function removeMember(communityId: string, userId: string, opts: { 
 }
 
 export async function unbanMember(communityId: string, userId: string) {
-  const { user } = await requireMod(communityId);
+  const { user, rank } = await requireMod(communityId);
+  // Moderator:innen heben nur eigene Sperren auf – Sperren der Leitung hebt nur die Leitung auf
+  if (rank < ROLE_RANK.ADMIN) {
+    const ban = await db.communityModerationAction.findFirst({ where: { communityId, targetType: "USER", targetId: userId, action: "BAN_MEMBER" }, orderBy: { createdAt: "desc" }, select: { moderatorId: true } });
+    if (ban && ban.moderatorId !== user.id) throw fail.forbidden("Diese Sperre hat die Leitung verhängt – nur sie kann sie aufheben.");
+  }
   const r = await db.communityMember.deleteMany({ where: { communityId, userId, state: "BANNED" } });
   if (r.count) await recordAction(db, { communityId, moderatorId: user.id, targetType: "USER", targetId: userId, action: "UNBAN_MEMBER" });
 }
 
 export async function muteMember(communityId: string, userId: string, until: Date | null, reason?: string) {
   const { user, rank } = await requireMod(communityId);
+  if (userId === user.id) throw fail.invalid("Du kannst dich nicht selbst stummschalten.");
   const m = await targetMember(communityId, userId);
   if (m.state !== "ACTIVE") throw fail.invalid("Nur aktive Mitglieder können stummgeschaltet werden.");
   await assertOutranks(rank, m);

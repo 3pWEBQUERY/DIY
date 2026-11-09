@@ -64,3 +64,4 @@ export const TARGET_TYPE_LABEL: Record<string, string> = {
   COMMUNITY: "Community",
   REVIEW: "Bewertung",
 };
+

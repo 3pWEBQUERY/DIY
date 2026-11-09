@@ -78,3 +78,28 @@ test("E-Mail ändern: nur Administration, nie das eigene Konto", async () => {
   // „Direkt bestätigen“ (sofort anmeldbar) nur für die Superadministration
   expect(() => runServer(`import("./src/server/admin/users").then((m) => m.changeUserEmail({ id: "${mattia}", role: "ADMIN" } as never, "${elias}", { email: "z-${Date.now()}@demo.werkraum.local", reason: "Admin will direkt bestätigen", markVerified: true }))`)).toThrow(/nur die Superadministration/);
 });
+
+test("Vier-Augen-Prinzip: keine Freigabe, Hervorhebung oder Pro-Gutschrift für sich selbst", async () => {
+  const { runServer } = await import("./helpers");
+  const mattia = await userId("mattia");
+  const shop = (await one<{ id: string }>(`SELECT id FROM "Shop" WHERE "ownerId" = $1`, [mattia]))!.id;
+  const product = (await one<{ id: string }>(`SELECT id FROM "Product" WHERE "shopId" = $1 AND status = 'ACTIVE' LIMIT 1`, [shop]))!.id;
+  const asAdmin = `{ id: "${mattia}", role: "SUPERADMIN" } as never`;
+  const call = (code: string) => () => runServer(code);
+  expect(call(`import("./src/server/admin/content").then((m) => m.decideShop(${asAdmin}, "${shop}", "PAUSE", "Eigener Shop pausieren"))`)).toThrow(/andere Person aus dem Team/);
+  expect(call(`import("./src/server/admin/shops").then((m) => m.setProductFeaturedAdmin(${asAdmin}, "${product}", true))`)).toThrow(/andere Person aus dem Team/);
+  expect(call(`import("./src/server/admin/shops").then((m) => m.decideProduct(${asAdmin}, "${product}", "PAUSE", { reason: "Eigenes Produkt prüfen" }))`)).toThrow(/andere Person aus dem Team/);
+  expect(call(`import("./src/server/pro/service").then((m) => m.grantPro(${asAdmin}, "${mattia}", { days: 30 }))`)).toThrow(/nicht selbst schenken/);
+  // Bewertung im eigenen Shop ausblenden
+  const review = await one<{ id: string }>(`SELECT r.id FROM "Review" r JOIN "Order" o ON o.id = r."orderId" WHERE o."shopId" = $1 AND r.state = 'PUBLISHED' LIMIT 1`, [shop]);
+  if (review) expect(call(`import("./src/server/admin/shops").then((m) => m.setReviewHiddenAdmin(${asAdmin}, "${review.id}", true, { reason: "Unliebsame Bewertung weg" }))`)).toThrow(/andere Person aus dem Team/);
+  // Eigener Beitrag: nicht selbst wieder einblenden
+  const post = (await one<{ id: string }>(`SELECT id FROM "Post" WHERE "authorId" = $1 AND state = 'PUBLISHED' LIMIT 1`, [mattia]))!.id;
+  await sql(`UPDATE "Post" SET state = 'HIDDEN' WHERE id = $1`, [post]);
+  try {
+    expect(call(`import("./src/server/admin/content-detail").then((m) => m.setDetailHidden(${asAdmin}, "POST", "${post}", false, "Selbst wieder einblenden"))`)).toThrow(/andere Person aus dem Team/);
+    expect((await one<{ state: string }>(`SELECT state FROM "Post" WHERE id = $1`, [post]))!.state).toBe("HIDDEN");
+  } finally {
+    await sql(`UPDATE "Post" SET state = 'PUBLISHED' WHERE id = $1`, [post]);
+  }
+});

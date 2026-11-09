@@ -361,6 +361,7 @@ const grantSchema = z.object({ days: z.coerce.number().int().min(0).max(3650).de
 /** Pro schenken (days = 0: unbefristet). Bezahlte Abos werden nicht überschrieben. */
 export async function grantPro(actor: Pick<SessionUser, "id" | "role">, userId: string, input: unknown) {
   if (!hasRole(actor, "ADMIN")) throw fail.forbidden();
+  if (userId === actor.id) throw fail.forbidden("Pro kann man sich nicht selbst schenken – das macht eine andere Person aus der Administration.");
   const { days, note } = grantSchema.parse(input ?? {});
   const s = await db.subscription.findUnique({ where: { userId } });
   if (s && s.provider === "stripe" && isActiveSubscription(s)) throw fail.conflict("Diese Person hat bereits ein bezahltes Abo.");

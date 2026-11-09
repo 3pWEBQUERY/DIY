@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PRODUCT_KIND, categorySchema } from "@werkraum/shared";
 import { db, type Prisma, type ProductStatus } from "@/server/db";
 import { fail } from "@/server/errors";
+import { assertNotOwn } from "@/server/admin/own";
 import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
@@ -388,6 +389,7 @@ export async function updateShopAdmin(actor: Actor, shopId: string, input: unkno
   const data = shopEditSchema.parse(input);
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, ownerId: true, name: true, tagline: true, description: true, shippingPolicy: true, returnPolicy: true, processingDays: true } });
   if (!shop) throw fail.notFound();
+  assertNotOwn(actor, shop.ownerId);
   const { reason, publicNote, ...next } = data;
   const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => shop[k] !== next[k]);
   if (!changed.length) throw fail.invalid("Es wurde nichts geändert.");
@@ -420,6 +422,7 @@ export async function rejectShopVerificationAdmin(actor: Actor, shopId: string, 
   const publicNote = z.string().trim().min(10, "Bitte erkläre der Person, was fehlt (mind. 10 Zeichen)").max(1000).parse(input.publicNote ?? "");
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, status: true, ownerId: true, name: true } });
   if (!shop) throw fail.notFound();
+  assertNotOwn(actor, shop.ownerId);
   if (shop.status !== "PENDING_VERIFICATION") throw fail.conflict("Nur Shops in Prüfung können abgelehnt werden.");
   await db.$transaction(async (tx) => {
     await tx.shop.update({ where: { id: shopId }, data: { status: "DRAFT" } });
@@ -474,6 +477,7 @@ export async function updateProductAdmin(actor: Actor, productId: string, input:
     select: { id: true, title: true, description: true, category: true, materials: true, dimensions: true, safetyInfo: true, returnPolicy: true, priceMinor: true, currency: true, shop: { select: { ownerId: true } }, variants: { select: { priceDeltaMinor: true } } },
   });
   if (!p) throw fail.notFound();
+  assertNotOwn(actor, p.shop.ownerId);
   const { reason, publicNote, price, ...meta } = data;
   let priceMinor = p.priceMinor;
   if (price) {
@@ -534,6 +538,7 @@ export async function decideProduct(actor: Actor, productId: string, decision: P
     select: { id: true, title: true, status: true, kind: true, digitalKey: true, publishedAt: true, shop: { select: { ownerId: true, status: true } }, inventory: { select: { onHand: true } } },
   });
   if (!p) throw fail.notFound();
+  assertNotOwn(actor, p.shop.ownerId);
   const allowed: Record<ProductDecision, ProductStatus[]> = {
     PAUSE: ["ACTIVE", "SOLD_OUT"],
     ACTIVATE: ["PAUSED"],
@@ -568,8 +573,9 @@ export async function decideProduct(actor: Actor, productId: string, decision: P
 
 export async function setProductFeaturedAdmin(actor: Actor, productId: string, featured: boolean) {
   mod(actor);
-  const p = await db.product.findUnique({ where: { id: productId }, select: { status: true, isFeatured: true, shop: { select: { status: true } } } });
+  const p = await db.product.findUnique({ where: { id: productId }, select: { status: true, isFeatured: true, shop: { select: { status: true, ownerId: true } } } });
   if (!p) throw fail.notFound();
+  assertNotOwn(actor, p.shop.ownerId);
   if (featured && (p.status !== "ACTIVE" || p.shop.status !== "ACTIVE")) throw fail.conflict("Nur aktive Produkte aus aktiven Shops können hervorgehoben werden.");
   if (p.isFeatured === featured) return;
   await db.$transaction(async (tx) => {
@@ -585,8 +591,10 @@ export async function setReviewHiddenAdmin(actor: Actor, reviewId: string, hidde
   mod(actor);
   const r = reasonSchema.parse(input.reason);
   const publicNote = publicNoteSchema.parse(input.publicNote ?? "");
-  const review = await db.review.findUnique({ where: { id: reviewId }, select: { id: true, state: true, productId: true, authorId: true, order: { select: { shopId: true } }, product: { select: { title: true } } } });
+  const review = await db.review.findUnique({ where: { id: reviewId }, select: { id: true, state: true, productId: true, authorId: true, order: { select: { shopId: true, shop: { select: { ownerId: true } } } }, product: { select: { title: true } } } });
   if (!review) throw fail.notFound();
+  // Weder eigene Bewertungen noch Bewertungen des eigenen Shops
+  assertNotOwn(actor, review.authorId, review.order.shop.ownerId);
   if (review.state === "REMOVED") throw fail.conflict("Entfernte Bewertungen werden über den Moderationsfall wiederhergestellt.");
   if (hidden ? review.state !== "PUBLISHED" : review.state !== "HIDDEN") throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
   await db.$transaction(async (tx) => {
