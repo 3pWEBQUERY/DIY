@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboard, FileText } from "lucide-react";
+import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboard, FileText, Medal } from "lucide-react";
 import { categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
@@ -22,6 +22,7 @@ import { LinkButton } from "@/components/ui/button";
 import { TabLinks } from "@/components/shell/page";
 import { isPro } from "@/server/pro/service";
 import { featuredProjects } from "@/server/pro/profile";
+import { profileAwards } from "@/server/communities/competitions";
 import { ProMark } from "@/components/pro/pro-mark";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
@@ -80,7 +81,8 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   const reviewCounts = blocked ? { given: 0, received: 0 } : await profileReviewCounts(userId, shop?.id ?? null, viewerId);
   const showReviews = !!shop || reviewCounts.given > 0;
   // Creator Pro: Kennzeichen, Schaufenster, Medienkit
-  const [pro, featured] = blocked ? [false, []] : await Promise.all([isPro(userId), featuredProjects(userId, profile.featuredProjectIds, viewerId)]);
+  const [pro, featured, awards] = blocked ? [false, [], []] : await Promise.all([isPro(userId), featuredProjects(userId, profile.featuredProjectIds, viewerId), profileAwards(userId, viewer)]);
+  const wins = awards.filter((a) => a.place === 1).length;
   const [projects, tutorials, posts, products, collections, articles, followsYou] = blocked
     ? [null, null, null, [], [], 0, false]
     : await Promise.all([
@@ -312,6 +314,29 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                   </div>
                 ))}
               </dl>
+              {awards.length > 0 && (
+                <section aria-labelledby="auszeichnungen">
+                  <p id="auszeichnungen" className="spec mb-2">
+                    Auszeichnungen
+                    {wins > 0 && <span className="ml-1.5 normal-case tracking-normal text-muted">· {wins === 1 ? "1 Sieg" : `${wins} Siege`}</span>}
+                  </p>
+                  <ul className="space-y-1.5">
+                    {awards.slice(0, 5).map((a) => (
+                      <li key={a.id}>
+                        <Link href={a.href} className="group flex items-center gap-3 rounded-2xl border border-line px-3 py-2.5 hover:border-rule-strong">
+                          <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-white", a.place === 1 ? "bg-[#C9A227]" : a.place === 2 ? "bg-[#9AA3AD]" : "bg-[#B07A4F]")} aria-hidden>
+                            <Medal size={15} />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13.5px] font-semibold group-hover:underline">{a.place}. Platz · {a.title}</span>
+                            <span className="block truncate text-[12px] text-muted">{a.community} · {formatDate(a.date, { month: "short", year: "numeric" })}</span>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
               {shop && (
                 <Link href={`/u/${profile.handle}?tab=bewertungen`} className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm hover:border-rule-strong">
                   {reviewCounts.received ? (

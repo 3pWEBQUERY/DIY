@@ -265,6 +265,12 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
       throw fail.invalid("Dieser Beitrag kann nicht geteilt werden.");
     }
   }
+  // Koautor:innen vorab prüfen – lieber gar nicht veröffentlichen als halb
+  const { validateCoauthorHandles, inviteCoauthors } = await import("./coauthors");
+  if (data.coauthors?.length) {
+    if (data.repostOfId || extra.communityId) throw fail.invalid("Koautor:innen gibt es nur bei eigenen Beiträgen ausserhalb von Communities.");
+    await validateCoauthorHandles(user, data.coauthors);
+  }
   const later = data.publish !== "now";
   if (later) {
     const drafts = await db.post.count({ where: { authorId: user.id, state: "DRAFT", articleId: null } });
@@ -311,6 +317,7 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
     return p;
   });
   if (!later) await notifyMentions(data.body, user.id, post.id);
+  if (data.coauthors?.length) await inviteCoauthors(user, post.id, data.coauthors);
   return post;
 }
 
@@ -486,7 +493,11 @@ async function publishDraftNow(postId: string) {
     await emit({ type: "PostPublished", postId, authorId: p.authorId }, tx);
     return p;
   });
-  if (done) await notifyMentions(done.body, done.authorId, postId);
+  if (done) {
+    await notifyMentions(done.body, done.authorId, postId);
+    const { releaseQueuedCoauthorInvites } = await import("./coauthors");
+    await releaseQueuedCoauthorInvites(postId);
+  }
   return done;
 }
 

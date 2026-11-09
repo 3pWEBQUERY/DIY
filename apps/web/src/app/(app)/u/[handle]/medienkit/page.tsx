@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Link2, MapPin, MessageSquare, Star, Store } from "lucide-react";
+import { Link2, MapPin, Medal, MessageSquare, Star, Store } from "lucide-react";
 import { categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getMediaKit } from "@/server/pro/profile";
@@ -113,6 +113,16 @@ export default async function MediaKitPage({ params }: Props) {
           </div>
         )}
 
+        {kit.awards.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line px-6 py-4 text-[14px] sm:px-10">
+            <Medal size={16} className="text-[#C9A227]" aria-hidden />
+            {kit.awards.map((a) => (
+              <Link key={a.id} href={a.href} className="hover:underline">
+                <span className="font-semibold">{a.place}. Platz</span> · {a.title} <span className="text-muted">({a.community})</span>
+              </Link>
+            ))}
+          </div>
+        )}
         {kit.topProjects.length > 0 && (
           <section className="p-6 sm:p-10" aria-labelledby="mk-arbeiten">
             <h2 id="mk-arbeiten" className="mb-5 text-[15px] font-bold tracking-tight">Ausgewählte Arbeiten</h2>

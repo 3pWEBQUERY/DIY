@@ -5,6 +5,7 @@ import { fail } from "@/server/errors";
 import type { SessionUser } from "@/server/auth/session";
 import { getProjectCards } from "@/server/projects/service";
 import { isPro, PRO_NAME } from "./service";
+import { profileAwards } from "@/server/communities/competitions";
 
 /** Creator Pro: Profilgestaltung (hervorgehobene Projekte) und Medienkit. */
 
@@ -84,6 +85,7 @@ export async function getMediaKit(handle: string, viewerId: string | null | unde
     },
     shop,
     topProjects: await getProjectCards(top.map((t) => t.id), viewerId),
+    awards: (await profileAwards(userId, viewerId ? { id: viewerId, role: "MEMBER" } : null)).slice(0, 6),
     generatedAt: new Date(),
   };
 }

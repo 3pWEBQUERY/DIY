@@ -68,6 +68,8 @@ export const postCreateSchema = z
     /** now = sofort, draft = Entwurf, schedule = geplant (scheduledAt) */
     publish: z.enum(["now", "draft", "schedule"]).default("now"),
     scheduledAt: z.coerce.date().optional(),
+    /** Koautor:innen (Profilnamen, max. 3) – Einladung beim Veröffentlichen */
+    coauthors: z.array(z.string().trim().min(1)).max(3, "Höchstens 3 Koautor:innen").optional(),
   })
   .refine((p) => p.body.length > 0 || p.media.length > 0 || p.repostOfId, {
     message: "Ein Beitrag braucht Text, Medien oder einen Repost",

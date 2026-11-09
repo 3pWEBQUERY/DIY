@@ -191,3 +191,34 @@ export async function saveCustomerDetailsAction(input: unknown) {
     return null;
   }, "Angaben gespeichert. Sie werden bei deinen nächsten Bestellungen verwendet.");
 }
+
+/* ───────────── Browser-Push ───────────── */
+
+export async function webPushKeyAction() {
+  return act(async () => {
+    await requireUser({ allowSuspended: true });
+    const { vapidPublicKey } = await import("@/server/push/web");
+    return { publicKey: await vapidPublicKey() };
+  });
+}
+
+export async function registerWebPushAction(subscription: unknown) {
+  return act(async () => {
+    const s = await getSession();
+    if (!s) {
+      const { fail } = await import("@/server/errors");
+      throw fail.auth();
+    }
+    const { headers } = await import("next/headers");
+    const { registerWebPush } = await import("@/server/push/web");
+    return registerWebPush(s.user.id, s.sessionId, subscription, (await headers()).get("user-agent"));
+  });
+}
+
+export async function unregisterWebPushAction(endpoint: string) {
+  return act(async () => {
+    const u = await requireUser({ allowSuspended: true });
+    const { unregisterWebPush } = await import("@/server/push/web");
+    return unregisterWebPush(u.id, endpoint);
+  });
+}

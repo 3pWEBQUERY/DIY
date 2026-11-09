@@ -8,6 +8,8 @@ export default async function globalSetup() {
   await sql(`DELETE FROM "RateLimitBucket"`);
   await sql(`DELETE FROM "PostCoauthor"`);
   await sql(`DELETE FROM "CommunityChallenge" WHERE title LIKE 'E2E%'`);
+  await sql(`DELETE FROM "Notification" WHERE data->>'message' LIKE '%E2E %'`);
+  await sql(`DELETE FROM "Post" WHERE body LIKE 'E2E Koautoren%'`);
   await sql(`DELETE FROM "Product" WHERE title LIKE 'E2E%'`).catch(() => {});
   await sql(`DELETE FROM "Subscription" WHERE "userId" = $1`, [await userId("lena")]);
   await sql(`UPDATE "UserProfile" SET "isCreatorPro" = false, "featuredProjectIds" = ARRAY[]::text[], "mediaKitPublic" = false WHERE handle = 'lena.haekelt'`);

@@ -11,7 +11,9 @@ import { createPostAction } from "@/app/(app)/social-actions";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
 import type { CategoryOption } from "@/server/categories/types";
-import { CalendarClock, ListChecks } from "lucide-react";
+import { CalendarClock, ListChecks, Users, X } from "lucide-react";
+import { PeoplePicker, type Candidate } from "@/components/messages/people-picker";
+import { coauthorCandidatesAction } from "@/app/(app)/social-actions";
 import Link from "next/link";
 import { Input } from "@/components/ui/field";
 import { PollEditor, emptyPoll, pollReady, type PollDraft } from "./poll-editor";
@@ -55,6 +57,13 @@ export function Composer({
   const [poll, setPoll] = useState<PollDraft | null>(null);
   const [later, setLater] = useState(false);
   const [when, setWhen] = useState("");
+  const [coauthorsOpen, setCoauthorsOpen] = useState(false);
+  const [coauthors, setCoauthors] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const openCoauthors = () => {
+    setCoauthorsOpen(true);
+    if (!candidates) void coauthorCandidatesAction().then((r) => setCandidates(r.ok ? r.data : []));
+  };
   const [pending, start] = useTransition();
   const uploading = media.some((m) => m.state === "uploading");
   const missingAlt = media.some((m) => m.kind === "IMAGE" && m.state === "ready" && !m.alt.trim());
@@ -71,6 +80,7 @@ export function Composer({
         projectId: projectId || undefined,
         visibility,
         poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined,
+        coauthors: coauthors.length ? coauthors : undefined,
       });
       if (r.ok) {
         toast(
@@ -85,6 +95,8 @@ export function Composer({
         setBody("");
         setMedia([]);
         setPoll(null);
+        setCoauthors([]);
+        setCoauthorsOpen(false);
         setOpen(!compact);
         onPosted?.();
         if (openAfterPost && r.data?.id) router.push(mode === "now" ? `/beitrag/${r.data.id}` : `/studio/inhalte/beitrag/${r.data.id}`);
@@ -119,10 +131,30 @@ export function Composer({
             </div>
           ) : null}
           <MediaPicker value={media} onChange={setMedia} />
-          {!poll && (
-            <button type="button" onClick={() => setPoll(emptyPoll())} className="mt-3 inline-flex h-9 items-center gap-2 rounded-xl border border-line-strong bg-card px-3.5 text-[13px] font-semibold hover:border-rule-strong">
-              <ListChecks size={15} aria-hidden /> Umfrage hinzufügen
-            </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!poll && (
+              <button type="button" onClick={() => setPoll(emptyPoll())} className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-strong bg-card px-3.5 text-[13px] font-semibold hover:border-rule-strong">
+                <ListChecks size={15} aria-hidden /> Umfrage hinzufügen
+              </button>
+            )}
+            {!coauthorsOpen && (
+              <button type="button" onClick={openCoauthors} className="inline-flex h-9 items-center gap-2 rounded-xl border border-line-strong bg-card px-3.5 text-[13px] font-semibold hover:border-rule-strong">
+                <Users size={15} aria-hidden /> Koautor:innen{coauthors.length ? ` · ${coauthors.length}` : ""}
+              </button>
+            )}
+          </div>
+          {coauthorsOpen && (
+            <div className="mt-3 rounded-2xl border border-line bg-paper p-4 animate-fade">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <p className="text-[13px] text-muted">
+                  <span className="font-semibold text-ink">Koautor:innen</span> – bis zu 3 Personen. Sie werden beim Veröffentlichen eingeladen und erscheinen am Beitrag, sobald sie bestätigt haben.
+                </p>
+                <button type="button" onClick={() => setCoauthorsOpen(false)} className="grid size-8 shrink-0 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink" aria-label="Koautor:innen schliessen">
+                  <X size={15} />
+                </button>
+              </div>
+              {candidates == null ? <div className="h-11 animate-pulse rounded-xl bg-sunken" aria-busy /> : <PeoplePicker candidates={candidates} value={coauthors} onChange={setCoauthors} max={3} />}
+            </div>
           )}
           {missingAlt && <p className="mt-2 text-xs text-warn">Tipp: Beschreibe deine Bilder kurz – das hilft Menschen mit Screenreader.</p>}
           <div className="mt-4 grid gap-3 sm:grid-cols-3">

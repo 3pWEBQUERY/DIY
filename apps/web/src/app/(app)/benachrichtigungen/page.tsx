@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WebPushPrompt } from "@/components/settings/web-push";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
@@ -44,6 +45,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         }
         description={(unread.all ?? 0) > 0 ? `${unread.all} ungelesen. Ähnliche Ereignisse werden gebündelt, damit dein Posteingang ruhig bleibt.` : "Ähnliche Ereignisse werden gebündelt, damit dein Posteingang ruhig bleibt."}
       />
+      <WebPushPrompt />
       <TabLinks
         active={filter}
         tabs={NOTIFICATION_FILTERS.map((f) => ({

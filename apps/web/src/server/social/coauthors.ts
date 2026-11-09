@@ -37,21 +37,20 @@ export async function listCoauthors(user: Pick<SessionUser, "id">, postId: strin
     orderBy: { createdAt: "asc" },
     select: { status: true, user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } },
   });
-  return rows.map((r) => ({ id: r.user.id, handle: r.user.profile?.handle ?? "", displayName: r.user.profile?.displayName ?? "Unbekannt", avatarUrl: r.user.profile?.avatarUrl ?? null, status: r.status as "PENDING" | "ACCEPTED" }));
+  return rows.map((r) => ({ id: r.user.id, handle: r.user.profile?.handle ?? "", displayName: r.user.profile?.displayName ?? "Unbekannt", avatarUrl: r.user.profile?.avatarUrl ?? null, status: r.status as "QUEUED" | "PENDING" | "ACCEPTED" }));
 }
 
-export async function inviteCoauthors(user: SessionUser, postId: string, input: unknown) {
-  const post = await ownPost(user, postId);
-  if (post.state !== "PUBLISHED") throw fail.invalid("Koautor:innen kannst du einladen, sobald der Beitrag veröffentlicht ist.");
+type Invitee = { userId: string; handle: string; displayName: string };
+
+/** Profilnamen prüfen: vorhanden, nicht man selbst, nicht blockiert, Einladungen erlaubt. */
+export async function validateCoauthorHandles(user: Pick<SessionUser, "id">, input: unknown, existingUserIds: string[] = []): Promise<Invitee[]> {
   const handles = [...new Set(handlesSchema.parse(input).map((h) => h.replace(/^@/, "").toLowerCase()))];
-  await rateLimit(`coauthor-invite:${user.id}`, 30, 3600);
-  const existing = await db.postCoauthor.findMany({ where: { postId }, select: { userId: true } });
   const profiles = await db.userProfile.findMany({ where: { handle: { in: handles } }, select: { userId: true, handle: true, displayName: true, dmPolicy: true, user: { select: { status: true } } } });
   const missing = handles.filter((h) => !profiles.some((p) => p.handle === h));
   if (missing.length) throw fail.invalid(`Nicht gefunden: ${missing.map((h) => `@${h}`).join(", ")}`);
-  const fresh = profiles.filter((p) => !existing.some((e) => e.userId === p.userId));
+  const fresh = profiles.filter((p) => !existingUserIds.includes(p.userId));
   if (fresh.some((p) => p.userId === user.id)) throw fail.invalid("Du bist bereits Autor:in dieses Beitrags.");
-  if (existing.length + fresh.length > COAUTHOR_MAX) throw fail.invalid(`Höchstens ${COAUTHOR_MAX} Koautor:innen pro Beitrag.`);
+  if (existingUserIds.length + fresh.length > COAUTHOR_MAX) throw fail.invalid(`Höchstens ${COAUTHOR_MAX} Koautor:innen pro Beitrag.`);
   for (const p of fresh) {
     if (p.user.status !== "ACTIVE" || (await isBlockedBetween(user.id, p.userId))) throw fail.forbidden(`${p.displayName} kann nicht eingeladen werden.`);
     if (p.dmPolicy === "NOBODY") throw fail.forbidden(`${p.displayName} nimmt keine Einladungen an.`);
@@ -60,20 +59,36 @@ export async function inviteCoauthors(user: SessionUser, postId: string, input: 
       if (!follows) throw fail.forbidden(`${p.displayName} nimmt Einladungen nur von Personen an, denen sie bzw. er folgt.`);
     }
   }
-  if (!fresh.length) return { invited: [] as string[] };
-  await db.postCoauthor.createMany({ data: fresh.map((p) => ({ postId, userId: p.userId, invitedById: user.id })), skipDuplicates: true });
-  for (const p of fresh) {
-    await notify({
-      recipientId: p.userId,
-      type: "MENTION",
-      actorId: user.id,
-      targetType: "POST",
-      targetId: postId,
-      bundle: false,
-      data: { kind: "coauthor_invite", href: `/beitrag/${postId}`, excerpt: excerpt(post.body) },
-    }).catch(() => {});
-  }
-  return { invited: fresh.map((p) => p.displayName) };
+  return fresh.map((p) => ({ userId: p.userId, handle: p.handle, displayName: p.displayName }));
+}
+
+async function sendInvite(authorId: string, postId: string, recipientId: string, body: string) {
+  await notify({ recipientId, type: "MENTION", actorId: authorId, targetType: "POST", targetId: postId, bundle: false, data: { kind: "coauthor_invite", href: `/beitrag/${postId}`, excerpt: excerpt(body) } }).catch(() => {});
+}
+
+/**
+ * Einladen. Bei veröffentlichten Beiträgen sofort (PENDING + Benachrichtigung), bei Entwürfen und
+ * geplanten Beiträgen vorgemerkt (QUEUED) – verschickt wird beim Veröffentlichen.
+ */
+export async function inviteCoauthors(user: SessionUser, postId: string, input: unknown) {
+  const post = await ownPost(user, postId);
+  await rateLimit(`coauthor-invite:${user.id}`, 30, 3600);
+  const existing = await db.postCoauthor.findMany({ where: { postId }, select: { userId: true } });
+  const fresh = await validateCoauthorHandles(user, input, existing.map((e) => e.userId));
+  if (!fresh.length) return { invited: [] as string[], queued: false };
+  const queued = post.state === "DRAFT";
+  await db.postCoauthor.createMany({ data: fresh.map((p) => ({ postId, userId: p.userId, invitedById: user.id, status: queued ? "QUEUED" : "PENDING" })), skipDuplicates: true });
+  if (!queued) for (const p of fresh) await sendInvite(user.id, postId, p.userId, post.body);
+  return { invited: fresh.map((p) => p.displayName), queued };
+}
+
+/** Beim Veröffentlichen eines Entwurfs: vorgemerkte Einladungen verschicken. */
+export async function releaseQueuedCoauthorInvites(postId: string) {
+  const rows = await db.postCoauthor.findMany({ where: { postId, status: "QUEUED" }, select: { userId: true, post: { select: { authorId: true, body: true } } } });
+  if (!rows.length) return 0;
+  await db.postCoauthor.updateMany({ where: { postId, status: "QUEUED" }, data: { status: "PENDING", createdAt: new Date() } });
+  for (const r of rows) await sendInvite(r.post.authorId, postId, r.userId, r.post.body);
+  return rows.length;
 }
 
 export async function removeCoauthor(user: Pick<SessionUser, "id">, postId: string, userId: string) {

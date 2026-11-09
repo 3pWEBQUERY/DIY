@@ -13,7 +13,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 
 const MAX = 3;
-type Row = { id: string; handle: string; displayName: string; avatarUrl: string | null; status: "PENDING" | "ACCEPTED" };
+type Row = { id: string; handle: string; displayName: string; avatarUrl: string | null; status: "QUEUED" | "PENDING" | "ACCEPTED" };
 
 /** Koautor:innen eines eigenen Beitrags verwalten: einladen, Status sehen, entfernen. */
 export function CoauthorDialog({ postId, open, onClose }: { postId: string; open: boolean; onClose: () => void }) {
@@ -42,7 +42,7 @@ export function CoauthorDialog({ postId, open, onClose }: { postId: string; open
     start(async () => {
       const r = await inviteCoauthorsAction(postId, handles);
       if (r.ok) {
-        toast(r.data.invited.length === 1 ? `${r.data.invited[0]} wurde eingeladen.` : `${r.data.invited.length} Personen wurden eingeladen.`);
+        toast(r.data.queued ? "Vorgemerkt – die Einladung geht beim Veröffentlichen raus." : r.data.invited.length === 1 ? `${r.data.invited[0]} wurde eingeladen.` : `${r.data.invited.length} Personen wurden eingeladen.`);
         setHandles([]);
         load();
         router.refresh();
@@ -72,7 +72,7 @@ export function CoauthorDialog({ postId, open, onClose }: { postId: string; open
                     <span className="block truncate text-sm font-semibold">{r.displayName}</span>
                     <span className="block truncate text-xs text-muted">@{r.handle}</span>
                   </span>
-                  <span className={cn("rounded-full px-2.5 py-0.5 text-[11.5px] font-medium", r.status === "ACCEPTED" ? "bg-moss-soft text-moss-ink" : "bg-warn-soft text-warn")}>{r.status === "ACCEPTED" ? "Bestätigt" : "Eingeladen"}</span>
+                  <span className={cn("rounded-full px-2.5 py-0.5 text-[11.5px] font-medium", r.status === "ACCEPTED" ? "bg-moss-soft text-moss-ink" : "bg-warn-soft text-warn")}>{r.status === "ACCEPTED" ? "Bestätigt" : r.status === "QUEUED" ? "Beim Veröffentlichen" : "Eingeladen"}</span>
                   <button type="button" disabled={pending} onClick={() => remove(r)} className="grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-danger" aria-label={`${r.displayName} entfernen`} title="Entfernen">
                     <X size={15} />
                   </button>

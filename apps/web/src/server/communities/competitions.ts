@@ -269,8 +269,39 @@ export async function finalizeVotes(challengeId: string) {
   await announceResults(challengeId);
 }
 
-/** Worker (alle 5 Min.): Phasenwechsel melden und Abstimmungen auswerten. */
+/** Start melden: alle aktiven Mitglieder der Community (ausser der Person, die ihn angelegt hat). */
+async function announceStart(now: Date) {
+  const starting = await db.communityChallenge.findMany({
+    where: { startsAt: { lte: now }, endsAt: { gt: now }, NOT: { notified: { has: "start" } } },
+    include: { community: { select: { slug: true, name: true } } },
+    take: 20,
+  });
+  for (const ch of starting) {
+    // Zuerst markieren – bricht der Lauf ab, gibt es lieber keine als doppelte Meldungen
+    await db.communityChallenge.update({ where: { id: ch.id }, data: { notified: { push: "start" } } });
+    const href = `/c/${ch.community.slug}/wettbewerbe/${ch.id}`;
+    const until = ch.endsAt.toLocaleDateString("de-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" });
+    let cursor: string | undefined;
+    for (;;) {
+      const members = await db.communityMember.findMany({
+        where: { communityId: ch.communityId, state: "ACTIVE", ...(ch.createdById ? { userId: { not: ch.createdById } } : {}) },
+        orderBy: { userId: "asc" },
+        take: 500,
+        ...(cursor ? { cursor: { communityId_userId: { communityId: ch.communityId, userId: cursor } }, skip: 1 } : {}),
+        select: { userId: true },
+      });
+      for (const m of members) {
+        await notify({ recipientId: m.userId, type: "PROJECT_ACTIVITY", bundle: false, data: { kind: "COMPETITION", message: `Neuer Wettbewerb in ${ch.community.name}: „${ch.title}“ – Einreichung bis ${until}.`, href } }).catch(() => {});
+      }
+      if (members.length < 500) break;
+      cursor = members.at(-1)!.userId;
+    }
+  }
+}
+
+/** Worker (alle 5 Min.): Start und Phasenwechsel melden, Abstimmungen auswerten. */
 export async function runCompetitionPhases(now = new Date()) {
+  await announceStart(now);
   const due = await db.communityChallenge.findMany({
     where: { endsAt: { lte: now }, OR: [{ resultsAt: null }, { NOT: { notified: { has: "results" } } }] },
     include: { community: { select: { slug: true, id: true } } },
@@ -296,4 +327,24 @@ export async function runCompetitionPhases(now = new Date()) {
     } else if (ch.resultsAt) await announceResults(ch.id);
   }
   return due.length;
+}
+
+/** Auszeichnungen für das Profil: Platzierungen in entschiedenen Wettbewerben sichtbarer Communities. */
+export async function profileAwards(userId: string, viewer: Viewer) {
+  const rows = await db.challengeEntry.findMany({
+    where: { userId, state: "ACTIVE", place: { not: null }, challenge: { resultsAt: { not: null, lte: new Date() }, community: { state: "PUBLISHED" } } },
+    orderBy: [{ challenge: { resultsAt: "desc" } }],
+    take: 20,
+    select: { id: true, place: true, challenge: { select: { id: true, title: true, resultsAt: true, communityId: true, community: { select: { slug: true, name: true, visibility: true } } } } },
+  });
+  const out = [];
+  for (const r of rows) {
+    // Private Communities nur zeigen, wenn die betrachtende Person Mitglied ist
+    if (r.challenge.community.visibility === "PRIVATE") {
+      const m = viewer ? await communityRole(r.challenge.communityId, viewer.id) : null;
+      if (m?.state !== "ACTIVE") continue;
+    }
+    out.push({ id: r.id, place: r.place!, title: r.challenge.title, href: `/c/${r.challenge.community.slug}/wettbewerbe/${r.challenge.id}`, community: r.challenge.community.name, date: r.challenge.resultsAt! });
+  }
+  return out;
 }

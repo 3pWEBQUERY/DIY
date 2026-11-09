@@ -649,8 +649,14 @@ model PushDevice {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionId   String?
+  /// iOS: APNs-Gerätetoken · Web: Endpoint-URL des Push-Dienstes
   token       String    @unique
+  /// IOS | WEB
   platform    String    @default("IOS")
+  /// Web Push: Schlüssel des Browsers (p256dh, auth) und Gerätebeschreibung
+  p256dh      String?
+  auth        String?
+  userAgent   String?
   /// "sandbox" (Entwicklung) oder "production"
   environment String    @default("production")
   disabledAt  DateTime?

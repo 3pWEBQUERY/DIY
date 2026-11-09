@@ -140,7 +140,7 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 
 ### WP13 – Benachrichtigungen (NOTIF-001 … NOTIF-015)
 - [x] Alle Ereignisse aus §19.1, In-App + E-Mail, Einstellungen je Ereignis/Kanal, Bündelung
-- ⏳ Browser-Push (Web)
+- ✅ Browser-Push (Web Push, VAPID automatisch, je Gerät ein-/ausschaltbar)
 - 🍎 iOS-Push (APNs-Schlüssel fehlen noch)
 - ❗ E-Mail-Versand in Produktion erst mit `RESEND_API_KEY` aktiv
 

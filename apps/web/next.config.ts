@@ -35,7 +35,7 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ["@werkraum/shared"],
-  serverExternalPackages: ["sharp", "pg", "pg-boss"],
+  serverExternalPackages: ["sharp", "pg", "pg-boss", "web-push"],
   outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },

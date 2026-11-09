@@ -60,3 +60,28 @@ test.describe.serial("Wettbewerb mit Einreichungen und Abstimmung", () => {
     await expect(anon.locator("main")).toContainText("E2E Restholz");
   });
 });
+
+test("Auszeichnung erscheint im Profil der Gewinnerin bzw. des Gewinners", async ({ page }) => {
+  const winner = await one<{ handle: string; title: string }>(
+    `SELECT p.handle, c.title FROM "ChallengeEntry" e JOIN "CommunityChallenge" c ON c.id = e."challengeId" JOIN "UserProfile" p ON p."userId" = e."userId"
+     WHERE c.title = 'E2E Restholz' AND e.place = 1`,
+  );
+  expect(winner).toBeTruthy();
+  await page.goto(`/u/${winner!.handle}`);
+  await expect(page.getByText("Auszeichnungen")).toBeVisible();
+  await expect(page.locator("main")).toContainText("1. Platz · E2E Restholz");
+});
+
+test("Neuer Wettbewerb: Mitglieder werden beim Start benachrichtigt", async () => {
+  const c = await one<{ id: string }>(`SELECT id FROM "Community" WHERE slug = 'werkbank-holz'`);
+  const creator = await one<{ userId: string }>(`SELECT "userId" FROM "UserProfile" WHERE handle = 'mattia.holz'`);
+  await sql(
+    `INSERT INTO "CommunityChallenge" (id, "communityId", title, "startsAt", "endsAt", "votingEndsAt", "createdById") VALUES ('e2e_start', $1, 'E2E Startmeldung', now() - interval '1 minute', now() + interval '5 days', now() + interval '12 days', $2)`,
+    [c!.id, creator!.userId],
+  );
+  runServer(`import("./src/server/communities/competitions").then(m=>m.runCompetitionPhases())`);
+  const n = await one<{ n: string }>(`SELECT count(*)::text AS n FROM "Notification" WHERE data->>'kind' = 'COMPETITION' AND data->>'message' LIKE '%E2E Startmeldung%'`);
+  expect(Number(n!.n)).toBeGreaterThanOrEqual(2);
+  const self = await one<{ n: string }>(`SELECT count(*)::text AS n FROM "Notification" WHERE "recipientId" = $1 AND data->>'message' LIKE '%E2E Startmeldung%'`, [creator!.userId]);
+  expect(self!.n).toBe("0");
+});

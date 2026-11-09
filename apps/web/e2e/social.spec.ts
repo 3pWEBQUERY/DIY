@@ -54,3 +54,30 @@ test.describe.serial("Koautorenschaft", () => {
     await expect.poll(async () => (await one<{ n: string }>(`SELECT count(*)::text AS n FROM "PostCoauthor" WHERE "postId" = $1`, [postId]))!.n).toBe("0");
   });
 });
+
+test("Koautor:innen schon beim Erstellen einladen – Einladung geht mit dem Veröffentlichen raus", async ({ browser }) => {
+  const lena = await loginAs(browser, "lena");
+  await lena.goto("/erstellen");
+  const text = `E2E Koautoren beim Erstellen ${Date.now()}`;
+  await lena.getByLabel("Was entsteht gerade bei dir?").fill(text);
+  await lena.getByRole("button", { name: /^Koautor:innen/ }).click();
+  await lena.getByRole("textbox", { name: "Personen suchen" }).fill("mira.strickt");
+  await lena.getByRole("textbox", { name: "Personen suchen" }).press("Enter");
+  await lena.getByRole("button", { name: "Veröffentlichen" }).click();
+  await expect(lena).toHaveURL(/\/beitrag\//);
+  const post = await one<{ id: string }>(`SELECT id FROM "Post" WHERE body = $1`, [text]);
+  const inv = await one<{ status: string }>(`SELECT status FROM "PostCoauthor" WHERE "postId" = $1`, [post!.id]);
+  expect(inv?.status).toBe("PENDING");
+  const mira = await loginAs(browser, "mira");
+  await mira.goto(`/beitrag/${post!.id}`);
+  await expect(mira.getByRole("button", { name: "Bestätigen" })).toBeVisible();
+});
+
+test("Benachrichtigungen: Karte für Browser-Push in den Einstellungen", async ({ browser }) => {
+  const page = await loginAs(browser, "elias");
+  await page.goto("/einstellungen/benachrichtigungen");
+  await expect(page.getByText("Push-Benachrichtigungen in diesem Browser")).toBeVisible();
+  const r = await page.request.get("/sw.js");
+  expect(r.status()).toBe(200);
+  expect(await r.text()).toContain("showNotification");
+});
