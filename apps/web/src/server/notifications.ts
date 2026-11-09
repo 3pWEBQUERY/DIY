@@ -94,3 +94,64 @@ export async function notify(
 export async function unreadCount(userId: string) {
   return db.notification.count({ where: { recipientId: userId, readAt: null } });
 }
+
+/**
+ * Dieselbe Benachrichtigung an viele Personen (Fan-out: neue Beiträge, Wettbewerbe, Events).
+ * Gleiche Regeln wie `notify` (Blockieren, Stummschalten, Einstellungen, Bündelung), aber mit
+ * wenigen Sammelabfragen je 500 Empfänger:innen statt 5–6 Abfragen pro Person.
+ */
+export async function notifyMany(
+  recipientIds: string[],
+  input: { type: NotificationType; actorId?: string | null; targetType?: TargetType; targetId?: string; data?: Record<string, unknown>; bundle?: boolean },
+) {
+  const all = [...new Set(recipientIds)].filter((id) => id !== input.actorId);
+  let created = 0;
+  for (let i = 0; i < all.length; i += 500) {
+    const chunk = all.slice(i, i + 500);
+    let ids = chunk;
+    if (input.actorId) {
+      const actor = input.actorId;
+      const [blocks, mutes] = await Promise.all([
+        db.userBlock.findMany({ where: { OR: [{ blockerId: { in: ids }, blockedId: actor }, { blockerId: actor, blockedId: { in: ids } }] }, select: { blockerId: true, blockedId: true } }),
+        input.type === "MESSAGE" ? Promise.resolve([]) : db.userMute.findMany({ where: { muterId: { in: ids }, mutedId: actor }, select: { muterId: true } }),
+      ]);
+      const out = new Set([...blocks.flatMap((b) => [b.blockerId, b.blockedId]), ...mutes.map((m) => m.muterId)]);
+      ids = ids.filter((id) => !out.has(id));
+    }
+    if (!ids.length) continue;
+    const prefs = new Map((await db.userPreference.findMany({ where: { userId: { in: ids } }, select: { userId: true, notificationPrefs: true } })).map((p) => [p.userId, p.notificationPrefs as Prefs]));
+    const wanted = ids.map((id) => ({ id, p: prefFor(prefs.get(id), input.type) })).filter((x) => x.p.inApp || x.p.email);
+    if (!wanted.length) continue;
+    const groupKey = input.bundle !== false && input.targetId ? `${input.type}:${input.targetType}:${input.targetId}` : null;
+    let fresh = wanted;
+    if (groupKey) {
+      // Ungelesene Einträge desselben Ziels hochzählen statt neue anlegen
+      const open = await db.notification.findMany({ where: { recipientId: { in: wanted.map((w) => w.id) }, groupKey, readAt: null }, select: { id: true, recipientId: true } });
+      if (open.length) {
+        await db.notification.updateMany({ where: { id: { in: open.map((o) => o.id) } }, data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object, pushedAt: null } });
+        const bundled = new Set(open.map((o) => o.recipientId));
+        fresh = wanted.filter((w) => !bundled.has(w.id));
+      }
+    }
+    if (fresh.length) {
+      const now = new Date();
+      await db.notification.createMany({
+        data: fresh.map((w) => ({
+          recipientId: w.id,
+          actorId: input.actorId ?? null,
+          type: input.type,
+          targetType: input.targetType,
+          targetId: input.targetId,
+          groupKey,
+          data: { ...(input.data ?? {}), _email: w.p.email, _inApp: w.p.inApp } as object,
+          emailedAt: w.p.email ? null : now,
+          readAt: w.p.inApp ? null : now,
+        })),
+      });
+      created += fresh.length;
+    }
+    const targets = wanted.map((w) => w.id);
+    setTimeout(() => void publish(targets, { t: "counts" }), 400);
+  }
+  return { created };
+}

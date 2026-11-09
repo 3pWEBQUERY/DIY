@@ -8,7 +8,7 @@ import { currentUser } from "@/server/auth/session";
 import { isBlockedBetween, relationsFor } from "@/server/visibility";
 import { listProjects } from "@/server/projects/service";
 import { listTutorials } from "@/server/tutorials/service";
-import { listPosts, baseFeedWhere } from "@/server/social/posts";
+import { listPosts, byAuthorsWhere, baseFeedWhere } from "@/server/social/posts";
 import { ProjectCard, ProjectGrid } from "@/components/projects/project-card";
 import { TutorialCard } from "@/components/tutorials/tutorial-card";
 import { PostCard } from "@/components/social/post-card";
@@ -88,7 +88,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     : await Promise.all([
         listProjects({ ownerId: userId, sort: "updated" }, viewerId, { take: 24 }),
         listTutorials({ authorId: userId }, viewerId, { take: 12 }),
-        listPosts({ ...base, communityId: null, OR: [{ authorId: userId }, { coauthors: { some: { userId, status: "ACCEPTED" } } }] }, viewerId, { take: 12 }),
+        byAuthorsWhere([userId]).then((or) => listPosts({ ...base, communityId: null, OR: or }, viewerId, { take: 12 })),
         profile.user.shop?.status === "ACTIVE"
           ? db.product.findMany({ where: { shop: { ownerId: userId }, status: { in: ["ACTIVE", "SOLD_OUT"] } }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
           : Promise.resolve([]),

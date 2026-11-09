@@ -75,6 +75,19 @@ function messageView(m: { id: string; body: string; media: unknown; flags: strin
 }
 export type MessageView = ReturnType<typeof messageView>;
 
+type LastMessage = { body: string; media: Prisma.JsonValue; senderId: string; createdAt: Date; state: string; flags: string[]; kind: string };
+
+async function lastMessages(conversationIds: string[]) {
+  const map = new Map<string, LastMessage>();
+  if (!conversationIds.length) return map;
+  const rows = await db.$queryRaw<(LastMessage & { conversationId: string })[]>`
+    SELECT DISTINCT ON ("conversationId") "conversationId", body, media, "senderId", "createdAt", state::text AS state, flags, kind
+    FROM "Message" WHERE "conversationId" IN (${Prisma.join(conversationIds)})
+    ORDER BY "conversationId", "createdAt" DESC`;
+  for (const r of rows) map.set(r.conversationId, r);
+  return map;
+}
+
 async function membershipOrThrow(userId: string, conversationId: string) {
   const m = await db.conversationMember.findUnique({ where: { conversationId_userId: { conversationId, userId } } });
   if (!m) throw fail.notFound("Unterhaltung nicht gefunden.");
@@ -111,18 +124,20 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
       conversation: {
         include: {
           members: { where: { userId: { not: userId } }, include: { user: { select: profileSelect } } },
-          messages: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, media: true, senderId: true, createdAt: true, state: true, flags: true, kind: true } },
         },
       },
     },
   });
+  // Letzte Nachricht je Gespräch in EINER Abfrage (Prisma würde sonst alle Nachrichten laden und erst
+  // im Speicher auf eine kürzen – bei aktiven Chats zehntausende Zeilen pro Posteingang)
+  const lastByConv = await lastMessages(rows.map((r) => r.conversationId));
   const orderIds = rows.map((r) => r.conversation.orderId).filter((x): x is string => !!x);
   const orders = orderIds.length ? await db.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, number: true } }) : [];
   const onum = new Map(orders.map((o) => [o.id, o.number]));
   return rows.map((r) => {
     const c = r.conversation;
     const other = c.members[0]?.user;
-    const last = c.messages[0];
+    const last = lastByConv.get(c.id);
     const unread = !!last && last.senderId !== userId && (!r.lastReadAt || r.lastReadAt < c.lastMessageAt);
     const isGroup = c.kind === "GROUP";
     const text = !last ? "" : last.state !== "PUBLISHED" ? "Nachricht entfernt" : last.body ? last.body.slice(0, 140) : Array.isArray(last.media) && last.media.length ? "Bild" : "";

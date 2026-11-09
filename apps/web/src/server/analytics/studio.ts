@@ -17,22 +17,31 @@ async function count(sql: Prisma.Sql) {
   return Number(r[0]?.n ?? 0);
 }
 
-/** Eigene Inhalte als SQL-Bedingung für (targetType, targetId). */
-function ownedTarget(uid: string, alias: string) {
-  const a = Prisma.raw(alias);
-  return Prisma.sql`(
-    (${a}."targetType" = 'POST' AND ${a}."targetId" IN (SELECT id FROM "Post" WHERE "authorId" = ${uid})) OR
-    (${a}."targetType" = 'PROJECT' AND ${a}."targetId" IN (SELECT id FROM "Project" WHERE "ownerId" = ${uid})) OR
-    (${a}."targetType" = 'TUTORIAL' AND ${a}."targetId" IN (SELECT id FROM "Tutorial" WHERE "authorId" = ${uid})) OR
-    (${a}."targetType" = 'ARTICLE' AND ${a}."targetId" IN (SELECT id FROM "BlogArticle" WHERE "authorId" = ${uid}))
-  )`;
+/**
+ * Interaktionen auf eigenen Inhalten zählen – von den eigenen Inhalten aus (Index auf authorId/ownerId)
+ * und dann per (targetType, targetId)-Index in die Interaktionstabelle. Eine OR-Bedingung über alle
+ * Inhaltsarten würde stattdessen alle Reaktionen/Kommentare/Lesezeichen durchsuchen.
+ */
+const OWNED: [string, string, string][] = [
+  ["POST", "Post", "authorId"],
+  ["PROJECT", "Project", "ownerId"],
+  ["TUTORIAL", "Tutorial", "authorId"],
+  ["ARTICLE", "BlogArticle", "authorId"],
+];
+
+async function ownedCount(table: string, alias: string, extra: Prisma.Sql, uid: string) {
+  const parts = OWNED.map(
+    ([type, model, owner]) =>
+      Prisma.sql`(SELECT count(*) FROM ${Prisma.raw(`"${model}"`)} t JOIN ${Prisma.raw(`"${table}"`)} ${Prisma.raw(alias)} ON ${Prisma.raw(alias)}."targetType" = ${Prisma.raw(`'${type}'`)} AND ${Prisma.raw(alias)}."targetId" = t.id WHERE t.${Prisma.raw(`"${owner}"`)} = ${uid} AND ${extra})`,
+  );
+  return count(Prisma.sql`SELECT (${Prisma.join(parts, " + ")})::bigint AS n`);
 }
 
 async function interactions(uid: string, from: Date, to: Date) {
   const [likes, comments, saves] = await Promise.all([
-    count(Prisma.sql`SELECT count(*)::bigint AS n FROM "Reaction" r WHERE r."createdAt" >= ${from} AND r."createdAt" < ${to} AND r."userId" <> ${uid} AND ${ownedTarget(uid, "r")}`),
-    count(Prisma.sql`SELECT count(*)::bigint AS n FROM "Comment" c WHERE c."createdAt" >= ${from} AND c."createdAt" < ${to} AND c."authorId" <> ${uid} AND c."state" = 'PUBLISHED' AND ${ownedTarget(uid, "c")}`),
-    count(Prisma.sql`SELECT count(*)::bigint AS n FROM "Bookmark" b WHERE b."createdAt" >= ${from} AND b."createdAt" < ${to} AND b."userId" <> ${uid} AND ${ownedTarget(uid, "b")}`),
+    ownedCount("Reaction", "r", Prisma.sql`r."createdAt" >= ${from} AND r."createdAt" < ${to} AND r."userId" <> ${uid}`, uid),
+    ownedCount("Comment", "c", Prisma.sql`c."createdAt" >= ${from} AND c."createdAt" < ${to} AND c."authorId" <> ${uid} AND c."state" = 'PUBLISHED'`, uid),
+    ownedCount("Bookmark", "b", Prisma.sql`b."createdAt" >= ${from} AND b."createdAt" < ${to} AND b."userId" <> ${uid}`, uid),
   ]);
   return { likes, comments, saves, total: likes + comments + saves };
 }

@@ -158,6 +158,23 @@ export async function baseFeedWhere(viewerId: string | null | undefined, opts: {
 
 export type FeedKind = "for-you" | "following" | "new";
 
+/**
+ * Beiträge, bei denen die Personen bestätigte Koautor:innen sind – vorab als ID-Liste geladen.
+ * `OR: [{ authorId }, { coauthors: { some } }]` würde Postgres zu einem Scan über alle Beiträge zwingen;
+ * mit `id IN (…)` greifen die Indizes (BitmapOr).
+ */
+export async function coauthoredPostIds(userIds: string[]) {
+  if (!userIds.length) return [];
+  const rows = await db.postCoauthor.findMany({ where: { status: "ACCEPTED", userId: { in: userIds } }, orderBy: { createdAt: "desc" }, take: 2000, select: { postId: true } });
+  return rows.map((r) => r.postId);
+}
+
+/** Bedingung „Autor:in oder bestätigte Koautor:in“ für Profil- und „Folge ich“-Feeds. */
+export async function byAuthorsWhere(userIds: string[]): Promise<Prisma.PostWhereInput[]> {
+  const co = await coauthoredPostIds(userIds);
+  return [{ authorId: { in: userIds } }, ...(co.length ? [{ id: { in: co } }] : [])];
+}
+
 export async function getFeed(kind: FeedKind, viewer: { id: string; interests: string[] } | null, cursor?: string | null) {
   const viewerId = viewer?.id ?? null;
   const base = await baseFeedWhere(viewerId);
@@ -172,8 +189,7 @@ export async function getFeed(kind: FeedKind, viewer: { id: string; interests: s
         ...base,
         ...communityFilter,
         OR: [
-          { authorId: { in: [...rel.following, viewerId] } },
-          { coauthors: { some: { status: "ACCEPTED", userId: { in: [...rel.following, viewerId] } } } },
+          ...(await byAuthorsWhere([...rel.following, viewerId])),
           ...(followedProjects.length ? [{ projectId: { in: followedProjects.map((p) => p.projectId) } }] : [])],
       },
       viewerId,

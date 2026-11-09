@@ -176,7 +176,7 @@ export const socialRoutes: RouteDef[] = [
       : await Promise.all([
           listProjects({ ownerId: userId, sort: "updated" }, vid, { take: 24 }),
           listTutorials({ authorId: userId }, vid, { take: 12 }),
-          posts.listPosts({ ...base, communityId: null, OR: [{ authorId: userId }, { coauthors: { some: { userId, status: "ACCEPTED" } } }] }, vid, { take: 12 }),
+          posts.byAuthorsWhere([userId]).then((or) => posts.listPosts({ ...base, communityId: null, OR: or }, vid, { take: 12 })),
           profile.user.shop?.status === "ACTIVE"
             ? db.product.findMany({
                 where: { shop: { ownerId: userId }, status: { in: ["ACTIVE", "SOLD_OUT"] } },
@@ -255,7 +255,7 @@ export const socialRoutes: RouteDef[] = [
     const vid = await viewerId();
     if (vid && vid !== prof.userId && (await isBlockedBetween(vid, prof.userId))) return { items: [], nextCursor: null };
     const base = await posts.baseFeedWhere(vid, { includeMuted: true });
-    return posts.listPosts({ ...base, communityId: null, OR: [{ authorId: prof.userId }, { coauthors: { some: { userId: prof.userId, status: "ACCEPTED" } } }] }, vid, { take: 20, cursor: str(c.q, "cursor") ?? null });
+    return posts.listPosts({ ...base, communityId: null, OR: await posts.byAuthorsWhere([prof.userId]) }, vid, { take: 20, cursor: str(c.q, "cursor") ?? null });
   }),
   GET("/users/:handle/blog", async (c) => {
     const h = need(await resolveHandle(c.p.handle!));

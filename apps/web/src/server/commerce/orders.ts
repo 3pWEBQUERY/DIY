@@ -8,7 +8,7 @@ import { notify } from "@/server/notifications";
 import { rateLimit } from "@/server/ratelimit";
 import type { SessionUser } from "@/server/auth/session";
 import { lockOrder, refreshSoldOut, restock } from "./inventory";
-import { initiateRefund } from "./payments";
+import { orderWith, initiateRefund } from "./payments";
 import { canReview, canSellerCancel, canTransition, refundableAmount, SELLER_ORDER_TABS } from "./rules";
 import { requireOwnShop } from "./shops";
 
@@ -229,7 +229,7 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
   const result = await db.$transaction(async (tx) => {
     const o = await requireSellerOrder(tx, user, orderId);
     if (!canSellerCancel(o.status, o.shipments.length > 0)) throw fail.conflict("Diese Bestellung kann nicht mehr storniert werden.");
-    const full = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { items: true, refunds: true, payments: { orderBy: { createdAt: "desc" }, take: 1 } } });
+    const full = (await orderWith(tx, orderId))!;
     for (const it of full.items) await restock(tx, it);
     await refreshSoldOut(tx, full.items.map((i) => i.productId));
     const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);

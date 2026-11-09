@@ -4,7 +4,7 @@ import { db, type Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { hasRole, communityRole } from "@/server/authz";
 import { rateLimit } from "@/server/ratelimit";
-import { notify } from "@/server/notifications";
+import { notify, notifyMany } from "@/server/notifications";
 import type { SessionUser } from "@/server/auth/session";
 import { canViewCommunityContent, isModRole, isMuted } from "./service";
 
@@ -235,9 +235,7 @@ export async function dropFutureAttendance(tx: Tx, communityId: string, userId: 
 /** Teilnehmende über Änderungen informieren (ohne die handelnde Person). */
 async function notifyAttendees(eventId: string, actorId: string, data: { message: string; href: string }) {
   const people = await db.eventAttendee.findMany({ where: { eventId, userId: { not: actorId } }, select: { userId: true } });
-  for (const p of people) {
-    await notify({ recipientId: p.userId, type: "COMMUNITY_INVITE", data: { kind: "event", ...data }, bundle: false }).catch(() => {});
-  }
+  await notifyMany(people.map((p) => p.userId), { type: "COMMUNITY_INVITE", data: { kind: "event", ...data }, bundle: false }).catch(() => {});
 }
 
 const when = (d: Date) => d.toLocaleString("de-CH", { timeZone: TZ, weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
@@ -309,9 +307,7 @@ export async function sendEventReminders() {
     const claimed = await db.communityEvent.updateMany({ where: { id: e.id, reminderSentAt: null }, data: { reminderSentAt: new Date() } });
     if (!claimed.count) continue;
     const going = await db.eventAttendee.findMany({ where: { eventId: e.id, status: "GOING" }, select: { userId: true } });
-    for (const g of going) {
-      await notify({ recipientId: g.userId, type: "COMMUNITY_INVITE", data: { kind: "event", message: `Erinnerung: „${e.title}“ beginnt ${when(e.startsAt)}.`, href: `/c/${e.community.slug}/events/${e.id}` }, bundle: false }).catch(() => {});
-    }
+    await notifyMany(going.map((g) => g.userId), { type: "COMMUNITY_INVITE", data: { kind: "event", message: `Erinnerung: „${e.title}“ beginnt ${when(e.startsAt)}.`, href: `/c/${e.community.slug}/events/${e.id}` }, bundle: false }).catch(() => {});
   }
   return due.length;
 }

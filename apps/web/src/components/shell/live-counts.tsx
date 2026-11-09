@@ -38,10 +38,14 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
   const [counts, setCounts] = useState<LiveCounts>(initial);
   const pathname = usePathname();
   const inflight = useRef(false);
+  // Läuft der Live-Stream, reicht ein seltener Abgleich (Ereignisse kommen ohnehin sofort)
+  const liveOk = useRef(false);
+  const lastLoad = useRef(0);
 
   const load = useCallback(async () => {
     if (!enabled || inflight.current) return;
     inflight.current = true;
+    lastLoad.current = Date.now();
     try {
       const r = await fetch("/api/v1/me/counts", { cache: "no-store", credentials: "same-origin" });
       if (r.ok) {
@@ -60,7 +64,11 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
 
   useEffect(() => {
     if (!enabled) return;
-    const tick = () => document.visibilityState === "visible" && void load();
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      if (liveOk.current && Date.now() - lastLoad.current < 120_000) return;
+      void load();
+    };
     const id = window.setInterval(tick, 15_000);
     const onVis = () => document.visibilityState === "visible" && void load();
     window.addEventListener("focus", onVis);
@@ -96,6 +104,8 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
     };
     const open = () => {
       es = new EventSource("/api/v1/stream");
+      es.onopen = () => (liveOk.current = true);
+      es.onerror = () => (liveOk.current = false);
       const relay = (type: string) => (ev: MessageEvent) => {
         try {
           window.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: { type, ...JSON.parse(ev.data) } }));
@@ -109,6 +119,7 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
     open();
     return () => {
       window.clearTimeout(debounce);
+      liveOk.current = false;
       es?.close();
     };
   }, [enabled, load]);

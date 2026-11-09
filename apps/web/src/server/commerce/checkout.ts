@@ -96,7 +96,10 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
 
     created = await db.$transaction(
       async (tx) => {
-        const cart = await tx.cart.findUnique({ where: { userId: user.id }, include: { items: { include: lineInclude, orderBy: { createdAt: "asc" } } } });
+        // Warenkorb über den normalen Pool lesen: das verschachtelte include fragt mehrere Relationen
+        // parallel ab, was auf der einen Transaktionsverbindung nicht geht. Bestand/Reservierung prüfen
+        // die atomaren Updates weiter unten ohnehin innerhalb der Transaktion.
+        const cart = await db.cart.findUnique({ where: { userId: user.id }, include: { items: { include: lineInclude, orderBy: { createdAt: "asc" } } } });
         const items = cart?.items ?? [];
         if (!items.length) throw fail.invalid("Dein Warenkorb ist leer.");
 

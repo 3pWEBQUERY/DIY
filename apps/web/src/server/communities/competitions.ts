@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import { hasRole, communityRole } from "@/server/authz";
 import { rateLimit } from "@/server/ratelimit";
-import { notify } from "@/server/notifications";
+import { notify, notifyMany } from "@/server/notifications";
 import { getProjectCards } from "@/server/projects/service";
 import type { SessionUser } from "@/server/auth/session";
 import { canViewCommunityContent, isModRole, isMuted } from "./service";
@@ -250,7 +250,7 @@ export async function publishJuryResult(user: SessionUser, challengeId: string, 
 /* ───────────────────────── Phasen (Worker) ───────────────────────── */
 
 async function tellAll(userIds: string[], message: string, href: string) {
-  for (const id of [...new Set(userIds)]) await notify({ recipientId: id, type: "PROJECT_ACTIVITY", bundle: false, data: { kind: "COMPETITION", message, href } }).catch(() => {});
+  await notifyMany(userIds, { type: "PROJECT_ACTIVITY", bundle: false, data: { kind: "COMPETITION", message, href } }).catch(() => {});
 }
 
 async function announceResults(challengeId: string) {
@@ -298,9 +298,7 @@ async function announceStart(now: Date) {
         ...(cursor ? { cursor: { communityId_userId: { communityId: ch.communityId, userId: cursor } }, skip: 1 } : {}),
         select: { userId: true },
       });
-      for (const m of members) {
-        await notify({ recipientId: m.userId, type: "PROJECT_ACTIVITY", bundle: false, data: { kind: "COMPETITION", message: `Neuer Wettbewerb in ${ch.community.name}: „${ch.title}“ – Einreichung bis ${until}.`, href } }).catch(() => {});
-      }
+      await notifyMany(members.map((m) => m.userId), { type: "PROJECT_ACTIVITY", bundle: false, data: { kind: "COMPETITION", message: `Neuer Wettbewerb in ${ch.community.name}: „${ch.title}“ – Einreichung bis ${until}.`, href } }).catch(() => {});
       if (members.length < 500) break;
       cursor = members.at(-1)!.userId;
     }

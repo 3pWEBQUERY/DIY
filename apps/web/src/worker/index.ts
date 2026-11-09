@@ -10,10 +10,10 @@
  */
 import "dotenv/config";
 import { PgBoss } from "pg-boss";
-import { db } from "@/server/db";
+import { db, Prisma } from "@/server/db";
 import { sendEmails } from "@/server/notifications-mail";
 import { processMedia } from "@/server/media/process";
-import { notify } from "@/server/notifications";
+import { notify, notifyMany } from "@/server/notifications";
 import { storage } from "@/server/storage";
 import { track, isQualifiedComment } from "@/server/analytics/service";
 import { deliverPendingPushes } from "@/server/push/service";
@@ -130,9 +130,7 @@ async function fanoutPost(postId: string, authorId: string) {
   for (;;) {
     const followers = await db.follow.findMany({ where: { followeeId: authorId }, select: { followerId: true }, take: 500, ...(cursor ? { cursor: { followerId_followeeId: { followerId: cursor, followeeId: authorId } }, skip: 1 } : {}) });
     if (!followers.length) break;
-    for (const f of followers) {
-      await notify({ recipientId: f.followerId, type: "NEW_POST_FROM_FOLLOWED", actorId: authorId, targetType: "USER", targetId: authorId, data: { href: `/beitrag/${postId}`, handle: post.author.profile?.handle } });
-    }
+    await notifyMany(followers.map((f) => f.followerId), { type: "NEW_POST_FROM_FOLLOWED", actorId: authorId, targetType: "USER", targetId: authorId, data: { href: `/beitrag/${postId}`, handle: post.author.profile?.handle } });
     cursor = followers[followers.length - 1]!.followerId;
     if (followers.length < 500) break;
   }
@@ -171,7 +169,21 @@ async function cleanup() {
   // Fehlerüberwachung: Einzelvorkommen 30 Tage, erledigte Fehlergruppen 90 Tage
   const errs = await db.errorOccurrence.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 30 * day) } } });
   await db.errorGroup.deleteMany({ where: { resolvedAt: { not: null }, lastSeenAt: { lt: new Date(Date.now() - 90 * day) } } });
-  log("cleanup", { errors: errs.count, media: stale.length, sessions: sessions.count, tokens: tokens.count, buckets: buckets.count, idem: idem.count });
+  // Wachsende Hilfstabellen begrenzen (in Häppchen, damit keine langen Sperren entstehen)
+  const batchDelete = async (sql: Prisma.Sql) => {
+    let total = 0;
+    for (let i = 0; i < 50; i++) {
+      const n = await db.$executeRaw(sql);
+      total += n;
+      if (n < 5000) break;
+    }
+    return total;
+  };
+  const outbox = await batchDelete(Prisma.sql`DELETE FROM "OutboxEvent" WHERE id IN (SELECT id FROM "OutboxEvent" WHERE "publishedAt" < now() - interval '7 days' LIMIT 5000)`);
+  const webhooks = await batchDelete(Prisma.sql`DELETE FROM "WebhookEvent" WHERE id IN (SELECT id FROM "WebhookEvent" WHERE "processedAt" IS NOT NULL AND "createdAt" < now() - interval '30 days' LIMIT 5000)`);
+  // Gelesene Benachrichtigungen nach 180 Tagen (ungelesene bleiben)
+  const notes = await batchDelete(Prisma.sql`DELETE FROM "Notification" WHERE id IN (SELECT id FROM "Notification" WHERE "readAt" < now() - interval '180 days' LIMIT 5000)`);
+  log("cleanup", { errors: errs.count, media: stale.length, sessions: sessions.count, tokens: tokens.count, buckets: buckets.count, idem: idem.count, outbox, webhooks, notifications: notes });
 }
 
 async function optional<T>(path: string, fn: string): Promise<(() => Promise<T>) | null> {
@@ -211,7 +223,7 @@ async function waitForMigrations() {
 
 async function main() {
   await waitForMigrations();
-  const boss = new PgBoss({ connectionString: process.env.DATABASE_URL!, schema: "pgboss" });
+  const boss = new PgBoss({ connectionString: process.env.DATABASE_URL!, schema: "pgboss", max: 3 });
   boss.on("error", (e) => warn("pgboss_error", { err: String(e) }));
   await boss.start();
   for (const q of Object.values(Q)) await boss.createQueue(q).catch(() => {});

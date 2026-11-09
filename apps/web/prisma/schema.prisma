@@ -519,6 +519,7 @@ model Post {
   @@index([communityId, isPinned, publishedAt])
   @@index([projectId])
   @@index([state, scheduledAt])
+  @@index([repostOfId])
 }
 
 model PostMedia {
@@ -579,6 +580,8 @@ model Follow {
 
   @@id([followerId, followeeId])
   @@index([followeeId])
+  @@index([followeeId, createdAt])
+  @@index([followerId, createdAt])
 }
 
 model ProjectFollow {
@@ -642,6 +645,8 @@ model Notification {
   @@index([recipientId, readAt, updatedAt])
   @@index([recipientId, groupKey])
   @@index([pushedAt, updatedAt])
+  @@index([actorId])
+  @@index([recipientId, updatedAt])
 }
 
 /// Gerät für iOS-Push (APNs), an die Sitzung gebunden: Abmelden/Widerruf beendet den Versand (PRD §19.2).
@@ -802,6 +807,7 @@ model ProjectUpdate {
   post      Post?
 
   @@index([projectId, happenedAt])
+  @@index([authorId])
 }
 
 model ProjectMaterial {
@@ -899,6 +905,8 @@ model Tutorial {
   search         Unsupported("tsvector")? // generiert, siehe Migration init
   @@index([state, publishedAt])
   @@index([category, difficulty])
+  @@index([projectId])
+  @@index([authorId])
 }
 
 model TutorialVersion {
@@ -1052,6 +1060,7 @@ model ArticleProject {
   project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@id([articleId, projectId])
+  @@index([projectId])
 }
 
 // ───────────────────────────── Communities ─────────────────────────────
@@ -1186,6 +1195,7 @@ model ChallengeEntry {
 
   @@unique([challengeId, userId])
   @@index([challengeId, state])
+  @@index([userId, state])
 }
 
 model ChallengeVote {
@@ -1358,6 +1368,7 @@ model Product {
   @@unique([shopId, slug])
   @@index([status, category, publishedAt])
   @@index([priceMinor])
+  @@index([projectId])
 }
 
 model ProductVariant {
@@ -1371,6 +1382,7 @@ model ProductVariant {
   inventory       InventoryItem?
   orderItems      OrderItem[]
   cartItems       CartItem[]
+  @@index([productId])
 }
 
 model ProductMedia {
@@ -1478,6 +1490,7 @@ model OrderItem {
   isDigital   Boolean         @default(false)
 
   review      Review?
+  @@index([orderId])
 }
 
 model OrderEvent {
@@ -1521,6 +1534,7 @@ model Refund {
   requestedBy String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  @@index([orderId])
 }
 
 model Shipment {
@@ -1532,6 +1546,7 @@ model Shipment {
   trackingUrl String?
   shippedAt   DateTime  @default(now())
   deliveredAt DateTime?
+  @@index([orderId])
 }
 
 model Review {
@@ -1553,6 +1568,7 @@ model Review {
   updatedAt   DateTime     @updatedAt
 
   @@index([productId, createdAt])
+  @@index([orderId])
 }
 
 model DigitalEntitlement {
@@ -1588,6 +1604,7 @@ model PayoutRecord {
   notified    String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
+  @@index([shopId, createdAt])
 }
 
 /// Eingehende Provider-Webhooks – Idempotenz über eindeutige Event-ID (§13.6).
@@ -1881,12 +1898,14 @@ model AnalyticsEvent {
 
   @@index([name, createdAt])
   @@index([ownerId, name, createdAt])
+  @@index([userId, createdAt])
 }
 
 model RateLimitBucket {
   key       String   @id
   count     Int
   resetAt   DateTime
+  @@index([resetAt])
 }
 
 /// Fehlerüberwachung: gleichartige Fehler werden über einen Fingerabdruck gruppiert.

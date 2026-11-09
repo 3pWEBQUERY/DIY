@@ -31,19 +31,33 @@ function itemsTitle(items: { title: string }[]) {
   return items.length === 1 ? items[0]!.title : `${items[0]!.title} und ${items.length - 1} weitere`;
 }
 
+/**
+ * Bestellung mit Relationen in einer Transaktion laden – nacheinander statt per verschachteltem include:
+ * Prisma würde mehrere Relationen sonst parallel auf derselben Transaktionsverbindung abfragen
+ * (pg-Warnung „client.query() when the client is already executing a query“, ab pg@9 ein Fehler).
+ */
+async function orderWith(tx: Tx, orderId: string) {
+  const order = await tx.order.findUnique({ where: { id: orderId } });
+  if (!order) return null;
+  const items = await tx.orderItem.findMany({ where: { orderId } });
+  const payments = await tx.payment.findMany({ where: { orderId }, orderBy: { createdAt: "desc" } });
+  const refunds = await tx.refund.findMany({ where: { orderId } });
+  const shop = await tx.shop.findUniqueOrThrow({ where: { id: order.shopId }, select: { id: true, ownerId: true } });
+  return { ...order, items, payments, refunds, shop };
+}
+
 /* ───────────────────────── Zahlung erfolgreich ───────────────────────── */
 
 export type PaidInput = { provider: "stripe" | "simulated"; providerRef: string; amountMinor: number; currency: string };
+
+export { orderWith };
 
 export async function markOrderPaid(orderId: string, input: PaidInput): Promise<"paid" | "duplicate" | "unknown" | "refunded"> {
   try {
     return await db.$transaction(
       async (tx) => {
         await lockOrder(tx, orderId);
-        const order = await tx.order.findUnique({
-          where: { id: orderId },
-          include: { items: true, payments: { orderBy: { createdAt: "desc" } }, shop: { select: { id: true, ownerId: true } } },
-        });
+        const order = await orderWith(tx, orderId);
         if (!order) return "unknown" as const;
         const payment = order.payments[0];
         if (order.paidAt || payment?.status === "SUCCEEDED" || payment?.status === "PARTIALLY_REFUNDED" || payment?.status === "REFUNDED") {
@@ -126,7 +140,7 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
 async function refundUnfulfillable(orderId: string, input: PaidInput) {
   const order = await db.$transaction(async (tx) => {
     await cancelPendingOrderTx(tx, orderId, { paymentStatus: "CANCELLED", note: "Zahlung zu spät – Artikel nicht mehr verfügbar" });
-    const o = await tx.order.findUniqueOrThrow({ where: { id: orderId }, include: { payments: { orderBy: { createdAt: "desc" }, take: 1 }, items: { select: { title: true } } } });
+    const o = (await orderWith(tx, orderId))!;
     const p = o.payments[0];
     if (p) await tx.payment.update({ where: { id: p.id }, data: { status: "SUCCEEDED", provider: input.provider, providerRef: input.providerRef } });
     else await tx.payment.create({ data: { orderId, provider: input.provider, providerRef: input.providerRef, status: "SUCCEEDED", amountMinor: input.amountMinor, currency: o.currency, applicationFeeMinor: o.platformFeeMinor } });
@@ -184,7 +198,7 @@ export async function markPaymentFailed(orderId: string, opts: { kind: "failed" 
 export async function initiateRefund(orderId: string, input: { amountMinor: number; reason: string; actorId: string | null; system?: boolean }) {
   const prepared = await db.$transaction(async (tx) => {
     await lockOrder(tx, orderId);
-    const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: { orderBy: { createdAt: "desc" }, take: 1 }, refunds: true } });
+    const order = await orderWith(tx, orderId);
     if (!order) throw fail.notFound();
     const payment = order.payments[0];
     if (!payment || !payment.providerRef || !["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status)) {
@@ -224,7 +238,7 @@ type RefundUpdate = { providerRef: string; amountMinor: number; status: "PENDING
 export async function applyRefunds(orderId: string, updates: RefundUpdate[]) {
   await db.$transaction(async (tx) => {
     await lockOrder(tx, orderId);
-    const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: { orderBy: { createdAt: "desc" }, take: 1 }, refunds: true, items: { select: { id: true, title: true, isDigital: true } } } });
+    const order = await orderWith(tx, orderId);
     if (!order) return;
     const newlySucceeded: number[] = [];
     for (const u of updates) {

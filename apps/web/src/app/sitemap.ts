@@ -5,7 +5,18 @@ import { db } from "@/server/db";
 export const dynamic = "force-dynamic";
 
 /** Sitemap öffentlicher, indexierbarer Inhalte (§14.5). */
+// Höchstens einmal pro Stunde neu berechnen – Crawler rufen die Sitemap oft ab, und jede Berechnung
+// liest bis zu 160'000 Zeilen (würde den Datenbank-Pool belegen)
+let cache: { at: number; data: MetadataRoute.Sitemap } | null = null;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (cache && Date.now() - cache.at < 3600_000) return cache.data;
+  const data = await build();
+  if (data.length > 20) cache = { at: Date.now(), data };
+  return data;
+}
+
+async function build(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.APP_URL ?? "http://localhost:3000";
   const u = (p: string) => `${base}${p}`;
   const staticPages = ["/", "/entdecken", "/projekte", "/anleitungen", "/communities", "/markt", "/blogs", "/materialien", "/wettbewerbe", "/events", "/hilfe", "/richtlinien/community", "/richtlinien/marktplatz", "/richtlinien/sicherheit", "/richtlinien/urheberrecht", "/rechtliches/datenschutz", "/rechtliches/agb", "/rechtliches/impressum"].map((p) => ({ url: u(p), changeFrequency: "daily" as const, priority: p === "/" ? 1 : 0.7 }));
