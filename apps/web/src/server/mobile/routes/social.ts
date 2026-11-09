@@ -17,6 +17,17 @@ import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingD
 import { decodeFollowCursor, encodeFollowCursor } from "../params";
 import { DELETE, GET, PATCH, POST, me, need, str, takeParam, viewer, viewerId, zBool, zIds, zStr, type RouteDef } from "../router";
 
+/**
+ * Kommentarliste für die App. Ohne `paged=1`/`cursor` wie bisher nur die erste Seite als Liste
+ * (ältere App-Versionen dekodieren ein Array); mit `paged=1` bzw. `cursor` → `{ items, nextCursor }`
+ * für „Ältere Kommentare laden“.
+ */
+export async function commentsResponse(type: "POST" | "PROJECT" | "TUTORIAL" | "ARTICLE", id: string, q: URLSearchParams) {
+  const cursor = str(q, "cursor") ?? null;
+  const page = await ix.listCommentPage(type, id, await viewerId(), cursor);
+  return cursor || q.get("paged") === "1" || q.get("paged") === "true" ? page : page.items;
+}
+
 const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW"]);
 
 /** Feed, Beiträge, Interaktionen, Profile (PRD §9, §12). */
@@ -35,7 +46,7 @@ export const socialRoutes: RouteDef[] = [
       activeProjectsOf(u.id),
       suggestedCreators(u.id, interests, 6),
       suggestedCommunities(u.id, interests, 4),
-      trendingProjects(5),
+      trendingProjects(5, u.id),
       relationsFor(u.id),
       db.project.findMany({ where: { ownerId: u.id, state: { not: "REMOVED" } }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true } }),
       categoryOptions(),
@@ -117,7 +128,7 @@ export const socialRoutes: RouteDef[] = [
     const t = z.enum(["POST", "PROJECT", "TUTORIAL", "ARTICLE"]).safeParse(c.q.get("type"));
     const id = str(c.q, "id");
     if (!t.success || !id) throw fail.invalid("type und id erforderlich");
-    return ix.listComments(t.data, id, await viewerId());
+    return commentsResponse(t.data, id, c.q);
   }),
   POST("/comments", async (c) => {
     const b = z.object({ type: z.enum(["POST", "PROJECT", "TUTORIAL", "ARTICLE"]), id: z.string(), body: z.string(), parentId: z.string().optional() }).parse(await c.json());

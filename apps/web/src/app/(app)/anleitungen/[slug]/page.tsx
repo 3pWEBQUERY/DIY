@@ -254,7 +254,7 @@ export default async function TutorialPage({ params }: Params) {
         <section id="fragen" aria-labelledby="h-fragen" className="min-w-0">
           <SectionTitle n={no()} title={<span id="h-fragen">Fragen zur Anleitung</span>} />
           <div className="mt-6 max-w-[68ch]">
-            <Comments targetType="TUTORIAL" targetId={t.id} initial={t.comments} viewer={viewer} questionsMode placeholder="Frage zu einem Schritt stellen …" />
+            <Comments targetType="TUTORIAL" targetId={t.id} initial={t.comments} initialCursor={t.commentsCursor} viewer={viewer} questionsMode placeholder="Frage zu einem Schritt stellen …" />
           </div>
         </section>
 

@@ -50,10 +50,18 @@ export async function activeProjectsOf(userId: string, take = 3) {
   });
 }
 
-export async function trendingProjects(take = 4) {
+/** Gefragte Projekte der letzten zwei Wochen – ohne blockierte Personen und gesperrte Konten. */
+export async function trendingProjects(take = 4, viewerId: string | null = null) {
   const since = new Date(Date.now() - 14 * 86400_000);
+  const rel = await relationsFor(viewerId);
   return db.project.findMany({
-    where: { state: "PUBLISHED", visibility: "PUBLIC", updatedAt: { gte: since } },
+    where: {
+      state: "PUBLISHED",
+      visibility: "PUBLIC",
+      updatedAt: { gte: since },
+      owner: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+      ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}),
+    },
     orderBy: [{ saveCount: "desc" }, { likeCount: "desc" }, { updatedAt: "desc" }],
     take,
     select: { id: true, slug: true, title: true, category: true, coverUrl: true, difficulty: true, status: true, owner: { select: { profile: { select: { handle: true, displayName: true } } } } },

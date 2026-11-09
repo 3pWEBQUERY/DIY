@@ -13,7 +13,7 @@ import { hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
 import { attachMedia, mediaCoverUrl } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
-import { listComments } from "@/server/social/interactions";
+import { listCommentPage } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 
@@ -566,7 +566,7 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
   const blocked = new Set(rel.blocked);
   const handle = p.owner.profile?.handle ?? "unbekannt";
 
-  const [viewer, posts, comments] = await Promise.all([
+  const [viewer, posts, commentPage] = await Promise.all([
     viewerId
       ? Promise.all([
           db.reaction.findFirst({ where: { userId: viewerId, targetType: "PROJECT", targetId: p.id }, select: { userId: true } }),
@@ -581,7 +581,7 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
       take: 6,
       select: { id: true, body: true, kind: true, publishedAt: true },
     }),
-    listComments("PROJECT", p.id, viewerId),
+    listCommentPage("PROJECT", p.id, viewerId),
   ]);
 
   // Original (falls Nachbau)
@@ -678,7 +678,9 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
     remixOfUnavailable,
     remixNote: p.remixNote,
     remixes,
-    comments,
+    comments: commentPage.items,
+    /** Cursor für ältere Kommentare (null = alle geladen) */
+    commentsCursor: commentPage.nextCursor,
     viewer: { ...viewer, isOwner },
   };
 }

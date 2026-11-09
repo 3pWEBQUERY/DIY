@@ -11,6 +11,7 @@ import { attachMedia } from "@/server/media/service";
 import type { SessionUser } from "@/server/auth/session";
 import { publish } from "@/server/realtime/bus";
 import { requireFlag } from "@/server/flags";
+import { detectSuspiciousPayment } from "./suspicious";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -25,28 +26,7 @@ const MAX_UNANSWERED_REQUEST_MESSAGES = 3;
 
 // ───────────────────────── Verdächtige Zahlungshinweise ─────────────────────────
 
-const SUSPICIOUS_PATTERNS: RegExp[] = [
-  /\btwint\b/i,
-  /paypal\.me\b/i,
-  /\bpaypal\b[^.\n]{0,40}\b(freunde|friends|family|familie)\b/i,
-  /\biban\b/i,
-  /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b/,
-  /western\s*union/i,
-  /moneygram/i,
-  /\b(?:bezahl|zahl)\w*\s+(?:(?:lieber|direkt|einfach|bitte)\s+)*(?:ausserhalb|privat|direkt|per\s+überweisung|vorab)/i,
-  /ausserhalb\s+(?:der\s+|von\s+)?(?:plattform|werkraum|app|website|seite)/i,
-  /\bvorkasse\b/i,
-  /\b(?:bit\.ly|tinyurl\.com|t\.ly|cutt\.ly|rb\.gy|is\.gd|shorturl\.at|goo\.gl)\b/i,
-  /\bwa\.me\//i,
-  /\b(?:bitcoin|btc|usdt|krypto\w*|crypto)\b/i,
-  /\b(?:google[- ]?play|itunes|apple|amazon|paysafe)[- ]?(?:karte|card|gutschein|code)\b/i,
-  /\brevolut\.me\b/i,
-];
-
-export function detectSuspiciousPayment(text: string) {
-  const t = text.normalize("NFKC");
-  return SUSPICIOUS_PATTERNS.some((r) => r.test(t));
-}
+export { detectSuspiciousPayment } from "./suspicious";
 
 function flagsFor(body: string) {
   return detectSuspiciousPayment(body) ? ["SUSPICIOUS_PAYMENT_LINK"] : [];
@@ -173,7 +153,13 @@ export async function inboxCounts(userId: string) {
       JOIN "Conversation" c ON c.id = cm."conversationId"
       WHERE cm."userId" = ${userId} AND cm."archivedAt" IS NULL AND cm."isRequest" = false
         AND (cm."lastReadAt" IS NULL OR cm."lastReadAt" < c."lastMessageAt")
-        AND EXISTS (SELECT 1 FROM "Message" m WHERE m."conversationId" = c.id AND m."senderId" <> ${userId})`.then((r) => Number(r[0]?.n ?? 0)),
+        AND EXISTS (SELECT 1 FROM "Message" m WHERE m."conversationId" = c.id AND m."senderId" <> ${userId})
+        ${
+          // Wie im Posteingang: Einzelgespräche mit blockierten Personen zählen nicht (Gruppen schon)
+          rel.blocked.length
+            ? Prisma.sql`AND (c.kind = 'GROUP' OR NOT EXISTS (SELECT 1 FROM "ConversationMember" o WHERE o."conversationId" = c.id AND o."userId" IN (${Prisma.join(rel.blocked)})))`
+            : Prisma.empty
+        }`.then((r) => Number(r[0]?.n ?? 0)),
   ]);
   return { requests, unread };
 }

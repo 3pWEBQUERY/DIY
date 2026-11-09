@@ -60,10 +60,11 @@ export async function deleteCommentAction(id: string) {
   }, "Kommentar entfernt.");
 }
 
-export async function listCommentsAction(type: TargetType, id: string) {
+/** Kommentare seitenweise: ohne Cursor die neuesten, mit Cursor die nächstälteren. */
+export async function listCommentsAction(type: TargetType, id: string, cursor?: string | null) {
   const { currentUser } = await import("@/server/auth/session");
   const u = await currentUser();
-  return ix.listComments(type, id, u?.id ?? null);
+  return ix.listCommentPage(type, id, u?.id ?? null, cursor ?? null);
 }
 
 export async function followAction(userId: string, follow: boolean) {

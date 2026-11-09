@@ -11,7 +11,7 @@ import { search, SEARCH_TYPES, type SearchType } from "@/server/discovery/search
 import { suggestedCommunities, suggestedCreators } from "@/server/discovery/suggestions";
 import { browseCategories, categoryOptions, effectiveCategories, effectiveCategory } from "@/server/categories/settings";
 import { baseFeedWhere, listPosts } from "@/server/social/posts";
-import { listComments } from "@/server/social/interactions";
+import { commentsResponse } from "./social";
 import { recordView } from "@/server/analytics/service";
 import { z } from "zod";
 import { DELETE, GET, PATCH, POST, PUT, bool, int, me, need, pageParam, str, takeParam, viewer, viewerId, zBool, zId, type RouteDef } from "../router";
@@ -130,7 +130,7 @@ export const contentRoutes: RouteDef[] = [
     return { ...(need(data, "Projekt nicht gefunden.") as object), categories };
   }),
   GET("/projects/remix-source/:id", async (c) => need(await projects.getRemixSource((await me()).id, c.p.id!), "Projekt nicht gefunden.")),
-  GET("/projects/:id/comments", async (c) => listComments("PROJECT", c.p.id!, await viewerId())),
+  GET("/projects/:id/comments", async (c) => commentsResponse("PROJECT", c.p.id!, c.q)),
   POST("/projects", async (c) => projects.createProject(await me(), await c.json())),
   PUT("/projects/:id", async (c) => projects.updateProject(await me(), c.p.id!, await c.json())),
   DELETE("/projects/:id", async (c) => {
@@ -168,7 +168,7 @@ export const contentRoutes: RouteDef[] = [
     const page = need(await tutorials.getTutorialPage(c.p.slug!, vid), "Anleitung nicht gefunden.");
     return page;
   }),
-  GET("/tutorials/:id/comments", async (c) => listComments("TUTORIAL", c.p.id!, await viewerId())),
+  GET("/tutorials/:id/comments", async (c) => commentsResponse("TUTORIAL", c.p.id!, c.q)),
   GET("/tutorials/:id/edit", async (c) => {
     const u = await me();
     const [data, projectOptions, categories] = await Promise.all([tutorials.getTutorialForEdit(u, c.p.id!), projects.listOwnProjectOptions(u.id), categoryOptions()]);

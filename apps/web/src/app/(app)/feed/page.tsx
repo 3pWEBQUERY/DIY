@@ -40,7 +40,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     activeProjectsOf(user.id),
     suggestedCreators(user.id, interests, 4),
     suggestedCommunities(user.id, interests, 3),
-    trendingProjects(3),
+    trendingProjects(3, user.id),
     relationsFor(user.id),
   ]);
   const projectOptions = await db.project.findMany({ where: { ownerId: user.id, state: { not: "REMOVED" } }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true } });

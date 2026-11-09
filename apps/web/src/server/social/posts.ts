@@ -265,12 +265,21 @@ function deriveKind(p: PostCreateInput, hasProject: boolean) {
   return p.media.length ? ("MEDIA" as const) : ("TEXT" as const);
 }
 
-/** Erwähnungen @handle → Benachrichtigungen. */
-async function notifyMentions(body: string, actorId: string, postId: string) {
+/**
+ * Erwähnungen @handle → Benachrichtigungen. Nur an Personen, die den Beitrag auch sehen dürfen
+ * (sonst verrät die Benachrichtigung Nur-Follower-Beiträge oder Beiträge privater Communities).
+ */
+export async function notifyMentions(body: string, actorId: string, postId: string) {
   const handles = [...new Set([...body.matchAll(/(^|\s)@([a-z0-9._]{3,24})/g)].map((m) => m[2]!))].slice(0, 10);
   if (!handles.length) return;
-  const users = await db.userProfile.findMany({ where: { handle: { in: handles } }, select: { userId: true } });
-  for (const u of users) await notify({ recipientId: u.userId, type: "MENTION", actorId, targetType: "POST", targetId: postId, bundle: false });
+  const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true, communityId: true } });
+  if (!post) return;
+  const users = await db.userProfile.findMany({ where: { handle: { in: handles }, userId: { not: actorId } }, select: { userId: true } });
+  for (const u of users) {
+    if (!(await canViewContent(u.userId, { ownerId: post.authorId, visibility: post.visibility, state: post.state }))) continue;
+    if (post.communityId && !(await canViewCommunityContentOf(post.communityId, u.userId))) continue;
+    await notify({ recipientId: u.userId, type: "MENTION", actorId, targetType: "POST", targetId: postId, bundle: false });
+  }
 }
 
 export async function createPost(user: SessionUser, input: unknown, extra: { communityId?: string; tutorialId?: string; articleId?: string; productId?: string; projectUpdateId?: string } = {}) {
@@ -352,6 +361,8 @@ export async function updatePost(
   const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, repostOfId: true, communityId: true } });
   if (!post || post.state === "REMOVED") throw fail.notFound();
   if (post.authorId !== user.id) throw fail.forbidden();
+  // Gesperrte oder stummgeschaltete Mitglieder können auch alte Community-Beiträge nicht umschreiben
+  if (post.communityId) await assertNotSilencedInCommunity(post.communityId, user.id);
   const data = postCreateSchema.parse({ ...input, media: input.media ?? [], repostOfId: post.repostOfId ?? undefined, projectId: input.projectId ?? undefined });
   await assertCategoryAllowed(data.category, (await db.post.findUnique({ where: { id: postId }, select: { category: true } }))?.category);
   if (input.projectId) {
@@ -426,17 +437,27 @@ export async function deletePost(user: SessionUser, postId: string) {
   ]);
 }
 
-/** Beiträge privater Communities sind nur für aktive Mitglieder sichtbar (§15.1). */
+/**
+ * Beiträge privater Communities sind nur für aktive Mitglieder sichtbar (§15.1). Von der Plattform
+ * ausgeblendete Communities (HIDDEN) nur noch für Mitglieder und Moderation – wie `canViewCommunityPost`.
+ */
 export async function canViewCommunityContentOf(communityId: string, viewerId: string | null) {
   const c = await db.community.findUnique({ where: { id: communityId }, select: { visibility: true, state: true } });
   if (!c || c.state === "REMOVED") return false;
-  if (c.visibility !== "PRIVATE") return true;
+  if (c.visibility !== "PRIVATE" && c.state === "PUBLISHED") return true;
   if (!viewerId) return false;
   // Plattform-Moderation nur mit aktiver Zwei-Faktor-Anmeldung (wie im Admin-Bereich)
   const viewer = await db.user.findUnique({ where: { id: viewerId }, select: { role: true, totpEnabledAt: true } });
   if (viewer && hasRole(viewer, "PLATFORM_MODERATOR")) return true;
   const m = await db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId: viewerId } }, select: { state: true } });
   return m?.state === "ACTIVE";
+}
+
+/** Schreibsperre in einer Community: gesperrt (BANNED) oder derzeit stummgeschaltet. */
+export async function assertNotSilencedInCommunity(communityId: string, userId: string) {
+  const m = await db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId } }, select: { state: true, mutedUntil: true } });
+  if (m?.state === "BANNED") throw fail.forbidden("Du bist in dieser Community gesperrt.");
+  if (m?.mutedUntil && m.mutedUntil > new Date()) throw fail.forbidden("Du bist in dieser Community derzeit stummgeschaltet.");
 }
 
 export async function getPostForViewer(postId: string, viewerId: string | null) {

@@ -285,7 +285,7 @@ export default async function ProjectPage({ params }: Params) {
           <section id="fragen" aria-labelledby="h-fragen">
             <SectionTitle n={no()} title={<span id="h-fragen">Fragen & Kommentare</span>} action={p.counts.comments > 0 ? <span className="spec">{p.counts.comments}</span> : undefined} />
             <div className="mt-6 max-w-[68ch]">
-              <Comments targetType="PROJECT" targetId={p.id} initial={p.comments} viewer={viewer} questionsMode placeholder="Frage stellen oder Feedback geben …" />
+              <Comments targetType="PROJECT" targetId={p.id} initial={p.comments} initialCursor={p.commentsCursor} viewer={viewer} questionsMode placeholder="Frage stellen oder Feedback geben …" />
             </div>
           </section>
 

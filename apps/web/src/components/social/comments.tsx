@@ -17,6 +17,7 @@ export function Comments({
   targetType,
   targetId,
   initial,
+  initialCursor = null,
   viewer,
   placeholder = "Kommentieren …",
   questionsMode,
@@ -25,6 +26,8 @@ export function Comments({
   targetType: TargetType;
   targetId: string;
   initial?: CommentView[];
+  /** Cursor zu älteren Kommentaren, falls `initial` nur die neueste Seite ist */
+  initialCursor?: string | null;
   viewer: { id: string; displayName: string; avatarUrl: string | null } | null;
   placeholder?: string;
   questionsMode?: boolean;
@@ -32,13 +35,38 @@ export function Comments({
   canModerate?: boolean;
 }) {
   const [items, setItems] = useState<CommentView[] | null>(initial ?? null);
+  const [cursor, setCursor] = useState<string | null>(initial ? initialCursor : null);
+  // Anzahl geladener Seiten – nach Senden/Löschen werden genau so viele neu geladen
+  const [pages, setPages] = useState(1);
   const [, start] = useTransition();
+  const [loadingOlder, startOlder] = useTransition();
 
-  const reload = () => start(async () => setItems(await listCommentsAction(targetType, targetId)));
+  const reload = () =>
+    start(async () => {
+      let r = await listCommentsAction(targetType, targetId);
+      let all = r.items;
+      for (let i = 1; i < pages && r.nextCursor; i++) {
+        r = await listCommentsAction(targetType, targetId, r.nextCursor);
+        all = [...r.items, ...all];
+      }
+      setItems(all);
+      setCursor(r.nextCursor);
+    });
+  const loadOlder = () =>
+    cursor &&
+    startOlder(async () => {
+      const r = await listCommentsAction(targetType, targetId, cursor);
+      setItems((prev) => [...r.items, ...(prev ?? [])]);
+      setCursor(r.nextCursor);
+      setPages((n) => n + 1);
+    });
   useEffect(() => {
     if (!initial) reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetId]);
+  // Als Lösung markierte Kommentare bleiben oben, danach chronologisch (ältere Seiten davor)
+  const answers = items?.filter((c) => c.isAnswer) ?? [];
+  const rest = items?.filter((c) => !c.isAnswer) ?? [];
 
   return (
     <div>
@@ -52,7 +80,17 @@ export function Comments({
       <ul className="mt-5 space-y-5">
         {items === null && <li className="spec">Lade Kommentare …</li>}
         {items?.length === 0 && <li className="text-sm text-muted">{questionsMode ? "Noch keine Fragen. Was möchtest du wissen?" : "Noch keine Kommentare. Sag als Erste:r etwas Nettes."}</li>}
-        {items?.map((c) => (
+        {answers.map((c) => (
+          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} />
+        ))}
+        {cursor && (
+          <li>
+            <Button variant="ghost" size="sm" onClick={loadOlder} disabled={loadingOlder}>
+              {loadingOlder ? "Lade …" : questionsMode ? "Ältere Fragen laden" : "Ältere Kommentare laden"}
+            </Button>
+          </li>
+        )}
+        {rest.map((c) => (
           <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} />
         ))}
       </ul>
