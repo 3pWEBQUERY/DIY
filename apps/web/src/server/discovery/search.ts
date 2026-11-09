@@ -1,6 +1,8 @@
 import "server-only";
 import { db, Prisma } from "@/server/db";
 import { relationsFor } from "@/server/visibility";
+import { rateLimit } from "@/server/ratelimit";
+import { clientIpHash } from "@/server/auth/session";
 
 /**
  * Globale Suche (PRD §18) auf Postgres: Volltext (deutsch, unaccent) + Trigramm-Ähnlichkeit
@@ -31,6 +33,8 @@ function tsQuery(q: string) {
 }
 
 export async function search(f: SearchFilters, viewerId: string | null): Promise<Record<SearchType, SearchHit[]>> {
+  // Volltext- und Ähnlichkeitssuche über viele Tabellen ist teuer → je Person bzw. IP begrenzen
+  await rateLimit(`search:${viewerId ?? (await clientIpHash().catch(() => "anon"))}`, 120, 60);
   const q = f.q.trim().slice(0, 120);
   const types = f.types?.length ? f.types : SEARCH_TYPES;
   const limit = Math.min(f.limit ?? 8, 40);

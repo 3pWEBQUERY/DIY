@@ -32,6 +32,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const viewer = user?.profile ? { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl } : null;
   return (
     <Page>
+      {/* Hauptüberschrift für Screenreader und Suchmaschinen – sichtbar ist die Beitragskarte */}
+      <h1 className="sr-only">Beitrag von {post.author.displayName}</h1>
       <Link href="/feed" className="mb-6 inline-flex items-center gap-2 text-sm text-muted hover:text-ink">
         <ArrowLeft size={15} /> Zurück
       </Link>

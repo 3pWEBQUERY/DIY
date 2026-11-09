@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: `${p.displayName} (@${p.handle})`,
     description: p.bio || `${p.displayName} auf Werkuno – Projekte, Anleitungen und mehr.`,
     alternates: { canonical: `/u/${p.handle}` },
-    openGraph: { type: "profile", images: p.avatarUrl ? [p.avatarUrl] : undefined },
+    openGraph: { type: "profile", images: p.avatarUrl ? [p.avatarUrl] : ["/opengraph-image.png"] },
   };
 }
 

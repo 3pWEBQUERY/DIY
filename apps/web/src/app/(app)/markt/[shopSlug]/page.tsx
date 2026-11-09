@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: `${shop.name} – Shop`,
     description: shop.tagline || shop.description.slice(0, 160) || `Handgemachtes von ${shop.owner.profile?.displayName} auf Werkuno.`,
     alternates: { canonical: `/markt/${shop.slug}` },
-    openGraph: { title: shop.name, description: shop.tagline || undefined, type: "website" },
+    openGraph: { title: shop.name, description: shop.tagline || undefined, type: "website", images: ["/opengraph-image.png"] },
   };
 }
 

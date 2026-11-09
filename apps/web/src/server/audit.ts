@@ -51,9 +51,15 @@ export async function audit(
 }
 
 /** Prüft Inhalt und Verkettung (Admin → Audit-Protokoll). */
+/**
+ * Prüft die Hash-Kette der NEUESTEN Einträge (dort würde eine Manipulation zuerst auffallen) –
+ * inklusive Verkettung zum Eintrag direkt davor. Ältere Abschnitte bleiben über frühere Prüfungen gedeckt.
+ */
 export async function verifyAuditChain(limitRows = 5000) {
-  const rows = await db.auditEvent.findMany({ orderBy: { seq: "asc" }, take: limitRows });
-  let prev: string | null = null;
+  const rows = (await db.auditEvent.findMany({ orderBy: { seq: "desc" }, take: limitRows })).reverse();
+  if (!rows.length) return { ok: true as const, checked: 0 };
+  const before = await db.auditEvent.findFirst({ where: { seq: { lt: rows[0]!.seq } }, orderBy: { seq: "desc" }, select: { hash: true } });
+  let prev: string | null = before?.hash ?? null;
   for (const r of rows) {
     const expected = digest(prev, r);
     if (r.prevHash !== prev || r.hash !== expected) return { ok: false as const, brokenAt: r.seq, checked: rows.length };

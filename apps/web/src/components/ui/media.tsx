@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { categoryBySlug } from "@werkraum/shared";
 import { cn } from "@/lib/utils";
 import { Glyph } from "./glyphs";
@@ -64,6 +65,8 @@ const PLATE_TONES = [
  */
 export function Plate({ seed, category, label, className, number }: { seed: string; category?: string | null; label?: string; className?: string; number?: boolean }) {
   const h = hash(seed);
+  // Eindeutige Muster-ID je Vorkommen (dieselbe Tafel kann mehrfach auf einer Seite stehen)
+  const gid = `g${h}${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const tone = PLATE_TONES[h % PLATE_TONES.length]!;
   const cat = categoryBySlug(category);
   const rot = ((h >> 4) % 13) - 6;
@@ -72,11 +75,11 @@ export function Plate({ seed, category, label, className, number }: { seed: stri
     <div className={cn("relative h-full w-full overflow-hidden", className)} style={{ background: tone.bg, color: tone.ink }} aria-hidden>
       <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
         <defs>
-          <pattern id={`g${h}`} width="6" height="6" patternUnits="userSpaceOnUse">
+          <pattern id={gid} width="6" height="6" patternUnits="userSpaceOnUse">
             <path d="M6 0H0v6" fill="none" stroke={tone.ink} strokeOpacity="0.07" strokeWidth="0.25" />
           </pattern>
         </defs>
-        <rect width="100" height="100" fill={`url(#g${h})`} />
+        <rect width="100" height="100" fill={`url(#${gid})`} />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div style={{ transform: `rotate(${rot}deg)`, width: "46%", aspectRatio: "1" }} className="relative">

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: "Blogs",
   description: "Werkstattberichte, Materialkunde und Geschichten von Menschen, die mit den Händen erschaffen.",
   alternates: { canonical: "/blogs" },
-  openGraph: { title: "Blogs aus den Werkstätten", type: "website" },
+  openGraph: { title: "Blogs aus den Werkstätten", type: "website", images: ["/opengraph-image.png"] },
 };
 
 type SP = { q?: string; rubrik?: string; tag?: string; nach?: string };

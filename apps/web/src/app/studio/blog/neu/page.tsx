@@ -10,5 +10,10 @@ export default async function NewArticlePage() {
   const user = await requirePageUser("/studio/blog/neu").catch(() => null);
   if (!user) redirect("/anmelden?weiter=/studio/blog/neu");
   const [categories, projects] = await Promise.all([listArticleCategories(), myProjectOptions(user.id)]);
-  return <ArticleEditor initial={null} categories={categories} projects={projects} handle={user.profile.handle} baseUrl={articleBaseUrl()} />;
+  return (
+    <>
+      <h1 className="sr-only">Neuer Artikel</h1>
+      <ArticleEditor initial={null} categories={categories} projects={projects} handle={user.profile.handle} baseUrl={articleBaseUrl()} />
+    </>
+  );
 }
