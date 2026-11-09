@@ -236,8 +236,11 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
     const refundable = payment && ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status) ? refundableAmount(payment.amountMinor, full.refunds) : 0;
     return { refundable, currency: full.currency };
   });
-  if (result.refundable > 0) await initiateRefund(orderId, { amountMinor: result.refundable, reason: `Stornierung: ${why}`, actorId: user.id });
-  return { refundedMinor: result.refundable, label: money(result.refundable, result.currency) };
+  // Die Stornierung steht bereits fest. Scheitert die Erstattung beim Anbieter, wiederholt der Worker sie
+  // automatisch (retryCancelledRefunds) – kein zweiter Klick nötig, das Geld geht nicht verloren.
+  let refundDeferred = false;
+  if (result.refundable > 0) await initiateRefund(orderId, { amountMinor: result.refundable, reason: `Stornierung: ${why}`, actorId: user.id }).catch(() => (refundDeferred = true));
+  return { refundedMinor: result.refundable, label: money(result.refundable, result.currency), refundDeferred };
 }
 
 /** Beleg für Käufer:in oder Verkäufer:in (druckbare Ansicht). */

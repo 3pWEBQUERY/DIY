@@ -1,4 +1,5 @@
 import "server-only";
+import { clientIp } from "@/server/client-ip";
 import { headers } from "next/headers";
 import { db, type Tx } from "@/server/db";
 import { sha256 } from "@/server/crypto";
@@ -111,7 +112,7 @@ export function isQualifiedComment(body: string) {
 async function viewerKey(userId: string | null) {
   if (userId) return `u:${userId}`;
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "0.0.0.0";
+  const ip = clientIp(h);
   const ua = h.get("user-agent") ?? "";
   const day = new Date().toISOString().slice(0, 10);
   return `a:${sha256(`${process.env.SESSION_SECRET}:${ip}:${ua}:${day}`).slice(0, 24)}`;
@@ -138,6 +139,8 @@ export async function recordView(input: { viewerId: string | null; targetType: s
 
   try {
     await rateLimit(`view:${vk}:${input.targetType}:${input.targetId}`, 1, VIEW_DEDUPE_SECONDS);
+    // Anonym: zusätzlich je echter IP (ohne Gerätekennung), damit wechselnde User-Agents nicht hochzählen
+    if (!input.viewerId) await rateLimit(`view-ip:${sha256(`${process.env.SESSION_SECRET}:${clientIp(h)}`).slice(0, 24)}:${input.targetType}:${input.targetId}`, 3, VIEW_DEDUPE_SECONDS);
   } catch {
     return { counted: false as const, reason: "duplicate" };
   }

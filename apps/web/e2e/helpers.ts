@@ -33,7 +33,7 @@ export async function userId(who: Who) {
 
 /** Serverfunktion direkt ausführen (z.B. Zahlung im Testmodus verbuchen, Worker-Job). */
 export function runServer(code: string) {
-  return execFileSync("npx", ["tsx", "--conditions=react-server", "-e", `${code}.then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})`], {
+  return execFileSync("npx", ["tsx", "--env-file-if-exists=.env", "--conditions=react-server", "-e", `${code}.then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})`], {
     cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
     env: { ...process.env, DATABASE_URL: DB },
     encoding: "utf8",

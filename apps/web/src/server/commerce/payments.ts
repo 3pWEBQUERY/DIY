@@ -11,6 +11,7 @@ import { cancelPendingOrderTx } from "./reservations";
 import { paymentStatusAfterRefund, refundableAmount } from "./rules";
 import { createRefund, expireCheckoutSession, listRefunds, type Stripe, accountStatus } from "./stripe";
 import { applyAccountStatus } from "./shops";
+import { captureError } from "@/server/monitoring";
 
 /**
  * Verbuchung von Zahlungsereignissen (§13.6, §31.4 Nr. 9).
@@ -131,7 +132,10 @@ async function refundUnfulfillable(orderId: string, input: PaidInput) {
     await audit({ action: "payment.auto_refund_unavailable", targetType: "Order", targetId: orderId, meta: { amountMinor: input.amountMinor } }, tx);
     return o;
   });
-  await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: "Artikel nach Ablauf der Reservierung nicht mehr verfügbar", actorId: null, system: true });
+  // Schlägt die Erstattung beim Anbieter fehl, holt retryCancelledRefunds sie nach (Bestellung ist storniert, Geld noch da)
+  await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: "Artikel nach Ablauf der Reservierung nicht mehr verfügbar", actorId: null, system: true }).catch((e) =>
+    log("error", "auto_refund_deferred", { orderId, err: e instanceof Error ? e.message : String(e) }),
+  );
   await notify({
     recipientId: order.buyerId,
     type: "ORDER_STATUS",
@@ -308,19 +312,76 @@ export async function markDisputed(paymentIntentId: string, d: { disputeId: stri
   });
 }
 
-export async function markDisputeClosed(paymentIntentId: string, d: { disputeId: string; status: string }) {
+export async function markDisputeClosed(paymentIntentId: string, d: { disputeId: string; status: string; amountMinor?: number }) {
   await db.$transaction(async (tx) => {
-    const payment = await tx.payment.findUnique({ where: { providerRef: paymentIntentId }, include: { order: { include: { refunds: true } } } });
+    // Einzelabfragen statt verschachteltem include: Prisma würde die Relationen sonst parallel über
+    // dieselbe Transaktionsverbindung abfragen (pg-Warnung „client.query() while executing“)
+    const payment = await tx.payment.findUnique({ where: { providerRef: paymentIntentId } });
     if (!payment || payment.status !== "DISPUTED") return;
     await lockOrder(tx, payment.orderId);
     const won = d.status === "won" || d.status === "warning_closed";
+    const base = await tx.order.findUniqueOrThrow({ where: { id: payment.orderId }, select: { id: true, number: true, status: true, currency: true, shopId: true } });
+    const refunds = await tx.refund.findMany({ where: { orderId: base.id } });
+    const items = await tx.orderItem.findMany({ where: { orderId: base.id }, select: { id: true, isDigital: true } });
+    const shop = await tx.shop.findUniqueOrThrow({ where: { id: base.shopId }, select: { ownerId: true } });
+    const order = { ...base, refunds, items, shop };
     if (won) {
-      const refunded = payment.order.refunds.filter((r) => r.status === "SUCCEEDED").reduce((s, r) => s + r.amountMinor, 0);
+      const refunded = order.refunds.filter((r) => r.status === "SUCCEEDED").reduce((s, r) => s + r.amountMinor, 0);
       await tx.payment.update({ where: { id: payment.id }, data: { status: paymentStatusAfterRefund(payment.amountMinor, refunded), failureReason: null } });
+      await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to: order.status, note: "Streitfall zugunsten des Shops entschieden" } });
+    } else {
+      // Verloren: Betrag ist an die Karteninhaberin zurückgebucht → wie eine Erstattung verbuchen
+      // (Umsatz/Guthaben sinken, digitale Lizenzen werden widerrufen, Bestellung gilt als erstattet).
+      const already = order.refunds.filter((r) => r.status !== "FAILED").reduce((s, r) => s + r.amountMinor, 0);
+      const amount = Math.max(0, Math.min(d.amountMinor ?? payment.amountMinor, payment.amountMinor - already));
+      if (amount > 0) await tx.refund.create({ data: { orderId: order.id, providerRef: `dispute:${d.disputeId}`, amountMinor: amount, reason: "Streitfall verloren (Rückbuchung)", status: "SUCCEEDED" } });
+      const refunded = already + amount;
+      await tx.payment.update({ where: { id: payment.id }, data: { status: paymentStatusAfterRefund(payment.amountMinor, refunded) } });
+      const digital = order.items.filter((i) => i.isDigital).map((i) => i.id);
+      if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital }, revokedAt: null }, data: { revokedAt: new Date() } });
+      const to = order.status === "CANCELLED" ? order.status : "REFUNDED";
+      if (to !== order.status) await tx.order.update({ where: { id: order.id }, data: { status: to } });
+      await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to, note: `Streitfall verloren – ${money(amount, order.currency)} wurden zurückgebucht` } });
+      if (to !== order.status) await emit({ type: "OrderStatusChanged", orderId: order.id, to }, tx);
+      await notify({ recipientId: order.shop.ownerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, status: to, note: `Der Streitfall ist verloren. ${money(amount, order.currency)} wurden zurückgebucht.`, href: `/studio/bestellungen/${order.id}` } }, tx);
     }
-    await tx.orderEvent.create({ data: { orderId: payment.orderId, from: payment.order.status, to: payment.order.status, note: won ? "Streitfall zugunsten des Shops entschieden" : "Streitfall verloren – Betrag wurde zurückgebucht" } });
     await audit({ action: "payment.dispute.closed", targetType: "Order", targetId: payment.orderId, meta: { disputeId: d.disputeId, status: d.status } }, tx);
   });
+}
+
+/**
+ * Stornierte Bestellungen mit noch einbehaltenem Geld vollständig erstatten – holt Erstattungen nach,
+ * die beim Anbieter fehlgeschlagen sind (Ausfall, Netzwerk). Höchstens 5 Versuche je Bestellung,
+ * danach meldet die Fehlerüberwachung den Fall zur manuellen Klärung.
+ */
+export async function retryCancelledRefunds() {
+  const orders = await db.order.findMany({
+    where: { status: "CANCELLED", updatedAt: { gt: new Date(Date.now() - 30 * 86400_000) }, payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, provider: { not: "simulated" } } } },
+    select: { id: true, payments: { orderBy: { createdAt: "desc" }, take: 1, select: { amountMinor: true, status: true } }, refunds: { select: { amountMinor: true, status: true, createdAt: true } } },
+    take: 50,
+  });
+  let retried = 0;
+  for (const o of orders) {
+    const p = o.payments[0];
+    if (!p || !["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(p.status)) continue;
+    const open = refundableAmount(p.amountMinor, o.refunds);
+    if (open <= 0) continue;
+    const failed = o.refunds.filter((r) => r.status === "FAILED");
+    if (failed.length >= 5) {
+      if (failed.length === 5) {
+        await captureError(new Error("Erstattung nach 5 Versuchen fehlgeschlagen"), { source: "WORKER", path: "refund_retry", meta: { orderId: o.id, openMinor: open } });
+        await db.refund.create({ data: { orderId: o.id, amountMinor: 0, reason: "Automatische Wiederholung beendet – bitte manuell erstatten", status: "FAILED" } });
+      }
+      continue;
+    }
+    // Zwischen den Versuchen mindestens 10 Minuten warten
+    const last = failed.reduce((t, r) => Math.max(t, r.createdAt.getTime()), 0);
+    if (Date.now() - last < 10 * 60_000) continue;
+    await initiateRefund(o.id, { amountMinor: open, reason: "Erstattung der stornierten Bestellung (automatischer erneuter Versuch)", actorId: null, system: true })
+      .then(() => retried++)
+      .catch((e) => log("warn", "refund_retry_failed", { orderId: o.id, err: e instanceof Error ? e.message : String(e) }));
+  }
+  return { retried };
 }
 
 /* ───────────────────────── Auszahlungen ───────────────────────── */
@@ -388,7 +449,16 @@ export async function handleStripeEvent(event: Stripe.Event) {
     case "payment_intent.payment_failed": {
       const pi = event.data.object;
       const orderId = await orderExists(pi.metadata?.orderId);
-      if (orderId) await markPaymentFailed(orderId, { kind: "failed", reason: pi.last_payment_error?.message ?? "Zahlung abgelehnt" });
+      if (!orderId) return;
+      const reason = pi.last_payment_error?.message ?? "Zahlung abgelehnt";
+      // Im Stripe Checkout bleibt die Session nach einer Ablehnung offen – die Käuferin kann eine
+      // andere Karte versuchen. Erst „expired“/„async_payment_failed“ beenden die Bestellung.
+      const o = await db.order.findUnique({ where: { id: orderId }, select: { checkoutSessionId: true } });
+      if (o?.checkoutSessionId) {
+        await db.payment.updateMany({ where: { orderId, status: { in: ["REQUIRES_PAYMENT", "PROCESSING"] } }, data: { status: "REQUIRES_PAYMENT", failureReason: reason.slice(0, 500) } });
+        return;
+      }
+      await markPaymentFailed(orderId, { kind: "failed", reason });
       return;
     }
     case "charge.refunded": {
@@ -413,7 +483,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
     case "charge.dispute.closed": {
       const d = event.data.object;
       const pi = idOf(d.payment_intent);
-      if (pi) await markDisputeClosed(pi, { disputeId: d.id, status: d.status });
+      if (pi) await markDisputeClosed(pi, { disputeId: d.id, status: d.status, amountMinor: d.amount });
       return;
     }
     case "account.updated": {

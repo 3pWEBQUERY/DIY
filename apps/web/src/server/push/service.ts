@@ -30,7 +30,20 @@ export async function unregisterPushDevice(userId: string, token: string) {
  * Worker-Job: neue, ungelesene In-App-Benachrichtigungen als iOS-Push zustellen.
  * Nur an Geräte mit gültiger Sitzung; ungültige Tokens werden deaktiviert.
  */
+let delivering = false;
+
 export async function deliverPendingPushes(limit = 200) {
+  // Läufe nie überlappen lassen (Intervall alle 10 s + Cron) – sonst doppelte Zustellungen
+  if (delivering) return { sent: 0, skipped: true };
+  delivering = true;
+  try {
+    return await deliver(limit);
+  } finally {
+    delivering = false;
+  }
+}
+
+async function deliver(limit: number) {
   const apns = apnsConfigured();
   const since = new Date(Date.now() - MAX_AGE_MS);
   const pending = await db.notification.findMany({
@@ -40,6 +53,8 @@ export async function deliverPendingPushes(limit = 200) {
     include: { actor: { select: { profile: { select: { displayName: true, handle: true } } } } },
   });
   if (!pending.length) return { sent: 0 };
+  // Vorab als zugestellt markieren: auch wenn ein Dienst hängt oder der Lauf abbricht, gibt es keine Wiederholungen
+  await db.notification.updateMany({ where: { id: { in: pending.map((n) => n.id) } }, data: { pushedAt: new Date() } });
   const recipients = [...new Set(pending.map((n) => n.recipientId))];
   const now = new Date();
   // iOS nur mit APNs-Schlüsseln; Browser (Web Push) funktionieren immer
@@ -80,6 +95,5 @@ export async function deliverPendingPushes(limit = 200) {
       else await db.pushDevice.update({ where: { id: d.id }, data: { lastError: `${r.status} ${r.reason}`.slice(0, 200), ...(r.invalidToken ? { disabledAt: now } : {}) } });
     }
   }
-  await db.notification.updateMany({ where: { id: { in: pending.map((n) => n.id) } }, data: { pushedAt: now } });
   return { sent };
 }

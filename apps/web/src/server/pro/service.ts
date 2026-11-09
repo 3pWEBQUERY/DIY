@@ -283,9 +283,13 @@ export async function handleProStripeEvent(event: Stripe.Event) {
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
     case "customer.subscription.paused":
-    case "customer.subscription.resumed":
-      await syncStripeSubscription(event.data.object);
+    case "customer.subscription.resumed": {
+      // Stripe garantiert keine Reihenfolge der Webhooks – deshalb immer den aktuellen Stand laden,
+      // sonst könnte ein verspätetes „updated (active)“ ein bereits beendetes Abo wieder aktivieren.
+      const sub = await stripe().subscriptions.retrieve(event.data.object.id).catch(() => event.data.object);
+      await syncStripeSubscription(sub);
       return true;
+    }
     case "invoice.payment_failed": {
       const inv = event.data.object;
       const customer = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
@@ -331,6 +335,23 @@ export async function syncProSubscriptions() {
       await captureError(e, { source: "WORKER", path: "pro.sync" });
     }
   }
+}
+
+/** Konto gelöscht: laufendes Abo sofort beenden, damit nicht weiter abgebucht wird. */
+export async function endProForDeletedAccount(userId: string) {
+  const s = await db.subscription.findUnique({ where: { userId } });
+  if (!s || s.status === "canceled") return false;
+  if (s.provider === "stripe" && s.subscriptionId && paymentsMode() === "stripe") {
+    try {
+      await stripe().subscriptions.cancel(s.subscriptionId, { invoice_now: false, prorate: false });
+    } catch (e) {
+      // Bereits beendet → in Ordnung; alles andere soll der Job erneut versuchen
+      if (!/No such subscription|canceled/i.test((e as Error).message ?? "")) throw e;
+    }
+  }
+  await db.subscription.update({ where: { userId }, data: { status: "canceled", cancelAtPeriodEnd: false } });
+  await syncProFlag(userId);
+  return true;
 }
 
 /* ───────────────────────── Administration ───────────────────────── */

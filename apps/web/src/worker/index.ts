@@ -11,19 +11,19 @@
 import "dotenv/config";
 import { PgBoss } from "pg-boss";
 import { db } from "@/server/db";
+import { sendEmails } from "@/server/notifications-mail";
 import { processMedia } from "@/server/media/process";
 import { notify } from "@/server/notifications";
-import { sendMail } from "@/server/mail";
 import { storage } from "@/server/storage";
 import { track, isQualifiedComment } from "@/server/analytics/service";
-import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
-import { notificationHref, notificationText } from "@/server/notifications-format";
 import { deliverPendingPushes } from "@/server/push/service";
 import { captureError } from "@/server/monitoring";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { sendEventReminders } from "@/server/communities/events";
 import { syncPendingConnectAccounts } from "@/server/commerce/shops";
 import { syncPayouts } from "@/server/commerce/payouts";
+import { retryCancelledRefunds } from "@/server/commerce/payments";
+import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
 
@@ -68,6 +68,10 @@ async function dispatchOutbox(boss: PgBoss) {
       switch (e.type) {
         case "MediaUploaded":
           await boss.send(Q.media, { mediaId: p.mediaId }, { retryLimit: 3, retryDelay: 30 });
+          break;
+        // Konto gelöscht: Abo beenden, persönliche Daten und Medien entfernen (§23.1)
+        case "UserDeleted":
+          await purgeDeletedAccount(p.userId!);
           break;
         case "PostPublished":
           await boss.send(Q.fanout, { postId: p.postId, authorId: p.authorId });
@@ -118,61 +122,6 @@ async function fanoutPost(postId: string, authorId: string) {
     }
     cursor = followers[followers.length - 1]!.followerId;
     if (followers.length < 500) break;
-  }
-}
-
-const ALWAYS_INSTANT: NotificationType[] = ["SECURITY", "ORDER_NEW", "MODERATION", "ORDER_STATUS"];
-
-async function sendEmails(mode: "instant" | "digest") {
-  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  // Kurze Wartezeit erlaubt Bündelung (z. B. mehrere Likes in Folge)
-  const before = new Date(Date.now() - (mode === "instant" ? 90_000 : 0));
-  const pending = await db.notification.findMany({
-    where: { emailedAt: null, createdAt: { lte: before } },
-    orderBy: { createdAt: "asc" },
-    take: 1000,
-    include: { recipient: { select: { email: true, status: true, emailVerifiedAt: true, preference: { select: { emailDigest: true } } } }, actor: { select: { profile: { select: { displayName: true, handle: true } } } } },
-  });
-  const byUser = new Map<string, typeof pending>();
-  for (const n of pending) {
-    const digest = n.recipient.preference?.emailDigest ?? "DAILY";
-    const critical = ALWAYS_INSTANT.includes(n.type as NotificationType);
-    const instant = critical || digest === "INSTANT";
-    // Keine Mails an inaktive Konten, abbestellte Digests oder (ausser Sicherheit/Bestellungen) unbestätigte Adressen
-    if (n.recipient.status !== "ACTIVE" || (digest === "OFF" && !critical) || (!n.recipient.emailVerifiedAt && !critical)) {
-      await db.notification.update({ where: { id: n.id }, data: { emailedAt: new Date() } });
-      continue;
-    }
-    if ((mode === "instant") !== instant) continue;
-    // Wöchentlicher Digest nur montags (der Digest-Job läuft täglich)
-    if (mode === "digest" && digest === "WEEKLY" && new Date().getUTCDay() !== 1) continue;
-    const list = byUser.get(n.recipientId) ?? [];
-    list.push(n);
-    byUser.set(n.recipientId, list);
-  }
-  for (const [, list] of byUser) {
-    const to = list[0]!.recipient.email;
-    if (to.endsWith(".invalid")) continue;
-    // Vollständige Sätze inkl. Titel/Bestellnummer statt nur „Typ: Name“
-    const lines = list.map((n) => {
-      const d = (n.data ?? {}) as Record<string, unknown>;
-      const excerpt = typeof d.excerpt === "string" && d.excerpt ? `\n  „${d.excerpt.slice(0, 140)}“` : "";
-      return `• ${notificationText(n)}${excerpt}`;
-    });
-    const target = list.length === 1 ? notificationHref(list[0]!) : "/benachrichtigungen";
-    const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
-    try {
-      const r = await sendMail(to, subject, `Das ist in deiner Werkstatt passiert:\n\n${lines.join("\n\n")}`, { cta: { label: "Ansehen", url: `${appUrl}${target}` } });
-      // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut; nach 48 Std. aufgeben
-      // (sonst Endlosschleife, z.B. solange die Absender-Domain nicht bestätigt ist)
-      const failed = "failed" in r && r.failed;
-      const stale = list.filter((n) => n.createdAt.getTime() < Date.now() - 48 * 3600_000).map((n) => n.id);
-      const done = failed ? stale : list.map((n) => n.id);
-      if (done.length) await db.notification.updateMany({ where: { id: { in: done } }, data: { emailedAt: new Date() } });
-    } catch (err) {
-      warn("email_failed", { err: String(err) });
-      await captureError(err, { source: "WORKER", path: "email" });
-    }
   }
 }
 
@@ -279,6 +228,8 @@ async function main() {
       await syncPendingConnectAccounts();
       // Auszahlungen abgleichen (Benachrichtigung auch, falls ein Webhook ausbleibt) – halbstündlich
       if (new Date().getMinutes() % 30 < 10) await syncPayouts();
+      // Fehlgeschlagene Erstattungen stornierter Bestellungen nachholen
+      await retryCancelledRefunds();
     }));
 
   await boss.schedule(Q.outbox, "* * * * *");

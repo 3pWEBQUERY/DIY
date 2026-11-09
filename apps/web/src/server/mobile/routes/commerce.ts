@@ -263,6 +263,6 @@ export const commerceRoutes: RouteDef[] = [
   POST("/studio/orders/:id/cancel", async (c) => {
     const { reason } = await c.json<{ reason?: string }>();
     const r = await orders.cancelBySeller(await me(), c.p.id!, reason ?? "");
-    return { ...(typeof r === "object" && r ? r : {}), message: "Bestellung storniert. Der Betrag wird erstattet." };
+    return { ...r, message: r.refundDeferred ? "Bestellung storniert. Der Zahlungsanbieter ist gerade nicht erreichbar – die Erstattung wird automatisch erneut ausgelöst." : "Bestellung storniert. Der Betrag wird erstattet." };
   }),
 ];

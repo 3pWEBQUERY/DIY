@@ -1,4 +1,5 @@
 import "server-only";
+import { clientIp } from "@/server/client-ip";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { db } from "@/server/db";
@@ -18,7 +19,7 @@ export function deviceLabel(ua: string | null) {
 
 export async function clientIpHash() {
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "0.0.0.0";
+  const ip = clientIp(h);
   return sha256(`${process.env.SESSION_SECRET}:${ip}`).slice(0, 32);
 }
 

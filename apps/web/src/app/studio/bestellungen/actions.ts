@@ -40,5 +40,5 @@ export async function cancelOrderAction(orderId: string, reason: string) {
     const r = await orders.cancelBySeller(await requireUser(), orderId, reason);
     refresh(orderId);
     return r;
-  }, "Bestellung storniert. Der Betrag wird erstattet.");
+  }, (r) => (r.refundDeferred ? "Bestellung storniert. Der Zahlungsanbieter ist gerade nicht erreichbar – die Erstattung wird automatisch erneut ausgelöst." : "Bestellung storniert. Der Betrag wird erstattet."));
 }

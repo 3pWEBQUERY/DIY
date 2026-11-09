@@ -1,10 +1,11 @@
 import "server-only";
+import { assertAccountDeletable } from "@/server/account/deletion";
 import { RESERVED_HANDLES, handleSchema, signUpSchema, signInSchema, passwordSchema } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { hashPassword, verifyPassword, sha256, token } from "@/server/crypto";
 import { fail } from "@/server/errors";
 import { createSession, clientIpHash } from "@/server/auth/session";
-import { limit } from "@/server/ratelimit";
+import { limit, rateLimit } from "@/server/ratelimit";
 import { sendMail } from "@/server/mail";
 import { notify } from "@/server/notifications";
 import { audit } from "@/server/audit";
@@ -115,6 +116,13 @@ export async function verifyEmail(raw: string) {
 export async function requestPasswordReset(email: string) {
   const normalized = email.trim().toLowerCase();
   await limit("passwordReset", `${await clientIpHash()}:${normalized}`);
+  // Zusätzlich je Adresse (unabhängig von der IP): schützt Postfächer vor Reset-Mail-Fluten.
+  // Still abbrechen statt Fehler – die Antwort bleibt für alle Adressen gleich.
+  try {
+    await rateLimit(`pwreset-mail:${sha256(normalized)}`, 5, 86400);
+  } catch {
+    return;
+  }
   const user = await db.user.findUnique({ where: { email: normalized }, select: { id: true, email: true, status: true } });
   if (!user || user.status === "DELETED" || user.status === "BANNED") return;
   const raw = await issueToken(user.id, "PASSWORD_RESET", RESET_MINUTES);
@@ -157,6 +165,7 @@ export async function changePassword(userId: string, current: string, next: stri
 export async function deleteAccount(userId: string, password: string | null) {
   const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true, email: true } });
   if (u.passwordHash && !(await verifyPassword(password ?? "", u.passwordHash))) throw fail.invalid("Passwort ist falsch.", { password: "Falsches Passwort" });
+  await assertAccountDeletable(userId);
   const tomb = `geloescht-${userId.slice(-8)}`;
   await db.$transaction(async (tx) => {
     await tx.post.updateMany({ where: { authorId: userId }, data: { state: "REMOVED" } });

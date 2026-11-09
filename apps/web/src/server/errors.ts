@@ -87,10 +87,10 @@ export function toResult(e: unknown, ctx?: { path?: string; method?: string }): 
 }
 
 /** Wrapper für Server Actions: wirft nie unkontrolliert, liefert ActionResult. */
-export async function act<T>(fn: () => Promise<T>, message?: string): Promise<ActionResult<T>> {
+export async function act<T>(fn: () => Promise<T>, message?: string | ((data: T) => string)): Promise<ActionResult<T>> {
   try {
     const data = await fn();
-    return { ok: true, data, message };
+    return { ok: true, data, message: typeof message === "function" ? message(data) : message };
   } catch (e) {
     return toResult(e);
   }
