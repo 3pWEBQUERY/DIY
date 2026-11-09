@@ -11,7 +11,7 @@ test("Anmeldung mit falschem Passwort wird abgelehnt", async ({ page }) => {
 });
 
 test("Anmelden, Werkuno Studio, Abmelden über die Seitenleiste → Startseite", async ({ browser }) => {
-  const page = await loginAs(browser, "elias");
+  const page = await loginAs(browser, "elias", { fresh: true });
   await page.goto("/studio");
   await expect(page.locator("header").first()).toContainText(/Werkuno Studio/i);
   await page.goto("/feed");

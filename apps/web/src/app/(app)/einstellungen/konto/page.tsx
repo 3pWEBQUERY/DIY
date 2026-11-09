@@ -45,7 +45,7 @@ export default async function AccountSettingsPage() {
         <CustomerDetailsForm initial={details} />
       </SettingsSection>
 
-      <SettingsSection n="04" title="Deine Daten herunterladen" description="Du hast jederzeit das Recht auf Auskunft und Datenübertragbarkeit. Der Export enthält dein Profil, Beiträge, Projekte inklusive Journal und Materiallisten, Anleitungen, Artikel, Kommentare, Bestellungen, gefolgte Profile, Gespeichertes und deine gesendeten Nachrichten – als maschinenlesbare JSON-Datei.">
+      <SettingsSection n="04" title="Deine Daten herunterladen" description="Du hast jederzeit das Recht auf Auskunft und Datenübertragbarkeit. Der Export enthält alles, was wir zu deinem Konto speichern: Profil und Einstellungen, Beiträge, Projekte, Anleitungen, Artikel, Kommentare, Likes, Sammlungen, Einkaufslisten und Bestand, Communities, Events und Wettbewerbe, Shop, Bestellungen und Bewertungen, Abo, angemeldete Geräte, Meldungen und Support-Anfragen sowie deine gesendeten Nachrichten – als maschinenlesbare JSON-Datei. Passwort und Sicherheitsschlüssel sind aus Sicherheitsgründen nicht enthalten.">
         <a href="/api/v1/me/export" download className={buttonClass("outline", "md")}>
           <Download size={16} aria-hidden /> Datenexport herunterladen (JSON)
         </a>

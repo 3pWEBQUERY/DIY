@@ -145,7 +145,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           </section>
         )}
 
-        <div className="grid gap-16 lg:grid-cols-[2fr_1fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-16 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <section>
             <SectionTitle n="03" title={cat ? "Neu in dieser Werkstatt" : "Frisch angefangen"} />
             <ProjectGrid className="mt-6 lg:grid-cols-2 xl:grid-cols-4">{fresh.items.map((p) => <ProjectCard key={p.id} project={p} ratio="1/1" />)}</ProjectGrid>

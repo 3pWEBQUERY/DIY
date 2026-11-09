@@ -143,13 +143,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         {show("user") && (
           <section>
             <SectionTitle n="03" title="Mitglieder" />
-            <ul className="mt-2 grid gap-x-8 sm:grid-cols-2">
+            <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-x-8 sm:grid-cols-[repeat(2,minmax(0,1fr))]">
               {results!.user.map((u) => (
                 <li key={u.id} className="border-b border-line">
                   <Link href={u.href} className="flex items-center gap-3 py-3 hover:bg-card rounded-2xl">
                     <Avatar src={u.cover} name={u.title} size={40} />
-                    <span className="min-w-0">
-                      <span className="block font-semibold">{u.title}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{u.title}</span>
                       <span className="block truncate text-sm text-muted">{u.subtitle} · {String(u.meta?.bio ?? "").slice(0, 70)}</span>
                     </span>
                   </Link>

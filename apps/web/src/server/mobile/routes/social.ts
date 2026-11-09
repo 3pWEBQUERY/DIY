@@ -237,7 +237,9 @@ export const socialRoutes: RouteDef[] = [
     };
   }),
   GET("/users/:handle/reviews", async (c) => {
-    const prof = need(await db.userProfile.findUnique({ where: { handle: c.p.handle!.toLowerCase() }, select: { userId: true, user: { select: { shop: { select: { id: true, status: true } } } } } }), "Profil nicht gefunden.");
+    const prof = need(await db.userProfile.findUnique({ where: { handle: c.p.handle!.toLowerCase() }, select: { userId: true, user: { select: { status: true, shop: { select: { id: true, status: true } } } } } }), "Profil nicht gefunden.");
+    // Wie das Profil selbst: gesperrte/gelöschte Konten gibt es nach aussen nicht
+    if (prof.user.status === "BANNED" || prof.user.status === "DELETED") throw fail.notFound("Profil nicht gefunden.");
     const vid = await viewerId();
     if (vid && vid !== prof.userId && (await isBlockedBetween(vid, prof.userId))) return { view: "given", items: [], distribution: null };
     const shop = prof.user.shop?.status === "ACTIVE" ? prof.user.shop : null;

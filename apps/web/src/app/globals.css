@@ -93,6 +93,11 @@
 }
 
 @layer base {
+  /* Horizontal scrollende Tabellen: unsichtbare Screenreader-Texte (sr-only, absolut positioniert)
+     dürfen nicht aus dem Scroll-Container „entkommen“ und die ganze Seite verbreitern. */
+  .overflow-x-auto:has(table) {
+    position: relative;
+  }
   input[type="checkbox"],
   input[type="radio"],
   input[type="range"],

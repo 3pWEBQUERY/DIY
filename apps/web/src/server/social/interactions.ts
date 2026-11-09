@@ -232,6 +232,15 @@ export async function setBlock(user: SessionUser, targetUserId: string, block: b
       await tx.userBlock.upsert({ where: { blockerId_blockedId: { blockerId: user.id, blockedId: targetUserId } }, create: { blockerId: user.id, blockedId: targetUserId }, update: {} });
       const a = await tx.follow.deleteMany({ where: { followerId: user.id, followeeId: targetUserId } });
       const b = await tx.follow.deleteMany({ where: { followerId: targetUserId, followeeId: user.id } });
+      // Koautorenschaften zwischen beiden auflösen (Einladungen und bestätigte Nennungen, in beide Richtungen)
+      await tx.postCoauthor.deleteMany({
+        where: {
+          OR: [
+            { userId: targetUserId, post: { authorId: user.id } },
+            { userId: user.id, post: { authorId: targetUserId } },
+          ],
+        },
+      });
       if (a.count) {
         await tx.userProfile.update({ where: { userId: user.id }, data: { followingCount: { decrement: 1 } } });
         await tx.userProfile.update({ where: { userId: targetUserId }, data: { followerCount: { decrement: 1 } } });

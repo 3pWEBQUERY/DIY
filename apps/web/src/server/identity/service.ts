@@ -191,19 +191,5 @@ export async function deleteAccount(userId: string, password: string | null) {
   await audit({ actorId: userId, action: "account.deleted", targetType: "USER", targetId: userId });
 }
 
-/** Datenexport (Auskunftsrecht, §23.1). */
-export async function exportUserData(userId: string) {
-  const [user, posts, projects, tutorials, articles, comments, orders, follows, bookmarks, messages] = await Promise.all([
-    db.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, createdAt: true, locale: true, profile: true, preference: true, customerDetails: true } }),
-    db.post.findMany({ where: { authorId: userId }, select: { id: true, body: true, createdAt: true, visibility: true } }),
-    db.project.findMany({ where: { ownerId: userId }, include: { updates: true, materials: true, tools: true } }),
-    db.tutorial.findMany({ where: { authorId: userId }, include: { versions: { include: { steps: true } } } }),
-    db.blogArticle.findMany({ where: { authorId: userId } }),
-    db.comment.findMany({ where: { authorId: userId }, select: { id: true, body: true, createdAt: true, targetType: true, targetId: true } }),
-    db.order.findMany({ where: { buyerId: userId }, include: { items: true } }),
-    db.follow.findMany({ where: { followerId: userId }, select: { followeeId: true, createdAt: true } }),
-    db.bookmark.findMany({ where: { userId } }),
-    db.message.findMany({ where: { senderId: userId }, select: { id: true, conversationId: true, body: true, createdAt: true } }),
-  ]);
-  return { exportedAt: new Date().toISOString(), user, posts, projects, tutorials, articles, comments, orders, follows, bookmarks, messages };
-}
+/** Datenexport (Auskunftsrecht, §23.1) – vollständig in account/export.ts. */
+export { exportUserData } from "@/server/account/export";

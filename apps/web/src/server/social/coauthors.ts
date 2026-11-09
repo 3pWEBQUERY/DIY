@@ -21,10 +21,12 @@ export const COAUTHOR_MAX = 3;
 const handlesSchema = z.array(z.string().trim().min(1)).min(1, "Wähle mindestens eine Person.").max(COAUTHOR_MAX);
 
 async function ownPost(user: Pick<SessionUser, "id">, postId: string) {
-  const post = await db.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, state: true, body: true, repostOfId: true } });
+  const post = await db.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, state: true, body: true, repostOfId: true, communityId: true } });
   if (!post || post.state === "REMOVED") throw fail.notFound("Beitrag nicht gefunden.");
   if (post.authorId !== user.id) throw fail.forbidden("Nur die Autorin bzw. der Autor kann Koautor:innen einladen.");
   if (post.repostOfId) throw fail.invalid("Zu geteilten Beiträgen kann man keine Koautor:innen einladen.");
+  // Wie beim Erstellen: in Communities keine Koautor:innen (Nichtmitglieder sähen sonst Auszüge privater Beiträge)
+  if (post.communityId) throw fail.invalid("Bei Beiträgen in Communities sind keine Koautor:innen möglich.");
   return post;
 }
 
@@ -101,6 +103,11 @@ export async function removeCoauthor(user: Pick<SessionUser, "id">, postId: stri
 export async function respondCoauthor(user: SessionUser, postId: string, accept: boolean) {
   const inv = await db.postCoauthor.findUnique({ where: { postId_userId: { postId, userId: user.id } }, include: { post: { select: { authorId: true, body: true, state: true } } } });
   if (!inv || inv.post.state === "REMOVED") throw fail.notFound("Diese Einladung gibt es nicht mehr.");
+  // Inzwischen blockiert (in eine Richtung) → Einladung verfällt
+  if (await isBlockedBetween(user.id, inv.post.authorId)) {
+    await db.postCoauthor.delete({ where: { postId_userId: { postId, userId: user.id } } });
+    throw fail.notFound("Diese Einladung gibt es nicht mehr.");
+  }
   if (!accept) {
     await db.postCoauthor.delete({ where: { postId_userId: { postId, userId: user.id } } });
     return { status: "DECLINED" as const };

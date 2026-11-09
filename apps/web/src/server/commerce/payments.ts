@@ -94,7 +94,9 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
           await tx.digitalEntitlement.upsert({
             where: { userId_productId: { userId: order.buyerId, productId: it.productId } },
             create: { userId: order.buyerId, productId: it.productId, orderItemId: it.id },
-            update: { revokedAt: null },
+            // Wiederkauf (z.B. nach Erstattung): Lizenz an die neue Bestellung binden und Downloads neu zählen,
+            // sonst fehlt der Download in der neuen Bestellung und eine spätere Erstattung widerriefe nichts
+            update: { revokedAt: null, orderItemId: it.id, downloadCount: 0 },
           });
         }
         // Gekaufte Positionen aus dem Warenkorb entfernen

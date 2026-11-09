@@ -14,7 +14,7 @@ export const GET = api(async () => {
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="werkraum-daten-${date}.json"`,
+      "Content-Disposition": `attachment; filename="werkuno-daten-${date}.json"`,
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
     },
