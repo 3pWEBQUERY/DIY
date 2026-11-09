@@ -18,7 +18,7 @@ export async function resolveDownload(userId: string, entitlementId: string) {
     select: { id: true, userId: true, revokedAt: true, downloadCount: true, downloadLimit: true, product: { select: { slug: true, digitalKey: true } } },
   });
   if (!e || e.userId !== userId) throw fail.notFound();
-  if (e.revokedAt) throw fail.forbidden("Diese Lizenz wurde widerrufen (z.B. nach einer Stornierung).");
+  if (e.revokedAt) throw fail.forbidden("Diese Lizenz wurde widerrufen (z. B. nach einer Stornierung).");
   if (!e.product.digitalKey) throw fail.notFound("Die Datei ist derzeit nicht verfügbar. Bitte kontaktiere den Shop.");
   const media = await db.media.findUnique({ where: { id: e.product.digitalKey }, select: { storageKey: true, mime: true, state: true } });
   if (!media || media.state !== "READY") throw fail.unavailable("Die Datei wird gerade vorbereitet. Bitte versuche es in einigen Minuten erneut.");

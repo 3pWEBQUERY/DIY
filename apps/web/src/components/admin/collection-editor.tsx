@@ -80,7 +80,7 @@ export function CollectionEditor({
           )}
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Kicker" optional hint="Kurzzeile über dem Titel, z.B. „Werkbank im Herbst“" error={fields.kicker}>
+          <Field label="Kicker" optional hint="Kurzzeile über dem Titel, z. B. „Werkbank im Herbst“" error={fields.kicker}>
             {(p) => <Input name="kicker" defaultValue={initial.kicker} maxLength={60} {...p} />}
           </Field>
           <Field label="Slug" hint="Für Links und Analysen" error={fields.slug}>
@@ -105,7 +105,7 @@ export function CollectionEditor({
           <Field label="Position" hint="Kleiner = weiter oben" error={fields.position}>
             {(p) => <Input name="position" type="number" min={0} max={999} defaultValue={initial.position} {...p} />}
           </Field>
-          <Field label="Saison" optional hint="z.B. herbst-2026" error={fields.season}>
+          <Field label="Saison" optional hint="z. B. herbst-2026" error={fields.season}>
             {(p) => <Input name="season" defaultValue={initial.season} maxLength={40} {...p} />}
           </Field>
           <div className="flex items-end pb-3">

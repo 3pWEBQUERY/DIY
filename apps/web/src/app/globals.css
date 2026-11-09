@@ -22,7 +22,7 @@
   --color-rail: #efe8e2;       /* Seitenleiste: eine Spur dunkler als der Inhalt */
   --color-ink: #262427;        /* Text */
   --color-ink-2: #3d393c;
-  --color-muted: #77706d;      /* Sekundärtext (AA auf Hintergrund) */
+  --color-muted: #6b6461;      /* Sekundärtext (AA auf Hintergrund) */
   --color-moss: #b64b3a;       /* Primärfarbe (Coral) */
   --color-moss-ink: #973b2c;   /* Primär, gedrückt/Hover */
   --color-moss-soft: #f6e5e0;  /* Akzentfläche */
@@ -35,7 +35,7 @@
   --color-rule-strong: #c9bcb4; /* Hover / Betonung */
   --color-danger: #9b2335;
   --color-danger-soft: #f7e3e4;
-  --color-warn: #8a6a1f;
+  --color-warn: #7a5c18;
   --color-warn-soft: #f4ecd6;
 
   --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -128,8 +128,16 @@
   img { -webkit-user-drag: none; }
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
   input, textarea, select { font: inherit; }
+  /* Platzhalter mit ausreichendem Kontrast (≥ 4.5:1 auf Weiss/Papier); Browser-Standard ist teils blasser */
+  ::placeholder { color: var(--color-muted); opacity: 1; }
   dialog::backdrop { background: rgb(37 40 34 / 0.45); }
 
+  /* „Bewegung reduzieren“ (Nutzereinstellung, gesetzt in der App-Shell) gilt seitenweit –
+     auch für Toasts, Dialoge und Popover ausserhalb der Shell. */
+  :root:has([data-reduce-motion]) {
+    scroll-behavior: auto !important;
+  }
+  :root:has([data-reduce-motion]) *, :root:has([data-reduce-motion]) *::before, :root:has([data-reduce-motion]) *::after,
   [data-reduce-motion] *, [data-reduce-motion] *::before, [data-reduce-motion] *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

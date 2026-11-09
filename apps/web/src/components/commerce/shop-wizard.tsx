@@ -151,7 +151,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
                 </div>
               )}
             </Field>
-            <Field label="Kurzbeschreibung" optional error={fields.tagline} hint="Ein Satz, z.B. „Körbe und Taschen aus recycelter Kordel, gehäkelt in Luzern“.">
+            <Field label="Kurzbeschreibung" optional error={fields.tagline} hint="Ein Satz, z. B. „Körbe und Taschen aus recycelter Kordel, gehäkelt in Luzern“.">
               {(p) => <Input {...p} value={v.tagline} maxLength={120} onChange={(e) => set("tagline", e.target.value)} />}
             </Field>
             <Field label="Über deinen Shop" optional error={fields.description}>
@@ -185,7 +185,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
                 <Field label="Firmenname" error={fields.businessName}>
                   {(p) => <Input {...p} autoComplete="organization" value={v.businessName} maxLength={120} onChange={(e) => set("businessName", e.target.value)} />}
                 </Field>
-                <Field label="MWST-/USt-Nummer" optional error={fields.vatId} hint="Z.B. CHE-123.456.789 MWST">
+                <Field label="MWST-/USt-Nummer" optional error={fields.vatId} hint="Z. B. CHE-123.456.789 MWST">
                   {(p) => <Input {...p} value={v.vatId} maxLength={40} onChange={(e) => set("vatId", e.target.value)} />}
                 </Field>
               </div>
@@ -228,7 +228,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
               label="Rückgabe & Umtausch"
               optional
               error={fields.returnPolicy}
-              hint="Z.B. „Rückgabe innert 14 Tagen in unbenutztem Zustand; Sonderanfertigungen sind vom Umtausch ausgeschlossen.“"
+              hint="Z. B. „Rückgabe innert 14 Tagen in unbenutztem Zustand; Sonderanfertigungen sind vom Umtausch ausgeschlossen.“"
             >
               {(p) => <Textarea {...p} rows={4} value={v.returnPolicy} maxLength={4000} onChange={(e) => set("returnPolicy", e.target.value)} />}
             </Field>

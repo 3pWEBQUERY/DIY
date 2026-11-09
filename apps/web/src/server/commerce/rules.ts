@@ -158,7 +158,7 @@ export function isSoldOut(items: { onHand: number }[]) {
   return items.reduce((s, i) => s + Math.max(0, i.onHand), 0) <= 0;
 }
 
-/** Bps → Prozentanzeige (de-CH), z.B. 600 → "6 %", 650 → "6.5 %". */
+/** Bps → Prozentanzeige (de-CH), z. B. 600 → "6 %", 650 → "6.5 %". */
 export function formatBps(bps: number) {
   return `${new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 }).format(bps / 100)} %`;
 }

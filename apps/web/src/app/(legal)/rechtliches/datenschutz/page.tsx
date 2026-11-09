@@ -46,7 +46,7 @@ export default function PrivacyPage() {
               </ul>
               <h3>Profil & Inhalte</h3>
               <ul>
-                <li>Anzeigename, Handle, Bio, Region, Profilbild, Links und kreative Schwerpunkte – so, wie du sie angibst</li>
+                <li>Anzeigename, Benutzername, Bio, Region, Profilbild, Links und kreative Schwerpunkte – so, wie du sie angibst</li>
                 <li>Beiträge, Projekte, Journal, Anleitungen, Artikel, Kommentare, Bewertungen, Medien</li>
                 <li>Interaktionen wie Gefällt-mir, Merken, Folgen, Mitgliedschaften in Communities</li>
               </ul>
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
               <h3>Technische Daten</h3>
               <ul>
                 <li>Sitzungsdaten (Gerätebezeichnung wie „Safari auf macOS“, Zeitpunkt der letzten Nutzung, ein gekürzter Hash der IP-Adresse) – zur Sicherheit deines Kontos</li>
-                <li>Pseudonyme Nutzungsereignisse (z.B. „Projekt veröffentlicht“, Seitenaufrufe) ohne Klartext-Personendaten – für Statistiken im Werkuno Studio und zur Verbesserung der Plattform</li>
+                <li>Pseudonyme Nutzungsereignisse (z. B. „Projekt veröffentlicht“, Seitenaufrufe) ohne Klartext-Personendaten – für Statistiken im Werkuno Studio und zur Verbesserung der Plattform</li>
               </ul>
             </>
           ),
@@ -102,7 +102,7 @@ export default function PrivacyPage() {
             <>
               <p>Wir setzen sorgfältig ausgewählte Dienstleister ein, die Daten nur nach unseren Weisungen bearbeiten:</p>
               <ul>
-                <li>Hosting, Datenbank und Speicher: [Anbieter, Region – z.B. Railway, EU/US]</li>
+                <li>Hosting, Datenbank und Speicher: [Anbieter, Region – z. B. Railway, EU/US]</li>
                 <li>Zahlungsabwicklung und Verkäufer-Verifizierung: [Stripe Payments Europe Ltd., Irland]</li>
                 <li>E-Mail-Versand: [Anbieter]</li>
                 <li>Anmeldung mit Apple: Apple Distribution International Ltd., Irland (nur wenn du diese Option nutzt)</li>
@@ -152,7 +152,7 @@ export default function PrivacyPage() {
             <ul>
               <li>Passwörter werden mit scrypt gehasht, Sitzungen nur als Hash gespeichert und können jederzeit widerrufen werden.</li>
               <li>Standortdaten (EXIF) werden beim Hochladen aus Fotos entfernt.</li>
-              <li>Private Dateien (z.B. gekaufte digitale Anleitungen) sind nur über kurzlebige, signierte Links abrufbar.</li>
+              <li>Private Dateien (z. B. gekaufte digitale Anleitungen) sind nur über kurzlebige, signierte Links abrufbar.</li>
               <li>Kritische Admin- und Moderationsaktionen werden in einem manipulationssicheren Protokoll festgehalten.</li>
             </ul>
           ),

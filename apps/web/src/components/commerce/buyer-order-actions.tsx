@@ -38,7 +38,7 @@ export function ReportProblemButton({ orderId }: { orderId: string }) {
             });
           }}
         >
-          <Field label="Was ist passiert?" error={error} hint="Z.B. „Paket nicht angekommen“, „Artikel beschädigt“, „Falsche Farbe“.">
+          <Field label="Was ist passiert?" error={error} hint="Z. B. „Paket nicht angekommen“, „Artikel beschädigt“, „Falsche Farbe“.">
             {(p) => <Textarea {...p} rows={4} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />}
           </Field>
           <Button type="submit" className="w-full" disabled={pending}>

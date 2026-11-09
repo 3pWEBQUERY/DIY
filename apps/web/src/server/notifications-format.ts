@@ -24,7 +24,7 @@ export type NotificationLike = {
 };
 
 export type NotificationParts = {
-  /** Fett dargestellter Auftakt, z.B. „Anna und 11 weitere“ – null bei Systemmeldungen. */
+  /** Fett dargestellter Auftakt, z. B. „Anna und 11 weitere“ – null bei Systemmeldungen. */
   lead: string | null;
   /** Restlicher Satz ohne Auftakt. */
   text: string;
@@ -248,7 +248,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
   }
 }
 
-/** Vollständiger Satz, z.B. „Anna und 11 weiteren gefällt dein Projekt „Wollmütze“.“ */
+/** Vollständiger Satz, z. B. „Anna und 11 weiteren gefällt dein Projekt „Wollmütze“.“ */
 export function notificationText(n: NotificationLike): string {
   const p = notificationParts(n);
   return p.lead ? `${p.lead} ${p.text}` : p.text;

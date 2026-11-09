@@ -22,7 +22,7 @@ export async function sendMail(to: string, subject: string, text: string, opts: 
     if (!res.ok) {
       // Kein Throw: Registrierung/Passwort-Reset dürfen nicht an einem Mail-Ausfall scheitern
       // (sonst halbe Konten bzw. erkennbare E-Mail-Adressen). Fehler wird geloggt und in der
-      // Fehlerüberwachung gesammelt – mit der Begründung von Resend (z.B. Domain nicht bestätigt).
+      // Fehlerüberwachung gesammelt – mit der Begründung von Resend (z. B. Domain nicht bestätigt).
       const reason = await resendError(res);
       console.error(JSON.stringify({ level: "error", msg: "mail_failed", status: res.status, reason, to: masked, subject }));
       await reportMailFailure(`Resend ${res.status}: ${reason}`);
@@ -101,6 +101,6 @@ function renderMail(subject: string, text: string, cta?: { label: string; url: s
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #E7E2DE">
 <tr><td style="padding:20px 28px;border-bottom:1px solid #E7E2DE;font-weight:700;letter-spacing:.18em;font-size:12px">${BRAND.name}</td></tr>
 <tr><td style="padding:28px"><h1 style="font-family:Manrope,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-weight:700;font-size:24px;margin:0 0 16px">${esc(subject)}</h1>${paragraphs}${button}</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #E7E2DE;font-size:12px;color:#77706D">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Benachrichtigungen kannst du in den Einstellungen anpassen.</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #E7E2DE;font-size:12px;color:#6B6461">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Benachrichtigungen kannst du in den Einstellungen anpassen.</td></tr>
 </table></td></tr></table></body></html>`;
 }

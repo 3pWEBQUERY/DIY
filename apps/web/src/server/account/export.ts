@@ -5,7 +5,7 @@ import { db } from "@/server/db";
  * Datenauskunft (revDSG Art. 25 / Datenportabilität Art. 28, DSGVO Art. 15/20, PRD §23.1):
  * alle personenbezogenen Daten eines Kontos als JSON. Nicht enthalten sind Geheimnisse
  * (Passwort-Hash, 2FA-Schlüssel, Wiederherstellungscodes, Tokens) und Daten anderer Personen
- * (z.B. Nachrichten anderer in gemeinsamen Unterhaltungen – nur die eigenen).
+ * (z. B. Nachrichten anderer in gemeinsamen Unterhaltungen – nur die eigenen).
  */
 export async function exportUserData(userId: string) {
   const [user, preference, customerDetails, subscription, sessions, devices, authAccounts] = await Promise.all([

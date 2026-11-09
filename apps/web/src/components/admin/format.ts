@@ -14,7 +14,7 @@ export function pct(x: number | null | undefined) {
   return x == null ? "–" : `${nf1.format(x * 100)} %`;
 }
 
-/** Relative Veränderung (z.B. +0.12 = +12 %); null, wenn keine Basis vorhanden ist. */
+/** Relative Veränderung (z. B. +0.12 = +12 %); null, wenn keine Basis vorhanden ist. */
 export function delta(cur: number, prev: number) {
   return prev > 0 ? (cur - prev) / prev : null;
 }

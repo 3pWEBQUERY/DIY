@@ -100,10 +100,10 @@ export function InvitePanel({ communityId, invited }: { communityId: string; inv
         className="flex items-end gap-2"
       >
         <div className="flex-1">
-          <Label htmlFor="invite-handle">Profilname</Label>
+          <Label htmlFor="invite-handle">Benutzername</Label>
           <div className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
             <span className="pl-3 text-muted">@</span>
-            <input id="invite-handle" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="handle" className="h-11 flex-1 bg-transparent px-2 outline-none" autoComplete="off" />
+            <input id="invite-handle" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="benutzername" className="h-11 flex-1 bg-transparent px-2 outline-none" autoComplete="off" />
           </div>
         </div>
         <Button type="submit" disabled={invite.pending || !handle.trim()}>Einladen</Button>
@@ -324,7 +324,7 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
         className="space-y-4"
       >
         <Field label="Titel" error={create.fields.title}>
-          {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="z.B. Herbst-Wettbewerb: Ein Stuhl aus Restholz" />}
+          {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="z. B. Herbst-Wettbewerb: Ein Stuhl aus Restholz" />}
         </Field>
         <Field label="Beschreibung" optional error={create.fields.description}>
           {(p) => <Textarea {...p} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} placeholder="Worum geht es? Was soll entstehen?" />}
@@ -333,7 +333,7 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
           {(p) => <Textarea {...p} value={rules} onChange={(e) => setRules(e.target.value)} maxLength={3000} rows={3} />}
         </Field>
         <Field label="Preis" optional error={create.fields.prize}>
-          {(p) => <Input {...p} value={prize} onChange={(e) => setPrize(e.target.value)} maxLength={200} placeholder="z.B. Gutschein über CHF 50 vom Holzladen" />}
+          {(p) => <Input {...p} value={prize} onChange={(e) => setPrize(e.target.value)} maxLength={200} placeholder="z. B. Gutschein über CHF 50 vom Holzladen" />}
         </Field>
         <fieldset>
           <legend className="mb-1.5 text-[13px] font-semibold">Wer entscheidet?</legend>

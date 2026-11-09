@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useBackdropDismiss } from "@/components/ui/dialog";
 
 /**
  * Eigener Bestätigungsdialog statt window.confirm (das je nach Browser/OS anders aussieht und
@@ -86,6 +87,7 @@ export function ConfirmHost() {
     current.resolve(ok);
     setQueue((q) => q.slice(1));
   };
+  const backdrop = useBackdropDismiss(() => answer(false));
 
   return (
     <dialog
@@ -94,7 +96,7 @@ export function ConfirmHost() {
         e.preventDefault();
         answer(false);
       }}
-      onClick={(e) => e.target === ref.current && answer(false)}
+      {...backdrop}
       aria-labelledby="confirm-title"
       aria-describedby={current?.body ? "confirm-body" : undefined}
       className="m-auto w-[min(100vw-2rem,26rem)] rounded-3xl border border-line bg-card p-0 text-ink open:animate-rise"

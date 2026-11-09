@@ -83,7 +83,7 @@ export function DraftNotice({ className }: { className?: string }) {
   );
 }
 
-/** Kompakte Definitionsliste für Datenblätter (z.B. Impressum, Gebühren). */
+/** Kompakte Definitionsliste für Datenblätter (z. B. Impressum, Gebühren). */
 export function FactList({ items }: { items: [string, ReactNode][] }) {
   return (
     <dl className="grid gap-x-8 gap-y-3 border-y border-line py-4 sm:grid-cols-[180px_minmax(0,1fr)]">

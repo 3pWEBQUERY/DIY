@@ -67,7 +67,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
             <form action={base} className="mt-4 flex max-w-sm gap-2">
               <input type="hidden" name="bereich" value="mitglieder" />
               <label htmlFor="mq" className="sr-only">Mitglied suchen</label>
-              <input id="mq" name="q" defaultValue={sp.q} placeholder="Name oder @handle suchen" className="h-10 flex-1 border border-line-strong bg-card px-3 text-sm outline-none focus:border-moss rounded-2xl" />
+              <input id="mq" name="q" defaultValue={sp.q} placeholder="Name oder @benutzername suchen" className="h-10 flex-1 border border-line-strong bg-card px-3 text-sm outline-none focus:border-moss rounded-2xl" />
               <button type="submit" className="h-10 border border-line-strong px-3 text-sm font-semibold hover:border-rule-strong rounded-2xl">Suchen</button>
             </form>
             <div className="mt-4">

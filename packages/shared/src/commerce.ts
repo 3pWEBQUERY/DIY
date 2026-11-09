@@ -75,7 +75,7 @@ export const shopSetupSchema = z
       ctx.addIssue({ code: "custom", path: ["businessName"], message: "Firmenname ist für gewerbliche Shops Pflicht" });
     }
     if (v.sellerType === "BUSINESS" && v.vatId && !/^[A-Z]{2,3}[-\s]?[0-9A-Z.\s-]{5,20}$/i.test(v.vatId)) {
-      ctx.addIssue({ code: "custom", path: ["vatId"], message: "Bitte eine gültige MWST-/USt-Nummer angeben (z.B. CHE-123.456.789)" });
+      ctx.addIssue({ code: "custom", path: ["vatId"], message: "Bitte eine gültige MWST-/USt-Nummer angeben (z. B. CHE-123.456.789)" });
     }
   });
 

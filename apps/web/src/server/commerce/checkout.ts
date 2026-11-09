@@ -259,7 +259,7 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
   }
 }
 
-/** Offene Bestellungen des Käufers, die noch bezahlt werden können (z.B. zweiter Shop). */
+/** Offene Bestellungen des Käufers, die noch bezahlt werden können (z. B. zweiter Shop). */
 export async function payableOrders(userId: string) {
   return db.order.findMany({
     where: { buyerId: userId, status: "PENDING_PAYMENT", reservationExpiresAt: { gt: new Date() } },

@@ -37,7 +37,7 @@ export function RulesEditor({ value, onChange }: { value: Rule[]; onChange: (r: 
           <li key={i} className="grid grid-cols-[2rem_1fr_auto] gap-3 border-b border-line pb-3">
             <span className="pt-2.5 font-mono text-xs text-muted">{pad(i + 1)}</span>
             <div className="space-y-2">
-              <Input value={r.title} maxLength={120} onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} aria-label={`Regel ${i + 1}: Titel`} placeholder="z.B. Zeig deinen Prozess, nicht nur das Ergebnis" />
+              <Input value={r.title} maxLength={120} onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} aria-label={`Regel ${i + 1}: Titel`} placeholder="z. B. Zeig deinen Prozess, nicht nur das Ergebnis" />
               <Textarea value={r.body} maxLength={1000} rows={2} onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)))} aria-label={`Regel ${i + 1}: Erläuterung`} placeholder="Erläuterung (optional)" className="min-h-16" />
             </div>
             <div className="flex flex-col gap-1 pt-1">
@@ -132,7 +132,7 @@ export function CommunityForm({ initial, categories = CATEGORIES }: { initial?: 
       <section aria-labelledby="f-basics" className="space-y-5">
         <h2 id="f-basics" className="flex items-baseline gap-3 border-b border-rule pb-2 text-[15px] font-bold"><span className="spec text-ink">01</span>Grundlagen</h2>
         <Field label="Name" error={a.fields.name}>
-          {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required placeholder="z.B. Holzwerkstatt Zürich" />}
+          {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required placeholder="z. B. Holzwerkstatt Zürich" />}
         </Field>
         {!editing && (
           <Field label="Adresse" error={a.fields.slug} hint="Kann später nicht mehr geändert werden.">
@@ -168,7 +168,7 @@ export function CommunityForm({ initial, categories = CATEGORIES }: { initial?: 
             )}
           </Field>
           <Field label="Region" optional error={a.fields.region}>
-            {(p) => <Input {...p} value={region} onChange={(e) => setRegion(e.target.value)} maxLength={80} placeholder="z.B. Bern oder Online" />}
+            {(p) => <Input {...p} value={region} onChange={(e) => setRegion(e.target.value)} maxLength={80} placeholder="z. B. Bern oder Online" />}
           </Field>
         </div>
       </section>

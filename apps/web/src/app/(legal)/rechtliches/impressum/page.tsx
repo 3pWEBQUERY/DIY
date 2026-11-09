@@ -21,7 +21,7 @@ export default function ImpressumPage() {
               items={[
                 ["Plattform", `${BRAND.name} (Arbeitstitel)`],
                 ["Betreiberin", "[Firma]"],
-                ["Rechtsform", "[Rechtsform, z.B. GmbH]"],
+                ["Rechtsform", "[Rechtsform, z. B. GmbH]"],
                 ["Adresse", "[Adresse], Schweiz"],
                 ["Handelsregister", "[Handelsregisteramt des Kantons …], UID [CHE-xxx.xxx.xxx]"],
                 ["MWST-Nummer", "[CHE-xxx.xxx.xxx MWST]"],

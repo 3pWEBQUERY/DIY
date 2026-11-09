@@ -37,7 +37,7 @@ export default function TermsPage() {
                 <li>Die Nutzung ist ab <strong>18 Jahren</strong> möglich. Mit der Registrierung bestätigst du, volljährig zu sein.</li>
                 <li>Du machst wahrheitsgemässe Angaben, hältst dein Passwort geheim und informierst uns bei Verdacht auf Missbrauch.</li>
                 <li>Pro Person ein persönliches Konto. Konten dürfen nicht verkauft oder übertragen werden.</li>
-                <li>Dein Handle darf keine Marken, Personen oder Organisationen imitieren.</li>
+                <li>Dein Benutzername darf keine Marken, Personen oder Organisationen imitieren.</li>
               </ul>
             </>
           ),
@@ -51,9 +51,9 @@ export default function TermsPage() {
                 <strong>Du bleibst Urheber:in.</strong> Alle Rechte an Projekten, Fotos, Anleitungen, Schnittmustern, Texten und anderen Werken, die du veröffentlichst, bleiben bei dir.
               </p>
               <p>
-                Damit wir die Plattform betreiben können, räumst du uns eine <strong>einfache, unentgeltliche, weltweite Lizenz</strong> ein, deine Inhalte im Rahmen von {BRAND.name} zu speichern, technisch anzupassen (z.B.
+                Damit wir die Plattform betreiben können, räumst du uns eine <strong>einfache, unentgeltliche, weltweite Lizenz</strong> ein, deine Inhalte im Rahmen von {BRAND.name} zu speichern, technisch anzupassen (z. B.
                 Bildgrössen), anzuzeigen, zu verbreiten und innerhalb der Plattform – etwa in Entdecken, redaktionellen Kollektionen oder Newslettern der Plattform – mit Namensnennung hervorzuheben. Die Lizenz endet, wenn du einen
-                Inhalt oder dein Konto löschst; ausgenommen sind Kopien, die andere bereits rechtmässig geteilt haben (z.B. ein Repost mit Einordnung), sowie Sicherungskopien bis zu ihrer regulären Löschung.
+                Inhalt oder dein Konto löschst; ausgenommen sind Kopien, die andere bereits rechtmässig geteilt haben (z. B. ein Repost mit Einordnung), sowie Sicherungskopien bis zu ihrer regulären Löschung.
               </p>
               <p>Wir nutzen deine Inhalte nicht ausserhalb der Plattform für Werbung und verkaufen sie nicht. Für jede darüber hinausgehende Nutzung fragen wir dich vorher.</p>
               <p>

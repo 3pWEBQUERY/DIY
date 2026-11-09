@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /**
  * Inline-SVG-Sparkline ohne Chart-Bibliothek und ohne Verläufe:
  * eine Tintenlinie, Grundlinie als Haarlinie, letzter Wert als Terrakotta-Punkt.
- * `labels` (z.B. Wochenstart) erscheinen als <title> für Screenreader/Tooltip.
+ * `labels` (z. B. Wochenstart) erscheinen als <title> für Screenreader/Tooltip.
  */
 export function Sparkline({
   values,

@@ -167,7 +167,7 @@ export function canViewCommunityContent(c: { visibility: string }, m: Membership
   return m?.state === "ACTIVE";
 }
 
-/** Prüft für andere Module (z.B. Beitragsseite), ob ein Community-Beitrag sichtbar ist. */
+/** Prüft für andere Module (z. B. Beitragsseite), ob ein Community-Beitrag sichtbar ist. */
 export async function canViewCommunityPost(communityId: string, viewer: Pick<SessionUser, "id" | "role"> | null) {
   const c = await db.community.findUnique({ where: { id: communityId }, select: { visibility: true, state: true } });
   if (!c || c.state === "REMOVED") return false;

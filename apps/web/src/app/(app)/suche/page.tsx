@@ -58,7 +58,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <label htmlFor="q" className="sr-only">Suchbegriff</label>
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="q" name="q" defaultValue={q} placeholder="Technik, Material, Projekt oder Creator – z. B. „Granny Square“, „Arve“, „Leinen“" className="h-12 w-full border border-rule bg-card pl-11 pr-4 text-[16px] outline-none rounded-2xl" />
+          <input id="q" name="q" defaultValue={q} placeholder="Technik, Material, Projekt oder Creator – z. B. „Granny Square“, „Arve“, „Leinen“" className="h-12 w-full border border-rule bg-card pl-11 pr-4 text-[16px] rounded-2xl transition-colors hover:border-rule-strong focus:border-moss focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1" />
         </div>
         {type && <input type="hidden" name="typ" value={type} />}
         <button className={buttonClass("ink", "lg")}>Suchen</button>

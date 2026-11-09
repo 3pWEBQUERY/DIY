@@ -13,7 +13,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
-import { cn, relativeTime, compactNumber } from "@/lib/utils";
+import { cn, relativeTime, compactNumber, smoothScroll } from "@/lib/utils";
 import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu, type MenuItem } from "./actions";
 import { Comments } from "./comments";
 import { PollBlock } from "./poll";
@@ -99,7 +99,7 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
             key={`${postId}-${m.id}`}
             type="button"
             aria-label={`Medium ${i + 1}`}
-            onClick={() => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: "smooth" })}
+            onClick={() => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: smoothScroll() })}
             className={cn("h-[3px] w-5 bg-paper/60", i === idx && "bg-paper")}
           />
         ))}

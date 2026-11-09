@@ -157,7 +157,7 @@ export async function contentPreview(type: TargetType, id: string): Promise<Cont
     }
     case "USER": {
       const u = await db.user.findUnique({ where: { id }, select: { status: true, profile: { select: { bio: true, avatarUrl: true, handle: true } } } });
-      return { ...base, body: u?.profile?.bio ?? null, imageUrl: u?.profile?.avatarUrl ?? null, state: u?.status ?? base.state, meta: [{ label: "Handle", value: `@${u?.profile?.handle ?? "–"}` }] };
+      return { ...base, body: u?.profile?.bio ?? null, imageUrl: u?.profile?.avatarUrl ?? null, state: u?.status ?? base.state, meta: [{ label: "Benutzername", value: `@${u?.profile?.handle ?? "–"}` }] };
     }
   }
 }
@@ -339,7 +339,7 @@ function appliedValue(model: string, field: string, action: string): string | bo
 
 /**
  * Massnahme zurücknehmen (stattgegebener Einspruch) – aber nur, solange der aktuelle Zustand noch
- * der von dieser Massnahme gesetzte ist. Wurde seither anders entschieden (z.B. inzwischen gebannt
+ * der von dieser Massnahme gesetzte ist. Wurde seither anders entschieden (z. B. inzwischen gebannt
  * oder vom Admin entfernt), bleibt der neuere Zustand bestehen. Gibt zurück, ob zurückgesetzt wurde.
  */
 async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolean> {
@@ -350,7 +350,7 @@ async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolea
       return true;
     }
     const expected = action === "BAN" ? "BANNED" : "SUSPENDED";
-    // Zurück auf den Stand vor dieser Massnahme (z.B. Bann → vorherige befristete Sperre bleibt)
+    // Zurück auf den Stand vor dieser Massnahme (z. B. Bann → vorherige befristete Sperre bleibt)
     const target = (["ACTIVE", "SUSPENDED", "BANNED"].includes(prior.status) ? prior.status : "ACTIVE") as "ACTIVE" | "SUSPENDED" | "BANNED";
     const r = await tx.user.updateMany({
       where: { id: prior.userId, status: expected },

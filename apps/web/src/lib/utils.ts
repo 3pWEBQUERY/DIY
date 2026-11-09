@@ -63,3 +63,17 @@ export function pad(n: number, len = 2) {
 export function pluralize(n: number, one: string, many: string) {
   return `${new Intl.NumberFormat("de-CH").format(n)} ${n === 1 ? one : many}`;
 }
+
+/**
+ * Bewegung reduzieren? Systemeinstellung (prefers-reduced-motion) oder Nutzereinstellung
+ * (data-reduce-motion der App-Shell). Für JS-Animationen wie sanftes Scrollen.
+ */
+export function prefersReducedMotion() {
+  if (typeof window === "undefined") return false;
+  return !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || !!document.querySelector("[data-reduce-motion]");
+}
+
+/** „smooth“, ausser Bewegung soll reduziert werden. */
+export function smoothScroll(): ScrollBehavior {
+  return prefersReducedMotion() ? "auto" : "smooth";
+}

@@ -89,7 +89,7 @@ function filterMenu(q: string) {
   return MENU.filter((m) => m.label.toLowerCase().includes(s) || m.keywords.includes(s));
 }
 
-/** Entfernt unvollständige Blöcke (z.B. Bild ohne Upload) vor dem Speichern. */
+/** Entfernt unvollständige Blöcke (z. B. Bild ohne Upload) vor dem Speichern. */
 export function sanitizeBlocks(blocks: ArticleBlock[]): ArticleBlock[] {
   return blocks.flatMap((b): ArticleBlock[] => {
     switch (b.type) {
@@ -144,7 +144,7 @@ export function BlockEditor({ blocks, onChange, label = "Inhalt" }: { blocks: Ar
     setFocusReq(null);
   }, [focusReq, blocks]);
 
-  /** Mutationen schreiben sofort in die Ref, damit mehrere Aufrufe hintereinander (z.B. Absatz teilen) sich nicht überschreiben. */
+  /** Mutationen schreiben sofort in die Ref, damit mehrere Aufrufe hintereinander (z. B. Absatz teilen) sich nicht überschreiben. */
   const commit = (next: ArticleBlock[]) => {
     blocksRef.current = next;
     onChange(next);
@@ -427,7 +427,7 @@ function BlockBody({ block, index, ctx }: { block: ArticleBlock; index: number; 
 
 /* ─────────────────────────── Textblöcke ─────────────────────────── */
 
-const proseInput = "block w-full resize-none bg-transparent text-[1.0625rem] leading-[1.75] text-ink-2 outline-none placeholder:text-muted/60 field-sizing-content";
+const proseInput = "block w-full resize-none bg-transparent text-[1.0625rem] leading-[1.75] text-ink-2 outline-none placeholder:text-muted field-sizing-content";
 
 function wrapSelection(el: HTMLTextAreaElement, before: string, after: string, placeholder: string) {
   const { selectionStart: s, selectionEnd: e, value } = el;
@@ -620,7 +620,7 @@ function HeadingBlock({ b, index, ctx }: { b: Of<"heading">; index: number; ctx:
           }
         }}
         className={cn(
-          "w-full bg-transparent text-ink outline-none placeholder:text-muted/50",
+          "w-full bg-transparent text-ink outline-none placeholder:text-muted",
           b.level === 2 ? "text-[1.5rem] font-bold tracking-[-0.025em] leading-tight py-1" : "py-2 text-[1.05rem] font-bold",
         )}
       />
@@ -687,7 +687,7 @@ function ListBlock({ b, index, ctx }: { b: Of<"list">; index: number; ctx: Block
                   else setFocusItem(i + 1);
                 }
               }}
-              className="w-full bg-transparent py-1 font-serif text-[1.125rem] text-ink-2 outline-none placeholder:text-muted/50"
+              className="w-full bg-transparent py-1 font-serif text-[1.125rem] text-ink-2 outline-none placeholder:text-muted"
             />
           </li>
         ))}
@@ -722,7 +722,7 @@ function CalloutBlock({ b, ctx }: { b: Of<"callout">; ctx: BlockCtx }) {
           </button>
         ))}
       </div>
-      <textarea data-block-input={b.id} value={b.text} rows={1} maxLength={3000} aria-label="Hinweistext" placeholder="Was sollten Lesende unbedingt wissen?" onChange={(e) => ctx.patch(b.id, { text: e.target.value })} className="block w-full resize-none bg-transparent text-[15px] leading-relaxed outline-none field-sizing-content placeholder:text-muted/60" />
+      <textarea data-block-input={b.id} value={b.text} rows={1} maxLength={3000} aria-label="Hinweistext" placeholder="Was sollten Lesende unbedingt wissen?" onChange={(e) => ctx.patch(b.id, { text: e.target.value })} className="block w-full resize-none bg-transparent text-[15px] leading-relaxed outline-none field-sizing-content placeholder:text-muted" />
     </div>
   );
 }

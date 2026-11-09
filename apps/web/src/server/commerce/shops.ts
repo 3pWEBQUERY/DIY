@@ -84,7 +84,7 @@ export async function saveShop(user: SessionUser, input: unknown, opts: { submit
     if (opts.submit && shop.status === "DRAFT") {
       await tx.shop.update({ where: { id: shop.id }, data: { status: "PENDING_VERIFICATION" } });
       await tx.sellerVerification.update({ where: { shopId: shop.id }, data: { state: "PENDING" } });
-      // Bereits verifiziertes Stripe-Konto (z.B. erneuter Antrag) → direkt aktivieren
+      // Bereits verifiziertes Stripe-Konto (z. B. erneuter Antrag) → direkt aktivieren
       if (shop.chargesEnabled && shop.payoutsEnabled) await activateShop(tx, shop.id, null, "stripe");
     }
     return tx.shop.findUniqueOrThrow({ where: { id: shop.id }, include: shopWithVerification });

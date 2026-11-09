@@ -218,7 +218,7 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
   if (!hasRole(actor, "ADMIN")) throw fail.forbidden("E-Mail-Adressen ändert nur die Administration.");
   if (actor.id === userId) throw fail.forbidden("Deine eigene Adresse änderst du in den Einstellungen.");
   const data = changeEmailSchema.parse(input);
-  // Direkt bestätigen = sofort anmeldbar (z.B. über „Passwort vergessen“) → nur Superadministration.
+  // Direkt bestätigen = sofort anmeldbar (z. B. über „Passwort vergessen“) → nur Superadministration.
   // Sonst muss die neue Adresse ihren Link selbst bestätigen.
   if (data.markVerified && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Direkt bestätigen darf nur die Superadministration – ohne Häkchen erhält die neue Adresse einen Bestätigungslink.");
   const t = await db.user.findUnique({ where: { id: userId }, select: { email: true, role: true, status: true, subscription: { select: { customerId: true, provider: true } } } });

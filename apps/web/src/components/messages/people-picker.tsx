@@ -52,7 +52,7 @@ export function PeoplePicker({ candidates, value, onChange, exclude = [], max }:
               setQ("");
             }
           }}
-          placeholder="Name oder @profilname"
+          placeholder="Name oder @benutzername"
           aria-label="Personen suchen"
           className="h-11 flex-1 bg-transparent text-[15px] outline-none"
         />
@@ -85,7 +85,7 @@ export function PeoplePicker({ candidates, value, onChange, exclude = [], max }:
             </li>
           );
         })}
-        {!shown.length && !canAddTyped && <li className="px-3 py-4 text-center text-sm text-muted">{pool.length ? "Niemand gefunden." : "Folge Personen, um sie hier zu finden – oder gib einen @profilnamen ein."}</li>}
+        {!shown.length && !canAddTyped && <li className="px-3 py-4 text-center text-sm text-muted">{pool.length ? "Niemand gefunden." : "Folge Personen, um sie hier zu finden – oder gib einen @benutzernamen ein."}</li>}
       </ul>
     </div>
   );

@@ -143,7 +143,7 @@ function ModBar({ communityId, post, isMod }: { communityId: string; post: PostV
       {isMod && (
         <Dialog open={hideOpen} onClose={() => setHideOpen(false)} title="Beitrag ausblenden" description="Der Beitrag verschwindet aus der Community. Du kannst ihn unter „Verwalten“ wiederherstellen.">
           <Label htmlFor={`hide-${post.id}`}>Grund (für das Moderationsprotokoll)</Label>
-          <Textarea id={`hide-${post.id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="z.B. Verstoss gegen Regel 2 – Werbung" />
+          <Textarea id={`hide-${post.id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="z. B. Verstoss gegen Regel 2 – Werbung" />
           <Button
             variant="danger"
             className="mt-4 w-full"

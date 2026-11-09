@@ -50,7 +50,7 @@ export function SupportForm({ email }: { email: string }) {
       <Field label="Betreff" error={fields.subject}>
         {(p) => <Input name="subject" required minLength={4} maxLength={140} {...p} />}
       </Field>
-      <Field label="Nachricht" hint="Je genauer, desto schneller können wir helfen – z.B. Bestellnummer, Link oder was du zuletzt getan hast. Bitte keine Passwörter." error={fields.body}>
+      <Field label="Nachricht" hint="Je genauer, desto schneller können wir helfen – z. B. Bestellnummer, Link oder was du zuletzt getan hast. Bitte keine Passwörter." error={fields.body}>
         {(p) => <Textarea name="body" required minLength={20} maxLength={5000} rows={7} {...p} />}
       </Field>
       <div className="flex flex-wrap items-center justify-between gap-3">
