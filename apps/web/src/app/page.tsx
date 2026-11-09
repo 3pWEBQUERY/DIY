@@ -20,13 +20,15 @@ export const revalidate = 300;
 
 async function landingData() {
   try {
+    // Nur Inhalte aktiver Konten – Projekte gebannter oder gelöschter Konten führen sonst ins Leere (404)
+    const visible = { state: "PUBLISHED", visibility: "PUBLIC", owner: { status: "ACTIVE" } } as const;
     const [projects, tutorials, creators, catCounts, latest] = await Promise.all([
-      db.project.count({ where: { state: "PUBLISHED", visibility: "PUBLIC" } }),
-      db.tutorial.count({ where: { state: "PUBLISHED" } }),
-      db.userProfile.count({ where: { projectCount: { gt: 0 } } }),
-      db.project.groupBy({ by: ["category"], where: { state: "PUBLISHED", visibility: "PUBLIC" }, _count: true }),
+      db.project.count({ where: visible }),
+      db.tutorial.count({ where: { state: "PUBLISHED", author: { status: "ACTIVE" } } }),
+      db.userProfile.count({ where: { projectCount: { gt: 0 }, user: { status: "ACTIVE" } } }),
+      db.project.groupBy({ by: ["category"], where: visible, _count: true }),
       db.project.findMany({
-        where: { state: "PUBLISHED", visibility: "PUBLIC" },
+        where: { ...visible, status: { not: "ARCHIVED" } },
         orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
         take: 7,
         select: {

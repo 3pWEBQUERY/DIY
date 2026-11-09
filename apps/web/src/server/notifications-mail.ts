@@ -2,6 +2,7 @@ import "server-only";
 import { db, type Prisma } from "@/server/db";
 import { sendMail } from "@/server/mail";
 import { unsubscribeUrl } from "@/server/mail-unsubscribe";
+import { appealToken } from "@/server/moderation/appeal-link";
 import { features } from "@/server/env";
 import { captureError } from "@/server/monitoring";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
@@ -19,6 +20,19 @@ export function stripLinks(text: string) {
 }
 
 type PendingMail = Awaited<ReturnType<typeof pendingMails>>[number];
+
+/**
+ * Link für die Mail. Moderationsentscheide verlinken den Einspruch mit signiertem Token – dauerhaft
+ * gesperrte Konten können sich nicht anmelden und müssen trotzdem Einspruch erheben können.
+ */
+function mailHref(n: PendingMail) {
+  const href = notificationHref(n);
+  const d = (n.data ?? {}) as Record<string, unknown>;
+  if (n.type === "MODERATION" && typeof d.caseId === "string" && href === `/einspruch/${d.caseId}`) {
+    return `${href}?t=${encodeURIComponent(appealToken(d.caseId, n.recipientId))}`;
+  }
+  return href;
+}
 
 /**
  * Offene Benachrichtigungen für genau diesen Lauf – die Bedingung steht in der Abfrage, damit
@@ -107,12 +121,12 @@ async function mailBatch(pending: PendingMail[]) {
       // Links aus Ausschnitten entfernen (z. B. Nachrichtenanfragen Fremder) – keine klickbaren
       // Phishing-Links in E-Mails, die von Werkuno kommen
       const excerpt = typeof d.excerpt === "string" && d.excerpt ? stripLinks(d.excerpt).slice(0, 140) : undefined;
-      return { text: notificationText(n), excerpt, url: `${appUrl}${notificationHref(n)}` };
+      return { text: notificationText(n), excerpt, url: `${appUrl}${mailHref(n)}` };
     });
     const more = list.length > items.length ? ` Hier die neuesten ${items.length} von ${list.length}:` : "";
     // Sicherheits-, Bestell- und Moderationsmails lassen sich nicht abbestellen – nur Neuigkeiten
     const optional = list.some((n) => !ALWAYS_INSTANT.includes(n.type as NotificationType));
-    const target = list.length === 1 ? notificationHref(list[0]!) : "/benachrichtigungen";
+    const target = list.length === 1 ? mailHref(list[0]!) : "/benachrichtigungen";
     const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
     try {
       const r = await sendMail(to, subject, list.length > items.length ? `Das ist in deiner Werkstatt passiert.${more}` : "Das ist in deiner Werkstatt passiert:", {

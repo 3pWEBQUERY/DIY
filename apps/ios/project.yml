@@ -22,8 +22,12 @@ targets:
       - path: Werkuno
         excludes:
           - "ThreeD/web/**"
+          - "Resources/PrivacyInfo.xcprivacy"
       - path: Werkuno/ThreeD/web
         type: folder
+        buildPhase: resources
+      # Datenschutz-Manifest (App Store): explizit als Ressource ins App-Bundle
+      - path: Werkuno/Resources/PrivacyInfo.xcprivacy
         buildPhase: resources
     settings:
       base:

@@ -9,7 +9,7 @@ import { token } from "@/server/crypto";
 import { commitSale, lockOrder, OutOfStockError, refreshSoldOut } from "./inventory";
 import { cancelPendingOrderTx } from "./reservations";
 import { paymentStatusAfterRefund, refundableAmount } from "./rules";
-import { createRefund, expireCheckoutSession, listRefunds, type Stripe, accountStatus, retrieveConnectStatus } from "./stripe";
+import { createRefund, expireCheckoutSession, listRefunds, reverseTransferForDispute, type Stripe, accountStatus, retrieveConnectStatus } from "./stripe";
 import { applyAccountStatus } from "./shops";
 import { captureError } from "@/server/monitoring";
 
@@ -69,6 +69,10 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
         }
         const wasPending = order.status === "PENDING_PAYMENT";
         if (!wasPending && order.status !== "CANCELLED") return "duplicate" as const;
+        // Shop inzwischen gesperrt bzw. Verkäuferkonto gebannt/gelöscht (offene Checkout-Session bezahlt) →
+        // nicht verkaufen, sondern sofort vollständig erstatten – sonst liegt das Geld beim gesperrten Konto
+        const seller = await tx.shop.findUniqueOrThrow({ where: { id: order.shopId }, select: { status: true, owner: { select: { status: true } } } });
+        if (seller.status === "SUSPENDED" || seller.owner.status === "BANNED" || seller.owner.status === "DELETED") throw new SellerUnavailableError();
 
         // Reservierung → Verkauf. Bei verspäteter Zahlung (Reservierung abgelaufen) nur aus freiem Bestand.
         for (const it of order.items) await commitSale(tx, it, { reserved: wasPending });
@@ -130,6 +134,14 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
       { timeout: 20_000 },
     );
   } catch (e) {
+    if (e instanceof SellerUnavailableError) {
+      await refundUnfulfillable(orderId, input, {
+        note: "Zahlung eingegangen, Shop ist nicht mehr aktiv – wird erstattet",
+        refundReason: "Shop nicht mehr aktiv",
+        buyerNote: "Der Shop ist nicht mehr aktiv. Der volle Betrag wird erstattet.",
+      });
+      return "refunded";
+    }
     if (!(e instanceof OutOfStockError)) throw e;
     // Verspätete Zahlung, Ware inzwischen vergeben → sofort und vollständig erstatten.
     await refundUnfulfillable(orderId, input);
@@ -137,9 +149,23 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
   }
 }
 
-async function refundUnfulfillable(orderId: string, input: PaidInput) {
+class SellerUnavailableError extends Error {
+  constructor() {
+    super("Shop nicht mehr aktiv");
+  }
+}
+
+async function refundUnfulfillable(
+  orderId: string,
+  input: PaidInput,
+  text: { note: string; refundReason: string; buyerNote: string } = {
+    note: "Zahlung zu spät – Artikel nicht mehr verfügbar",
+    refundReason: "Artikel nach Ablauf der Reservierung nicht mehr verfügbar",
+    buyerNote: "Die Reservierung war abgelaufen und der Artikel ist vergriffen. Der volle Betrag wird erstattet.",
+  },
+) {
   const order = await db.$transaction(async (tx) => {
-    await cancelPendingOrderTx(tx, orderId, { paymentStatus: "CANCELLED", note: "Zahlung zu spät – Artikel nicht mehr verfügbar" });
+    await cancelPendingOrderTx(tx, orderId, { paymentStatus: "CANCELLED", note: text.note });
     const o = (await orderWith(tx, orderId))!;
     const p = o.payments[0];
     if (p) await tx.payment.update({ where: { id: p.id }, data: { status: "SUCCEEDED", provider: input.provider, providerRef: input.providerRef } });
@@ -149,14 +175,14 @@ async function refundUnfulfillable(orderId: string, input: PaidInput) {
     return o;
   });
   // Schlägt die Erstattung beim Anbieter fehl, holt retryCancelledRefunds sie nach (Bestellung ist storniert, Geld noch da)
-  await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: "Artikel nach Ablauf der Reservierung nicht mehr verfügbar", actorId: null, system: true }).catch((e) =>
+  await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: text.refundReason, actorId: null, system: true }).catch((e) =>
     log("error", "auto_refund_deferred", { orderId, err: e instanceof Error ? e.message : String(e) }),
   );
   await notify({
     recipientId: order.buyerId,
     type: "ORDER_STATUS",
     bundle: false,
-    data: { number: order.number, title: itemsTitle(order.items), status: "CANCELLED", note: "Die Reservierung war abgelaufen und der Artikel ist vergriffen. Der volle Betrag wird erstattet.", href: `/bestellungen/${orderId}` },
+    data: { number: order.number, title: itemsTitle(order.items), status: "CANCELLED", note: text.buyerNote, href: `/bestellungen/${orderId}` },
   });
 }
 
@@ -334,12 +360,13 @@ export async function markDisputed(paymentIntentId: string, d: { disputeId: stri
 }
 
 export async function markDisputeClosed(paymentIntentId: string, d: { disputeId: string; status: string; amountMinor?: number }) {
-  await db.$transaction(async (tx) => {
+  const lost = await db.$transaction(async (tx) => {
     // Einzelabfragen statt verschachteltem include: Prisma würde die Relationen sonst parallel über
     // dieselbe Transaktionsverbindung abfragen (pg-Warnung „client.query() while executing“)
     const payment = await tx.payment.findUnique({ where: { providerRef: paymentIntentId } });
-    if (!payment || payment.status !== "DISPUTED") return;
+    if (!payment || payment.status !== "DISPUTED") return null;
     await lockOrder(tx, payment.orderId);
+    let lostMinor = 0;
     const won = d.status === "won" || d.status === "warning_closed";
     const base = await tx.order.findUniqueOrThrow({ where: { id: payment.orderId }, select: { id: true, number: true, status: true, currency: true, shopId: true } });
     const refunds = await tx.refund.findMany({ where: { orderId: base.id } });
@@ -356,6 +383,7 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
       const already = order.refunds.filter((r) => r.status !== "FAILED").reduce((s, r) => s + r.amountMinor, 0);
       const amount = Math.max(0, Math.min(d.amountMinor ?? payment.amountMinor, payment.amountMinor - already));
       if (amount > 0) await tx.refund.create({ data: { orderId: order.id, providerRef: `dispute:${d.disputeId}`, amountMinor: amount, reason: "Streitfall verloren (Rückbuchung)", status: "SUCCEEDED" } });
+      lostMinor = d.amountMinor ?? payment.amountMinor;
       const refunded = already + amount;
       await tx.payment.update({ where: { id: payment.id }, data: { status: paymentStatusAfterRefund(payment.amountMinor, refunded) } });
       const digital = order.items.filter((i) => i.isDigital).map((i) => i.id);
@@ -367,7 +395,21 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
       await notify({ recipientId: order.shop.ownerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, status: to, note: `Der Streitfall ist verloren. ${money(amount, order.currency)} wurden zurückgebucht.`, href: `/studio/bestellungen/${order.id}` } }, tx);
     }
     await audit({ action: "payment.dispute.closed", targetType: "Order", targetId: payment.orderId, meta: { disputeId: d.disputeId, status: d.status } }, tx);
+    return lostMinor > 0 && payment.provider === "stripe" ? { orderId: payment.orderId, lostMinor } : null;
   });
+  // Ausserhalb der Transaktion (Netzwerk): Verkäuferanteil vom Connect-Konto zurückholen – sonst trägt die
+  // Plattform den Verlust, während der Verkäufer das Geld behält und auszahlen kann
+  if (lost) {
+    try {
+      const r = await reverseTransferForDispute({ paymentIntentId, disputeId: d.disputeId, disputedMinor: lost.lostMinor, orderId: lost.orderId });
+      const o = await db.order.findUnique({ where: { id: lost.orderId }, select: { status: true, currency: true } });
+      if (o && r.reversedMinor > 0) await db.orderEvent.create({ data: { orderId: lost.orderId, from: o.status, to: o.status, note: `Verkäuferanteil von ${money(r.reversedMinor, o.currency)} nach verlorenem Streitfall vom Shop-Konto zurückgeholt` } });
+      await audit({ action: "payment.dispute.transfer_reversed", targetType: "Order", targetId: lost.orderId, meta: { disputeId: d.disputeId, reversedMinor: r.reversedMinor, result: r.reason } });
+    } catch (err) {
+      // Webhook-Wiederholung hilft nicht (Streitfall ist bereits verbucht) → zur manuellen Klärung melden
+      await captureError(err, { source: "SERVER", path: "payments.dispute_reversal", meta: { orderId: lost.orderId, disputeId: d.disputeId } });
+    }
+  }
 }
 
 /**

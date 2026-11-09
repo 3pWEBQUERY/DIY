@@ -18,6 +18,7 @@ import { storage } from "@/server/storage";
 import { track, isQualifiedComment } from "@/server/analytics/service";
 import { deliverPendingPushes } from "@/server/push/service";
 import { captureError } from "@/server/monitoring";
+import { backoffDelay } from "@/lib/backoff";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { liftExpiredSuspensions } from "@/server/moderation/expiry";
 import { sendEventReminders } from "@/server/communities/events";
@@ -61,6 +62,9 @@ const Q = {
   competitions: "competition.phases",
 } as const;
 
+/** ~20 Versuche mit Backoff bis 6 Std. ≈ 3–4 Tage, bevor ein Ereignis aufgegeben (und gemeldet) wird. */
+const OUTBOX_MAX_ATTEMPTS = 20;
+
 let dispatching = false;
 
 /** Cron-Job und 3-Sekunden-Takt teilen sich diese Funktion – nie zwei Läufe gleichzeitig (sonst doppelte Fan-outs). */
@@ -75,7 +79,12 @@ async function dispatchOutbox(boss: PgBoss) {
 }
 
 async function dispatchOutboxOnce(boss: PgBoss) {
-  const events = await db.outboxEvent.findMany({ where: { publishedAt: null, attempts: { lt: 10 } }, orderBy: { createdAt: "asc" }, take: 100 });
+  const now = new Date();
+  const events = await db.outboxEvent.findMany({
+    where: { publishedAt: null, attempts: { lt: OUTBOX_MAX_ATTEMPTS }, OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] },
+    orderBy: { createdAt: "asc" },
+    take: 100,
+  });
   for (const e of events) {
     try {
       const p = e.payload as Record<string, string>;
@@ -116,9 +125,18 @@ async function dispatchOutboxOnce(boss: PgBoss) {
       }
       await db.outboxEvent.update({ where: { id: e.id }, data: { publishedAt: new Date(), attempts: { increment: 1 } } });
     } catch (err) {
-      warn("outbox_failed", { id: e.id, type: e.type, err: String(err) });
-      await captureError(err, { source: "WORKER", path: `outbox:${e.type}`, meta: { eventId: e.id } });
-      await db.outboxEvent.update({ where: { id: e.id }, data: { attempts: { increment: 1 } } });
+      const attempts = e.attempts + 1;
+      warn("outbox_failed", { id: e.id, type: e.type, attempts, err: String(err) });
+      await captureError(err, { source: "WORKER", path: `outbox:${e.type}`, meta: { eventId: e.id, attempts } });
+      // Exponentielles Backoff (10 s … 6 Std.) statt 10 Versuche im 3-Sekunden-Takt: ein Ausfall von Stripe/S3
+      // über einige Minuten darf ein Ereignis wie UserDeleted (DSG-Löschung) nicht endgültig verwerfen
+      await db.outboxEvent.update({
+        where: { id: e.id },
+        data: { attempts, lastError: String(err).slice(0, 500), nextAttemptAt: new Date(Date.now() + backoffDelay(attempts - 1, { base: 10_000, max: 6 * 3600_000 })) },
+      });
+      if (attempts >= OUTBOX_MAX_ATTEMPTS) {
+        await captureError(new Error(`Outbox-Ereignis ${e.type} nach ${attempts} Versuchen aufgegeben – bitte manuell klären`), { source: "WORKER", path: "outbox:abandoned", meta: { eventId: e.id, type: e.type } });
+      }
     }
   }
 }

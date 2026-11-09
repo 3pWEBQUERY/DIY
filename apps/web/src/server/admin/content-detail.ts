@@ -394,6 +394,17 @@ function diff(before: Record<string, unknown>, after: Record<string, unknown>, l
     .map((k) => (longText.includes(k) ? { field: k, from: null, to: null } : { field: k, from: before[k] ?? null, to: after[k] ?? null }));
 }
 
+/**
+ * Moderation darf die Sichtbarkeit nur einschränken, nie erweitern: Was ein Mitglied privat oder nur für
+ * Follower geteilt hat, macht die Plattform nicht öffentlich (Datenschutz, Selbstbestimmung).
+ */
+const VISIBILITY_RANK: Record<string, number> = { PRIVATE: 0, FOLLOWERS: 1, PUBLIC: 2 };
+function assertNotWidened(from: string, to: string) {
+  if ((VISIBILITY_RANK[to] ?? 0) > (VISIBILITY_RANK[from] ?? 0)) {
+    throw fail.invalid("Die Sichtbarkeit lässt sich in der Moderation nur einschränken – erweitern kann sie nur die Person selbst.", { visibility: "Nur einschränken möglich" });
+  }
+}
+
 /** Metadaten korrigieren (Titel, Kurztext, Kategorie, Sichtbarkeit, Niveau). Slugs bleiben stabil. */
 export async function updateContentMeta(actor: Actor, kind: DetailKind, id: string, input: unknown) {
   mod(actor);
@@ -409,6 +420,7 @@ export async function updateContentMeta(actor: Actor, kind: DetailKind, id: stri
       const p = await tx.project.findUnique({ where: { id }, select: { title: true, description: true, category: true, visibility: true, ownerId: true, state: true } });
       if (!p) throw fail.notFound();
       if (p.state === "REMOVED") throw fail.conflict("Entfernte Inhalte können nicht bearbeitet werden.");
+      assertNotWidened(p.visibility, d.visibility);
       changes = diff({ title: p.title, description: p.description, category: p.category, visibility: p.visibility }, { title: d.title, description: d.summary, category: d.category, visibility: d.visibility }, ["description"]);
       if (changes.length) {
         await tx.project.update({ where: { id }, data: { title: d.title, description: d.summary, category: d.category, visibility: d.visibility, ...(d.visibility !== "PUBLIC" ? { isFeatured: false } : {}) } });
@@ -432,6 +444,7 @@ export async function updateContentMeta(actor: Actor, kind: DetailKind, id: stri
       const p = await tx.post.findUnique({ where: { id }, select: { category: true, visibility: true, authorId: true, state: true, body: true, repostOfId: true, _count: { select: { media: true } } } });
       if (!p) throw fail.notFound();
       if (p.state === "REMOVED") throw fail.conflict("Entfernte Inhalte können nicht bearbeitet werden.");
+      assertNotWidened(p.visibility, d.visibility);
       const body = d.body ?? p.body;
       if (!body && !p._count.media && !p.repostOfId) throw fail.invalid("Ein Beitrag ohne Bild braucht einen Text.", { body: "Bitte einen Text angeben" });
       changes = diff({ body: p.body, category: p.category, visibility: p.visibility }, { body, category: d.category, visibility: d.visibility }, ["body"]);

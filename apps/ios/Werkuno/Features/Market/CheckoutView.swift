@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Kasse (PRD §13.5): Adresse, Notiz, vollständige Kosten, dann zahlungspflichtig bestellen.
+/// Kasse (PRD §13.5): persönliche Angaben (einmal erfasst, danach gespeichert), optional abweichende
+/// Lieferadresse, Notiz, vollständige Kosten, dann zahlungspflichtig bestellen.
 struct CheckoutView: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
@@ -8,12 +9,25 @@ struct CheckoutView: View {
     @State private var page: MarketCheckoutPage?
     @State private var loadError: String?
 
-    @State private var name = ""
+    // Persönliche Angaben (= Rechnungsadresse; Lieferadresse, sofern nicht abweichend)
+    @State private var firstName = ""
+    @State private var lastName = ""
     @State private var line1 = ""
     @State private var line2 = ""
     @State private var postalCode = ""
     @State private var city = ""
     @State private var country = "CH"
+    @State private var phone = ""
+    @State private var hasSavedDetails = false
+    @State private var saveDetails = true
+    // Abweichende Lieferadresse
+    @State private var shipToOther = false
+    @State private var shipName = ""
+    @State private var shipLine1 = ""
+    @State private var shipLine2 = ""
+    @State private var shipPostalCode = ""
+    @State private var shipCity = ""
+    @State private var shipCountry = "CH"
     @State private var note = ""
     @State private var prefilled = false
 
@@ -31,7 +45,7 @@ struct CheckoutView: View {
 
     enum Outcome: Equatable { case paid([String]), failed([String]), pending([String]) }
 
-    private enum Field: Hashable { case name, line1, line2, postalCode, city, note }
+    private enum Field: Hashable { case firstName, lastName, line1, line2, postalCode, city, phone, shipName, shipLine1, shipLine2, shipPostalCode, shipCity, note }
     @FocusState private var focus: Field?
 
     var body: some View {
@@ -64,14 +78,19 @@ struct CheckoutView: View {
             let p: MarketCheckoutPage = try await APIClient.shared.get("/checkout")
             withAnimation(.smooth) { page = p }
             loadError = nil
-            if !prefilled, let a = p.address {
+            if !prefilled {
                 prefilled = true
-                name = a.name ?? app.me?.profile?.displayName ?? ""
-                line1 = a.line1 ?? ""
-                line2 = a.line2 ?? ""
-                postalCode = a.postalCode ?? ""
-                city = a.city ?? ""
-                if let c = a.country, L.shipCountries.contains(where: { $0.key == c }) { country = c }
+                hasSavedDetails = p.details != nil
+                if let d = p.details {
+                    firstName = d.firstName ?? ""
+                    lastName = d.lastName ?? ""
+                    line1 = d.line1 ?? ""
+                    line2 = d.line2 ?? ""
+                    postalCode = d.postalCode ?? ""
+                    city = d.city ?? ""
+                    phone = d.phone ?? ""
+                    if let c = d.country, L.shipCountries.contains(where: { $0.key == c }) { country = c }
+                }
             }
         } catch is CancellationError {
         } catch {
@@ -94,6 +113,15 @@ struct CheckoutView: View {
                 Spacer()
             }
             .padding(Space.gutter)
+        } else if p.hasDigitalItems {
+            // Digitale Produkte werden in der App nicht verkauft (App Store 3.1.1) – keine Kasse dafür.
+            VStack(alignment: .leading, spacing: 16) {
+                NoticeView(tone: .info, title: "Digitale Anleitungen",
+                           message: (p.digitalOnly ?? false) ? "In der App nicht erhältlich." : "Digitale Anleitungen sind in der App nicht erhältlich. Entferne sie aus dem Warenkorb, um die übrigen Artikel zu bestellen.")
+                Button("Zum Warenkorb") { router.open(.cart) }.buttonStyle(.glass)
+                Spacer()
+            }
+            .padding(Space.gutter)
         } else {
             form(p)
         }
@@ -109,30 +137,56 @@ struct CheckoutView: View {
                     Text("Kasse").font(.display(32)).accessibilityAddTraits(.isHeader)
                 }
 
-                // Adresse
+                // Persönliche Angaben (Rechnungsadresse)
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(digitalOnly ? "Rechnungsadresse" : "Lieferadresse", number: "01")
+                    SectionHeader("Deine Angaben", number: "01",
+                                  subtitle: hasSavedDetails ? (digitalOnly ? "Rechnungsadresse" : "Rechnungs- und Lieferadresse") : "Einmalig: Name und Adresse brauchen die Shops für Rechnung und Versand. Wir speichern sie für deine nächsten Bestellungen.")
                     VStack(spacing: 0) {
-                        field("Vor- und Nachname", text: $name, key: "address.name", focus: .name, content: .name)
-                        field("Strasse und Hausnummer", text: $line1, key: "address.line1", focus: .line1, content: .fullStreetAddress)
-                        field("Adresszusatz (optional)", text: $line2, key: "address.line2", focus: .line2, content: .streetAddressLine2)
                         HStack(spacing: 12) {
-                            field("PLZ", text: $postalCode, key: "address.postalCode", focus: .postalCode, content: .postalCode, keyboard: .numbersAndPunctuation)
+                            field("Vorname", text: $firstName, key: "details.firstName", focus: .firstName, content: .givenName)
+                            field("Nachname", text: $lastName, key: "details.lastName", focus: .lastName, content: .familyName)
+                        }
+                        field("Strasse und Hausnummer", text: $line1, key: "details.line1", focus: .line1, content: .fullStreetAddress)
+                        field("Adresszusatz (optional)", text: $line2, key: "details.line2", focus: .line2, content: .streetAddressLine2)
+                        HStack(spacing: 12) {
+                            field("PLZ", text: $postalCode, key: "details.postalCode", focus: .postalCode, content: .postalCode, keyboard: .numbersAndPunctuation)
                                 .frame(maxWidth: 110)
-                            field("Ort", text: $city, key: "address.city", focus: .city, content: .addressCity)
+                            field("Ort", text: $city, key: "details.city", focus: .city, content: .addressCity)
                         }
-                        HStack {
-                            Text("Land").foregroundStyle(Color.ink2)
-                            Spacer()
-                            Picker("Land", selection: $country) {
-                                ForEach(L.shipCountries, id: \.key) { Text($0.label).tag($0.key) }
-                            }
-                            .labelsHidden()
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 6)
+                        countryRow(selection: $country, key: "details.country")
+                        field("Telefon (optional)", text: $phone, key: "details.phone", focus: .phone, content: .telephoneNumber, keyboard: .phonePad)
                     }
                     .cardSurface(radius: Radius.inner)
-                    Text("Versand derzeit innerhalb der Schweiz, nach Deutschland, Österreich und Liechtenstein.").font(.wr(.caption)).foregroundStyle(Color.muted)
+                    Text("Bestellungen derzeit aus der Schweiz, Deutschland, Österreich und Liechtenstein. Die Telefonnummer dient nur für Rückfragen zur Lieferung.").font(.wr(.caption)).foregroundStyle(Color.muted)
+                    if hasSavedDetails {
+                        Toggle(isOn: $saveDetails) { Text("Änderungen für künftige Bestellungen speichern").font(.wr(.subheadline)) }
+                            .tint(.moss)
+                            .padding(.horizontal, 4)
+                    }
+                }
+
+                // Abweichende Lieferadresse
+                if !digitalOnly {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(isOn: $shipToOther.animation(.snappy)) { Text("An eine andere Adresse liefern").font(.wr(.subheadline, .semibold)) }
+                            .tint(.moss)
+                            .padding(.horizontal, 4)
+                        if shipToOther {
+                            VStack(spacing: 0) {
+                                field("Name der Empfängerin / des Empfängers", text: $shipName, key: "address.name", focus: .shipName, content: .name)
+                                field("Strasse und Hausnummer", text: $shipLine1, key: "address.line1", focus: .shipLine1, content: .fullStreetAddress)
+                                field("Adresszusatz (optional)", text: $shipLine2, key: "address.line2", focus: .shipLine2, content: .streetAddressLine2)
+                                HStack(spacing: 12) {
+                                    field("PLZ", text: $shipPostalCode, key: "address.postalCode", focus: .shipPostalCode, content: .postalCode, keyboard: .numbersAndPunctuation)
+                                        .frame(maxWidth: 110)
+                                    field("Ort", text: $shipCity, key: "address.city", focus: .shipCity, content: .addressCity)
+                                }
+                                countryRow(selection: $shipCountry, key: "address.country")
+                            }
+                            .cardSurface(radius: Radius.inner)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
                 }
 
                 // Notiz
@@ -217,12 +271,35 @@ struct CheckoutView: View {
         .hairline()
     }
 
+    private func countryRow(selection: Binding<String>, key: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Land").foregroundStyle(Color.ink2)
+                Spacer()
+                Picker("Land", selection: selection) {
+                    ForEach(L.shipCountries, id: \.key) { Text($0.label).tag($0.key) }
+                }
+                .labelsHidden()
+                .onChange(of: selection.wrappedValue) { _, _ in fieldErrors[key] = nil }
+            }
+            MarketFieldError(text: fieldErrors[key])
+        }
+        .padding(.horizontal, 14).padding(.vertical, 6)
+        .hairline()
+    }
+
     private func advance(from f: Field) {
         switch f {
-        case .name: focus = .line1
+        case .firstName: focus = .lastName
+        case .lastName: focus = .line1
         case .line1: focus = .line2
         case .line2: focus = .postalCode
         case .postalCode: focus = .city
+        case .city: focus = .phone
+        case .shipName: focus = .shipLine1
+        case .shipLine1: focus = .shipLine2
+        case .shipLine2: focus = .shipPostalCode
+        case .shipPostalCode: focus = .shipCity
         default: focus = nil
         }
     }
@@ -250,12 +327,24 @@ struct CheckoutView: View {
 
     // MARK: Bestellen
 
-    private func validate() -> Bool {
+    /// Spiegelt `customerDetailsSchema` / `shippingAddressSchema` grob – der Server prüft verbindlich.
+    private func validate(digitalOnly: Bool) -> Bool {
         var e: [String: String] = [:]
-        if name.trimmed.count < 2 { e["address.name"] = "Bitte gib deinen Namen an" }
-        if line1.trimmed.count < 2 { e["address.line1"] = "Adresse fehlt" }
-        if postalCode.trimmed.count < 3 { e["address.postalCode"] = "PLZ fehlt" }
-        if city.trimmed.isEmpty { e["address.city"] = "Ort fehlt" }
+        if firstName.trimmed.isEmpty { e["details.firstName"] = "Pflichtfeld" } else if firstName.trimmed.count > 60 { e["details.firstName"] = "Höchstens 60 Zeichen" }
+        if lastName.trimmed.isEmpty { e["details.lastName"] = "Pflichtfeld" } else if lastName.trimmed.count > 60 { e["details.lastName"] = "Höchstens 60 Zeichen" }
+        if line1.trimmed.count < 3 { e["details.line1"] = "Strasse und Hausnummer angeben" }
+        let plz = postalCode.trimmed
+        if plz.isEmpty { e["details.postalCode"] = "PLZ angeben" }
+        else if plz.range(of: country == "DE" ? "^[0-9]{5}$" : "^[0-9]{4}$", options: .regularExpression) == nil { e["details.postalCode"] = country == "DE" ? "5-stellige PLZ" : "4-stellige PLZ" }
+        if city.trimmed.count < 2 { e["details.city"] = "Ort angeben" }
+        let tel = phone.trimmed
+        if !tel.isEmpty && (tel.count > 30 || tel.range(of: "^\\+?[0-9 ()/.-]{7,}$", options: .regularExpression) == nil) { e["details.phone"] = "Ungültige Telefonnummer" }
+        if shipToOther && !digitalOnly {
+            if shipName.trimmed.count < 2 { e["address.name"] = "Bitte gib den Namen an" }
+            if shipLine1.trimmed.count < 2 { e["address.line1"] = "Adresse fehlt" }
+            if shipPostalCode.trimmed.count < 3 { e["address.postalCode"] = "PLZ fehlt" }
+            if shipCity.trimmed.isEmpty { e["address.city"] = "Ort fehlt" }
+        }
         withAnimation { fieldErrors = e }
         return e.isEmpty && note.count <= 1000
     }
@@ -263,20 +352,33 @@ struct CheckoutView: View {
     private func submit(_ c: MarketCart) async {
         guard !submitting else { return }
         submitError = nil
-        guard validate() else { Haptics.warning(); return }
+        let digitalOnly = page?.digitalOnly ?? false
+        guard validate(digitalOnly: digitalOnly) else { Haptics.warning(); return }
         focus = nil
         submitting = true
         defer { submitting = false }
-        let address: JSONValue = [
-            "name": .string(name.trimmed), "line1": .string(line1.trimmed), "line2": .string(line2.trimmed),
+        // Eingegebene Angaben immer mitsenden – sonst nimmt der Server die gespeicherten (`details ?? saved`).
+        let details: JSONValue = [
+            "firstName": .string(firstName.trimmed), "lastName": .string(lastName.trimmed),
+            "line1": .string(line1.trimmed), "line2": .string(line2.trimmed),
             "postalCode": .string(postalCode.trimmed), "city": .string(city.trimmed), "country": .string(country),
+            "phone": .string(phone.trimmed),
         ]
-        let body: [String: JSONValue] = [
-            "address": address,
+        let ship = shipToOther && !digitalOnly
+        var body: [String: JSONValue] = [
+            "details": details,
+            "saveDetails": .bool(!hasSavedDetails || saveDetails),
+            "shipToOther": .bool(ship),
             "buyerNote": .string(note.trimmed),
             "idempotencyKey": .string(idempotencyKey),
             "expectedTotalMinor": .number(Double(c.totals.total)),
         ]
+        if ship {
+            body["address"] = [
+                "name": .string(shipName.trimmed), "line1": .string(shipLine1.trimmed), "line2": .string(shipLine2.trimmed),
+                "postalCode": .string(shipPostalCode.trimmed), "city": .string(shipCity.trimmed), "country": .string(shipCountry),
+            ]
+        }
         do {
             let r: MarketCheckoutStarted = try await APIClient.shared.post("/checkout", body)
             started = r

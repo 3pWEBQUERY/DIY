@@ -325,8 +325,8 @@ struct OrderDetailView: View {
                         Text(title).font(.wr(.subheadline, .semibold))
                         Spacer()
                         if e.revokedAt == nil {
-                            Button { router.present(.web(url: AppConfig.webURL("/api/v1/downloads/\(e.id)"))) } label: { Label("Laden", systemImage: "arrow.down.circle") }
-                                .buttonStyle(.glass).controlSize(.small)
+                            MarketDownloadButton(entitlementId: e.id, fileName: title, title: "Laden") { await load() }
+                                .controlSize(.small)
                         } else {
                             Pill(text: "Widerrufen", tint: .danger)
                         }

@@ -99,7 +99,7 @@ export const commerceRoutes: RouteDef[] = [
     const [view, pending] = await Promise.all([cart.getCartView(u.id), checkout.payableOrders(u.id)]);
     return { ...view, pendingOrders: pending };
   }),
-  POST("/cart/items", async (c) => cart.addToCart(await me(), await c.json())),
+  POST("/cart/items", async (c) => cart.addToCart(await me(), await c.json(), { channel: "ios" })),
   PATCH("/cart/items/:id", async (c) => {
     const { quantity } = await c.body({ quantity: z.unknown() });
     return cart.updateCartItem(await me(), { itemId: c.p.id!, quantity });
@@ -120,7 +120,7 @@ export const commerceRoutes: RouteDef[] = [
   }),
   GET("/me/customer-details", async () => ({ details: await getCustomerDetails((await me()).id) })),
   PUT("/me/customer-details", async (c) => ({ details: await saveCustomerDetails((await me()).id, await c.json()) })),
-  POST("/checkout", async (c) => checkout.startCheckout(await me(), await c.json())),
+  POST("/checkout", async (c) => checkout.startCheckout(await me(), await c.json(), { channel: "ios" })),
   POST("/orders/:id/resume", async (c) => ({ url: await checkout.resumePayment(await me(), c.p.id!) })),
   POST("/orders/:id/abandon", async (c) => {
     await checkout.abandonPendingOrder(await me(), c.p.id!);

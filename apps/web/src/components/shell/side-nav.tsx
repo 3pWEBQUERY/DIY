@@ -350,6 +350,8 @@ export function BottomNav({ user, hide = [] }: { user: ShellUser; hide?: string[
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
+                // Der Erstellen-Knopf zeigt nur ein Icon (aria-hidden) – ohne Label liest VoiceOver bloss „Link“
+                aria-label={isCreate ? item.label : undefined}
                 className={cn("flex h-14 flex-col items-center justify-center gap-1 text-[10px] text-muted", active && "text-ink font-semibold")}
               >
                 {isCreate ? (

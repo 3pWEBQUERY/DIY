@@ -296,6 +296,27 @@ export async function createRefund(input: { paymentIntentId: string; amountMinor
   );
 }
 
+/**
+ * Verlorener Streitfall bei einer Destination Charge: Stripe belastet die Plattform mit dem angefochtenen
+ * Betrag – der Verkäuferanteil liegt aber auf dem Connect-Konto. Diesen Anteil (anteilig zum Streitbetrag)
+ * per Transfer-Reversal zurückholen. Idempotent je Streitfall.
+ */
+export async function reverseTransferForDispute(input: { paymentIntentId: string; disputeId: string; disputedMinor: number; orderId: string }) {
+  const pi = await stripe().paymentIntents.retrieve(input.paymentIntentId, { expand: ["latest_charge.transfer"] });
+  const charge = typeof pi.latest_charge === "object" ? pi.latest_charge : null;
+  const transfer = charge && typeof charge.transfer === "object" ? charge.transfer : null;
+  if (!charge || !transfer) return { reversedMinor: 0, reason: "no_transfer" as const };
+  const share = charge.amount > 0 ? Math.round((transfer.amount * input.disputedMinor) / charge.amount) : 0;
+  const amount = Math.min(share, transfer.amount - transfer.amount_reversed);
+  if (amount <= 0) return { reversedMinor: 0, reason: "nothing_left" as const };
+  await stripe().transfers.createReversal(
+    transfer.id,
+    { amount, metadata: { orderId: input.orderId, disputeId: input.disputeId, reason: "dispute_lost" } },
+    { idempotencyKey: `dispute-reversal:${input.disputeId}` },
+  );
+  return { reversedMinor: amount, reason: "reversed" as const };
+}
+
 export async function listRefunds(paymentIntentId: string) {
   const res = await stripe().refunds.list({ payment_intent: paymentIntentId, limit: 100 });
   return res.data;

@@ -6,6 +6,8 @@ import { listDisputes, listOrders } from "@/server/admin/commerce";
 import { AdminHeader, EmptyRow, FilterBar, FilterField, Pager, Segments, Table, Td, Th, Tr, filterInput } from "@/components/admin/ui";
 import { Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { dateTime, num } from "@/components/admin/format";
+import { ReasonButton } from "@/components/admin/action-controls";
+import { refundOrderAdminAction } from "./actions";
 
 export const metadata: Metadata = { title: "Transaktionen & Streitfälle" };
 
@@ -44,7 +46,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
       <AdminHeader
         n="09"
         title="Transaktionen & Streitfälle"
-        description="Lesende Sicht auf Bestellungen und Zahlungen. Bestellstatus und Zahlungsstatus sind getrennt; „Bezahlt“ gilt nur nach bestätigtem Provider-Ereignis. Erstattungen werden im Zahlungsdienst ausgelöst und per Webhook übernommen."
+        description="Bestellungen und Zahlungen. Bestellstatus und Zahlungsstatus sind getrennt; „Bezahlt“ gilt nur nach bestätigtem Provider-Ereignis. Erstatten durch die Plattform ist für Fälle gedacht, in denen der Shop nicht mehr handeln kann (gesperrt, Konto gebannt oder gelöscht) – vor dem Versand wird dabei storniert."
       />
 
       <section aria-labelledby="t1" className="mb-10">
@@ -123,10 +125,13 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
               <Th align="right">Total</Th>
               <Th align="right">Provision</Th>
               <Th>Erstellt</Th>
+              <Th>
+                <span className="sr-only">Aktionen</span>
+              </Th>
             </tr>
           </thead>
           <tbody>
-            {orders.rows.length === 0 && <EmptyRow cols={9}>Keine Bestellungen.</EmptyRow>}
+            {orders.rows.length === 0 && <EmptyRow cols={10}>Keine Bestellungen.</EmptyRow>}
             {orders.rows.map((o) => {
               const pay = o.payments[0];
               return (
@@ -143,6 +148,19 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
                   <Td align="right">{money(o.totalMinor, o.currency)}</Td>
                   <Td align="right" className="text-muted">{money(o.platformFeeMinor, o.currency)} <span className="font-mono text-[10px]">{(o.feeBps / 100).toFixed(1)} %</span></Td>
                   <Td className="whitespace-nowrap text-muted">{dateTime(o.createdAt)}</Td>
+                  <Td>
+                    {(pay?.status === "SUCCEEDED" || pay?.status === "PARTIALLY_REFUNDED") && (
+                      <ReasonButton
+                        action={refundOrderAdminAction.bind(null, o.id)}
+                        label="Erstatten"
+                        title={`Bestellung ${o.number} erstatten`}
+                        description="Vor dem Versand wird die Bestellung storniert (Bestand zurück, Lizenzen widerrufen). Der gesamte noch erstattbare Betrag geht an die Käuferin bzw. den Käufer zurück, der Verkäuferanteil wird vom Shop-Konto zurückgeholt."
+                        confirmLabel="Erstatten"
+                        confirmVariant="danger"
+                        success="Erstattung ausgelöst."
+                      />
+                    )}
+                  </Td>
                 </Tr>
               );
             })}

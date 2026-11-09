@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { rateLimit } from "@/server/ratelimit";
 import type { SessionUser } from "@/server/auth/session";
+import { hasRole } from "@/server/authz";
 import { lockOrder, refreshSoldOut, restock } from "./inventory";
 import { orderWith, initiateRefund } from "./payments";
 import { canReview, canSellerCancel, canTransition, refundableAmount, SELLER_ORDER_TABS } from "./rules";
@@ -249,6 +250,46 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
   let refundDeferred = false;
   if (result.refundable > 0) await initiateRefund(orderId, { amountMinor: result.refundable, reason: `Stornierung: ${why}`, actorId: user.id }).catch(() => (refundDeferred = true));
   return { refundedMinor: result.refundable, label: money(result.refundable, result.currency), refundDeferred };
+}
+
+/**
+ * Administration (nur ADMIN): Bestellung erstatten, wenn der Shop das nicht mehr kann oder darf – z. B.
+ * gesperrter Shop, gebanntes oder gelöschtes Verkäuferkonto. Vor dem Versand wird storniert (Bestand
+ * zurück, digitale Lizenzen widerrufen), danach der gesamte noch erstattbare Betrag zurückgezahlt.
+ */
+export async function refundOrderByAdmin(actor: Pick<SessionUser, "id" | "role">, orderId: string, reason: string) {
+  if (!hasRole(actor, "ADMIN")) throw fail.forbidden();
+  const why = reason.trim();
+  if (why.length < 3) throw fail.invalid("Bitte gib einen Grund an.", { reason: "Grund fehlt" });
+  await rateLimit(`order-refund-admin:${actor.id}`, 60, 3600);
+  const result = await db.$transaction(async (tx) => {
+    await lockOrder(tx, orderId);
+    const full = await orderWith(tx, orderId);
+    if (!full) throw fail.notFound();
+    if (full.status === "PENDING_PAYMENT") throw fail.conflict("Die Bestellung ist noch nicht bezahlt.");
+    const shipped = (await tx.shipment.count({ where: { orderId } })) > 0;
+    const cancel = canSellerCancel(full.status, shipped);
+    if (cancel) {
+      for (const it of full.items) await restock(tx, it);
+      await refreshSoldOut(tx, full.items.map((i) => i.productId));
+      const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
+      if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital } }, data: { revokedAt: new Date() } });
+      await tx.shop.update({ where: { id: full.shopId }, data: { salesCount: { decrement: full.items.reduce((s, i) => s + i.quantity, 0) } } });
+      await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
+      await tx.orderEvent.create({ data: { orderId, actorId: actor.id, from: full.status, to: "CANCELLED", note: "Von der Plattform storniert" } });
+      await emit({ type: "OrderStatusChanged", orderId, to: "CANCELLED" }, tx);
+    }
+    await audit({ actorId: actor.id, action: "order.refund.admin", targetType: "Order", targetId: orderId, meta: { from: full.status, cancelled: cancel, reason: why.slice(0, 500) } }, tx);
+    await notifyBuyer(tx, full, cancel ? "CANCELLED" : full.status, "Die Plattform hat die Bestellung storniert. Der Betrag wird erstattet.");
+    await notifySeller(tx, full, full.shop.ownerId, cancel ? "CANCELLED" : full.status, "Die Plattform hat diese Bestellung erstattet.");
+    const payment = full.payments[0];
+    const refundable = payment && ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status) ? refundableAmount(payment.amountMinor, full.refunds) : 0;
+    return { refundable, currency: full.currency };
+  });
+  if (result.refundable <= 0) throw fail.conflict("Für diese Bestellung gibt es keinen erstattbaren Betrag mehr.");
+  // Scheitert die Erstattung beim Anbieter, holt retryCancelledRefunds sie bei stornierten Bestellungen nach
+  await initiateRefund(orderId, { amountMinor: result.refundable, reason: `Plattform: ${why}`, actorId: actor.id });
+  return { refundedMinor: result.refundable, label: money(result.refundable, result.currency) };
 }
 
 /** Beleg für Käufer:in oder Verkäufer:in (druckbare Ansicht). */

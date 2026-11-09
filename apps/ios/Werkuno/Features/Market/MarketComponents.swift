@@ -1,6 +1,52 @@
 import SwiftUI
+import QuickLook
 
 // Gemeinsame Bausteine des Marktplatzes (nur innerhalb von Features/Market verwendet).
+
+// MARK: - Download gekaufter digitaler Produkte (PRD §13.7)
+
+/// Lädt einen gekauften Download über den angemeldeten API-Client (Bearer-Token) in eine temporäre
+/// Datei und zeigt sie in QuickLook (dort: Teilen / In „Dateien“ sichern). Die Datei wird danach gelöscht.
+struct MarketDownloadButton: View {
+    var entitlementId: String
+    /// Ersatz-Dateiname, falls der Server keinen nennt (z. B. Produkttitel)
+    var fileName: String
+    var title: String = "Herunterladen"
+    var prominent = false
+    var onFinished: (() async -> Void)? = nil
+
+    @Environment(AppState.self) private var app
+    @State private var file: URL?
+
+    var body: some View {
+        AsyncButton { await download() } label: { Label(title, systemImage: "arrow.down.circle") }
+            .modifier(MarketDownloadButtonStyle(prominent: prominent))
+            .accessibilityHint("Datei laden und öffnen")
+            .quickLookPreview($file)
+            .onChange(of: file) { old, new in
+                if new == nil, let old { APIClient.shared.discardDownload(old) }
+            }
+    }
+
+    private func download() async {
+        do {
+            let url = try await APIClient.shared.download("/api/v1/downloads/\(entitlementId)", fallbackName: fileName)
+            Haptics.success()
+            file = url
+        } catch is CancellationError {
+        } catch {
+            app.show(error: error)
+        }
+        await onFinished?()
+    }
+}
+
+private struct MarketDownloadButtonStyle: ViewModifier {
+    var prominent: Bool
+    func body(content: Content) -> some View {
+        if prominent { content.buttonStyle(.glassProminent).tint(.moss) } else { content.buttonStyle(.glass) }
+    }
+}
 
 // MARK: - Status
 

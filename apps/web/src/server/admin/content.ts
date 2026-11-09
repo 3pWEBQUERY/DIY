@@ -251,7 +251,7 @@ export type ShopDecision = "APPROVE" | "PAUSE" | "SUSPEND" | "REACTIVATE";
 export async function decideShop(actor: Actor, shopId: string, decision: ShopDecision, note: string) {
   mod(actor);
   const n = z.string().trim().min(5, "Bitte begründe die Entscheidung").max(1000).parse(note);
-  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, status: true, ownerId: true, name: true } });
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, status: true, ownerId: true, name: true, stripeAccountId: true } });
   if (!shop) throw fail.notFound();
   assertNotOwn(actor, shop.ownerId);
   const next = { APPROVE: "ACTIVE", PAUSE: "PAUSED", SUSPEND: "SUSPENDED", REACTIVATE: "ACTIVE" } as const;
@@ -282,11 +282,22 @@ export async function decideShop(actor: Actor, shopId: string, decision: ShopDec
     }
     await audit({ actorId: actor.id, action: `admin.shop_${decision.toLowerCase()}`, targetType: "SHOP", targetId: shopId, meta: { from: shop.status, to: next[decision], note: n } }, tx);
   });
+  // Gesperrt: automatische Auszahlungen bei Stripe anhalten – sonst fliesst das Guthaben trotz Sperre ab und
+  // offene Bestellungen liessen sich nicht mehr erstatten. Bei Reaktivierung wählt der Shop den Plan neu.
+  if (decision === "SUSPEND" && shop.stripeAccountId) {
+    const { paymentsMode, updatePayoutSchedule } = await import("@/server/commerce/stripe");
+    if (paymentsMode() === "stripe") {
+      await updatePayoutSchedule(shop.stripeAccountId, { interval: "manual" }).catch(async (err) => {
+        const { captureError } = await import("@/server/monitoring");
+        await captureError(err, { source: "SERVER", path: "admin.shop_suspend.payouts", meta: { shopId } });
+      });
+    }
+  }
   const message = {
     APPROVE: `Dein Shop „${shop.name}“ wurde geprüft und ist jetzt aktiv.`,
     PAUSE: `Dein Shop „${shop.name}“ wurde vorübergehend pausiert.`,
     SUSPEND: `Dein Shop „${shop.name}“ wurde gesperrt. Deine Angebote sind nicht mehr kaufbar.`,
-    REACTIVATE: `Dein Shop „${shop.name}“ ist wieder aktiv.`,
+    REACTIVATE: shop.status === "SUSPENDED" && shop.stripeAccountId ? `Dein Shop „${shop.name}“ ist wieder aktiv. Auszahlungen waren während der Sperre angehalten – wähle deinen Auszahlungsplan im Studio unter „Einnahmen“ neu.` : `Dein Shop „${shop.name}“ ist wieder aktiv.`,
   }[decision];
   await notify({ recipientId: shop.ownerId, type: "MODERATION", bundle: false, data: { kind: "ACCOUNT", message, publicNote: decision === "APPROVE" || decision === "REACTIVATE" ? "" : n, href: "/studio/shop" } });
 }

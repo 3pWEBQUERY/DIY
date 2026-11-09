@@ -67,6 +67,10 @@ struct CartView: View {
                     } else if c.hasProblems {
                         NoticeView(tone: .warn, title: "Bitte prüfe deinen Warenkorb", message: "Einige Artikel sind nicht mehr in der gewünschten Menge verfügbar. Passe sie an oder entferne sie, um fortzufahren.")
                     }
+                    if hasDigital(c) {
+                        // Digitale Produkte werden in der App nicht verkauft (App Store 3.1.1)
+                        NoticeView(tone: .info, title: "Digitale Anleitungen", message: "Digitale Anleitungen sind in der App nicht erhältlich. Entferne sie aus dem Warenkorb, um die übrigen Artikel zu bestellen.")
+                    }
                     ForEach(c.groups) { g in groupCard(g, feeBps: c.feeBps) }
                     if !c.groups.isEmpty { summary(c) }
                 }
@@ -177,7 +181,7 @@ struct CartView: View {
                     Text(l.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2)
                     if let v = l.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
                     Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
-                    if l.isDigital { Label("Digitaler Download", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
+                    if l.isDigital { Label("In der App nicht erhältlich", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
                 }
                 Spacer(minLength: 6)
                 Text(Fmt.money(l.lineMinor)).font(.wr(.subheadline, .semibold)).monospacedDigit()
@@ -246,8 +250,10 @@ struct CartView: View {
         .sunkenSurface(radius: Radius.card)
     }
 
+    private func hasDigital(_ c: MarketCart) -> Bool { c.groups.contains { $0.lines.contains(where: \.isDigital) } }
+
     private func checkoutBar(_ c: MarketCart) -> some View {
-        let blocked = c.hasProblems || c.mode == "disabled"
+        let blocked = c.hasProblems || c.mode == "disabled" || hasDigital(c)
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(Fmt.money(c.totals.total)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())

@@ -62,6 +62,11 @@ final class AppState {
     var appleNative = false
     var lastError: String?
 
+    /// Zwei-Faktor-Anmeldung: Passwort bzw. Apple-Anmeldung war erfolgreich, die Session wartet
+    /// auf den Code (TOTP/Wiederherstellungscode). Das Token wird erst danach im Keychain gespeichert.
+    private(set) var pendingMfaToken: String?
+    var needsMfa: Bool { pendingMfaToken != nil }
+
     /// Zentrale Meldungen („Toast“)
     var toast: Toast?
 
@@ -193,11 +198,45 @@ final class AppState {
 
     // MARK: Anmeldung
 
-    func signIn(email: String, password: String) async throws {
+    /// `true` = angemeldet; `false` = zweiter Faktor nötig (`needsMfa`, weiter mit `verifyMfa`).
+    @discardableResult
+    func signIn(email: String, password: String) async throws -> Bool {
         let r = try await api.login(email: email, password: password)
-        api.token = r.token
+        return await completeSignIn(token: r.token, mfaRequired: r.mfaRequired ?? false)
+    }
+
+    private func completeSignIn(token: String, mfaRequired: Bool) async -> Bool {
+        if mfaRequired {
+            pendingMfaToken = token
+            return false
+        }
+        pendingMfaToken = nil
+        api.token = token
         isGuest = false
         await refresh()
+        return true
+    }
+
+    /// Zweiter Anmeldeschritt (6-stelliger Code aus der Authentifizierungs-App oder Wiederherstellungscode).
+    func verifyMfa(code: String, recovery: Bool) async throws {
+        guard let pending = pendingMfaToken else {
+            throw APIError(code: "UNAUTHENTICATED", message: "Die Anmeldung ist abgelaufen. Bitte melde dich erneut an.", fields: nil, status: 401)
+        }
+        do {
+            try await api.verifyMfa(pendingToken: pending, code: code, recovery: recovery)
+        } catch let e as APIError where e.isAuth {
+            // Ausstehende Session abgelaufen/widerrufen → neu anmelden
+            pendingMfaToken = nil
+            throw APIError(code: e.code, message: "Die Anmeldung ist abgelaufen. Bitte melde dich erneut an.", fields: nil, status: e.status)
+        }
+        _ = await completeSignIn(token: pending, mfaRequired: false)
+    }
+
+    /// Zwei-Faktor-Schritt abbrechen: ausstehende Session serverseitig widerrufen.
+    func cancelMfa() {
+        guard let pending = pendingMfaToken else { return }
+        pendingMfaToken = nil
+        Task { await api.logout(bearer: pending) }
     }
 
     func browseAsGuest() {
@@ -216,18 +255,18 @@ final class AppState {
     func signUp(email: String, password: String, displayName: String, handle: String) async throws {
         let body: [String: JSONValue] = ["email": .string(email), "password": .string(password), "displayName": .string(displayName), "handle": .string(handle), "adult": true, "terms": true]
         let r: SignUpResult = try await api.post("/auth/signup", body)
-        if let t = r.token { api.token = t } else { try await signIn(email: email, password: password); return }
+        if let t = r.token { api.token = t } else { _ = try await signIn(email: email, password: password); return }
         isGuest = false
         await refresh()
     }
 
-    struct AppleResult: Decodable { var token: String; var isNew: Bool }
+    struct AppleResult: Decodable { var token: String; var isNew: Bool; var mfaRequired: Bool? }
 
-    func signInWithApple(identityToken: String, givenName: String?, familyName: String?) async throws {
+    /// `true` = angemeldet; `false` = zweiter Faktor nötig (`needsMfa`).
+    @discardableResult
+    func signInWithApple(identityToken: String, givenName: String?, familyName: String?) async throws -> Bool {
         let r: AppleResult = try await api.post("/auth/apple", ["identityToken": JSONValue.string(identityToken), "givenName": .from(givenName), "familyName": .from(familyName)])
-        api.token = r.token
-        isGuest = false
-        await refresh()
+        return await completeSignIn(token: r.token, mfaRequired: r.mfaRequired ?? false)
     }
 
     func signOut() async {

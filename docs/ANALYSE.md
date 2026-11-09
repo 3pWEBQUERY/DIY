@@ -27,6 +27,23 @@ Fazit: Der Code ist sauber typisiert und gut getestet. Die Probleme liegen in **
 | F-1 Rechtstexte | 🟡 Angaben zentral in `apps/web/src/config/legal.ts`. Solange sie unvollständig oder ungeprüft sind: `noindex` und keine Aufnahme in die Sitemap. **Die Firmendaten fehlen noch** |
 | M-1 iOS-Repost | ✅ Server liefert `author.id`. Die App dekodiert den Repost zusätzlich tolerant |
 | A-1 Kontoübernahme nach Apple-Anmeldung | ✅ Offene Links und Push-Geräte werden bei der Übernahme entwertet |
+| D-1 Audit-Kette meldet immer „gebrochen“ | ✅ Prüfung hasht dieselben Felder wie beim Schreiben, mit Regressionstest |
+| I-5 Audit-FK `SetNull` vs. Trigger | ✅ `RESTRICT` (Migration `20261118120000`). Konten mit Audit-Einträgen werden nie hart gelöscht |
+| S-1 Einspruch gebannter Konten | ✅ Signierter Einspruchs-Link in der Moderationsmail (nur dieser Fall, ohne Anmeldung) |
+| C-1 Chargeback ohne Rückholung | ✅ Transfer-Reversal (anteilig, idempotent je Streitfall). Fehler werden in der Fehlerüberwachung gemeldet |
+| C-2 Gesperrte Shops | ✅ Zahlung auf gesperrten Shop bzw. gebanntes Konto → automatische Vollerstattung. „Erstatten“ für ADMIN unter Transaktionen. Bei einer Sperre werden die Stripe-Auszahlungen angehalten |
+| C-3 Erlös ohne Haltefrist | ⏳ Produktentscheidung (Treuhand/Auszahlungsverzögerung) – offen |
+| P-1 Medien-Route im RAM | ✅ Streaming, Range-Requests (206/416), ETag-Prüfung vor dem Laden |
+| D-2 Demo-Purge | ✅ Vorprüfung auf echte Daten (Abbruch ohne Löschen), eine Transaktion, auditierte Demo-Konten bleiben |
+| D-3 Moderation macht Privates öffentlich | ✅ Sichtbarkeit nur einschränkbar |
+| F-2 Landing zeigt gebannte Konten | ✅ Nur aktive Konten, keine archivierten Projekte |
+| F-3 „Erstellen“ ohne Namen | ✅ `aria-label` |
+| I-4 Outbox-Retry 30 s | ✅ Backoff 10 s … 6 Std., 20 Versuche, Alarm beim Aufgeben (Migration `20261118130000`) |
+| C-6 / M-5 Digitale Käufe in iOS | ✅ Server sperrt digitale Produkte im App-Warenkorb und an der App-Kasse (`commerce.digitalEnabledIos`). Die App zeigt keine Hinweise mehr auf den Kauf im Web |
+| M-2 iOS-Kasse ignoriert Adresse | ✅ Sendet `details` (+ `shipToOther`/`address`), Formular aus gespeicherten Angaben vorbefüllt – **Xcode-Build ausstehend** |
+| M-3 iOS-Login mit 2FA | ✅ Code-Schritt (TOTP/Wiederherstellungscode) für Passwort- und Apple-Login – **Xcode-Build ausstehend** |
+| M-4 iOS-Downloads | ✅ Download mit Token, Anzeige über QuickLook/Teilen – **Xcode-Build ausstehend** |
+| M-6 PrivacyInfo.xcprivacy | ✅ Manifest angelegt und in `project.yml` eingebunden – Angaben mit App Store Connect abgleichen |
 
 ## 1. Sofort beheben (vor dem Launch)
 

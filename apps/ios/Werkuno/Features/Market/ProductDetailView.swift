@@ -165,19 +165,16 @@ struct ProductDetailView: View {
 
     // MARK: Digital (PRD §13.7)
 
+    /// Bereits gekaufte Anleitungen lassen sich laden; neue Käufe digitaler Produkte gibt es in der App nicht
+    /// (App Store 3.1.1/3.1.3 – deshalb auch kein Hinweis oder Link auf einen Kauf ausserhalb der App).
     @ViewBuilder private func digitalNotice(_ p: MarketProductPage) -> some View {
         if let e = p.viewer?.entitlementId {
             VStack(alignment: .leading, spacing: 10) {
                 NoticeView(tone: .success, title: "Du besitzt diese Anleitung", message: "Lade die Datei herunter – sie ist für deine persönliche Nutzung bestimmt.")
-                Button { router.present(.web(url: AppConfig.webURL("/api/v1/downloads/\(e)"))) } label: { Label("Herunterladen", systemImage: "arrow.down.circle") }
-                    .buttonStyle(.glass)
+                MarketDownloadButton(entitlementId: e, fileName: p.title)
             }
         } else {
-            VStack(alignment: .leading, spacing: 10) {
-                NoticeView(tone: .info, title: "Digitale Anleitung", message: "Digitale Anleitungen kannst du im Web kaufen. Danach findest du den Download in deinen Bestellungen.")
-                Button { router.present(.web(url: AppConfig.webURL(p.href))) } label: { Label("Im Web öffnen", systemImage: "safari") }
-                    .buttonStyle(.glass)
-            }
+            NoticeView(tone: .info, title: "Digitale Anleitung", message: "In der App nicht erhältlich.")
         }
     }
 
@@ -406,7 +403,7 @@ struct ProductDetailView: View {
 
     private func barSubtitle(_ p: MarketProductPage) -> String {
         if p.isOwner ?? false { return "Dein Produkt" }
-        if p.isDigital { return p.viewer?.entitlementId != nil ? "Bereits gekauft" : "Kauf im Web" }
+        if p.isDigital { return p.viewer?.entitlementId != nil ? "Bereits gekauft" : "In der App nicht erhältlich" }
         if soldOut(p) { return "Derzeit ausverkauft" }
         if quantity > 1 { return "\(quantity) × \(Fmt.money(unitPrice(p), currency: p.currency)), zzgl. Versand" }
         return (p.shippingMinor ?? 0) == 0 ? "inkl. Versand" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand"
@@ -417,14 +414,12 @@ struct ProductDetailView: View {
             Button { router.present(.productEditor(id: p.id)) } label: { Label("Bearbeiten", systemImage: "pencil") }
                 .buttonStyle(.glass).controlSize(.large)
         } else if p.isDigital {
-            // PRD §13.7: Digitale Produkte werden auf iOS nicht verkauft.
+            // PRD §13.7: Digitale Produkte werden auf iOS nicht verkauft (kein Verweis auf andere Kaufwege).
             if let e = p.viewer?.entitlementId {
-                Button { router.present(.web(url: AppConfig.webURL("/api/v1/downloads/\(e)"))) } label: { Label("Herunterladen", systemImage: "arrow.down.circle") }
-                    .buttonStyle(.glassProminent).tint(.moss).controlSize(.large)
+                MarketDownloadButton(entitlementId: e, fileName: p.title, prominent: true)
+                    .controlSize(.large)
             } else {
-                Button { router.present(.web(url: AppConfig.webURL(p.href))) } label: { Label("Im Web ansehen", systemImage: "safari") }
-                    .buttonStyle(.glass).controlSize(.large)
-                    .accessibilityHint("Digitale Anleitungen kannst du im Web kaufen")
+                Button("Nicht erhältlich") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
             }
         } else if justAdded {
             Button { router.open(.cart) } label: { Label("Zum Warenkorb", systemImage: "bag.fill") }

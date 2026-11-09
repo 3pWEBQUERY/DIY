@@ -311,8 +311,24 @@ struct MarketCartAddResult: Decodable, Sendable { var quantity: Int?; var capped
 
 struct MarketCheckoutPage: Decodable, Sendable {
     var cart: MarketCart
-    var address: MarketAddress?
+    /// Gespeicherte persönliche Angaben (null → beim ersten Kauf Pflichtformular)
+    var details: MarketCustomerDetails?
+    var detailsRequired: Bool?
     var digitalOnly: Bool?
+
+    var hasDigitalItems: Bool { cart.groups.contains { $0.lines.contains(where: \.isDigital) } }
+}
+
+/// Persönliche Angaben für Bestellungen (`customerDetailsSchema`): Name, Rechnungsadresse, optional Telefon.
+struct MarketCustomerDetails: Codable, Hashable, Sendable {
+    var firstName: String?
+    var lastName: String?
+    var line1: String?
+    var line2: String?
+    var postalCode: String?
+    var city: String?
+    var country: String?
+    var phone: String?
 }
 
 struct MarketCheckoutStarted: Decodable, Sendable {

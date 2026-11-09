@@ -143,7 +143,11 @@ async function ensureCart(userId: string) {
   return db.cart.upsert({ where: { userId }, create: { userId }, update: {}, select: { id: true } });
 }
 
-export async function addToCart(user: SessionUser, input: unknown) {
+/**
+ * `channel: "ios"`: digitale Produkte nur, wenn `commerce.digitalEnabledIos` aktiv ist – Käufe digitaler
+ * Güter in der iOS-App laufen sonst an In-App-Kauf vorbei (App-Store-Regel 3.1.1, §13.7).
+ */
+export async function addToCart(user: SessionUser, input: unknown, opts: { channel?: "web" | "ios" } = {}) {
   const data = cartAddSchema.parse(input);
   await requireFlag("marketplace", user.id);
   await rateLimit(`cart:${user.id}`, 120, 3600);
@@ -162,6 +166,7 @@ export async function addToCart(user: SessionUser, input: unknown) {
   const isDigital = p.kind === "DIGITAL";
   if (isDigital) {
     if (!(await getSetting("commerce.digitalEnabledWeb"))) throw fail.invalid("Digitale Produkte sind derzeit nicht verfügbar.");
+    if (opts.channel === "ios" && !(await getSetting("commerce.digitalEnabledIos"))) throw fail.invalid("Digitale Produkte sind in der App nicht erhältlich.");
     const owned = await db.digitalEntitlement.findUnique({ where: { userId_productId: { userId: user.id, productId: p.id } }, select: { revokedAt: true } });
     if (owned && !owned.revokedAt) throw fail.conflict("Du besitzt dieses digitale Produkt bereits. Du findest es unter „Bestellungen“.");
   }

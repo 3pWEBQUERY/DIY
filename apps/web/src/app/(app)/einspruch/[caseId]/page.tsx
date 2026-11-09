@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { APPEAL_WINDOW_DAYS, MODERATION_ACTION_LABEL, type ModerationActionKind } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { appealContext } from "@/server/moderation/service";
+import { resolveAppealUser } from "@/server/moderation/appeal-access";
 import { TARGET_TYPE_LABEL } from "@/server/admin/guard";
 import { Page, PageHeader } from "@/components/shell/page";
 import { Notice, SectionTitle } from "@/components/ui/misc";
@@ -14,11 +15,15 @@ import { AppealForm } from "./appeal-form";
 export const metadata: Metadata = { title: "Einspruch", robots: { index: false } };
 
 /** Einspruch gegen eine Moderationsentscheidung (PRD §24.1 Nr. 7) – nur für die betroffene Person. */
-export default async function AppealPage({ params }: { params: Promise<{ caseId: string }> }) {
+export default async function AppealPage({ params, searchParams }: { params: Promise<{ caseId: string }>; searchParams: Promise<{ t?: string }> }) {
   const { caseId } = await params;
+  const { t } = await searchParams;
   const user = await currentUser();
-  if (!user) redirect(`/anmelden?weiter=${encodeURIComponent(`/einspruch/${caseId}`)}`);
-  const ctx = await appealContext(user.id, caseId);
+  // Ohne Anmeldung (z. B. dauerhaft gesperrtes Konto): signierter Link aus der Moderationsmail
+  const userId = user?.id ?? (await resolveAppealUser(caseId, t));
+  if (!userId) redirect(`/anmelden?weiter=${encodeURIComponent(`/einspruch/${caseId}`)}`);
+  const token = user ? undefined : t;
+  const ctx = await appealContext(userId, caseId);
   if (!ctx) notFound();
 
   const d = ctx.decision;
@@ -79,7 +84,7 @@ export default async function AppealPage({ params }: { params: Promise<{ caseId:
           ) : ctx.canAppeal ? (
             <>
               <p className="mb-4 text-sm text-muted">Frist: bis {ctx.deadline ? fmt(ctx.deadline) : "–"} ({APPEAL_WINDOW_DAYS} Tage nach der Entscheidung).</p>
-              <AppealForm caseId={ctx.id} />
+              <AppealForm caseId={ctx.id} token={token} />
             </>
           ) : (
             <Notice title={expired ? "Frist abgelaufen" : "Kein Einspruch möglich"}>

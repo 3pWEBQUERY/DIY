@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import UniformTypeIdentifiers
 
 // MARK: - Umgebung
 
@@ -235,7 +236,9 @@ final class APIClient: @unchecked Sendable {
         try await send(method, path, body: method == "GET" || method == "DELETE" ? nil : body)
     }
 
-    func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, query: [String: String?] = [:], body: B?, root: String = "/api/v1/app") async throws -> T {
+    /// `bearer`: abweichendes Token für genau diese Anfrage (z. B. die noch nicht freigeschaltete
+    /// Session beim zweiten Anmeldeschritt), sonst das gespeicherte Token.
+    func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, query: [String: String?] = [:], body: B?, root: String = "/api/v1/app", bearer: String? = nil) async throws -> T {
         var comps = URLComponents(url: AppConfig.baseURL.appendingPathComponent(root + path), resolvingAgainstBaseURL: false)!
         let items = query.compactMap { k, v in v.flatMap { $0.isEmpty ? nil : URLQueryItem(name: k, value: $0) } }
         if !items.isEmpty { comps.queryItems = items.sorted { $0.name < $1.name } }
@@ -245,12 +248,12 @@ final class APIClient: @unchecked Sendable {
             req.httpBody = try JSON.encoder.encode(body)
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        return try await perform(req)
+        return try await perform(req, bearer: bearer)
     }
 
-    func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+    func perform<T: Decodable>(_ request: URLRequest, bearer: String? = nil) async throws -> T {
         var req = request
-        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        if let t = bearer ?? token { req.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
         let data: Data
         let response: URLResponse
         do {
@@ -260,15 +263,7 @@ final class APIClient: @unchecked Sendable {
             throw APIError.offline
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if status >= 400 || status == 0 {
-            if let env = try? JSON.decoder.decode(ErrorEnvelope.self, from: data) {
-                let err = APIError(code: env.error.code, message: env.error.message ?? "Fehler", fields: env.error.fields, status: status)
-                if err.isAuth { onUnauthorized?() }
-                throw err
-            }
-            if status == 401 { onUnauthorized?() }
-            throw APIError(code: "HTTP_\(status)", message: "Der Server hat mit Fehler \(status) geantwortet.", fields: nil, status: status)
-        }
+        if status >= 400 || status == 0 { throw failure(status: status, data: data) }
         do {
             return try JSON.decoder.decode(DataEnvelope<T>.self, from: data).data
         } catch let e as DecodingError {
@@ -277,6 +272,17 @@ final class APIClient: @unchecked Sendable {
             #endif
             throw APIError.decoding(Self.describe(e))
         }
+    }
+
+    /// Fehlerantwort `{ error: { code, message, fields } }` → `APIError` (bei 401 → `onUnauthorized`).
+    private func failure(status: Int, data: Data) -> APIError {
+        if let env = try? JSON.decoder.decode(ErrorEnvelope.self, from: data) {
+            let err = APIError(code: env.error.code, message: env.error.message ?? "Fehler", fields: env.error.fields, status: status)
+            if err.isAuth { onUnauthorized?() }
+            return err
+        }
+        if status == 401 { onUnauthorized?() }
+        return APIError(code: "HTTP_\(status)", message: "Der Server hat mit Fehler \(status) geantwortet.", fields: nil, status: status)
     }
 
     static func describe(_ e: DecodingError) -> String {
@@ -291,14 +297,22 @@ final class APIClient: @unchecked Sendable {
 
     // MARK: Bestehende /api/v1-Endpunkte (Token-Login, Medien, Export)
 
-    struct LoginResult: Decodable { let token: String; let userId: String }
+    /// `mfaRequired`: Passwort korrekt, das Token gilt aber erst nach `verifyMfa` (Zwei-Faktor-Anmeldung).
+    struct LoginResult: Decodable { let token: String; let userId: String; var mfaRequired: Bool? }
 
     func login(email: String, password: String) async throws -> LoginResult {
         try await send("POST", "/auth/session", body: ["email": email, "password": password], root: "/api/v1")
     }
 
-    func logout() async {
-        _ = try? await send("DELETE", "/auth/session", body: Optional<Int>.none, root: "/api/v1") as JSONValue
+    /// Zweiter Anmeldeschritt: ausstehende Session mit TOTP- oder Wiederherstellungscode freischalten.
+    func verifyMfa(pendingToken: String, code: String, recovery: Bool) async throws {
+        let body: [String: String] = ["code": code, "kind": recovery ? "recovery" : "totp"]
+        _ = try await send("POST", "/auth/session/mfa", body: body, root: "/api/v1", bearer: pendingToken) as JSONValue
+    }
+
+    /// Session widerrufen – ohne `bearer` die gespeicherte, sonst z. B. eine abgebrochene 2FA-Anmeldung.
+    func logout(bearer: String? = nil) async {
+        _ = try? await send("DELETE", "/auth/session", body: Optional<Int>.none, root: "/api/v1", bearer: bearer) as JSONValue
     }
 
     func exportData() async throws -> Data {
@@ -307,6 +321,86 @@ final class APIClient: @unchecked Sendable {
         let (data, resp) = try await session.data(for: req)
         guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw APIError(code: "EXPORT", message: "Export fehlgeschlagen.", fields: nil, status: 0) }
         return data
+    }
+
+    // MARK: Geschützte Downloads (gekaufte digitale Produkte)
+
+    /// Lädt eine geschützte Datei (z. B. `/api/v1/downloads/:id`) mit Bearer-Token in eine temporäre Datei.
+    /// Der Server leitet auf eine kurzlebige Speicher-URL weiter; dorthin geht kein Token (fremder Host).
+    /// Dateiname aus `Content-Disposition`, sonst `fallbackName` + Endung zum MIME-Typ.
+    /// Aufrufer:in löscht die Datei nach Gebrauch mit `discardDownload(_:)`.
+    func download(_ path: String, fallbackName: String) async throws -> URL {
+        var req = URLRequest(url: AppConfig.baseURL.appendingPathComponent(path))
+        req.setValue("*/*", forHTTPHeaderField: "Accept")
+        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        let tmp: URL
+        let response: URLResponse
+        do {
+            (tmp, response) = try await session.download(for: req, delegate: DownloadRedirectGuard())
+        } catch {
+            if (error as? URLError)?.code == .cancelled { throw CancellationError() }
+            throw APIError.offline
+        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status >= 400 || status == 0 {
+            let data = (try? Data(contentsOf: tmp)) ?? Data()
+            try? FileManager.default.removeItem(at: tmp)
+            throw failure(status: status, data: data)
+        }
+        let name = Self.downloadFilename(response, fallback: fallbackName)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Downloads-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let target = dir.appendingPathComponent(name)
+            try FileManager.default.moveItem(at: tmp, to: target)
+            return target
+        } catch {
+            try? FileManager.default.removeItem(at: tmp)
+            try? FileManager.default.removeItem(at: dir)
+            throw APIError(code: "DOWNLOAD", message: "Die Datei konnte nicht gespeichert werden. Bitte versuche es erneut.", fields: nil, status: 0)
+        }
+    }
+
+    /// Temporäre Download-Datei (samt eigenem Ordner) entfernen.
+    func discardDownload(_ file: URL) {
+        let dir = file.deletingLastPathComponent()
+        if dir.lastPathComponent.hasPrefix("Downloads-") { try? FileManager.default.removeItem(at: dir) }
+        else { try? FileManager.default.removeItem(at: file) }
+    }
+
+    private static func downloadFilename(_ response: URLResponse, fallback: String) -> String {
+        var name: String?
+        if let cd = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition") {
+            name = contentDispositionFilename(cd)
+        }
+        if name == nil, let s = response.suggestedFilename, (s as NSString).pathExtension.isEmpty == false { name = s }
+        var result = sanitizeFilename(name ?? fallback)
+        if (result as NSString).pathExtension.isEmpty,
+           let mime = response.mimeType, let ext = UTType(mimeType: mime)?.preferredFilenameExtension, mime != "application/octet-stream" {
+            result += ".\(ext)"
+        }
+        return result
+    }
+
+    /// `attachment; filename*=UTF-8''name.pdf` bzw. `filename="name.pdf"`
+    private static func contentDispositionFilename(_ header: String) -> String? {
+        let parts = header.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+        if let star = parts.first(where: { $0.lowercased().hasPrefix("filename*=") }) {
+            let value = String(star.dropFirst("filename*=".count))
+            let encoded = value.components(separatedBy: "''").last ?? value
+            if let decoded = encoded.trimmingCharacters(in: CharacterSet(charactersIn: "\"")).removingPercentEncoding, !decoded.isEmpty { return decoded }
+        }
+        if let plain = parts.first(where: { $0.lowercased().hasPrefix("filename=") }) {
+            let value = String(plain.dropFirst("filename=".count)).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            if !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    private static func sanitizeFilename(_ name: String) -> String {
+        let cleaned = name.components(separatedBy: CharacterSet(charactersIn: "/\\:?%*|\"<>")).joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".")))
+        return cleaned.isEmpty ? "Download" : String(cleaned.prefix(120))
     }
 
     // MARK: Medien-Pipeline (§25.6): anfordern → hochladen → abschliessen
@@ -337,6 +431,16 @@ final class APIClient: @unchecked Sendable {
         }
         let result: UploadResult = try await send("POST", "/media/\(ticket.mediaId)/complete", body: [String: String](), root: "/api/v1")
         return (ticket.mediaId, result)
+    }
+}
+
+/// Weiterleitungen eines Downloads: Das Bearer-Token geht nur an den eigenen Server,
+/// nie an fremde Hosts (z. B. vorab signierte Speicher-URLs).
+private final class DownloadRedirectGuard: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        var next = request
+        if !AppConfig.isOwnHost(next.url?.host) { next.setValue(nil, forHTTPHeaderField: "Authorization") }
+        completionHandler(next)
     }
 }
 

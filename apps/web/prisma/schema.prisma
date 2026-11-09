@@ -1803,7 +1803,9 @@ model AuditEvent {
   id         String   @id @default(cuid())
   seq        Int      @unique @default(autoincrement())
   actorId    String?
-  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  /// Restrict statt SetNull: Das Protokoll ist unveränderlich (Trigger verbietet UPDATE) und actorId ist Teil
+  /// der Hash-Kette – Konten mit Audit-Einträgen werden nie hart gelöscht, nur anonymisiert (status DELETED).
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: Restrict)
   action     String
   targetType String?
   targetId   String?
@@ -1878,6 +1880,10 @@ model OutboxEvent {
   payload     Json
   publishedAt DateTime?
   attempts    Int       @default(0)
+  /// Nächster Versuch nach einem Fehler (exponentielles Backoff); null = sofort
+  nextAttemptAt DateTime?
+  /// Letzte Fehlermeldung (gekürzt) – für die Fehlerüberwachung und manuelle Klärung
+  lastError   String?
   createdAt   DateTime  @default(now())
 
   @@index([publishedAt, createdAt])

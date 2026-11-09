@@ -5,6 +5,14 @@ import type { PrismaClient, TargetType } from "../src/generated/prisma/client";
  * ohne echte Konten und deren Inhalte anzutasten. Zähler echter Inhalte (Likes, Follower,
  * Mitglieder …), die durch Demo-Konten entstanden sind, werden zurückgerechnet.
  *
+ * Schutzmechanismen:
+ * - Vorprüfung: Hängen echte Inhalte an Demo-Daten (Beiträge echter Personen in Demo-Communities,
+ *   Nachrichten echter Personen in Gesprächen mit Demo-Konten, Bestellungen zwischen echten und
+ *   Demo-Konten), wird NICHTS gelöscht – die Fundstellen werden ausgegeben.
+ * - Demo-Konten mit Einträgen im Audit-Protokoll bleiben bestehen (das Protokoll ist unveränderlich
+ *   und verweist auf sie); ihr Login ist in Produktion ohnehin gesperrt.
+ * - Alle Löschungen laufen in EINER Transaktion: entweder alles oder nichts.
+ *
  * Idempotent: ohne Demo-Konten passiert nichts.
  */
 export const DEMO_EMAIL_DOMAIN = "@demo.werkraum.local";
@@ -13,14 +21,38 @@ const DEMO_ADMIN_POSTS = ["Willkommen bei Werkuno! 🧶", "Willkommen im WERKRAU
 
 type Db = PrismaClient;
 
-export async function purgeDemo(db: Db, opts: { dryRun?: boolean; adminId?: string } = {}) {
-  const users = await db.user.findMany({ where: { email: { endsWith: DEMO_EMAIL_DOMAIN } }, select: { id: true } });
-  if (!users.length) {
+export async function purgeDemo(root: Db, opts: { dryRun?: boolean; adminId?: string } = {}) {
+  const all = await root.user.findMany({ where: { email: { endsWith: DEMO_EMAIL_DOMAIN } }, select: { id: true, email: true } });
+  if (!all.length) {
     console.log("→ Keine Demo-Daten vorhanden.");
     return null;
   }
+  // Demo-Konten, auf die das Audit-Protokoll verweist, können nicht gelöscht werden (Fremdschlüssel RESTRICT)
+  const audited = new Set((await root.auditEvent.findMany({ where: { actorId: { in: all.map((u) => u.id) } }, select: { actorId: true }, distinct: ["actorId"] })).map((a) => a.actorId));
+  const users = all.filter((u) => !audited.has(u.id));
+  if (audited.size) console.warn(`⚠ ${audited.size} Demo-Konten bleiben bestehen (Einträge im Audit-Protokoll): ${all.filter((u) => audited.has(u.id)).map((u) => u.email).join(", ")}`);
+  if (!users.length) return null;
   const uids = users.map((u) => u.id);
   const inU = { in: uids };
+
+  // ── Vorprüfung: echte Inhalte, die an Demo-Daten hängen, würden über Kaskaden mitgelöscht
+  const demoCommunities = (await root.community.findMany({ where: { ownerId: inU }, select: { id: true } })).map((c) => c.id);
+  const demoShops = (await root.shop.findMany({ where: { ownerId: inU }, select: { id: true } })).map((c) => c.id);
+  const demoConvs = [...new Set((await root.conversationMember.findMany({ where: { userId: inU }, select: { conversationId: true } })).map((c) => c.conversationId))];
+  const [realCommunityPosts, realMessages, mixedOrders] = await Promise.all([
+    root.post.count({ where: { communityId: { in: demoCommunities }, authorId: { notIn: uids } } }),
+    root.message.count({ where: { conversationId: { in: demoConvs }, senderId: { notIn: uids } } }),
+    root.order.count({ where: { OR: [{ shopId: { in: demoShops }, buyerId: { notIn: uids } }, { buyerId: inU, shopId: { notIn: demoShops } }] } }),
+  ]);
+  if (realCommunityPosts + realMessages + mixedOrders > 0) {
+    console.error(
+      `✗ Demo-Purge abgebrochen – es würden echte Daten mitgelöscht: ${realCommunityPosts} Beiträge echter Personen in Demo-Communities, ` +
+        `${realMessages} Nachrichten echter Personen in Gesprächen mit Demo-Konten, ${mixedOrders} Bestellungen zwischen echten und Demo-Konten. ` +
+        "Bitte zuerst klären (z. B. Community-Leitung an ein echtes Konto übergeben). Es wurde nichts gelöscht.",
+    );
+    return null;
+  }
+  const db = root;
 
   // ── Inhalte der Demo-Konten (plus Demo-Beitrag der Redaktion)
   const ids = async <T extends { id: string }>(p: Promise<T[]>) => (await p).map((r) => r.id);
@@ -45,6 +77,18 @@ export async function purgeDemo(db: Db, opts: { dryRun?: boolean; adminId?: stri
   const summary = Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, v.length]));
   console.log("→ Demo-Daten gefunden:", JSON.stringify(summary));
   if (opts.dryRun) return summary;
+
+  // Alles in einer Transaktion: ein Fehler mittendrin hinterlässt keinen halb gelöschten Zustand
+  await root.$transaction((tx) => purgeIn(tx as unknown as Db, { uids, inU, sets, allTargets, isDemo }), { timeout: 10 * 60_000, maxWait: 30_000 });
+  console.log("✓ Demo-Daten entfernt.");
+  return summary;
+}
+
+type PurgeCtx = { uids: string[]; inU: { in: string[] }; sets: Partial<Record<TargetType, string[]>>; allTargets: Set<string>; isDemo: (t: string, id: string) => boolean };
+
+async function purgeIn(db: Db, { uids, inU, sets, allTargets, isDemo }: PurgeCtx) {
+  const ids = async <T extends { id: string }>(p: Promise<T[]>) => (await p).map((r) => r.id);
+  const shopIds = await ids(db.shop.findMany({ where: { ownerId: inU }, select: { id: true } }));
 
   // ── Zähler echter Inhalte zurückrechnen (Interaktionen der Demo-Konten)
   const dec = async (type: string, id: string, field: string, n: number) => {
@@ -112,9 +156,6 @@ export async function purgeDemo(db: Db, opts: { dryRun?: boolean; adminId?: stri
     "followerCount" = (SELECT count(*) FROM "Follow" f WHERE f."followeeId" = p."userId"),
     "followingCount" = (SELECT count(*) FROM "Follow" f WHERE f."followerId" = p."userId")`;
   await db.$executeRaw`UPDATE "Community" c SET "memberCount" = GREATEST(1, (SELECT count(*) FROM "CommunityMember" m WHERE m."communityId" = c.id AND m.state = 'ACTIVE'))`;
-
-  console.log("✓ Demo-Daten entfernt.");
-  return summary;
 }
 
 /** Grosse OR-Listen in Gruppen je Zieltyp zusammenfassen. */

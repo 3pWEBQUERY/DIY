@@ -61,7 +61,8 @@ export async function verifyAuditChain(limitRows = 5000) {
   const before = await db.auditEvent.findFirst({ where: { seq: { lt: rows[0]!.seq } }, orderBy: { seq: "desc" }, select: { hash: true } });
   let prev: string | null = before?.hash ?? null;
   for (const r of rows) {
-    const expected = digest(prev, r);
+    // Nur die Felder hashen, die beim Schreiben gehasht wurden – nicht id/seq/prevHash/hash der Zeile
+    const expected = digest(prev, { actorId: r.actorId, action: r.action, targetType: r.targetType, targetId: r.targetId, meta: r.meta, createdAt: r.createdAt });
     if (r.prevHash !== prev || r.hash !== expected) return { ok: false as const, brokenAt: r.seq, checked: rows.length };
     prev = r.hash;
   }

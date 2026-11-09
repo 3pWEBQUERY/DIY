@@ -69,7 +69,8 @@ async function abandonOwnPending(userId: string) {
   for (const o of pending) await markPaymentFailed(o.id, { kind: "abandoned", actorId: userId });
 }
 
-export async function startCheckout(user: SessionUser, input: unknown): Promise<CheckoutResponse> {
+/** `channel: "ios"` – siehe `addToCart`: digitale Produkte nur mit `commerce.digitalEnabledIos`. */
+export async function startCheckout(user: SessionUser, input: unknown, opts: { channel?: "web" | "ios" } = {}): Promise<CheckoutResponse> {
   const data = checkoutSchema.parse(input);
   await requireFlag("marketplace", user.id);
   const mode = paymentsMode();
@@ -84,10 +85,12 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
   let created: { id: string; number: string; totalMinor: number; shippingMinor: number; platformFeeMinor: number; currency: string; destination: string | null; lines: { name: string; unitMinor: number; quantity: number }[] }[] = [];
   try {
     await abandonOwnPending(user.id);
-    const [reservationMinutes, digitalEnabled] = await Promise.all([
+    const [reservationMinutes, digitalEnabledWeb, digitalEnabledIos] = await Promise.all([
       getSetting("commerce.reservationMinutes"),
       getSetting("commerce.digitalEnabledWeb"),
+      getSetting("commerce.digitalEnabledIos"),
     ]);
+    const digitalEnabled = digitalEnabledWeb && (opts.channel !== "ios" || digitalEnabledIos);
     // Stripe verlangt mind. 30 Minuten Laufzeit; die Reservierung läuft etwas länger als die Session,
     // damit ein Zahlungsabschluss in letzter Sekunde noch verbucht werden kann.
     const sessionMinutes = mode === "stripe" ? Math.max(31, reservationMinutes) : reservationMinutes;
@@ -112,7 +115,7 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
           if (p.shop.ownerId === user.id) throw fail.invalid("Du kannst keine eigenen Produkte kaufen.");
           if (mode === "stripe" && (!p.shop.stripeAccountId || !p.shop.chargesEnabled)) throw fail.conflict(`Der Shop „${p.shop.name}“ kann gerade keine Zahlungen annehmen.`);
           const isDigital = p.kind === "DIGITAL";
-          if (isDigital && !digitalEnabled) throw fail.conflict("Digitale Produkte sind derzeit nicht verfügbar.");
+          if (isDigital && !digitalEnabled) throw fail.conflict(opts.channel === "ios" && digitalEnabledWeb ? "Digitale Produkte sind in der App nicht erhältlich." : "Digitale Produkte sind derzeit nicht verfügbar.");
           if (it.variantId && !it.variant) throw fail.conflict(`Die gewählte Variante von ${title} gibt es nicht mehr.`);
           return {
             shopId: p.shop.id,

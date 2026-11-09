@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/field";
 import { submitAppealAction } from "./actions";
 
-export function AppealForm({ caseId }: { caseId: string }) {
+export function AppealForm({ caseId, token }: { caseId: string; token?: string }) {
   const [text, setText] = useState("");
   const { run, pending, fields } = useAction(submitAppealAction);
   return (
@@ -14,7 +14,7 @@ export function AppealForm({ caseId }: { caseId: string }) {
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        run(caseId, { statement: text });
+        run(caseId, { statement: text }, token);
       }}
     >
       <Field

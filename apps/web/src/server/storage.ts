@@ -1,8 +1,8 @@
 import "server-only";
 import { mkdir, readFile, writeFile, unlink, stat } from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
-import type { Readable } from "node:stream";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -22,9 +22,38 @@ interface Driver {
   /** Streamend schreiben (ohne die ganze Datei im Speicher zu halten); `bytes` = bekannte Länge. */
   putStream(key: string, body: Readable, bytes: number, mime: string, cacheControl: string): Promise<void>;
   get(key: string): Promise<{ body: Buffer; mime?: string } | null>;
+  /**
+   * Streamend lesen, optional nur einen Byte-Bereich (HTTP Range, z. B. für Video in Safari/iOS).
+   * `null` = nicht vorhanden, `"unsatisfiable"` = Bereich liegt ausserhalb der Datei.
+   */
+  getStream(key: string, range?: ByteRange | null): Promise<StreamedObject | null | "unsatisfiable">;
   head(key: string): Promise<{ bytes: number } | null>;
   del(key: string): Promise<void>;
 }
+
+/** Ein einzelner Byte-Bereich: start–end (inkl.), offen (`end` fehlt) oder die letzten `suffix` Bytes. */
+export type ByteRange = { start: number; end?: number } | { suffix: number };
+export type StreamedObject = { body: ReadableStream<Uint8Array>; mime?: string; size: number; length: number; range?: { start: number; end: number } };
+
+/** `Range: bytes=…` parsen – nur ein Bereich; Mehrfachbereiche werden ignoriert (volle Antwort). */
+export function parseRange(header: string | null): ByteRange | null {
+  const m = header?.trim().match(/^bytes=(\d*)-(\d*)$/);
+  if (!m || (!m[1] && !m[2])) return null;
+  if (!m[1]) return { suffix: Number(m[2]) };
+  return m[2] ? { start: Number(m[1]), end: Number(m[2]) } : { start: Number(m[1]) };
+}
+
+/** Bereich gegen die Dateigrösse auflösen (null = nicht erfüllbar). */
+export function resolveRange(r: ByteRange, size: number) {
+  if ("suffix" in r) {
+    if (r.suffix <= 0 || size === 0) return null;
+    return { start: Math.max(0, size - r.suffix), end: size - 1 };
+  }
+  if (r.start >= size || (r.end !== undefined && r.end < r.start)) return null;
+  return { start: r.start, end: Math.min(r.end ?? size - 1, size - 1) };
+}
+
+const rangeHeader = (r: ByteRange) => ("suffix" in r ? `bytes=-${r.suffix}` : `bytes=${r.start}-${r.end ?? ""}`);
 
 let s3client: S3Client | null = null;
 function s3() {
@@ -66,6 +95,20 @@ const s3Driver: Driver = {
       const res = await s3().send(new GetObjectCommand({ Bucket: env().S3_BUCKET, Key: key }));
       return { body: Buffer.from(await res.Body!.transformToByteArray()), mime: res.ContentType };
     } catch {
+      return null;
+    }
+  },
+  async getStream(key, range) {
+    try {
+      const res = await s3().send(new GetObjectCommand({ Bucket: env().S3_BUCKET, Key: key, ...(range ? { Range: rangeHeader(range) } : {}) }));
+      const length = Number(res.ContentLength ?? 0);
+      // Content-Range: "bytes 0-1023/52341"
+      const cr = res.ContentRange?.match(/bytes (\d+)-(\d+)\/(\d+)/);
+      const size = cr ? Number(cr[3]) : length;
+      return { body: res.Body!.transformToWebStream() as ReadableStream<Uint8Array>, mime: res.ContentType, size, length, ...(range && cr ? { range: { start: Number(cr[1]), end: Number(cr[2]) } } : {}) };
+    } catch (err) {
+      const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (e.name === "InvalidRange" || e.$metadata?.httpStatusCode === 416) return "unsatisfiable";
       return null;
     }
   },
@@ -117,6 +160,18 @@ const localDriver: Driver = {
     } catch {
       return null;
     }
+  },
+  async getStream(key, range) {
+    let size: number;
+    try {
+      size = (await stat(/*turbopackIgnore: true*/ safe(key))).size;
+    } catch {
+      return null;
+    }
+    const r = range ? resolveRange(range, size) : null;
+    if (range && !r) return "unsatisfiable";
+    const stream = createReadStream(/*turbopackIgnore: true*/ safe(key), r ? { start: r.start, end: r.end } : {});
+    return { body: Readable.toWeb(stream) as ReadableStream<Uint8Array>, size, length: r ? r.end - r.start + 1 : size, ...(r ? { range: r } : {}) };
   },
   async head(key) {
     try {
