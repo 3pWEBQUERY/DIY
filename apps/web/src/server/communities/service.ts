@@ -630,7 +630,7 @@ export async function createCommunityPost(user: SessionUser, communityId: string
   if (c.state !== "PUBLISHED") throw fail.forbidden("In dieser Community kann gerade nicht gepostet werden.");
   const m = await communityRole(communityId, user.id);
   if (m?.state !== "ACTIVE") throw fail.forbidden("Tritt der Community bei, um mitzuschreiben.");
-  if (isMuted(m)) throw fail.forbidden(`Du bist in dieser Community bis ${m.mutedUntil!.toLocaleDateString("de-CH", { day: "numeric", month: "long" })} stummgeschaltet.`);
+  if (isMuted(m)) throw fail.forbidden(`Du bist in dieser Community bis ${m.mutedUntil!.toLocaleDateString("de-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" })} stummgeschaltet.`);
   if (data.isAnnouncement && !isModRole(m)) throw fail.forbidden("Nur die Moderation kann Ankündigungen veröffentlichen.");
   const post = await createPost(user, { body: data.body, media: data.media, poll: data.poll, category: categoryBySlug(c.category) ? c.category : undefined }, { communityId });
   if (data.isAnnouncement) await db.post.update({ where: { id: post.id }, data: { isAnnouncement: true } });

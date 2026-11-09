@@ -19,7 +19,8 @@ import { appealContext, submitAppeal } from "@/server/moderation/service";
 import { rateLimit } from "@/server/ratelimit";
 import { registerPushDevice, unregisterPushDevice } from "@/server/push/service";
 import { apnsConfigured } from "@/server/push/apns";
-import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, session, viewer, type RouteDef } from "../router";
+import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, session, viewer, zStr, type RouteDef } from "../router";
+import { z } from "zod";
 import { flagsFor } from "@/server/flags";
 
 /** Identität, Onboarding, Bootstrap, Konto & Einstellungen (PRD §8, §23, §7). */
@@ -70,17 +71,17 @@ export const identityRoutes: RouteDef[] = [
     return r;
   }),
   POST("/auth/handle-check", async (c) => {
-    const { handle } = await c.json<{ handle?: string }>();
+    const { handle } = await c.body({ handle: zStr });
     const u = await viewer();
     return identity.isHandleAvailable(String(handle ?? ""), u?.id);
   }),
   POST("/auth/password-reset", async (c) => {
-    const { email } = await c.json<{ email?: string }>();
+    const { email } = await c.body({ email: zStr });
     await identity.requestPasswordReset(String(email ?? ""));
     return { message: "Falls ein Konto existiert, haben wir dir eine E-Mail geschickt." };
   }),
   POST("/auth/apple", async (c) => {
-    const b = await c.json<{ identityToken?: string; givenName?: string; familyName?: string }>();
+    const b = await c.body({ identityToken: z.string().max(10_000).optional(), givenName: z.string().max(100).nullish(), familyName: z.string().max(100).nullish() });
     if (!b.identityToken) throw fail.invalid("identityToken fehlt.");
     return signInWithAppleIdToken(b.identityToken, [b.givenName, b.familyName].filter(Boolean).join(" ") || null);
   }),
@@ -97,8 +98,8 @@ export const identityRoutes: RouteDef[] = [
   }),
   POST("/onboarding/suggestions", async (c) => {
     const u = await me();
-    const { interests } = await c.json<{ interests?: string[] }>();
-    const list = Array.isArray(interests) ? interests.map(String).slice(0, 15) : [];
+    const { interests } = await c.body({ interests: z.array(z.string().max(100)).max(100).optional() });
+    const list = (interests ?? []).slice(0, 15);
     const [creators, communities] = await Promise.all([suggestedCreators(u.id, list, 6), suggestedCommunities(u.id, list, 4)]);
     return { creators, communities };
   }),
@@ -118,7 +119,7 @@ export const identityRoutes: RouteDef[] = [
   }),
   PUT("/settings/profile", async (c) => account.updateProfile(await me(), await c.json())),
   POST("/settings/handle-check", async (c) => {
-    const { handle } = await c.json<{ handle?: string }>();
+    const { handle } = await c.body({ handle: zStr });
     return account.checkHandle(String(handle ?? ""), (await me()).id);
   }),
 
@@ -129,13 +130,13 @@ export const identityRoutes: RouteDef[] = [
   }),
   POST("/settings/password", async (c) => {
     const s = await session();
-    const b = await c.json<{ current?: string; next?: string; confirm?: string }>();
+    const b = await c.body({ current: zStr, next: zStr, confirm: zStr });
     if (b.next !== b.confirm) throw fail.invalid("Die Passwörter stimmen nicht überein.", { confirm: "Stimmt nicht überein" });
     return account.changePasswordEverywhere(s.user, s.sessionId, b.current ?? "", b.next ?? "");
   }),
   POST("/settings/delete-account", async (c) => {
     const u = await meAllowSuspended();
-    const b = await c.json<{ password?: string; confirm?: string }>();
+    const b = await c.body({ password: zStr, confirm: zStr });
     if ((b.confirm ?? "").trim().toUpperCase() !== "LÖSCHEN") throw fail.invalid("Bitte tippe LÖSCHEN zur Bestätigung.", { confirm: "Bitte LÖSCHEN eintippen" });
     await identity.deleteAccount(u.id, b.password ?? null);
     return { ok: true };
@@ -192,7 +193,7 @@ export const identityRoutes: RouteDef[] = [
   POST("/support/tickets", async (c) => account.createSupportTicket(await meAllowSuspended(), await c.json())),
 
   // ── Einspruch (§24.1 Nr. 8) ──
-  GET("/appeals/:caseId", async (c) => appealContext((await meAllowSuspended()).id, c.p.caseId!)),
+  GET("/appeals/:caseId", async (c) => need(await appealContext((await meAllowSuspended()).id, c.p.caseId!), "Fall nicht gefunden.")),
   POST("/appeals/:caseId", async (c) => {
     const u = await meAllowSuspended();
     await rateLimit(`appeal:${u.id}`, 10, 86_400);
@@ -207,7 +208,7 @@ export const identityRoutes: RouteDef[] = [
   }),
   DELETE("/devices/push", async (c) => {
     const s = await session();
-    const { token } = await c.json<{ token?: string }>();
+    const { token } = await c.body({ token: zStr });
     return unregisterPushDevice(s.user.id, String(token ?? ""));
   }),
 ];

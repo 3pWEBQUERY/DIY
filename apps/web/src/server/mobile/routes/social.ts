@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { db } from "@/server/db";
+import { db, type Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import * as posts from "@/server/social/posts";
 import * as ix from "@/server/social/interactions";
@@ -14,7 +14,8 @@ import { listArticles, resolveHandle } from "@/server/blog/service";
 import { listPublicCollections } from "@/server/collections/service";
 import { profileAwards } from "@/server/communities/competitions";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
-import { DELETE, GET, PATCH, POST, int, me, need, str, viewer, viewerId, type RouteDef } from "../router";
+import { decodeFollowCursor, encodeFollowCursor } from "../params";
+import { DELETE, GET, PATCH, POST, me, need, str, takeParam, viewer, viewerId, zBool, zIds, zStr, type RouteDef } from "../router";
 
 const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW"]);
 
@@ -70,8 +71,8 @@ export const socialRoutes: RouteDef[] = [
   }),
   // Umfrage: { optionIds: string[] } → aktualisierte Umfrage (mit Ergebnissen)
   POST("/posts/:id/poll", async (c) => {
-    const b = await c.json<{ optionIds?: unknown }>();
-    return posts.votePoll(await me(), c.p.id!, Array.isArray(b.optionIds) ? b.optionIds.map(String) : []);
+    const b = await c.body({ optionIds: zIds });
+    return posts.votePoll(await me(), c.p.id!, b.optionIds ?? []);
   }),
   // ── Entwürfe & geplante Beiträge (Erstellen: POST /posts mit publish: "draft" | "schedule", scheduledAt) ──
   POST("/posts/:id/publish", async (c) => posts.publishDraft(await me(), c.p.id!)),
@@ -80,23 +81,25 @@ export const socialRoutes: RouteDef[] = [
   GET("/me/coauthor-invites", async () => coauthors.myCoauthorInvites((await me()).id)),
   GET("/posts/:id/coauthors", async (c) => coauthors.listCoauthors(await me(), c.p.id!)),
   POST("/posts/:id/coauthors", async (c) => {
-    const { handles } = await c.json<{ handles?: string[] }>();
+    const { handles } = await c.body({ handles: zIds });
     return coauthors.inviteCoauthors(await me(), c.p.id!, handles ?? []);
   }),
   POST("/posts/:id/coauthors/respond", async (c) => {
-    const { accept } = await c.json<{ accept?: boolean }>();
+    const { accept } = await c.body({ accept: zBool });
     return coauthors.respondCoauthor(await me(), c.p.id!, !!accept);
   }),
   DELETE("/posts/:id/coauthors/me", async (c) => coauthors.leaveCoauthor(await me(), c.p.id!)),
   DELETE("/posts/:id/coauthors/:userId", async (c) => coauthors.removeCoauthor(await me(), c.p.id!, c.p.userId!)),
   // { scheduledAt: ISO | null }
   POST("/posts/:id/schedule", async (c) => {
-    const at = (await c.json<{ scheduledAt?: string | null }>()).scheduledAt;
-    return posts.scheduleDraft(await me(), c.p.id!, at ? new Date(at) : null);
+    const at = (await c.body({ scheduledAt: z.string().max(64).nullish() })).scheduledAt;
+    const when = at ? new Date(at) : null;
+    if (when && Number.isNaN(when.getTime())) throw fail.invalid("Ungültiger Zeitpunkt.", { scheduledAt: "Ungültiger Zeitpunkt" });
+    return posts.scheduleDraft(await me(), c.p.id!, when);
   }),
   POST("/posts/:id/repost", async (c) => {
     const u = await me();
-    const { body } = await c.json<{ body?: string }>();
+    const { body } = await c.body({ body: zStr });
     const p = await posts.createPost(u, { body: String(body ?? ""), repostOfId: c.p.id!, media: [] });
     return posts.getPostForViewer(p.id, u.id);
   }),
@@ -126,19 +129,19 @@ export const socialRoutes: RouteDef[] = [
     return { ok: true };
   }),
   POST("/users/:id/follow", async (c) => {
-    const { follow } = await c.json<{ follow?: boolean }>();
+    const { follow } = await c.body({ follow: zBool });
     return ix.setFollow(await me(), c.p.id!, follow !== false);
   }),
   POST("/users/:id/block", async (c) => {
-    const { block } = await c.json<{ block?: boolean }>();
+    const { block } = await c.body({ block: zBool });
     return ix.setBlock(await me(), c.p.id!, block !== false);
   }),
   POST("/users/:id/mute", async (c) => {
-    const { mute } = await c.json<{ mute?: boolean }>();
+    const { mute } = await c.body({ mute: zBool });
     return ix.setMute(await me(), c.p.id!, mute !== false);
   }),
   POST("/projects/:id/follow", async (c) => {
-    const { follow } = await c.json<{ follow?: boolean }>();
+    const { follow } = await c.body({ follow: zBool });
     return ix.setProjectFollow(await me(), c.p.id!, follow !== false);
   }),
   POST("/hide", async (c) => {
@@ -251,9 +254,8 @@ export const socialRoutes: RouteDef[] = [
     return { view, items, distribution };
   }),
   GET("/users/:handle/posts", async (c) => {
-    const prof = need(await db.userProfile.findUnique({ where: { handle: c.p.handle!.toLowerCase() }, select: { userId: true } }));
-    const vid = await viewerId();
-    if (vid && vid !== prof.userId && (await isBlockedBetween(vid, prof.userId))) return { items: [], nextCursor: null };
+    const { prof, vid, blocked } = await visibleProfile(c.p.handle!);
+    if (blocked) return { items: [], nextCursor: null };
     const base = await posts.baseFeedWhere(vid, { includeMuted: true });
     return posts.listPosts({ ...base, communityId: null, OR: await posts.byAuthorsWhere([prof.userId]) }, vid, { take: 20, cursor: str(c.q, "cursor") ?? null });
   }),
@@ -262,26 +264,43 @@ export const socialRoutes: RouteDef[] = [
     if (h.kind === "redirect") return { redirect: h.handle };
     const vid = await viewerId();
     if (vid && vid !== h.profile.userId && (await isBlockedBetween(vid, h.profile.userId))) return { items: [], nextCursor: null };
-    return listArticles({ authorId: h.profile.userId, tag: str(c.q, "tag"), viewerId: vid, take: int(c.q, "take") ?? 20 }, str(c.q, "cursor") ?? null);
+    return listArticles({ authorId: h.profile.userId, tag: str(c.q, "tag"), viewerId: vid, take: takeParam(c.q, "take", 20) }, str(c.q, "cursor") ?? null);
   }),
   GET("/users/:handle/collections", async (c) => {
-    const prof = need(await db.userProfile.findUnique({ where: { handle: c.p.handle!.toLowerCase() }, select: { userId: true } }));
-    return listPublicCollections(prof.userId, await viewerId());
+    const { prof, vid, blocked } = await visibleProfile(c.p.handle!);
+    return blocked ? [] : listPublicCollections(prof.userId, vid);
   }),
   GET("/users/:handle/followers", async (c) => listFollows(c.p.handle!, "followers", str(c.q, "cursor"))),
   GET("/users/:handle/following", async (c) => listFollows(c.p.handle!, "following", str(c.q, "cursor"))),
 ];
 
-async function listFollows(handle: string, dir: "followers" | "following", cursor?: string) {
-  const prof = need(await db.userProfile.findUnique({ where: { handle: handle.toLowerCase() }, select: { userId: true } }));
+/**
+ * Profil für Unterseiten (Beiträge, Sammlungen, Follower): unbekannt, gesperrt oder gelöscht → 404;
+ * `blocked`, wenn zwischen Betrachter:in und Profil eine Blockierung besteht (in beide Richtungen).
+ */
+async function visibleProfile(handle: string) {
+  const prof = need(await db.userProfile.findUnique({ where: { handle: handle.toLowerCase() }, select: { userId: true, user: { select: { status: true } } } }), "Profil nicht gefunden.");
+  if (prof.user.status === "BANNED" || prof.user.status === "DELETED") throw fail.notFound("Profil nicht gefunden.");
   const vid = await viewerId();
+  const blocked = !!vid && vid !== prof.userId && (await isBlockedBetween(vid, prof.userId));
+  return { prof, vid, blocked };
+}
+
+async function listFollows(handle: string, dir: "followers" | "following", rawCursor?: string) {
+  const { prof, vid, blocked } = await visibleProfile(handle);
+  if (blocked) return { items: [], nextCursor: null };
   const rel = await relationsFor(vid);
   const take = 40;
+  // Manipulierter/alter Cursor → von vorn beginnen statt 500
+  const cursor = decodeFollowCursor(rawCursor);
+  // Gesperrte/gelöschte Konten und Blockierungen (beide Richtungen) schon in der Abfrage ausfiltern,
+  // damit Seiten nicht leer laufen
+  const other: Prisma.UserWhereInput = { status: { in: ["ACTIVE", "SUSPENDED"] }, profile: { isNot: null }, ...(rel.blocked.length ? { id: { notIn: rel.blocked } } : {}) };
   const rows = await db.follow.findMany({
-    where: dir === "followers" ? { followeeId: prof.userId } : { followerId: prof.userId },
-    orderBy: { createdAt: "desc" },
+    where: dir === "followers" ? { followeeId: prof.userId, follower: other } : { followerId: prof.userId, followee: other },
+    orderBy: [{ createdAt: "desc" }, { followerId: "desc" }, { followeeId: "desc" }],
     take: take + 1,
-    ...(cursor ? { cursor: { followerId_followeeId: JSON.parse(Buffer.from(cursor, "base64url").toString()) }, skip: 1 } : {}),
+    ...(cursor ? { cursor: { followerId_followeeId: cursor }, skip: 1 } : {}),
     select: {
       followerId: true,
       followeeId: true,
@@ -301,6 +320,6 @@ async function listFollows(handle: string, dir: "followers" | "following", curso
   const last = page[page.length - 1];
   return {
     items,
-    nextCursor: rows.length > take && last ? Buffer.from(JSON.stringify({ followerId: last.followerId, followeeId: last.followeeId })).toString("base64url") : null,
+    nextCursor: rows.length > take && last ? encodeFollowCursor(last) : null,
   };
 }

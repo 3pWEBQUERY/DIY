@@ -69,7 +69,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
       {open && (
         <Notice tone="warn" className="mb-8" title="Zahlung ausstehend">
-          <p>Die Artikel sind bis {o.reservationExpiresAt!.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })} Uhr für dich reserviert.</p>
+          <p>Die Artikel sind bis {o.reservationExpiresAt!.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })} Uhr für dich reserviert.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <ResumePaymentButton orderId={o.id} />
             <AbandonOrderButton orderId={o.id} redirectTo={`/bestellungen/${o.id}`} />

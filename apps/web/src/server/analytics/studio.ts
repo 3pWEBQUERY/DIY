@@ -3,6 +3,7 @@ import { db, Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import { storage } from "@/server/storage";
 import { weekKeys, weeklySeries } from "@/server/admin/kpis";
+import { TZ, zurichDayKey, zurichWeekDays } from "@/lib/tz";
 
 /**
  * Kennzahlen für das Werkuno Studio (PRD §20). Ehrlich beschriftet (§20.4):
@@ -106,26 +107,27 @@ export async function studioOverview(userId: string) {
   };
 }
 
-/** Veröffentlichungen pro Tag der letzten 12 Wochen (Beiträge, Journal, Projekte, Anleitungen, Artikel). */
+/**
+ * Veröffentlichungen pro Tag der letzten 12 Wochen (Beiträge, Journal, Projekte, Anleitungen, Artikel).
+ * Tage nach Zürcher Kalender (nicht UTC): ein Beitrag um 00:30 Uhr zählt zum richtigen Tag.
+ */
 export async function publishingHeat(userId: string, weeks = 12) {
-  const keys = weekKeys(weeks);
-  const start = new Date(`${keys[0]}T00:00:00Z`);
+  const keys = zurichWeekDays(weeks);
+  // Spalten sind „timestamp without time zone“ in UTC → erst als UTC lesen, dann nach Zürich umrechnen.
+  // Untergrenze mit einem Tag Puffer; was ausserhalb der Schlüssel liegt, fällt unten weg.
+  const start = new Date(new Date(`${keys[0]}T00:00:00Z`).getTime() - DAY);
+  const local = (col: string) => Prisma.raw(`to_char(("${col}" AT TIME ZONE 'UTC') AT TIME ZONE '${TZ}', 'YYYY-MM-DD')`);
   const rows = await db.$queryRaw<{ d: string; n: bigint }[]>`
-    SELECT to_char(day, 'YYYY-MM-DD') AS d, count(*)::bigint AS n FROM (
-      SELECT date_trunc('day', "publishedAt") AS day FROM "Post" WHERE "authorId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start} AND "projectUpdateId" IS NULL
-      UNION ALL SELECT date_trunc('day', "createdAt") FROM "ProjectUpdate" WHERE "authorId" = ${userId} AND "createdAt" >= ${start}
-      UNION ALL SELECT date_trunc('day', "publishedAt") FROM "Project" WHERE "ownerId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start}
-      UNION ALL SELECT date_trunc('day', "publishedAt") FROM "Tutorial" WHERE "authorId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start}
-      UNION ALL SELECT date_trunc('day', "publishedAt") FROM "BlogArticle" WHERE "authorId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start}
+    SELECT d, count(*)::bigint AS n FROM (
+      SELECT ${local("publishedAt")} AS d FROM "Post" WHERE "authorId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start} AND "projectUpdateId" IS NULL
+      UNION ALL SELECT ${local("createdAt")} FROM "ProjectUpdate" WHERE "authorId" = ${userId} AND "createdAt" >= ${start}
+      UNION ALL SELECT ${local("publishedAt")} FROM "Project" WHERE "ownerId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start}
+      UNION ALL SELECT ${local("publishedAt")} FROM "Tutorial" WHERE "authorId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start}
+      UNION ALL SELECT ${local("publishedAt")} FROM "BlogArticle" WHERE "authorId" = ${userId} AND "state" = 'PUBLISHED' AND "publishedAt" >= ${start}
     ) t GROUP BY 1`;
   const map = new Map(rows.map((r) => [r.d, Number(r.n)]));
-  const days: { date: string; n: number }[] = [];
-  for (let i = 0; i < weeks * 7; i++) {
-    const d = new Date(start.getTime() + i * DAY).toISOString().slice(0, 10);
-    days.push({ date: d, n: map.get(d) ?? 0 });
-  }
-  const today = new Date().toISOString().slice(0, 10);
-  return { days, today, total: days.reduce((a, b) => a + b.n, 0), activeDays: days.filter((d) => d.n > 0).length };
+  const days = keys.map((date) => ({ date, n: map.get(date) ?? 0 }));
+  return { days, today: zurichDayKey(), total: days.reduce((a, b) => a + b.n, 0), activeDays: days.filter((d) => d.n > 0).length };
 }
 
 /* ───────────── Inhalte (alle Typen) ───────────── */

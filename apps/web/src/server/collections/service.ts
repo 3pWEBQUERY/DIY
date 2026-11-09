@@ -3,7 +3,7 @@ import { collectionUpsertSchema } from "@werkraum/shared";
 import { db, type TargetType } from "@/server/db";
 import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
-import { canViewContent, relationsFor } from "@/server/visibility";
+import { canViewContent, isBlockedBetween, relationsFor } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
 import { hydratePosts, type PostView } from "@/server/social/posts";
 import { getProjectCards, type ProjectCardData } from "@/server/projects/service";
@@ -24,10 +24,16 @@ const PAGE = 48;
 export type ProductMini = { id: string; title: string; priceMinor: number; currency: "CHF" | "EUR"; coverUrl: string | null; href: string; shopName: string; soldOut: boolean };
 export type ArticleMini = { id: string; title: string; dek: string; coverUrl: string | null; href: string; authorName: string; readingMinutes: number };
 
-export async function getProductMinis(ids: string[]): Promise<ProductMini[]> {
+export async function getProductMinis(ids: string[], viewerId: string | null = null): Promise<ProductMini[]> {
   if (!ids.length) return [];
+  const rel = await relationsFor(viewerId);
   const rows = await db.product.findMany({
-    where: { id: { in: ids }, status: { in: ["ACTIVE", "SOLD_OUT"] }, shop: { status: "ACTIVE" } },
+    where: {
+      id: { in: ids },
+      status: { in: ["ACTIVE", "SOLD_OUT"] },
+      // Wie Shop-/Produktseiten: keine Shops gesperrter/gelöschter oder blockierter Konten
+      shop: { status: "ACTIVE", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) },
+    },
     select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true } } },
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -41,7 +47,7 @@ export async function getArticleMinis(ids: string[], viewerId: string | null): P
   if (!ids.length) return [];
   const rel = await relationsFor(viewerId);
   const rows = await db.blogArticle.findMany({
-    where: { id: { in: ids }, state: "PUBLISHED", ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}) },
+    where: { id: { in: ids }, state: "PUBLISHED", author: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}) },
     select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, author: { select: { profile: { select: { handle: true, displayName: true } } } } },
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -62,7 +68,7 @@ async function hydrate(type: SavedType, ids: string[], viewerId: string | null):
   switch (type) {
     case "POST": {
       // hydratePosts prüft keine Sichtbarkeit – deshalb vorher filtern
-      const rows = await db.post.findMany({ where: { id: { in: ids } }, select: { id: true, authorId: true, visibility: true, state: true, communityId: true } });
+      const rows = await db.post.findMany({ where: { id: { in: ids }, author: { status: { in: ["ACTIVE", "SUSPENDED"] } } }, select: { id: true, authorId: true, visibility: true, state: true, communityId: true } });
       const ok = new Set<string>();
       const { canViewCommunityContentOf } = await import("@/server/social/posts");
       for (const r of rows) {
@@ -78,7 +84,7 @@ async function hydrate(type: SavedType, ids: string[], viewerId: string | null):
     case "TUTORIAL":
       return { type, items: await getTutorialCards(ids, viewerId) };
     case "PRODUCT":
-      return { type, items: await getProductMinis(ids) };
+      return { type, items: await getProductMinis(ids, viewerId) };
     case "ARTICLE":
       return { type, items: await getArticleMinis(ids, viewerId) };
   }
@@ -192,6 +198,12 @@ export async function getCollectionPage(id: string, viewerId: string | null) {
 /** Öffentliche Sammlungen eines Profils (für Profilseiten). */
 export async function listPublicCollections(ownerId: string, viewerId: string | null) {
   const own = viewerId === ownerId;
+  if (!own) {
+    // Gesperrte/gelöschte Konten und Blockierungen (beide Richtungen): keine Sammlungen zeigen
+    const owner = await db.user.findUnique({ where: { id: ownerId }, select: { status: true } });
+    if (!owner || owner.status === "BANNED" || owner.status === "DELETED") return [];
+    if (viewerId && (await isBlockedBetween(viewerId, ownerId))) return [];
+  }
   const following = viewerId && !own ? !!(await db.follow.findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: ownerId } } })) : false;
   const rows = await db.collection.findMany({
     where: { ownerId, visibility: own ? undefined : { in: following ? ["PUBLIC", "FOLLOWERS"] : ["PUBLIC"] } },

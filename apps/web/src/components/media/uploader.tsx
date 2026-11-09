@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus, X, ArrowLeft, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { backoffDelay, isTransientStatus } from "@/lib/backoff";
 
 export type UploadedMedia = { id: string; alt: string; preview: string; state: "uploading" | "ready" | "error"; progress: number; kind: "IMAGE" | "VIDEO" | "FILE" };
 
@@ -99,11 +100,23 @@ export function MediaPicker({
 
   /** Videos werden im Hintergrund umgewandelt – eine Ablehnung (z. B. zu lang) sofort anzeigen. */
   async function watchVideo(mediaId: string) {
+    // Netzwerkfehler/Serverfehler (z. B. kurz offline, Deploy) beenden die Abfrage nicht mehr:
+    // mit wachsendem Abstand erneut versuchen; nur echte 4xx-Antworten (gelöscht, kein Zugriff) beenden sie.
+    let failures = 0;
     for (let i = 0; i < 90; i++) {
-      await new Promise((r) => setTimeout(r, i < 10 ? 1500 : 4000));
+      await new Promise((r) => setTimeout(r, failures > 0 ? backoffDelay(failures - 1) : i < 10 ? 1500 : 4000));
       const res = await fetch(`/api/v1/media/${mediaId}/status`, { cache: "no-store" }).catch(() => null);
-      if (!res?.ok) return;
-      const { data } = (await res.json()) as { data: { state: string; error: string | null; variants: Record<string, string> } };
+      if (!res?.ok) {
+        if (!isTransientStatus(res?.status) || ++failures > 8) return;
+        continue;
+      }
+      const body = (await res.json().catch(() => null)) as { data?: { state: string; error: string | null; variants: Record<string, string> } } | null;
+      if (!body?.data) {
+        if (++failures > 8) return;
+        continue;
+      }
+      failures = 0;
+      const { data } = body;
       if (data.state === "READY") return;
       if (data.state === "FAILED") {
         setError(data.error ?? "Das Video konnte nicht verarbeitet werden.");

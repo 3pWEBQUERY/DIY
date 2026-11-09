@@ -87,7 +87,7 @@ export default async function MaterialPage({ params }: Params) {
                       </div>
                       <p className="text-right sm:text-left">
                         <span className="block text-[15px] font-semibold num">{formatMoney(o.priceMinor, o.currency as Currency)}</span>
-                        <span className={o.stale ? "whitespace-nowrap text-[11.5px] text-warn" : "whitespace-nowrap text-[11.5px] text-muted"}>Stand {new Date(o.checkedAt).toLocaleDateString("de-CH", { day: "numeric", month: "numeric", year: "numeric" })}</span>
+                        <span className={o.stale ? "whitespace-nowrap text-[11.5px] text-warn" : "whitespace-nowrap text-[11.5px] text-muted"}>Stand {new Date(o.checkedAt).toLocaleDateString("de-CH", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Europe/Zurich" })}</span>
                       </p>
                       <p className="col-start-1 text-[13px] text-ink-2 num sm:col-start-auto">{o.perUnit ? `${formatMoney(o.perUnit.minor, o.currency as Currency)} / ${o.perUnit.label}` : <span className="text-muted">–</span>}</p>
                       <a

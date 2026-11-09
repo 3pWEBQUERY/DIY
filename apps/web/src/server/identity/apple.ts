@@ -10,6 +10,7 @@ import { audit } from "@/server/audit";
 import { createSession, clientIpHash } from "@/server/auth/session";
 import { rateLimit } from "@/server/ratelimit";
 import { requireFlag } from "@/server/flags";
+import { splitJwt } from "./jwt";
 
 export function appleClient() {
   const e = env();
@@ -99,10 +100,6 @@ async function appleKeys(force = false) {
   return keys;
 }
 
-function b64url(s: string) {
-  return Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64");
-}
-
 /**
  * Prüft das identityToken der App (RS256, Aussteller Apple, Audience = Bundle-ID aus
  * APPLE_IOS_CLIENT_ID, nicht abgelaufen) und meldet an. Gibt ein Bearer-Token zurück.
@@ -111,20 +108,22 @@ export async function signInWithAppleIdToken(idToken: string, displayName: strin
   const audience = process.env.APPLE_IOS_CLIENT_ID;
   if (!audience) throw fail.unavailable("Anmelden mit Apple ist in der App noch nicht aktiviert.");
   await rateLimit(`apple-native:${await clientIpHash()}`, 30, 600);
-  const [h, p, sig] = idToken.split(".");
-  if (!h || !p || !sig) throw fail.invalid("Ungültiges Apple-Token.");
-  const header = JSON.parse(b64url(h).toString("utf8")) as { kid?: string; alg?: string };
-  if (header.alg !== "RS256") throw fail.invalid("Ungültiges Apple-Token.");
+  // Kaputte Struktur (kein JWT, kein Base64url, kein JSON-Objekt) → 400 statt 500
+  const jwt = splitJwt(idToken);
+  if (!jwt) throw fail.badRequest("Ungültiges Apple-Token.");
+  const { header } = jwt;
+  if (header.alg !== "RS256" || typeof header.kid !== "string") throw fail.badRequest("Ungültiges Apple-Token.");
   let jwk = (await appleKeys()).find((k) => k.kid === header.kid);
   if (!jwk) jwk = (await appleKeys(true)).find((k) => k.kid === header.kid);
   if (!jwk) throw fail.invalid("Unbekannter Apple-Schlüssel.");
   const key = createPublicKey({ key: jwk as never, format: "jwk" });
-  const ok = createVerify("RSA-SHA256").update(`${h}.${p}`).verify(key, b64url(sig));
+  const ok = createVerify("RSA-SHA256").update(jwt.signingInput).verify(key, jwt.signature);
   if (!ok) throw fail.invalid("Apple-Token konnte nicht verifiziert werden.");
-  const claims = JSON.parse(b64url(p).toString("utf8")) as AppleClaims & { iss?: string; aud?: string; exp?: number };
-  if (claims.iss !== "https://appleid.apple.com" || claims.aud !== audience || !claims.exp || claims.exp * 1000 < Date.now()) {
+  const claims = jwt.claims as AppleClaims & { iss?: unknown; aud?: unknown; exp?: unknown };
+  if (claims.iss !== "https://appleid.apple.com" || claims.aud !== audience || typeof claims.exp !== "number" || claims.exp * 1000 < Date.now()) {
     throw fail.invalid("Apple-Token ist abgelaufen oder nicht für diese App ausgestellt.");
   }
+  if (typeof claims.sub !== "string" || !claims.sub || (claims.email != null && typeof claims.email !== "string")) throw fail.badRequest("Ungültiges Apple-Token.");
   const { userId, isNew } = await linkAppleClaims(claims, displayName);
   const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { status: true } });
   if (u.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");

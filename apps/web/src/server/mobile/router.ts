@@ -1,8 +1,10 @@
 import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
-import { AppError, STATUS, fail, toResult } from "@/server/errors";
+import { z } from "zod";
+import { AppError, fail, httpStatus, toResult } from "@/server/errors";
 import { currentUser, getSession, requireUser } from "@/server/auth/session";
 import { requireFlag } from "@/server/flags";
+import { clampInt, optInt, parseJsonObject } from "./params";
 
 /**
  * Mobile-API (iOS) unter /api/v1/app/* – dünne REST-Schicht über die bestehenden
@@ -17,8 +19,10 @@ export type Ctx = {
   p: Record<string, string>;
   /** Query-Parameter */
   q: URLSearchParams;
-  /** JSON-Body (leer → {}) */
+  /** JSON-Body als Objekt (leer → {}; kein JSON/kein Objekt → 400) */
   json: <T = Record<string, unknown>>() => Promise<T>;
+  /** JSON-Body gegen ein zod-Schema prüfen (unbekannte Felder werden verworfen; falsche Typen → 422) */
+  body: <S extends z.ZodRawShape>(shape: S) => Promise<z.infer<z.ZodObject<S>>>;
 };
 
 export type Handler = (c: Ctx) => Promise<unknown>;
@@ -54,12 +58,24 @@ export function str(q: URLSearchParams, key: string) {
   const v = q.get(key);
   return v && v.trim() !== "" ? v : undefined;
 }
-export function int(q: URLSearchParams, key: string) {
-  const v = q.get(key);
-  if (v == null || v === "") return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.trunc(n) : undefined;
+/** Optionale Ganzzahl, auf [min, max] geklemmt (Standard: nicht-negativ, ≤ 1 Mio.). */
+export function int(q: URLSearchParams, key: string, range: { min?: number; max?: number } = {}) {
+  return optInt(q.get(key), { min: range.min ?? 0, max: range.max ?? 1_000_000 });
 }
+/** Seitengrösse (take/limit): fehlend/NaN → def, sonst auf [1, max] geklemmt. */
+export function takeParam(q: URLSearchParams, key: string, def: number, max = 50) {
+  return clampInt(q.get(key), { def, min: 1, max: Math.max(max, def) });
+}
+/** Seitennummer (1-basiert), auf [1, 500] geklemmt. */
+export function pageParam(q: URLSearchParams, key = "page") {
+  return clampInt(q.get(key), { def: 1, min: 1, max: 500 });
+}
+
+// Häufige Body-Felder für c.body({...})
+export const zBool = z.boolean().optional();
+export const zStr = z.string().max(10_000).optional();
+export const zId = z.string().min(1).max(200);
+export const zIds = z.array(z.string().max(200)).max(500).optional();
 export function bool(q: URLSearchParams, key: string) {
   const v = q.get(key);
   return v === "1" || v === "true" || v === "ja";
@@ -70,6 +86,23 @@ export function need<T>(v: T | null | undefined, msg = "Nicht gefunden."): T {
 }
 
 // ───────────────────────── Dispatcher ─────────────────────────
+
+const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+
+function errorResponse(e: unknown, req: NextRequest, headers?: Record<string, string>) {
+  const r = toResult(e, { path: req.nextUrl.pathname, method: req.method });
+  if (r.ok) return NextResponse.json({ data: null });
+  return NextResponse.json({ error: { code: r.code, message: r.error, fields: r.fields } }, { status: httpStatus(e, r.code), headers });
+}
+
+function sameOrigin(origin: string, host: string) {
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    // z. B. „Origin: null“ aus Sandbox-Frames
+    return false;
+  }
+}
 
 function match(def: RouteDef, parts: string[]) {
   if (def.parts.length !== parts.length) return null;
@@ -99,51 +132,53 @@ export async function dispatch(routes: RouteDef[], req: NextRequest, parts: stri
     if (req.method !== "GET" && !req.headers.get("authorization")) {
       const origin = req.headers.get("origin");
       const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-      if (origin && host && new URL(origin).host !== host) throw new AppError("FORBIDDEN", "Ungültige Herkunft der Anfrage.");
+      if (origin && host && !sameOrigin(origin, host)) throw new AppError("FORBIDDEN", "Ungültige Herkunft der Anfrage.");
     }
     let params: Record<string, string> | null = null;
     let found: RouteDef | null = null;
-    let pathMatched = false;
+    const allowed = new Set<string>();
+    // HEAD wie GET behandeln (Next.js leitet HEAD an den GET-Handler weiter)
+    const method = req.method === "HEAD" ? "GET" : req.method;
     for (const def of routes) {
       const m = match(def, parts);
       if (!m) continue;
-      pathMatched = true;
-      if (def.method === req.method) {
+      allowed.add(def.method);
+      if (def.method === method) {
         params = m;
         found = def;
         break;
       }
     }
     if (!found || !params) {
-      if (pathMatched) throw new AppError("VALIDATION", "Methode nicht erlaubt.");
+      // Pfad existiert, aber nicht mit dieser Methode → 405 mit Allow-Header (HEAD folgt GET)
+      if (allowed.size) {
+        const allow = [...allowed].flatMap((m) => (m === "GET" ? ["GET", "HEAD"] : [m]));
+        return errorResponse(new AppError("VALIDATION", "Methode nicht erlaubt.", undefined, 405), req, { Allow: allow.join(", ") });
+      }
       throw fail.notFound("Unbekannter Endpunkt.");
     }
     // Marktplatz per Feature-Flag pausiert → Kauf- und Shop-Endpunkte gesperrt (Bestellungen bleiben lesbar)
     if (MARKET_PREFIXES.has(parts[0] ?? "") || (parts[0] === "studio" && (parts[1] === "products" || parts[1] === "shop"))) {
       await requireFlag("marketplace", await viewerId());
     }
-    let cached: unknown;
+    let cached: Record<string, unknown> | undefined;
+    const json = async <T,>() => {
+      if (cached !== undefined) return cached as T;
+      const r = parseJsonObject(await req.text());
+      if (!r.ok) throw fail.badRequest(r.reason === "syntax" ? "Ungültiger JSON-Body." : "Der Body muss ein JSON-Objekt sein.");
+      return (cached = r.value) as T;
+    };
     const ctx: Ctx = {
       req,
       p: params,
       q: req.nextUrl.searchParams,
-      json: async <T,>() => {
-        if (cached !== undefined) return cached as T;
-        const text = await req.text();
-        if (!text) return (cached = {}) as T;
-        try {
-          return (cached = JSON.parse(text)) as T;
-        } catch {
-          throw new AppError("VALIDATION", "Ungültiger JSON-Body.");
-        }
-      },
+      json,
+      body: async (shape) => z.object(shape).parse(await json()),
     };
     const data = await found.handler(ctx);
     if (data instanceof Response) return data;
-    return new NextResponse(serialize(data), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+    return new NextResponse(serialize(data), { headers: JSON_HEADERS });
   } catch (e) {
-    const r = toResult(e, { path: req.nextUrl.pathname, method: req.method });
-    if (r.ok) return NextResponse.json({ data: null });
-    return NextResponse.json({ error: { code: r.code, message: r.error, fields: r.fields } }, { status: STATUS[r.code] });
+    return errorResponse(e, req);
   }
 }

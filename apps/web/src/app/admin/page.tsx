@@ -26,7 +26,7 @@ export default async function AdminDashboard() {
         title="Dashboard"
         description={
           <>
-            Stand {new Date().toLocaleString("de-CH", { dateStyle: "long", timeStyle: "short" })}. Verläufe zeigen die letzten 12 Wochen (Montag bis Sonntag, UTC). Die
+            Stand {new Date().toLocaleString("de-CH", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Zurich" })}. Verläufe zeigen die letzten 12 Wochen (Montag bis Sonntag, UTC). Die
             North-Star-Metrik ist die Zahl der Menschen mit bedeutsamer kreativer Aktivität – nicht die Verweildauer.
           </>
         }

@@ -9,7 +9,8 @@ import * as msg from "@/server/messaging/service";
 import * as groups from "@/server/messaging/groups";
 import { listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
 import { browseCategories, categoryOptions, effectiveCategories } from "@/server/categories/settings";
-import { DELETE, GET, PATCH, POST, PUT, int, me, meAllowSuspended, need, str, viewer, viewerId, type RouteDef } from "../router";
+import { z } from "zod";
+import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, str, takeParam, viewer, viewerId, zBool, zId, zIds, zStr, type RouteDef } from "../router";
 
 type RoleKind = "ADMIN" | "MODERATOR" | "MEMBER";
 
@@ -28,7 +29,7 @@ export const communityRoutes: RouteDef[] = [
     ]);
     return { mine: mine.items, invites, featured: featured.items, all: all.items, counts, categories };
   }),
-  GET("/communities", async (c) => cs.listCommunities({ q: str(c.q, "q"), category: str(c.q, "category"), viewerId: await viewerId(), take: int(c.q, "take") ?? 24 }, str(c.q, "cursor") ?? null)),
+  GET("/communities", async (c) => cs.listCommunities({ q: str(c.q, "q"), category: str(c.q, "category"), viewerId: await viewerId(), take: takeParam(c.q, "take", 24) }, str(c.q, "cursor") ?? null)),
   POST("/communities", async (c) => cs.createCommunity(await me(), await c.json())),
   GET("/communities/by-slug/:slug", async (c) => {
     const v = await viewer();
@@ -50,7 +51,7 @@ export const communityRoutes: RouteDef[] = [
   GET("/communities/:id/members", async (c) => {
     // Mitgliederliste nur, wenn die Community für diese Person sichtbar ist (private Communities)
     if (!(await cs.canViewCommunityPost(c.p.id!, await viewer()))) return { items: [], nextCursor: null };
-    return cs.listMembers(c.p.id!, { q: str(c.q, "q"), take: int(c.q, "take") ?? 60, cursor: str(c.q, "cursor") ?? null, viewerId: await viewerId() });
+    return cs.listMembers(c.p.id!, { q: str(c.q, "q"), take: takeParam(c.q, "take", 60, 100), cursor: str(c.q, "cursor") ?? null, viewerId: await viewerId() });
   }),
   GET("/communities/:id/projects", async (c) => {
     const v = await viewer();
@@ -65,11 +66,11 @@ export const communityRoutes: RouteDef[] = [
   POST("/competitions/:id/entry", async (c) => comp.submitEntry(await me(), c.p.id!, await c.json<unknown>())),
   DELETE("/competitions/:id/entry", async (c) => comp.withdrawEntry(await me(), c.p.id!)),
   POST("/competitions/:id/results", async (c) => {
-    const { places } = await c.json<{ places?: { entryId: string; place: number }[] }>();
+    const { places } = await c.body({ places: z.array(z.object({ entryId: zId, place: z.number().int() })).max(100).optional() });
     return comp.publishJuryResult(await me(), c.p.id!, places ?? []);
   }),
   POST("/competition-entries/:id/vote", async (c) => {
-    const { on } = await c.json<{ on?: boolean }>();
+    const { on } = await c.body({ on: zBool });
     return comp.voteEntry(await me(), c.p.id!, on !== false);
   }),
   DELETE("/competition-entries/:id", async (c) => comp.removeEntry(await me(), c.p.id!)),
@@ -91,11 +92,11 @@ export const communityRoutes: RouteDef[] = [
   }),
   PATCH("/communities/:id", async (c) => cs.updateCommunity(c.p.id!, await c.json())),
   DELETE("/communities/:id", async (c) => {
-    const { confirm } = await c.json<{ confirm?: string }>();
+    const { confirm } = await c.body({ confirm: zStr });
     return cs.deleteCommunity(await me(), c.p.id!, String(confirm ?? ""));
   }),
   PUT("/communities/:id/rules", async (c) => {
-    const { rules } = await c.json<{ rules?: unknown }>();
+    const { rules } = await c.body({ rules: z.unknown() });
     await cs.setRules(c.p.id!, rules ?? []);
     return { ok: true };
   }),
@@ -113,22 +114,22 @@ export const communityRoutes: RouteDef[] = [
   }),
   POST("/communities/:id/events", async (c) => ev.createEvent(await me(), c.p.id!, await c.json())),
   PATCH("/events/:id", async (c) => ev.updateEvent(await me(), c.p.id!, await c.json())),
-  POST("/events/:id/cancel", async (c) => ev.cancelEvent(await me(), c.p.id!, String((await c.json<{ reason?: string }>()).reason ?? ""))),
+  POST("/events/:id/cancel", async (c) => ev.cancelEvent(await me(), c.p.id!, (await c.body({ reason: zStr })).reason ?? "")),
   // { status: "GOING" | "INTERESTED" | null }
   POST("/events/:id/rsvp", async (c) => {
-    const s = (await c.json<{ status?: string | null }>()).status;
+    const s = (await c.body({ status: z.string().nullish() })).status;
     return ev.setAttendance(await me(), c.p.id!, s === "GOING" || s === "INTERESTED" ? s : null);
   }),
 
   POST("/communities/:id/join", async (c) => cs.joinCommunity(await me(), c.p.id!)),
   POST("/communities/:id/leave", async (c) => cs.leaveCommunity(await me(), c.p.id!)),
   POST("/communities/:id/requests/:userId", async (c) => {
-    const { approve } = await c.json<{ approve?: boolean }>();
+    const { approve } = await c.body({ approve: zBool });
     await cs.decideRequest(c.p.id!, c.p.userId!, !!approve);
     return { ok: true };
   }),
   POST("/communities/:id/invite", async (c) => {
-    const { handle } = await c.json<{ handle?: string }>();
+    const { handle } = await c.body({ handle: zStr });
     return cs.inviteMember(c.p.id!, String(handle ?? ""));
   }),
   DELETE("/communities/:id/invite/:userId", async (c) => {
@@ -136,14 +137,14 @@ export const communityRoutes: RouteDef[] = [
     return { ok: true };
   }),
   POST("/communities/:id/members/:userId/role", async (c) => {
-    const { role } = await c.json<{ role?: string }>();
+    const { role } = await c.body({ role: z.string().optional() });
     if (!["ADMIN", "MODERATOR", "MEMBER"].includes(role ?? "")) throw fail.invalid("Unbekannte Rolle.");
     await cs.setMemberRole(c.p.id!, c.p.userId!, role as RoleKind);
     return { ok: true };
   }),
   POST("/communities/:id/members/:userId/transfer", async (c) => cs.transferOwnership(c.p.id!, c.p.userId!)),
   POST("/communities/:id/members/:userId/remove", async (c) => {
-    const b = await c.json<{ ban?: boolean; reason?: string }>();
+    const b = await c.body({ ban: zBool, reason: zStr });
     await cs.removeMember(c.p.id!, c.p.userId!, { ban: !!b.ban, reason: b.reason });
     return { ok: true };
   }),
@@ -152,7 +153,7 @@ export const communityRoutes: RouteDef[] = [
     return { ok: true };
   }),
   POST("/communities/:id/members/:userId/mute", async (c) => {
-    const b = await c.json<{ until?: string | null; reason?: string }>();
+    const b = await c.body({ until: z.string().max(64).nullish(), reason: zStr });
     const d = b.until ? new Date(b.until) : null;
     if (d && Number.isNaN(d.getTime())) throw fail.invalid("Ungültiges Datum.");
     await cs.muteMember(c.p.id!, c.p.userId!, d, b.reason);
@@ -160,22 +161,22 @@ export const communityRoutes: RouteDef[] = [
   }),
   POST("/communities/:id/posts", async (c) => cs.createCommunityPost(await me(), c.p.id!, await c.json())),
   POST("/communities/:id/posts/:postId/pinned", async (c) => {
-    const { on } = await c.json<{ on?: boolean }>();
+    const { on } = await c.body({ on: zBool });
     await cs.setPostPinned(c.p.id!, c.p.postId!, !!on);
     return { ok: true };
   }),
   POST("/communities/:id/posts/:postId/hidden", async (c) => {
-    const { on, reason } = await c.json<{ on?: boolean; reason?: string }>();
+    const { on, reason } = await c.body({ on: zBool, reason: zStr });
     await cs.setPostHidden(c.p.id!, c.p.postId!, !!on, reason);
     return { ok: true };
   }),
   POST("/communities/:id/posts/:postId/announcement", async (c) => {
-    const { on } = await c.json<{ on?: boolean }>();
+    const { on } = await c.body({ on: zBool });
     await cs.setPostAnnouncement(c.p.id!, c.p.postId!, !!on);
     return { ok: true };
   }),
   POST("/communities/:id/projects", async (c) => {
-    const { projectId } = await c.json<{ projectId?: string }>();
+    const { projectId } = await c.body({ projectId: zId.optional() });
     if (!projectId) throw fail.invalid("projectId fehlt.");
     await cs.addCommunityProject(await me(), c.p.id!, projectId);
     return { ok: true };
@@ -197,7 +198,7 @@ export const communityRoutes: RouteDef[] = [
     return { ...(index as object), categories };
   }),
   GET("/blog/categories", async () => blog.listArticleCategories()),
-  GET("/blog/articles", async (c) => blog.listArticles({ q: str(c.q, "q"), category: str(c.q, "category"), tag: str(c.q, "tag"), viewerId: await viewerId(), take: int(c.q, "take") ?? 18 }, str(c.q, "cursor") ?? null)),
+  GET("/blog/articles", async (c) => blog.listArticles({ q: str(c.q, "q"), category: str(c.q, "category"), tag: str(c.q, "tag"), viewerId: await viewerId(), take: takeParam(c.q, "take", 18) }, str(c.q, "cursor") ?? null)),
   GET("/blog/read/:handle/:slug", async (c) => {
     const vid = await viewerId();
     const res = need(await blog.getArticleForReader(c.p.handle!, c.p.slug!, vid), "Artikel nicht gefunden.");
@@ -212,6 +213,7 @@ export const communityRoutes: RouteDef[] = [
     const u = await me();
     const id = str(c.q, "id");
     const [article, categories, projects] = await Promise.all([id ? blog.getArticleForEdit(u, id) : Promise.resolve(null), blog.listArticleCategories(), blog.myProjectOptions(u.id)]);
+    if (id && !article) throw fail.notFound("Artikel nicht gefunden.");
     return { article, categories, projects };
   }),
   POST("/studio/articles", async (c) => blog.saveArticle(await me(), null, await c.json())),
@@ -240,9 +242,9 @@ export const communityRoutes: RouteDef[] = [
   GET("/conversations/groups/candidates", async () => groups.groupCandidates(await me())),
   POST("/conversations/:id/members", async (c) => groups.addGroupMembers(await me(), c.p.id!, await c.json())),
   DELETE("/conversations/:id/members/:userId", async (c) => groups.removeGroupMember(await me(), c.p.id!, c.p.userId!)),
-  POST("/conversations/:id/members/:userId/admin", async (c) => groups.setGroupAdmin(await me(), c.p.id!, c.p.userId!, !!(await c.json<{ admin?: boolean }>()).admin)),
+  POST("/conversations/:id/members/:userId/admin", async (c) => groups.setGroupAdmin(await me(), c.p.id!, c.p.userId!, !!(await c.body({ admin: zBool })).admin)),
   POST("/conversations/:id/leave", async (c) => groups.leaveGroup(await me(), c.p.id!)),
-  PATCH("/conversations/:id", async (c) => groups.renameGroup(await me(), c.p.id!, (await c.json<{ title?: string }>()).title)),
+  PATCH("/conversations/:id", async (c) => groups.renameGroup(await me(), c.p.id!, (await c.body({ title: zStr })).title)),
   GET("/conversations/prepare", async (c) => {
     const handle = str(c.q, "handle");
     if (!handle) throw fail.invalid("handle fehlt.");
@@ -253,11 +255,11 @@ export const communityRoutes: RouteDef[] = [
   POST("/conversations/:id/messages", async (c) => msg.sendMessage(await me(), c.p.id!, await c.json())),
   POST("/conversations/:id/read", async (c) => msg.markRead(await me(), c.p.id!)),
   POST("/conversations/:id/archive", async (c) => {
-    const { archived } = await c.json<{ archived?: boolean }>();
+    const { archived } = await c.body({ archived: zBool });
     return msg.setArchived(await me(), c.p.id!, archived !== false);
   }),
   POST("/conversations/:id/respond", async (c) => {
-    const { accept } = await c.json<{ accept?: boolean }>();
+    const { accept } = await c.body({ accept: zBool });
     return msg.respondToRequest(await me(), c.p.id!, !!accept);
   }),
 
@@ -265,17 +267,17 @@ export const communityRoutes: RouteDef[] = [
   GET("/notifications", async (c) => {
     const u = await meAllowSuspended();
     const [page, unread] = await Promise.all([
-      listNotifications(u.id, { filter: str(c.q, "filter") ?? null, cursor: str(c.q, "cursor") ?? null, limit: int(c.q, "limit") ?? 30, unreadOnly: c.q.get("unread") === "1" }),
+      listNotifications(u.id, { filter: str(c.q, "filter") ?? null, cursor: str(c.q, "cursor") ?? null, limit: takeParam(c.q, "limit", 30, 100), unreadOnly: c.q.get("unread") === "1" }),
       unreadByFilter(u.id),
     ]);
     return { ...page, unread };
   }),
   POST("/notifications/read", async (c) => {
     const u = await meAllowSuspended();
-    const b = await c.json<{ all?: boolean; ids?: string[] }>();
+    const b = await c.body({ all: zBool, ids: zIds });
     if (b.all) return markNotificationsRead(u.id, "all");
-    if (!Array.isArray(b.ids) || !b.ids.length) throw fail.invalid("ids fehlen.");
-    return markNotificationsRead(u.id, b.ids.slice(0, 200).map(String));
+    if (!b.ids?.length) throw fail.invalid("ids fehlen.");
+    return markNotificationsRead(u.id, b.ids.slice(0, 200));
   }),
 
   GET("/categories/all", async () => effectiveCategories()),
