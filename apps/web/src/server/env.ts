@@ -43,8 +43,26 @@ export function env() {
       throw new Error("Ungültige Umgebungsvariablen: " + parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
     }
     cached = parsed.data;
+    for (const w of configWarnings(cached)) console.error(JSON.stringify({ level: "error", msg: "config_warning", warning: w }));
   }
   return cached;
+}
+
+/**
+ * Fehlkonfigurationen, die die App nicht stoppen sollen, aber im Betrieb Schaden anrichten
+ * (falsche Links in E-Mails, nicht geprüfte Stripe-Webhooks). Werden beim Start geloggt und in
+ * Admin → System angezeigt.
+ */
+export function configWarnings(e: z.infer<typeof schema> = env()) {
+  const w: string[] = [];
+  if (e.NODE_ENV !== "production") return w;
+  if (!process.env.APP_URL || /localhost|127\.0\.0\.1/.test(e.APP_URL)) w.push("APP_URL fehlt bzw. zeigt auf localhost – Links in E-Mails und Push-Nachrichten funktionieren nicht.");
+  else if (!e.APP_URL.startsWith("https://")) w.push("APP_URL sollte mit https:// beginnen.");
+  if (e.STRIPE_SECRET_KEY && !e.STRIPE_WEBHOOK_SECRET) w.push("STRIPE_WEBHOOK_SECRET fehlt – Zahlungsbestätigungen von Stripe können nicht geprüft werden.");
+  if (e.STRIPE_SECRET_KEY && !e.STRIPE_CONNECT_WEBHOOK_SECRET) w.push("STRIPE_CONNECT_WEBHOOK_SECRET fehlt – Ereignisse der Verkäuferkonten (Verifizierung, Auszahlungen) kommen nur über den Abgleich an.");
+  if (!e.RESEND_API_KEY) w.push("RESEND_API_KEY fehlt – es werden keine E-Mails verschickt.");
+  if (!(e.S3_BUCKET && e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY)) w.push("S3-Speicher ist nicht eingerichtet – Uploads landen auf dem flüchtigen Dateisystem.");
+  return w;
 }
 
 export const features = {

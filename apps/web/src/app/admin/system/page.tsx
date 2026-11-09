@@ -7,6 +7,7 @@ import { FlagRollout, FlagSwitch, SettingControl } from "@/components/admin/syst
 import { Notice, SectionTitle } from "@/components/ui/misc";
 import { MailTestButton } from "@/components/admin/mail-test";
 import { mailStatus } from "@/server/mail";
+import { configWarnings } from "@/server/env";
 import { dateTime } from "@/components/admin/format";
 import { resetSettingAction, setFlagRolloutAction, toggleFlagAction, updateSettingAction } from "./actions";
 
@@ -24,6 +25,16 @@ export default async function SystemPage() {
       <Notice tone="warn" className="mb-8" title="Mit Bedacht ändern">
         Änderungen an Provision und Checkout betreffen laufende Verkäufe sofort. Provisionsänderungen müssen Verkäufern vorab angekündigt werden (Marktplatz-Richtlinien) und sind der Superadministration vorbehalten.
       </Notice>
+
+      {configWarnings().length > 0 && (
+        <Notice tone="danger" className="mb-8" title="Konfiguration prüfen (Railway → Variables)">
+          <ul className="list-disc pl-5">
+            {configWarnings().map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </Notice>
+      )}
 
       <section className="mb-10 rounded-2xl border border-line bg-card p-5 sm:p-6" aria-labelledby="mail">
         <div className="flex flex-wrap items-start justify-between gap-4">

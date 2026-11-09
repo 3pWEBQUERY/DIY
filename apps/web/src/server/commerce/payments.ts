@@ -9,7 +9,7 @@ import { token } from "@/server/crypto";
 import { commitSale, lockOrder, OutOfStockError, refreshSoldOut } from "./inventory";
 import { cancelPendingOrderTx } from "./reservations";
 import { paymentStatusAfterRefund, refundableAmount } from "./rules";
-import { createRefund, expireCheckoutSession, listRefunds, type Stripe, accountStatus } from "./stripe";
+import { createRefund, expireCheckoutSession, listRefunds, type Stripe, accountStatus, retrieveConnectStatus } from "./stripe";
 import { applyAccountStatus } from "./shops";
 import { captureError } from "@/server/monitoring";
 
@@ -508,7 +508,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
       return;
     }
     case "account.updated": {
-      await applyAccountStatus(accountStatus(event.data.object));
+      // Unsere Konten sind v2-Empfängerkonten: das v1-Feld charges_enabled bleibt dort false
+      // (keine Kartenzahlungs-Fähigkeit) und würde den Shop sonst wieder „nicht zahlungsbereit“
+      // schalten. Massgeblich ist der v2-Status (stripe_transfers) – das Ereignis ist nur der Anstoss.
+      const acc = event.data.object;
+      const status = await retrieveConnectStatus(acc.id).catch(() => null);
+      await applyAccountStatus(status ?? accountStatus(acc));
       return;
     }
     case "payout.created":

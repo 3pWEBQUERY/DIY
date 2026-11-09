@@ -12,6 +12,11 @@ const warn = (msg: string, extra: Record<string, unknown> = {}) => console.warn(
 
 export const ALWAYS_INSTANT: NotificationType[] = ["SECURITY", "ORDER_NEW", "MODERATION", "ORDER_STATUS"];
 
+/** URLs und Domains in Nutzertext unschädlich machen. */
+export function stripLinks(text: string) {
+  return text.replace(/\b(?:https?:\/\/|www\.)\S+/gi, "[Link]").replace(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|ch|de|at|net|org|io|ly|me|info|xyz|ru|cn|shop|app)\b(?:\/\S*)?/gi, "[Link]");
+}
+
 type PendingMail = Awaited<ReturnType<typeof pendingMails>>[number];
 
 /**
@@ -91,7 +96,9 @@ async function mailBatch(pending: PendingMail[]) {
     // Vollständige Sätze inkl. Titel/Bestellnummer statt nur „Typ: Name“
     const items = list.slice(0, 20).map((n) => {
       const d = (n.data ?? {}) as Record<string, unknown>;
-      const excerpt = typeof d.excerpt === "string" && d.excerpt ? d.excerpt.slice(0, 140) : undefined;
+      // Links aus Ausschnitten entfernen (z. B. Nachrichtenanfragen Fremder) – keine klickbaren
+      // Phishing-Links in E-Mails, die von Werkuno kommen
+      const excerpt = typeof d.excerpt === "string" && d.excerpt ? stripLinks(d.excerpt).slice(0, 140) : undefined;
       return { text: notificationText(n), excerpt, url: `${appUrl}${notificationHref(n)}` };
     });
     const more = list.length > items.length ? ` Hier die neuesten ${items.length} von ${list.length}:` : "";

@@ -183,8 +183,12 @@ export async function getPayoutOverview(user: Pick<SessionUser, "id">): Promise<
   }
   if (mode !== "stripe" || !shop.stripeAccountId) return { ...base, available: 0, pending: 0, schedule: null, bank: null };
   try {
-    const [bal, settings] = await Promise.all([connectedBalance(shop.stripeAccountId, shop.currency), connectedPayoutSettings(shop.stripeAccountId)]);
-    return { ...base, available: bal.available, pending: bal.pending, schedule: settings.schedule, bank: settings.bank };
+    // Guthaben und Auszahlung in der Währung des Bankkontos (DE/AT: EUR, auch wenn der Shop in CHF verkauft –
+    // Stripe rechnet Überweisungen in die Kontowährung um)
+    const settings = await connectedPayoutSettings(shop.stripeAccountId);
+    const currency = settings.bank?.currency ?? shop.currency;
+    const bal = await connectedBalance(shop.stripeAccountId, currency);
+    return { ...base, currency, available: bal.available, pending: bal.pending, schedule: settings.schedule, bank: settings.bank };
   } catch (e) {
     const { captureError } = await import("@/server/monitoring");
     await captureError(e, { source: "SERVER", path: "/studio/einnahmen", userId: user.id, meta: { stripe: "payout-overview" } });
@@ -262,7 +266,8 @@ export async function requestPayout(user: Pick<SessionUser, "id">, input: unknow
     if (!data.switchToManual) throw fail.conflict("Dein Auszahlungsplan ist automatisch. Stelle auf „Auf Anfrage“ um, um selbst auszuzahlen.");
     await stripeCall(user, "payout-schedule", () => updatePayoutSchedule(acct, { interval: "manual" }), "Der Auszahlungsplan konnte gerade nicht geändert werden.");
   }
-  const bal = await stripeCall(user, "balance", () => connectedBalance(acct, shop.currency), "Dein Guthaben konnte gerade nicht abgefragt werden.");
+  const currency = settings.bank?.currency ?? shop.currency;
+  const bal = await stripeCall(user, "balance", () => connectedBalance(acct, currency), "Dein Guthaben konnte gerade nicht abgefragt werden.");
   const amount = data.amountMinor ?? bal.available;
   if (amount < 100) throw fail.invalid("Es ist kein auszahlbares Guthaben vorhanden.");
   if (amount > bal.available) throw fail.invalid("Der Betrag ist höher als dein verfügbares Guthaben.");
@@ -270,7 +275,7 @@ export async function requestPayout(user: Pick<SessionUser, "id">, input: unknow
   const p = await stripeCall(
     user,
     "payout-create",
-    () => createConnectedPayout(acct, { amountMinor: amount, currency: shop.currency, idempotencyKey: `payout:${shop.id}:${amount}:${Math.floor(Date.now() / 60_000)}` }),
+    () => createConnectedPayout(acct, { amountMinor: amount, currency, idempotencyKey: `payout:${shop.id}:${amount}:${Math.floor(Date.now() / 60_000)}` }),
     "Die Auszahlung konnte gerade nicht ausgelöst werden. Bitte versuche es in ein paar Minuten erneut.",
   );
   // Selbst ausgelöst: „unterwegs“ nicht zusätzlich melden

@@ -34,3 +34,13 @@ describe("E-Mail-Layout", () => {
     expect(verifyUnsubscribeToken(null)).toBeNull();
   });
 });
+
+describe("Links in Ausschnitten", async () => {
+  vi.mock("@/server/monitoring", () => ({ captureError: async () => {} }));
+  const { stripLinks } = await import("../notifications-mail");
+  it("entfernt URLs und nackte Domains", () => {
+    expect(stripLinks("Schau mal https://evil.example/login?x=1 und www.foo.ch")).toBe("Schau mal [Link] und [Link]");
+    expect(stripLinks("Bezahl auf paypal-secure.com/pay jetzt")).toBe("Bezahl auf [Link] jetzt");
+    expect(stripLinks("Ganz normaler Text, z. B. 3.5 mm Nadel.")).toBe("Ganz normaler Text, z. B. 3.5 mm Nadel.");
+  });
+});
