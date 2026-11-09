@@ -118,7 +118,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             )
           )}
           {isAdmin && !u.emailVerifiedAt && u.status !== "DELETED" && <ActionButton action={verifyEmailAction.bind(null, u.id)} label="E-Mail bestätigen" confirm="E-Mail-Adresse manuell als bestätigt markieren?" />}
-          {isAdmin && !self && u.status !== "DELETED" && !outranked && <ChangeEmailButton current={u.email} action={changeEmailAction.bind(null, u.id)} />}
+          {isAdmin && !self && u.status !== "DELETED" && !outranked && <ChangeEmailButton current={u.email} action={changeEmailAction.bind(null, u.id)} canMarkVerified={isSuper} />}
           {isAdmin && !self && roleChoices.length > 0 && u.status !== "DELETED" && (
             <ReasonButton
               action={changeRoleAction.bind(null, u.id)}

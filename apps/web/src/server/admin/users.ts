@@ -218,6 +218,9 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
   if (!hasRole(actor, "ADMIN")) throw fail.forbidden("E-Mail-Adressen ändert nur die Administration.");
   if (actor.id === userId) throw fail.forbidden("Deine eigene Adresse änderst du in den Einstellungen.");
   const data = changeEmailSchema.parse(input);
+  // Direkt bestätigen = sofort anmeldbar (z.B. über „Passwort vergessen“) → nur Superadministration.
+  // Sonst muss die neue Adresse ihren Link selbst bestätigen.
+  if (data.markVerified && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Direkt bestätigen darf nur die Superadministration – ohne Häkchen erhält die neue Adresse einen Bestätigungslink.");
   const t = await db.user.findUnique({ where: { id: userId }, select: { email: true, role: true, status: true, subscription: { select: { customerId: true, provider: true } } } });
   if (!t) throw fail.notFound();
   if (t.status === "DELETED") throw fail.conflict("Gelöschte Konten können nicht geändert werden.");
@@ -232,6 +235,8 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
       await tx.user.update({ where: { id: userId }, data: { email: data.email, emailVerifiedAt: data.markVerified ? new Date() : null } });
       // Links, die an die alte Adresse gingen, dürfen nicht mehr funktionieren
       await tx.verificationToken.deleteMany({ where: { userId, usedAt: null } });
+      // Anmelde-Identität geändert → alle Sitzungen neu anmelden lassen
+      await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
       // Keine Adressen im Audit (Datensparsamkeit) – nur Grund und Art der Änderung
       await audit({ actorId: actor.id, action: "admin.email_changed", targetType: "USER", targetId: userId, meta: { reason: data.reason, markVerified: data.markVerified } }, tx);
       await notify(

@@ -12,7 +12,7 @@ import { Notice } from "@/components/ui/misc";
 type Input = { email: string; reason: string; markVerified: boolean };
 
 /** Admin → Nutzer:in: E-Mail-Adresse ändern (Support-Fall). */
-export function ChangeEmailButton({ current, action }: { current: string; action: (input: Input) => Promise<ActionResult<unknown>> }) {
+export function ChangeEmailButton({ current, action, canMarkVerified }: { current: string; action: (input: Input) => Promise<ActionResult<unknown>>; canMarkVerified: boolean }) {
   const [open, setOpen] = useState(false);
   const [markVerified, setMarkVerified] = useState(false);
   const { run, pending, fields, error } = useAction(action, { refresh: true, onSuccess: () => setOpen(false) });
@@ -36,13 +36,15 @@ export function ChangeEmailButton({ current, action }: { current: string; action
           <Field label="Begründung (intern, im Audit-Protokoll)" hint="Zum Beispiel Ticketnummer und wie die Identität geprüft wurde." error={fields.reason}>
             {(p) => <Textarea name="reason" required minLength={10} maxLength={1000} rows={3} {...p} />}
           </Field>
+          {canMarkVerified && (
           <Checkbox
             checked={markVerified}
             onChange={(e) => setMarkVerified(e.target.checked)}
             label="Neue Adresse direkt als bestätigt markieren (nur wenn sie nachweislich der Person gehört – sonst geht ein Bestätigungslink an die neue Adresse)"
           />
+          )}
           <Notice tone="warn">
-            Die Person meldet sich danach mit der neuen Adresse an. Die alte Adresse erhält eine Sicherheitsmeldung, offene Bestätigungs- und Passwort-Links verfallen.
+            Die Person meldet sich danach mit der neuen Adresse an; alle ihre Sitzungen werden beendet. Die alte Adresse erhält eine Sicherheitsmeldung, offene Bestätigungs- und Passwort-Links verfallen.
           </Notice>
           {error && <p className="text-sm text-danger" role="alert">{error}</p>}
           <div className="flex justify-end gap-2">

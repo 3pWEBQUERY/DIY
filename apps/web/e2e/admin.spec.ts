@@ -75,4 +75,6 @@ test("E-Mail ändern: nur Administration, nie das eigene Konto", async () => {
   expect(() => runServer(`import("./src/server/admin/users").then((m) => m.changeUserEmail({ id: "${mattia}", role: "PLATFORM_MODERATOR" } as never, "${elias}", { email: "x-${Date.now()}@demo.werkraum.local", reason: "Test ohne Berechtigung" }))`)).toThrow(/nur die Administration/);
   const admin = (await one<{ id: string }>(`SELECT id FROM "User" WHERE role = 'SUPERADMIN' LIMIT 1`))!.id;
   expect(() => runServer(`import("./src/server/admin/users").then((m) => m.changeUserEmail({ id: "${admin}", role: "SUPERADMIN" } as never, "${admin}", { email: "y-${Date.now()}@demo.werkraum.local", reason: "Eigenes Konto ändern" }))`)).toThrow(/eigene Adresse/);
+  // „Direkt bestätigen“ (sofort anmeldbar) nur für die Superadministration
+  expect(() => runServer(`import("./src/server/admin/users").then((m) => m.changeUserEmail({ id: "${mattia}", role: "ADMIN" } as never, "${elias}", { email: "z-${Date.now()}@demo.werkraum.local", reason: "Admin will direkt bestätigen", markVerified: true }))`)).toThrow(/nur die Superadministration/);
 });
