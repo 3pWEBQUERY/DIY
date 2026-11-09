@@ -101,7 +101,7 @@ test.describe.serial("Robustheit", () => {
       process.stdout.write("ID=" + u.id);
     })`).match(/ID=(\S+)/)![1]!;
 
-    runServer(`import("./src/server/identity/service").then((m) => m.deleteAccount("${id}", "Loeschen-2026!"))`);
+    runServer(`import("./src/server/identity/service").then((m) => m.deleteAccount("${id}", "", { password: "Loeschen-2026!" }))`);
     const ev = await one<{ id: string }>(`SELECT id FROM "OutboxEvent" WHERE type = 'UserDeleted' AND payload->>'userId' = $1`, [id]);
     expect(ev).toBeTruthy();
     // Worker-Teil direkt ausführen

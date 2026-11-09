@@ -430,12 +430,17 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
  * die beim Anbieter fehlgeschlagen sind (Ausfall, Netzwerk). Höchstens 5 Versuche je Bestellung,
  * danach meldet die Fehlerüberwachung den Fall zur manuellen Klärung.
  */
-/** Stripe hat die Anfrage eindeutig abgelehnt (4xx, Validierung) – im Gegensatz zu Timeout/Netz/5xx. */
-function isDefinitiveStripeRejection(e: unknown) {
+/**
+ * Ausgang beim Anbieter unbekannt: Verbindungsabbruch/Zeitüberschreitung oder Serverfehler (5xx) – Stripe
+ * hat die Erstattung womöglich ausgeführt. Alles andere ist eindeutig gescheitert: 4xx-Ablehnung, aber auch
+ * Fehler vor dem Senden (z. B. kein Stripe-Schlüssel konfiguriert).
+ */
+function isOutcomeUnknown(e: unknown) {
   if (!isStripeError(e)) return false;
   const status = (e as { statusCode?: number }).statusCode;
-  return ["StripeInvalidRequestError", "StripeCardError", "StripePermissionError", "StripeAuthenticationError", "StripeIdempotencyError"].includes(e.type) || (!!status && status >= 400 && status < 500);
+  return e.type === "StripeConnectionError" || e.type === "StripeAPIError" || (!!status && status >= 500);
 }
+const isDefinitiveStripeRejection = (e: unknown) => !isOutcomeUnknown(e);
 
 /**
  * Unbestätigte Erstattungen (Zeitüberschreitung beim Auslösen) mit DEMSELBEN Idempotenz-Schlüssel erneut
