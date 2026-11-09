@@ -403,12 +403,16 @@ export async function grantPro(actor: Pick<SessionUser, "id" | "role">, userId: 
   if (!hasRole(actor, "ADMIN")) throw fail.forbidden();
   if (userId === actor.id) throw fail.forbidden("Pro kann man sich nicht selbst schenken – das macht eine andere Person aus der Administration.");
   const { days, note } = grantSchema.parse(input ?? {});
+  // Gesperrte oder gelöschte Konten werden nicht begünstigt
+  const u = await db.user.findUnique({ where: { id: userId }, select: { status: true } });
+  if (!u) throw fail.notFound();
+  if (u.status !== "ACTIVE") throw fail.conflict("Gesperrte oder gelöschte Konten erhalten kein geschenktes Pro.");
   const s = await db.subscription.findUnique({ where: { userId } });
   if (s && s.provider === "stripe" && isActiveSubscription(s)) throw fail.conflict("Diese Person hat bereits ein bezahltes Abo.");
   const data = { interval: "comp", status: "active", provider: "comp", currentPeriodEnd: days ? new Date(Date.now() + days * 86400_000) : null, cancelAtPeriodEnd: false, grantedById: actor.id, note: note || null, priceMinor: null };
   await db.subscription.upsert({ where: { userId }, create: { userId, ...data }, update: data });
   await syncProFlag(userId);
-  await audit({ action: "pro.grant", actorId: actor.id, targetType: "User", targetId: userId, meta: { days, note } });
+  await audit({ action: "pro.grant", actorId: actor.id, targetType: "USER", targetId: userId, meta: { days, note } });
   await tell(userId, `Werkuno hat dir ${PRO_NAME} geschenkt${days ? ` – für ${days} Tage` : ""}. Viel Freude damit!`);
   return { granted: true };
 }
@@ -419,6 +423,6 @@ export async function revokePro(actor: Pick<SessionUser, "id" | "role">, userId:
   if (!s || s.provider !== "comp") throw fail.invalid("Nur geschenkte Zugänge können hier entzogen werden.");
   await db.subscription.update({ where: { userId }, data: { status: "canceled", currentPeriodEnd: new Date() } });
   await syncProFlag(userId);
-  await audit({ action: "pro.revoke", actorId: actor.id, targetType: "User", targetId: userId });
+  await audit({ action: "pro.revoke", actorId: actor.id, targetType: "USER", targetId: userId });
   return { revoked: true };
 }

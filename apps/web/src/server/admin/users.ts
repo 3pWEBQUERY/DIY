@@ -92,7 +92,8 @@ export async function getUserDetail(actor: Actor, userId: string) {
     db.report.count({ where: { reporterId: userId } }),
   ]);
   const recentAudit = await db.auditEvent.findMany({
-    where: { targetType: "USER", targetId: userId },
+    // "User": ältere Pro-Einträge (vor der Vereinheitlichung auf "USER")
+    where: { targetType: { in: ["USER", "User"] }, targetId: userId },
     orderBy: { seq: "desc" },
     take: 12,
     select: { seq: true, action: true, createdAt: true, actor: { select: { profile: { select: { handle: true } } } } },
@@ -100,29 +101,45 @@ export async function getUserDetail(actor: Actor, userId: string) {
   return { user: u, counts: { sessions, posts, projects, tutorials, articles, comments, products, reportsFiled }, recentAudit };
 }
 
-/** Rollenänderung (§7.2): Admin-Rollen nur durch SUPERADMIN, nie an sich selbst. */
+/**
+ * Serialisiert alle Änderungen, die eine Superadministration entfernen könnten (Rolle, Sperre), und prüft
+ * danach unter der Sperre, ob ausser `userId` noch eine aktive Superadministration bleibt. Ohne Sperre
+ * könnten sich zwei Superadmins gleichzeitig gegenseitig herabstufen – danach gäbe es keine mehr.
+ */
+export async function assertOtherSuperadminRemains(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('werkuno.superadmin_guard'))`;
+  const remaining = await tx.user.count({ where: { role: "SUPERADMIN", status: "ACTIVE", id: { not: userId } } });
+  if (remaining === 0) throw fail.conflict("Es muss mindestens eine Superadministration bestehen bleiben.");
+}
+
+/**
+ * Rollenänderung (§7.2): Admin-Rollen nur durch SUPERADMIN, nie an sich selbst. Gesperrte oder gelöschte
+ * Konten erhalten keine höhere Rolle (Herabstufen bleibt möglich).
+ */
 export async function changeRole(actor: Actor, userId: string, role: PlatformRole, reason: string) {
   if (!hasRole(actor, "ADMIN")) throw fail.forbidden("Rollen ändern darf nur die Administration.");
   if (actor.id === userId) throw fail.forbidden("Die eigene Rolle kann nicht geändert werden.");
   if (!(ROLES as readonly string[]).includes(role)) throw fail.invalid("Unbekannte Rolle.");
   const r = z.string().trim().min(5, "Bitte begründe die Änderung").max(500).parse(reason);
-  const target = await db.user.findUnique({ where: { id: userId }, select: { role: true, status: true } });
-  if (!target) throw fail.notFound();
-  if (target.status === "DELETED") throw fail.conflict("Gelöschte Konten können keine Rolle erhalten.");
-  const touchesAdmin = RANK[role] >= RANK.ADMIN || RANK[target.role] >= RANK.ADMIN;
-  if (touchesAdmin && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Administrationsrollen vergibt und entzieht nur die Superadministration.");
-  if (target.role === role) return { changed: false };
-  if (target.role === "SUPERADMIN") {
-    const remaining = await db.user.count({ where: { role: "SUPERADMIN", status: "ACTIVE", id: { not: userId } } });
-    if (remaining === 0) throw fail.conflict("Es muss mindestens eine Superadministration bestehen bleiben.");
-  }
-  await db.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
+    // Bei Superadmin-Beteiligung zuerst sperren, damit der gelesene Zustand nicht mehr veraltet
+    const before = await tx.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (before?.role === "SUPERADMIN") await assertOtherSuperadminRemains(tx, userId);
+    const target = await tx.user.findUnique({ where: { id: userId }, select: { role: true, status: true } });
+    if (!target) throw fail.notFound();
+    if (target.status === "DELETED") throw fail.conflict("Gelöschte Konten können keine Rolle erhalten.");
+    const touchesAdmin = RANK[role] >= RANK.ADMIN || RANK[target.role] >= RANK.ADMIN;
+    if (touchesAdmin && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Administrationsrollen vergibt und entzieht nur die Superadministration.");
+    if (target.role === role) return { changed: false };
+    if (RANK[role] > RANK[target.role] && target.status !== "ACTIVE") throw fail.conflict("Gesperrte Konten können keine höhere Rolle erhalten.");
+    // Zwischen erster Abfrage und Sperre zur Superadministration geworden → jetzt noch prüfen
+    if (target.role === "SUPERADMIN" && before?.role !== "SUPERADMIN") await assertOtherSuperadminRemains(tx, userId);
     await tx.user.update({ where: { id: userId }, data: { role } });
     // Rechte wirken sofort: bestehende Sitzungen neu anmelden lassen, wenn Rechte entzogen werden
     if (RANK[role] < RANK[target.role]) await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await audit({ actorId: actor.id, action: "admin.role_changed", targetType: "USER", targetId: userId, meta: { from: target.role, to: role, reason: r } }, tx);
+    return { changed: true };
   });
-  return { changed: true };
 }
 
 async function assertCanSanction(actor: Actor, userId: string) {
@@ -146,6 +163,8 @@ export async function suspendUser(actor: Actor, userId: string, input: { days: n
   if (t.status === "DELETED" || t.status === "BANNED") throw fail.conflict("Das Konto ist bereits gesperrt oder gelöscht.");
   const until = data.days ? new Date(Date.now() + data.days * DAY) : null;
   await db.$transaction(async (tx) => {
+    // Auch eine Sperre darf nicht die letzte aktive Superadministration treffen (gegenseitige Sperre)
+    if (t.role === "SUPERADMIN") await assertOtherSuperadminRemains(tx, userId);
     await tx.user.update({ where: { id: userId }, data: { status: "SUSPENDED", suspendedUntil: until } });
     await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await audit({ actorId: actor.id, action: "admin.user_suspended", targetType: "USER", targetId: userId, meta: { days: data.days, reason: data.reason } }, tx);
@@ -179,10 +198,17 @@ export async function unsuspendUser(actor: Actor, userId: string, reason: string
   });
 }
 
+/**
+ * Adresse ohne Link als bestätigt markieren. Gleiche Regel wie „direkt bestätigt“ beim Ändern der Adresse:
+ * nur Superadministration – sonst liesse sich die Regel umgehen (Adresse ändern, danach hier bestätigen,
+ * dann „Passwort vergessen“ an die neue Adresse → Kontoübernahme). Nie das eigene Konto.
+ */
 export async function verifyEmailManually(actor: Actor, userId: string) {
-  if (!hasRole(actor, "ADMIN")) throw fail.forbidden("E-Mail-Adressen bestätigt nur die Administration.");
-  const t = await db.user.findUnique({ where: { id: userId }, select: { emailVerifiedAt: true } });
+  if (!hasRole(actor, "SUPERADMIN")) throw fail.forbidden("E-Mail-Adressen manuell bestätigen darf nur die Superadministration – sonst bestätigt die Person ihre Adresse über den Link.");
+  if (actor.id === userId) throw fail.forbidden("Deine eigene Adresse bestätigst du über den Link in der E-Mail.");
+  const t = await db.user.findUnique({ where: { id: userId }, select: { emailVerifiedAt: true, status: true } });
   if (!t) throw fail.notFound();
+  if (t.status === "DELETED") throw fail.conflict("Gelöschte Konten können nicht geändert werden.");
   if (t.emailVerifiedAt) return;
   await db.$transaction(async (tx) => {
     await tx.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });

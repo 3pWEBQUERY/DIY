@@ -139,7 +139,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                       initial={{ name: m.name, type: m.type, unit: m.unit, categoryId: m.categoryId, brand: m.brand ?? "", notes: m.notes, safetyInfo: m.safetyInfo }}
                       action={upsertCatalogAction}
                     />
-                    <ActionButton action={deleteCatalogAction.bind(null, "material", m.id)} label="Löschen" variant="ghost" confirm={`„${m.name}“ löschen? Projekte behalten ihre Einträge als Freitext.`} />
+                    <ActionButton action={deleteCatalogAction.bind(null, "material", m.id)} label="Löschen" variant="ghost" confirm={`„${m.name}“ löschen? Das geht nur, solange kein Projekt, Bestand oder Bezugsquelle darauf verweist – Dubletten bitte zusammenführen.`} />
                   </span>
                 </Td>
               </Tr>

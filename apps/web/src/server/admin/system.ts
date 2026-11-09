@@ -45,7 +45,7 @@ export async function listSettings() {
 
 export async function updateSetting(actor: Actor, key: string, raw: unknown) {
   admin(actor);
-  if (!(key in SETTING_DEFAULTS)) throw fail.invalid("Unbekannte Einstellung.");
+  if (!Object.hasOwn(SETTING_DEFAULTS, key)) throw fail.invalid("Unbekannte Einstellung.");
   const k = key as SettingKey;
   const def = SETTING_DEFAULTS[k];
   const meta = SETTING_META[k];
@@ -65,7 +65,7 @@ export async function updateSetting(actor: Actor, key: string, raw: unknown) {
 
 export async function resetSetting(actor: Actor, key: string) {
   admin(actor);
-  if (!(key in SETTING_DEFAULTS)) throw fail.invalid("Unbekannte Einstellung.");
+  if (!Object.hasOwn(SETTING_DEFAULTS, key)) throw fail.invalid("Unbekannte Einstellung.");
   if ((key === "commerce.feeBps" || key === "pro.feeBps") && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Die Provision ändert nur die Superadministration.");
   await db.$transaction(async (tx) => {
     const del = await tx.systemSetting.deleteMany({ where: { key } });

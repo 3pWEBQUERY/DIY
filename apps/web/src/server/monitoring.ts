@@ -24,6 +24,22 @@ export type CaptureContext = {
 const RELEASE = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
 const ALERT_EVERY_MS = 60 * 60 * 1000;
 
+/**
+ * Browserberichte kommen über einen offenen Endpunkt (auch ohne Anmeldung) und enthalten frei
+ * wählbaren Text. Deshalb: höchstens so viele neue Fehlergruppen pro Stunde (der Rest läuft in einer
+ * Sammelgruppe auf), keine Meldung für anonyme Berichte, und Meldungen ohne den gemeldeten Text –
+ * sonst liessen sich Admins mit beliebigen Nachrichten fluten („Bitte Passwort unter … bestätigen“).
+ */
+export const CLIENT_NEW_GROUPS_PER_HOUR = 50;
+export const CLIENT_OVERFLOW_FINGERPRINT = "client-overflow";
+const CLIENT_OVERFLOW = { name: "ClientErrorOverflow", message: "Weitere neue Browserfehler (Stundenlimit für neue Fehlergruppen erreicht)" };
+
+/** Text der Admin-Meldung. Bei Browserfehlern neutral, ohne gemeldeten Namen oder Text. */
+export function alertMessage(source: ErrorSource, regression: boolean, name: string, message: string) {
+  if (source === "CLIENT") return "Neue Fehler im Browser gemeldet – Details in der Fehlerübersicht.";
+  return `${regression ? "Erneut aufgetreten" : "Neuer Fehler"} (${SOURCE_LABEL[source]}): ${name}: ${message.slice(0, 140)}`;
+}
+
 /** Erwartete Abläufe (Redirect, 404, fachliche Fehler) sind keine Fehler. */
 function isExpected(e: unknown) {
   if (!e || typeof e !== "object") return false;
@@ -81,14 +97,25 @@ export async function captureError(err: unknown, ctx: CaptureContext) {
   try {
     if (isExpected(err)) return null;
     const e = err instanceof Error ? err : new Error(typeof err === "string" ? err : JSON.stringify(err ?? "Unbekannter Fehler"));
-    const name = clip(e.name || "Error", 120)!;
-    const message = clip(e.message?.trim() || "(ohne Meldung)", 1000)!;
-    const stack = clip(e.stack, 8000);
-    const fp = fingerprint(ctx.source, name, message, stack ?? undefined);
+    let name = clip(e.name || "Error", 120)!;
+    let message = clip(e.message?.trim() || "(ohne Meldung)", 1000)!;
+    let stack = clip(e.stack, 8000);
+    let fp = fingerprint(ctx.source, name, message, stack ?? undefined);
     if (throttled(fp)) return null;
     console.error(JSON.stringify({ level: "error", msg: "captured", source: ctx.source, name, err: message, path: cleanPath(ctx.path), fp: fp.slice(0, 10) }));
 
-    const prev = await db.errorGroup.findUnique({ where: { fingerprint: fp }, select: { id: true, resolvedAt: true, ignoredAt: true, lastAlertAt: true } });
+    const findGroup = (f: string) => db.errorGroup.findUnique({ where: { fingerprint: f }, select: { id: true, resolvedAt: true, ignoredAt: true, lastAlertAt: true } });
+    let prev = await findGroup(fp);
+    if (!prev && ctx.source === "CLIENT") {
+      const fresh = await db.errorGroup.count({ where: { source: "CLIENT", firstSeenAt: { gt: new Date(Date.now() - ALERT_EVERY_MS) } } });
+      if (fresh >= CLIENT_NEW_GROUPS_PER_HOUR) {
+        // Stundenlimit erreicht: in die Sammelgruppe statt beliebig viele neue Gruppen anzulegen
+        ({ name, message } = CLIENT_OVERFLOW);
+        stack = null;
+        fp = CLIENT_OVERFLOW_FINGERPRINT;
+        prev = await findGroup(fp);
+      }
+    }
     const firstForUser = ctx.userId && prev ? !(await db.errorOccurrence.findFirst({ where: { groupId: prev.id, userId: ctx.userId }, select: { id: true } })) : !!ctx.userId;
     const g = await db.errorGroup.upsert({
       where: { fingerprint: fp },
@@ -122,8 +149,18 @@ export async function captureError(err: unknown, ctx: CaptureContext) {
     const regression = !!prev?.resolvedAt;
     const muted = !!prev?.ignoredAt;
     if ((isNew || regression) && !muted && (!prev?.lastAlertAt || Date.now() - prev.lastAlertAt.getTime() > ALERT_EVERY_MS)) {
-      await db.errorGroup.update({ where: { id: g.id }, data: { lastAlertAt: new Date() } });
-      await alertAdmins(g.id, `${regression ? "Erneut aufgetreten" : "Neuer Fehler"} (${SOURCE_LABEL[ctx.source]}): ${name}: ${message.slice(0, 140)}`);
+      if (ctx.source === "CLIENT") {
+        // Anonyme Berichte melden sich nie; angemeldete höchstens einmal pro Stunde für alle Browserfehler zusammen
+        const since = new Date(Date.now() - ALERT_EVERY_MS);
+        const alerted = ctx.userId ? await db.errorGroup.findFirst({ where: { source: "CLIENT", lastAlertAt: { gt: since } }, select: { id: true } }) : null;
+        if (ctx.userId && !alerted) {
+          await db.errorGroup.update({ where: { id: g.id }, data: { lastAlertAt: new Date() } });
+          await alertAdmins("/admin/fehler?status=open&quelle=CLIENT", alertMessage("CLIENT", regression, name, message));
+        }
+      } else {
+        await db.errorGroup.update({ where: { id: g.id }, data: { lastAlertAt: new Date() } });
+        await alertAdmins(`/admin/fehler/${g.id}`, alertMessage(ctx.source, regression, name, message));
+      }
     }
     return g.id;
   } catch (inner) {
@@ -135,11 +172,11 @@ export async function captureError(err: unknown, ctx: CaptureContext) {
 
 export const SOURCE_LABEL: Record<ErrorSource, string> = { SERVER: "Server", CLIENT: "Browser", WORKER: "Hintergrunddienst" };
 
-async function alertAdmins(groupId: string, message: string) {
+async function alertAdmins(href: string, message: string) {
   const { notify } = await import("@/server/notifications");
   const admins = await db.user.findMany({ where: { role: { in: ["ADMIN", "SUPERADMIN"] }, status: "ACTIVE" }, select: { id: true } });
   for (const a of admins) {
-    await notify({ recipientId: a.id, type: "MODERATION", data: { kind: "SYSTEM_ERROR", message, href: `/admin/fehler/${groupId}` }, bundle: false }).catch(() => {});
+    await notify({ recipientId: a.id, type: "MODERATION", data: { kind: "SYSTEM_ERROR", message, href }, bundle: false }).catch(() => {});
   }
 }
 

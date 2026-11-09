@@ -71,7 +71,7 @@ export default async function MaterialDetailPage({ params }: { params: Promise<{
           <DeleteEntryButton
             action={deleteCatalogAction.bind(null, "material", m.id)}
             redirect="/admin/kategorien"
-            confirm={`„${m.name}“ löschen?${refs ? ` ${refs} Verweise werden zu Freitext (Projekte behalten ihre Einträge). Für Dubletten besser „Zusammenführen“ verwenden.` : ""}`}
+            confirm={`„${m.name}“ löschen? Das geht nur, solange kein Projekt, Bestand oder Bezugsquelle darauf verweist – Dubletten bitte zusammenführen.`}
           />
         </div>
       </header>

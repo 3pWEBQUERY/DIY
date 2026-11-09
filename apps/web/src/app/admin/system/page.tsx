@@ -99,7 +99,7 @@ export default async function SystemPage() {
       <section aria-labelledby="flags">
         <SectionTitle n={String(groups.length + 1).padStart(2, "0")} title={<span id="flags">Feature-Flags</span>} />
         <p className="mt-3 max-w-2xl text-sm text-muted">
-          Schalter für ganze Bereiche – wirken sofort, ohne Deploy, in Web und App. Mit einem Rollout unter 100 % gilt ein Flag nur für diesen Anteil der angemeldeten Konten (immer dieselben); Gäste sehen den Bereich dann nicht.
+          Schalter für ganze Bereiche – wirken sofort, ohne Deploy, in Web und App. Mit einem Rollout unter 100 % gilt ein Flag nur für diesen Anteil der angemeldeten Konten (immer dieselben); Gäste sehen den Bereich dann nicht – ausser bei der Registrierung, die nur Gäste betrifft: Sie bleibt offen, solange der Rollout über 0 % liegt.
         </p>
         <Table className="mt-4" caption="Feature-Flags">
           <thead>

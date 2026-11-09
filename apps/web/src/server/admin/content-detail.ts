@@ -9,7 +9,7 @@ import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
 import { bumpCounter } from "@/server/social/targets";
 import { syncPostCount } from "@/server/social/counters";
-import { setContentHidden, setFeatured } from "@/server/admin/content";
+import { setContentHidden, setFeatured, stateBeforeHide } from "@/server/admin/content";
 import type { SessionUser } from "@/server/auth/session";
 
 /**
@@ -488,47 +488,59 @@ export async function setDetailFeatured(actor: Actor, kind: DetailKind, id: stri
   });
 }
 
-/** Ausblenden bzw. wieder anzeigen. Projekte/Anleitungen über `content.ts`, Beiträge/Artikel hier. */
+/**
+ * Ausblenden bzw. wieder anzeigen. Projekte/Anleitungen über `content.ts`, Beiträge/Artikel hier.
+ * Ausblenden nur aus „veröffentlicht“; Wiederanzeigen kehrt in den Zustand davor zurück (Entwürfe und
+ * geplante Beiträge werden dabei nie sofort veröffentlicht).
+ */
 export async function setDetailHidden(actor: Actor, kind: DetailKind, id: string, hidden: boolean, reason: string) {
   mod(actor);
   const k = kindSchema.parse(kind);
-  if (k === "PROJECT" || k === "TUTORIAL") {
-    await setContentHidden(actor, k, id, hidden, reason);
-    if (k === "PROJECT") {
-      const p = await db.project.findUnique({ where: { id }, select: { ownerId: true } });
-      if (p) await db.$transaction((tx) => syncProjectCount(tx, p.ownerId));
-    }
-    return;
-  }
+  if (k === "PROJECT" || k === "TUTORIAL") return setContentHidden(actor, k, id, hidden, reason);
   const r = reasonSchema.parse(reason);
   const owner = await db.$transaction(async (tx) => {
     let ownerId: string;
     let title: string;
     let from: string;
+    let to: ContentState;
+    const check = (state: string) => {
+      if (hidden && state !== "PUBLISHED") throw fail.conflict("Nur veröffentlichte Inhalte können ausgeblendet werden.");
+      if (!hidden && state !== "HIDDEN") throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
+    };
+    const before = hidden ? null : await stateBeforeHide(tx, k, id);
     if (k === "POST") {
-      const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true } });
+      const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true, scheduledAt: true } });
       if (!p) throw fail.notFound();
-      if (p.state === "REMOVED" || (hidden && p.state === "HIDDEN") || (!hidden && p.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
-      await tx.post.update({ where: { id }, data: { state: hidden ? "HIDDEN" : "PUBLISHED" } });
+      check(p.state);
+      to = hidden ? "HIDDEN" : before === "DRAFT" || (p.scheduledAt && p.scheduledAt > new Date()) ? "DRAFT" : "PUBLISHED";
+      await tx.post.update({ where: { id }, data: { state: to } });
+      await syncPostCount(tx, p.authorId);
       ownerId = p.authorId;
       title = postTitle(p.body);
       from = p.state;
     } else {
       const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true, authorId: true, title: true, publishedAt: true } });
       if (!a) throw fail.notFound();
-      if (a.state === "REMOVED" || (hidden && a.state === "HIDDEN") || (!hidden && a.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
+      check(a.state);
       // Beim Wiederanzeigen zurück zu veröffentlicht bzw. Entwurf
-      const next = hidden ? "HIDDEN" : a.publishedAt && a.publishedAt <= new Date() ? "PUBLISHED" : "DRAFT";
-      await tx.blogArticle.update({ where: { id }, data: { state: next, ...(hidden ? { isFeatured: false } : {}) } });
+      to = hidden ? "HIDDEN" : before !== "DRAFT" && a.publishedAt && a.publishedAt <= new Date() ? "PUBLISHED" : "DRAFT";
+      await tx.blogArticle.update({ where: { id }, data: { state: to, ...(hidden ? { isFeatured: false } : {}) } });
       ownerId = a.authorId;
       title = a.title;
       from = a.state;
     }
-    await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: k, targetId: id, meta: { reason: r, from } }, tx);
+    await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: k, targetId: id, meta: { reason: r, from, to } }, tx);
     assertNotOwn(actor, ownerId);
-    return { ownerId, title };
+    return { ownerId, title, to };
   });
-  await inform(owner.ownerId, hidden ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.` : `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`);
+  await inform(
+    owner.ownerId,
+    hidden
+      ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.`
+      : owner.to === "PUBLISHED"
+        ? `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`
+        : `Dein Inhalt „${owner.title}“ ist nicht mehr ausgeblendet und wieder ein Entwurf.`,
+  );
 }
 
 /* ───────────────────────────── Entfernen & Wiederherstellen (Admin) ───────────────────────────── */

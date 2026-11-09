@@ -43,7 +43,7 @@ export async function unsuspendUserAction(userId: string, input: ReasonInput) {
 
 export async function verifyEmailAction(userId: string) {
   return act(async () => {
-    const u = await requireRole("ADMIN");
+    const u = await requireRole("SUPERADMIN");
     await verifyEmailManually(u, userId);
     refresh(userId);
     return null;

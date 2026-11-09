@@ -241,9 +241,19 @@ export async function getToolAdminDetail(actor: Actor, id: string) {
 
 const mergeSchema = z.object({ targetId: z.string().min(1, "Ziel wählen"), reason: reasonSchema });
 
+/** Mengenangaben zweier Bestandseinträge zusammenfassen (Freitext, z. B. „2 m“ + „50 cm“). */
+export function combineStockText(a: string, b: string, sep = " + ") {
+  const x = a.trim();
+  const y = b.trim();
+  if (!x || x === y) return y;
+  if (!y) return x;
+  return `${x}${sep}${y}`;
+}
+
 /**
- * Führt eine Material-Dublette in ein anderes Material über: Projektverweise und
- * Einkaufslisten zeigen danach auf das Ziel, die Dublette wird gelöscht.
+ * Führt eine Material-Dublette in ein anderes Material über: Projektverweise, Einkaufslisten,
+ * eigener Bestand und Bezugsquellen zeigen danach auf das Ziel, die Dublette wird gelöscht.
+ * Hat jemand beide Materialien im Bestand, werden die Einträge zusammengefasst (eindeutig je Person).
  */
 export async function mergeMaterial(actor: Actor, sourceId: string, input: { targetId: string; reason: string }) {
   admin(actor, "Zusammenführen darf nur die Administration.");
@@ -251,17 +261,52 @@ export async function mergeMaterial(actor: Actor, sourceId: string, input: { tar
   if (d.targetId === sourceId) throw fail.invalid("Quelle und Ziel sind identisch.", { choice: "Anderes Material wählen" });
   return db.$transaction(async (tx) => {
     // In einer Transaktion nacheinander abfragen (eine Verbindung, keine parallelen Queries)
-    const source = await tx.material.findUnique({ where: { id: sourceId }, select: { id: true, name: true } });
-    const target = await tx.material.findUnique({ where: { id: d.targetId }, select: { id: true, name: true } });
+    const source = await tx.material.findUnique({ where: { id: sourceId }, select: { id: true, name: true, unit: true } });
+    const target = await tx.material.findUnique({ where: { id: d.targetId }, select: { id: true, name: true, unit: true } });
     if (!source) throw fail.notFound("Material nicht gefunden.");
     if (!target) throw fail.invalid("Zielmaterial nicht gefunden.", { choice: "Nicht gefunden" });
     const pm = await tx.projectMaterial.updateMany({ where: { materialId: sourceId }, data: { materialId: target.id } });
     const li = await tx.shoppingListItem.updateMany({ where: { materialId: sourceId }, data: { materialId: target.id } });
+
+    // Bestand: (userId, materialId) ist eindeutig – bei Überschneidung Menge/Notiz in den Zieleintrag übernehmen
+    // (gekürzt auf die Feldlängen aus `materials/stock.ts`)
+    const stock = await tx.materialStock.findMany({ where: { materialId: sourceId }, select: { id: true, userId: true, quantity: true, note: true } });
+    const existing = await tx.materialStock.findMany({ where: { materialId: target.id, userId: { in: stock.map((s) => s.userId) } }, select: { id: true, userId: true, quantity: true, note: true } });
+    const byUser = new Map(existing.map((e) => [e.userId, e]));
+    let stockMerged = 0;
+    for (const s of stock) {
+      const t = byUser.get(s.userId);
+      if (!t) continue;
+      await tx.materialStock.update({ where: { id: t.id }, data: { quantity: combineStockText(t.quantity, s.quantity).slice(0, 40), note: combineStockText(t.note, s.note, " · ").slice(0, 200) } });
+      await tx.materialStock.delete({ where: { id: s.id } });
+      stockMerged++;
+    }
+    const st = await tx.materialStock.updateMany({ where: { materialId: sourceId }, data: { materialId: target.id } });
+
+    // Bezugsquellen umhängen; die Packungsgrösse gilt in der Einheit der Quelle – bei anderer Einheit verwerfen,
+    // sonst stimmt der Preis je Einheit nicht mehr (die Packungsbezeichnung bleibt als Text stehen)
+    const of = await tx.materialOffer.updateMany({
+      where: { materialId: sourceId },
+      data: { materialId: target.id, ...(source.unit !== target.unit ? { packAmount: null } : {}) },
+    });
+
     await tx.material.delete({ where: { id: sourceId } });
-    const meta = { reason: d.reason, sourceId, sourceName: source.name, targetId: target.id, targetName: target.name, projectMaterials: pm.count, listItems: li.count };
+    const meta = {
+      reason: d.reason,
+      sourceId,
+      sourceName: source.name,
+      targetId: target.id,
+      targetName: target.name,
+      projectMaterials: pm.count,
+      listItems: li.count,
+      stock: st.count + stockMerged,
+      stockMerged,
+      offers: of.count,
+      ...(source.unit !== target.unit ? { unitChanged: { from: source.unit, to: target.unit } } : {}),
+    };
     await audit({ actorId: actor.id, action: "admin.catalog_merged", targetType: "MATERIAL", targetId: sourceId, meta }, tx);
     await audit({ actorId: actor.id, action: "admin.catalog_merged_into", targetType: "MATERIAL", targetId: target.id, meta }, tx);
-    return { targetId: target.id, moved: pm.count + li.count };
+    return { targetId: target.id, moved: pm.count + li.count + st.count + stockMerged + of.count };
   });
 }
 

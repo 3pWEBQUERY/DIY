@@ -96,6 +96,17 @@ export async function upsertCatalog(actor: Actor, entity: CatalogEntity, id: str
   }
 }
 
+/** „3 Projekte, 1 Bestandseintrag“ – leer, wenn nichts auf das Material verweist. */
+export function materialUsageText(n: { projects: number; stock: number; offers: number }) {
+  return [
+    n.projects && `${n.projects} ${n.projects === 1 ? "Projekt" : "Projekte"}`,
+    n.stock && `${n.stock} ${n.stock === 1 ? "Bestandseintrag" : "Bestandseinträge"}`,
+    n.offers && `${n.offers} ${n.offers === 1 ? "Bezugsquelle" : "Bezugsquellen"}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 export async function deleteCatalog(actor: Actor, entity: CatalogEntity, id: string) {
   mod(actor);
   try {
@@ -104,8 +115,18 @@ export async function deleteCatalog(actor: Actor, entity: CatalogEntity, id: str
         const n = await tx.material.count({ where: { categoryId: id } });
         if (n) throw fail.conflict(`Die Kategorie enthält noch ${n} Materialien.`);
         await tx.materialCategory.delete({ where: { id } });
-      } else if (entity === "material") await tx.material.delete({ where: { id } });
-      else await tx.tool.delete({ where: { id } });
+      } else if (entity === "material") {
+        // Bestand und Bezugsquellen hängen per Cascade am Material – Löschen würde sie still mitnehmen.
+        // Deshalb ablehnen, solange etwas darauf verweist; Dubletten werden zusammengeführt.
+        const [projects, stock, offers] = [
+          await tx.projectMaterial.count({ where: { materialId: id } }),
+          await tx.materialStock.count({ where: { materialId: id } }),
+          await tx.materialOffer.count({ where: { materialId: id } }),
+        ];
+        const uses = materialUsageText({ projects, stock, offers });
+        if (uses) throw fail.conflict(`Das Material wird noch verwendet (${uses}). Führe es stattdessen mit einem anderen Material zusammen.`);
+        await tx.material.delete({ where: { id } });
+      } else await tx.tool.delete({ where: { id } });
       await audit({ actorId: actor.id, action: "admin.catalog_deleted", targetType: entity.toUpperCase(), targetId: id }, tx);
     });
   } catch (e) {
