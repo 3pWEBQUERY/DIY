@@ -24,7 +24,9 @@ export default defineRailway((ctx) => {
 
   const web = service("web", {
     source,
-    start: "pnpm start",
+    // Direkt mit exec (ohne pnpm → pnpm → sh dazwischen): SIGTERM erreicht Next.js, das laufende
+    // Anfragen beim Neustart sauber abschliesst
+    start: "sh -c 'cd apps/web && exec ./node_modules/.bin/next start -p ${PORT:-3000}'",
     preDeploy: "pnpm predeploy",
     healthcheck: "/api/health",
     healthcheckTimeout: 120,
@@ -39,10 +41,24 @@ export default defineRailway((ctx) => {
       // Demo-Community nur ausserhalb der Produktion (in Produktion sperrt der Seed Demo-Logins mit Standardpasswort)
       SEED_DEMO: ctx.environment === "production" ? "false" : "true",
       DB_POOL_MAX: "8",
+      // Zeit zwischen SIGTERM und SIGKILL beim Ablösen einer Version (laufende Anfragen abschliessen)
+      RAILWAY_DEPLOYMENT_DRAINING_SECONDS: "30",
+      // Fester Schlüssel für Server-Action-IDs (Dockerfile: Build-Argument) – sonst brechen offene Seiten bei jedem Deploy
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: preserve(),
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
+      STRIPE_CONNECT_WEBHOOK_SECRET: preserve(),
+      // Web verschickt selbst Mails (Registrierung, Passwort-Reset, E-Mail-Wechsel)
       RESEND_API_KEY: preserve(),
+      MAIL_FROM: preserve(),
+      // Anmelden mit Apple (Web) und in der iOS-App
+      APPLE_CLIENT_ID: preserve(),
+      APPLE_TEAM_ID: preserve(),
+      APPLE_KEY_ID: preserve(),
+      APPLE_PRIVATE_KEY: preserve(),
       APPLE_IOS_CLIENT_ID: preserve(),
+      // VAPID (Browser-Push) bewusst nicht: die Schlüssel werden beim ersten Bedarf erzeugt und in der DB
+      // gespeichert (src/server/push/web.ts). Wer sie per Variable setzt, muss sie in web UND worker setzen.
       ...storageEnv,
     },
   });
@@ -58,6 +74,9 @@ export default defineRailway((ctx) => {
       APP_URL: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
       SESSION_SECRET: ctx.shared.SESSION_SECRET,
       DB_POOL_MAX: "4",
+      // Der Worker wartet beim Herunterfahren bis zu 30 s auf laufende Jobs (src/worker/index.ts) – Railway
+      // muss ihm mehr Zeit geben, bevor SIGKILL kommt
+      RAILWAY_DEPLOYMENT_DRAINING_SECONDS: "45",
       // Der Worker verschickt alle Benachrichtigungs-Mails und führt Stripe-Abgleich, Erstattungen,
       // Auszahlungen und Abo-Kündigungen aus – ohne diese Schlüssel laufen diese Jobs ins Leere
       RESEND_API_KEY: preserve(),

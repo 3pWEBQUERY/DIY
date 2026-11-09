@@ -68,5 +68,30 @@ pnpm worker         # Hintergrundjobs
   räumt Überbleibsel früherer Läufe auf, sie sind also wiederholbar.
 - Zahlungen und Worker-Jobs werden in Tests direkt ausgelöst (`runServer` in `e2e/helpers.ts`).
 - Eigene Dialoge statt Browser-Dialogen: Ein `alert`/`confirm` lässt jeden Browser-Test fehlschlagen.
-- **CI** (`.github/workflows/ci.yml`): bei jedem Push Typen + Unit-Tests, danach Build + Browser-Tests
-  gegen eine frische Postgres-Datenbank. Bei Fehlern liegt der Playwright-Bericht als Artefakt bei.
+- `e2e/global-setup.ts` löscht tabellenweit und läuft deshalb nur, wenn `DATABASE_URL` auf localhost zeigt
+  (bewusst übersteuern: `E2E_ALLOW_DESTRUCTIVE=1`).
+- **CI** (`.github/workflows/ci.yml`): bei jedem Push Migrationsreihenfolge, Typen + Unit-Tests, danach
+  Schema-Drift, Build + Browser-Tests gegen eine frische Postgres-Datenbank. Bei Fehlern liegt der
+  Playwright-Bericht als Artefakt bei.
+
+## Datenbank-Migrationen
+
+- **Neue Migrationen immer mit Zeitstempel nach der letzten benennen.** Die bestehenden Ordner tragen
+  Zeitstempel in der Zukunft (bis `20261119140000_…`); `prisma migrate dev` vergibt aber die aktuelle Uhrzeit –
+  eine so erzeugte Migration sortiert *vor* bereits angewendete. Ordner deshalb vor dem Commit umbenennen
+  (`JJJJMMTThhmmss_name`, z. B. letzte + 1 Std.). Angewendete Migrationen **nie** umbenennen oder löschen
+  (`_prisma_migrations` in Produktion kennt sie unter ihrem Namen).
+- Prüfung: `pnpm --filter @werkraum/web db:check-migrations` (Namensschema, eindeutige Zeitstempel,
+  Reihenfolge laut Git-Historie, optional `--base origin/main`). Läuft in CI im Job „Typen & Unit-Tests“
+  gegen den Zielbranch (PR) bzw. den vorherigen Stand (Push) und schlägt einen gültigen Namen vor.
+- **Schema-Drift**: CI migriert eine frische Datenbank und prüft mit
+  `pnpm --filter @werkraum/web db:drift` (`prisma migrate diff --from-config-datasource --to-schema … --exit-code`),
+  dass `schema.prisma` und Migrationen übereinstimmen. Lokal mit leerer Wegwerf-DB:
+  `SHADOW_DATABASE_URL=… pnpm exec prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code`.
+- `schema.prisma` bildet alle Indizes ab, auch die aus Roh-SQL: GIN-Volltextindizes (`@@index([search], type: Gin)`),
+  Trigramm-Indizes (`ops: raw("gin_trgm_ops")`) und Teilindizes (`where: raw(...)`, Preview-Feature `partialIndexes`).
+  Die generierten `search`-Spalten stehen als `Unsupported("tsvector")? @default(dbgenerated())`.
+- **Nicht im Schema abbildbar** (Prisma sieht sie nicht und lässt sie unangetastet – Änderungen nur per
+  handgeschriebener Migration): die Ausdrücke der generierten `search`-Spalten, die Funktionen `wr_unaccent`/`wr_join`,
+  die Extensions `pg_trgm`/`unaccent` und der Trigger `AuditEvent_immutable` (alle in `20261103203143_init`).
+  Wer eine `search`-Spalte ändert, schreibt `DROP COLUMN`/`ADD COLUMN … GENERATED ALWAYS AS (…) STORED` samt Index selbst.

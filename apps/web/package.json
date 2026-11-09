@@ -13,6 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
+    "db:check-migrations": "node scripts/check-migrations.mjs",
+    "db:drift": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --exit-code",
     "db:seed": "tsx --conditions=react-server prisma/seed.ts",
     "postinstall": "prisma generate",
     "e2e": "playwright test"

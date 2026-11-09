@@ -27,13 +27,16 @@ export async function unregisterPushDevice(userId: string, token: string) {
 }
 
 /**
- * Worker-Job: neue, ungelesene In-App-Benachrichtigungen als iOS-Push zustellen.
+ * Worker-Job: neue, ungelesene In-App-Benachrichtigungen als iOS-/Browser-Push zustellen.
  * Nur an Geräte mit gültiger Sitzung; ungültige Tokens werden deaktiviert.
+ *
+ * Doppelte Zustellung wird in der Datenbank verhindert (bedingter Claim auf `pushedAt IS NULL`),
+ * nicht nur im Prozess – beim Deploy laufen kurz zwei Worker parallel.
  */
 let delivering = false;
 
 export async function deliverPendingPushes(limit = 200) {
-  // Läufe nie überlappen lassen (Intervall alle 10 s + Cron) – sonst doppelte Zustellungen
+  // Im selben Prozess nicht überlappen (Intervall alle 10 s + Cron) – spart nur Abfragen, der Claim schützt
   if (delivering) return { sent: 0, skipped: true };
   delivering = true;
   try {
@@ -46,15 +49,26 @@ export async function deliverPendingPushes(limit = 200) {
 async function deliver(limit: number) {
   const apns = apnsConfigured();
   const since = new Date(Date.now() - MAX_AGE_MS);
-  const pending = await db.notification.findMany({
+  const candidates = await db.notification.findMany({
     where: { pushedAt: null, readAt: null, updatedAt: { gte: since } },
     orderBy: { updatedAt: "asc" },
     take: limit,
+    select: { id: true },
+  });
+  if (!candidates.length) return { sent: 0 };
+  // Vorab beanspruchen und damit als zugestellt markieren: auch wenn ein Dienst hängt oder der Lauf abbricht,
+  // gibt es keine Wiederholungen. Nur Zeilen mit `pushedAt IS NULL` – ein zweiter Worker, der dieselben
+  // Kandidaten gelesen hat, bekommt sie nicht mehr (atomares UPDATE … RETURNING).
+  const claimed = await db.$queryRaw<{ id: string }[]>`
+    UPDATE "Notification" SET "pushedAt" = ${new Date()}
+    WHERE id = ANY(${candidates.map((n) => n.id)}) AND "pushedAt" IS NULL
+    RETURNING id`;
+  if (!claimed.length) return { sent: 0 };
+  const pending = await db.notification.findMany({
+    where: { id: { in: claimed.map((c) => c.id) } },
+    orderBy: { updatedAt: "asc" },
     include: { actor: { select: { profile: { select: { displayName: true, handle: true } } } } },
   });
-  if (!pending.length) return { sent: 0 };
-  // Vorab als zugestellt markieren: auch wenn ein Dienst hängt oder der Lauf abbricht, gibt es keine Wiederholungen
-  await db.notification.updateMany({ where: { id: { in: pending.map((n) => n.id) } }, data: { pushedAt: new Date() } });
   const recipients = [...new Set(pending.map((n) => n.recipientId))];
   const now = new Date();
   // iOS nur mit APNs-Schlüsseln; Browser (Web Push) funktionieren immer

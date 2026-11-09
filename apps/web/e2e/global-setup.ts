@@ -1,10 +1,31 @@
 import { sql, userId } from "./helpers";
 
 /**
+ * Die Vorbereitung löscht tabellenweit (z. B. alle Rate-Limits, alle Koautorschaften). Nur gegen eine
+ * lokale Test-Datenbank – E2E_BASE_URL erlaubt entfernte Ziele, DATABASE_URL könnte dann auf eine
+ * echte Datenbank zeigen. Bewusst übersteuern: E2E_ALLOW_DESTRUCTIVE=1.
+ */
+export function assertDestructiveSetupAllowed(url = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/werkraum") {
+  if (process.env.E2E_ALLOW_DESTRUCTIVE === "1") return;
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    // Unix-Socket o. Ä. ohne Host gilt als lokal
+  }
+  if (!host || host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]") return;
+  throw new Error(
+    `E2E-Vorbereitung abgebrochen: DATABASE_URL zeigt auf „${host}“, nicht auf localhost. Die Tests löschen Daten – ` +
+      "nur gegen eine lokale Test-Datenbank ausführen oder bewusst E2E_ALLOW_DESTRUCTIVE=1 setzen.",
+  );
+}
+
+/**
  * Vorbereitung vor jedem Lauf: Ratenbegrenzung leeren, Überbleibsel früherer Läufe
  * entfernen und die nötigen Mitgliedschaften sicherstellen. Idempotent.
  */
 export default async function globalSetup() {
+  assertDestructiveSetupAllowed();
   await sql(`DELETE FROM "RateLimitBucket"`);
   await sql(`DELETE FROM "PostCoauthor"`);
   await sql(`DELETE FROM "ShoppingList" WHERE "ownerId" = $1 AND title LIKE 'Für: %'`, [await userId("mattia")]);

@@ -20,11 +20,19 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Volle Historie: die Migrationsprüfung vergleicht mit der Basis und der Reihenfolge der Commits
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - name: Migrationsreihenfolge
+        # Neue Migrationen müssen nach der letzten der Basis sortieren (PR: Zielbranch, Push: vorheriger Stand)
+        env:
+          MIGRATIONS_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: node apps/web/scripts/check-migrations.mjs
       - name: ffmpeg (Video-Tests)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: pnpm install --frozen-lockfile
@@ -68,6 +76,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Datenbank (Migrationen + Demo-Daten)
         run: pnpm db:migrate && pnpm db:seed
+      - name: Schema-Drift (schema.prisma ↔ Migrationen)
+        # Frisch migrierte DB gegen schema.prisma: Jede Abweichung (Exit-Code 2) heisst, dass eine Migration
+        # fehlt oder schema.prisma ein DB-Objekt nicht abbildet – sonst erzeugt `migrate dev` falsche Migrationen
+        run: pnpm --filter @werkraum/web db:drift
       - name: Build
         run: pnpm build
       - name: Browser installieren
