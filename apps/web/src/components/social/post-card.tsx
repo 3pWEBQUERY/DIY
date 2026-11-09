@@ -3,7 +3,8 @@
 import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
-import { MessageCircle, Repeat2, Pencil, Trash2, ArrowUpRight } from "lucide-react";
+import { MessageCircle, Repeat2, Pencil, Trash2, ArrowUpRight, Users, LogOut } from "lucide-react";
+import { CoauthorDialog, leaveCoauthor } from "./coauthor-dialog";
 import { PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import type { PostView } from "@/server/social/posts";
 import { Avatar, Badge } from "@/components/ui/misc";
@@ -135,12 +136,14 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
   const [repostOpen, setRepostOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [gone, setGone] = useState(false);
+  const [coauthorsOpen, setCoauthorsOpen] = useState(false);
   const [, start] = useTransition();
   const safety = useSafetyMenu({ targetType: "POST", targetId: post.id, authorId: post.author.id, authorName: post.author.displayName });
   if (gone) return null;
 
   const own: MenuItem[] = [
     { label: "Bearbeiten", icon: <Pencil size={15} />, onSelect: () => router.push(`/studio/inhalte/beitrag/${post.id}`) },
+    ...(post.repostOf ? [] : [{ label: "Koautor:innen", icon: <Users size={15} />, onSelect: () => setCoauthorsOpen(true) }]),
     {
       label: "Löschen",
       icon: <Trash2 size={15} />,
@@ -156,21 +159,44 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
         }),
     },
   ];
+  const coauthorItems: MenuItem[] = post.viewer.isCoauthor ? [{ label: "Als Koautor:in austreten", icon: <LogOut size={15} />, onSelect: () => void leaveCoauthor(post.id, () => router.refresh()) }] : [];
   const kind = KIND_LABEL[post.kind];
+  const co = post.coauthors;
   const cat = categoryBySlug(post.category);
 
   return (
     <article className="border-b border-line py-6 first:pt-2" aria-labelledby={`post-${post.id}-author`}>
       <header className="flex items-start gap-3">
-        <Link aria-label={`Profil von ${post.author.displayName}`} href={`/u/${post.author.handle}`} className="shrink-0">
-          <Avatar src={post.author.avatarUrl} name={post.author.displayName} size={42} />
-        </Link>
+        <span className="relative shrink-0">
+          <Link aria-label={`Profil von ${post.author.displayName}`} href={`/u/${post.author.handle}`} className="block">
+            <Avatar src={post.author.avatarUrl} name={post.author.displayName} size={42} />
+          </Link>
+          {co.length > 0 && (
+            <span className="absolute -bottom-1.5 -right-1.5 flex -space-x-2">
+              {co.slice(0, 2).map((c) => (
+                <Link key={c.id} href={`/u/${c.handle}`} aria-label={`Profil von ${c.displayName}`} className="rounded-full ring-2 ring-paper">
+                  <Avatar src={c.avatarUrl} name={c.displayName} size={22} />
+                </Link>
+              ))}
+            </span>
+          )}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2">
-            <Link id={`post-${post.id}-author`} href={`/u/${post.author.handle}`} className="truncate font-semibold hover:underline">
-              {post.author.displayName}
-            </Link>
-            <span className="truncate text-sm text-muted">@{post.author.handle}</span>
+            <span id={`post-${post.id}-author`} className="min-w-0">
+              <Link href={`/u/${post.author.handle}`} className="font-semibold hover:underline">
+                {post.author.displayName}
+              </Link>
+              {co.map((c, i) => (
+                <span key={c.id}>
+                  <span className="text-muted">{i === 0 ? " mit " : i === co.length - 1 ? " und " : ", "}</span>
+                  <Link href={`/u/${c.handle}`} className="font-semibold hover:underline">
+                    {c.displayName}
+                  </Link>
+                </span>
+              ))}
+            </span>
+            {co.length === 0 && <span className="truncate text-sm text-muted">@{post.author.handle}</span>}
           </div>
           <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
             <Link href={`/beitrag/${post.id}`} className="hover:underline">
@@ -193,7 +219,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
         </div>
         <div className="flex items-center gap-2">
           {post.isCommercial ? <Badge tone="clay">Verkauf</Badge> : kind && <Badge>{kind}</Badge>}
-          {viewer && <MoreMenu items={post.viewer.isAuthor ? own : safety.items} />}
+          {viewer && <MoreMenu items={post.viewer.isAuthor ? own : [...coauthorItems, ...safety.items]} />}
         </div>
       </header>
 
@@ -269,6 +295,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
       )}
 
       {safety.dialog}
+      {post.viewer.isAuthor && <CoauthorDialog postId={post.id} open={coauthorsOpen} onClose={() => setCoauthorsOpen(false)} />}
       <RepostDialog open={repostOpen} onClose={() => setRepostOpen(false)} post={post} />
       {post.viewer.isAuthor && <EditDialog open={editOpen} onClose={() => setEditOpen(false)} post={post} />}
     </article>

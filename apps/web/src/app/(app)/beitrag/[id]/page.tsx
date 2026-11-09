@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { getPostForViewer } from "@/server/social/posts";
+import { pendingInvite } from "@/server/social/coauthors";
+import { CoauthorInviteBanner } from "@/components/social/coauthor-dialog";
 import { Page } from "@/components/shell/page";
 import { PostCard } from "@/components/social/post-card";
 import { Notice } from "@/components/ui/misc";
@@ -26,6 +28,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const user = await currentUser();
   const post = await getPostForViewer(id, user?.id ?? null);
   if (!post) notFound();
+  const invite = await pendingInvite(post.id, user?.id);
   const viewer = user?.profile ? { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl } : null;
   return (
     <Page>
@@ -43,6 +46,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           <Link href={`/studio/inhalte/beitrag/${post.id}`} className="font-semibold underline underline-offset-2">Bearbeiten oder veröffentlichen</Link>
         </Notice>
       )}
+      {invite && <CoauthorInviteBanner postId={post.id} invitedBy={invite.invitedBy} />}
       <PostCard post={post} viewer={viewer} defaultOpenComments={!post.draft} />
     </Page>
   );

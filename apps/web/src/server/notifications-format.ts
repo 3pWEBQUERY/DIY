@@ -138,10 +138,13 @@ export function notificationParts(n: NotificationLike): NotificationParts {
       if (str(data.kind) === "review_reply") return { lead: name ?? "Der Shop", text: `hat auf deine Bewertung${title ? ` zu ${title}` : ""} geantwortet.`, excerpt };
       return { lead: name ?? "Jemand", text: `hat auf deinen Kommentar${title ? ` zu ${title}` : ""} geantwortet.`, excerpt };
     case "MENTION":
+      if (str(data.kind) === "coauthor_invite") return { lead: name ?? "Jemand", text: "möchte dich als Koautor:in eines Beitrags nennen – bestätigen oder ablehnen.", excerpt };
+      if (str(data.kind) === "coauthor_accepted") return { lead: name ?? "Jemand", text: "ist jetzt Koautor:in deines Beitrags.", excerpt };
       return { lead: actors(name, count), text: `${plural ? "haben" : "hat"} dich${title ? ` in ${title}` : ""} erwähnt.`, excerpt };
     case "PROJECT_ACTIVITY": {
       const kind = str(data.kind) ?? (excerpt ? "COMMENT" : "LIKE");
       if (kind === "SCHEDULED_PUBLISHED") return { lead: null, text: str(data.message) ?? "Dein geplanter Beitrag ist jetzt online.", excerpt: str(data.excerpt) };
+      if (kind === "COMPETITION") return { lead: null, text: str(data.message) ?? "Neuigkeiten zu einem Wettbewerb.", excerpt: null };
       if (kind === "POLL_ENDED") return { lead: null, text: str(data.message) ?? "Deine Umfrage ist beendet.", excerpt: str(data.excerpt) };
       const p = title ? `dein Projekt ${title}` : "dein Projekt";
       if (kind === "COMMENT") return { lead: actors(name, count), text: `${plural ? "haben" : "hat"} ${p} kommentiert.`, excerpt };

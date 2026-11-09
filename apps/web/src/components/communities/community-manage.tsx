@@ -279,75 +279,119 @@ export function BannedList({ communityId, banned }: { communityId: string; banne
   );
 }
 
-/* ───────── Challenges ───────── */
+/* ───────── Wettbewerbe ───────── */
 
-type Challenge = { id: string; title: string; description: string; startsAt: string; endsAt: string };
+type Challenge = { id: string; title: string; description: string; startsAt: string; endsAt: string; judging?: string; entryCount?: number; phaseLabel?: string; href?: string };
 
 export function ChallengesManager({ communityId, challenges }: { communityId: string; challenges: Challenge[] }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [rules, setRules] = useState("");
+  const [prize, setPrize] = useState("");
+  const [judging, setJudging] = useState<"VOTES" | "JURY">("VOTES");
   const today = new Date().toISOString().slice(0, 10);
   const [startsAt, setStartsAt] = useState(today);
   const [endsAt, setEndsAt] = useState("");
+  const [votingEndsAt, setVotingEndsAt] = useState("");
+  const plus7 = (d: string) => (d ? new Date(new Date(`${d}T12:00:00`).getTime() + 7 * 86400_000).toISOString().slice(0, 10) : "");
   const create = useAction(createChallengeAction.bind(null, communityId), {
     onSuccess: () => {
       setTitle("");
       setDescription("");
+      setRules("");
+      setPrize("");
       setEndsAt("");
+      setVotingEndsAt("");
     },
   });
   const { pending, run } = useRun();
-  const now = Date.now();
   return (
     <div className="grid gap-10 lg:grid-cols-2">
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void create.run({ title, description, startsAt: new Date(`${startsAt}T00:00:00`).toISOString(), endsAt: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : "" });
+          void create.run({
+            title,
+            description,
+            rules,
+            prize,
+            judging,
+            startsAt: new Date(`${startsAt}T00:00:00`).toISOString(),
+            endsAt: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : "",
+            votingEndsAt: judging === "VOTES" ? new Date(`${votingEndsAt || plus7(endsAt)}T23:59:59`).toISOString() : null,
+          });
         }}
         className="space-y-4"
       >
         <Field label="Titel" error={create.fields.title}>
-          {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="z.B. Herbst-Challenge: Ein Stuhl aus Restholz" />}
+          {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="z.B. Herbst-Wettbewerb: Ein Stuhl aus Restholz" />}
         </Field>
         <Field label="Beschreibung" optional error={create.fields.description}>
-          {(p) => <Textarea {...p} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} />}
+          {(p) => <Textarea {...p} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} placeholder="Worum geht es? Was soll entstehen?" />}
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <Field label="Regeln" optional error={create.fields.rules} hint="Zum Beispiel: nur Restmaterial, Projekt im Zeitraum begonnen, Fotos vom Prozess.">
+          {(p) => <Textarea {...p} value={rules} onChange={(e) => setRules(e.target.value)} maxLength={3000} rows={3} />}
+        </Field>
+        <Field label="Preis" optional error={create.fields.prize}>
+          {(p) => <Input {...p} value={prize} onChange={(e) => setPrize(e.target.value)} maxLength={200} placeholder="z.B. Gutschein über CHF 50 vom Holzladen" />}
+        </Field>
+        <fieldset>
+          <legend className="mb-1.5 text-[13px] font-semibold">Wer entscheidet?</legend>
+          <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1 text-[13px]">
+            {(
+              [
+                ["VOTES", "Abstimmung der Mitglieder"],
+                ["JURY", "Jury (Moderation)"],
+              ] as const
+            ).map(([k, l]) => (
+              <button key={k} type="button" role="radio" aria-checked={judging === k} onClick={() => setJudging(k)} className={cn("h-9 rounded-lg px-2 font-medium text-muted hover:text-ink", judging === k && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[12.5px] text-muted">{judging === "VOTES" ? "Nach dem Einreichungsschluss vergeben Mitglieder je 3 Stimmen; Platz 1–3 nach Stimmen." : "Nach dem Einreichungsschluss wählt die Moderation Platz 1–3 und veröffentlicht das Ergebnis."}</p>
+        </fieldset>
+        <div className={cn("grid gap-3", judging === "VOTES" ? "sm:grid-cols-3" : "grid-cols-2")}>
           <Field label="Start" error={create.fields.startsAt}>
             {(p) => <Input {...p} type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />}
           </Field>
-          <Field label="Ende" error={create.fields.endsAt}>
+          <Field label="Einreichung bis" error={create.fields.endsAt}>
             {(p) => <Input {...p} type="date" value={endsAt} min={startsAt} onChange={(e) => setEndsAt(e.target.value)} />}
           </Field>
+          {judging === "VOTES" && (
+            <Field label="Abstimmung bis" error={create.fields.votingEndsAt}>
+              {(p) => <Input {...p} type="date" value={votingEndsAt || plus7(endsAt)} min={endsAt || startsAt} onChange={(e) => setVotingEndsAt(e.target.value)} />}
+            </Field>
+          )}
         </div>
-        <Button type="submit" disabled={create.pending || title.trim().length < 3 || !endsAt}><Trophy size={14} /> Challenge anlegen</Button>
+        <Button type="submit" disabled={create.pending || title.trim().length < 3 || !endsAt}><Trophy size={14} /> Wettbewerb anlegen</Button>
       </form>
       <div>
-        <p className="spec mb-2">Alle Challenges</p>
+        <p className="spec mb-2">Alle Wettbewerbe</p>
         {challenges.length === 0 ? (
-          <p className="text-sm text-muted">Noch keine Challenges. Aktive Challenges erscheinen als Banner über den Beiträgen.</p>
+          <p className="text-sm text-muted">Noch keine Wettbewerbe. Laufende Wettbewerbe erscheinen als Hinweis über den Beiträgen und unter „Wettbewerbe“.</p>
         ) : (
           <ul className="divide-y divide-line">
-            {challenges.map((c) => {
-              const s = new Date(c.startsAt).getTime();
-              const e = new Date(c.endsAt).getTime();
-              const status = e < now ? "Beendet" : s > now ? "Geplant" : "Läuft";
-              return (
-                <li key={c.id} className="flex items-start justify-between gap-3 py-3">
-                  <div className="min-w-0">
+            {challenges.map((c) => (
+              <li key={c.id} className="flex items-start justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  {c.href ? (
+                    <Link href={c.href} className="font-semibold hover:underline">{c.title}</Link>
+                  ) : (
                     <p className="font-semibold">{c.title}</p>
-                    <p className="text-xs text-muted num">
-                      <span className={cn("spec mr-2", status === "Läuft" ? "text-moss" : "")}>{status}</span>
-                      {formatDate(c.startsAt, { day: "numeric", month: "short" })} – {formatDate(c.endsAt, { day: "numeric", month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                  <Button size="sm" variant="ghost" disabled={pending} onClick={async () => (await confirmDialog("Challenge löschen?")) && run(() => deleteChallengeAction(communityId, c.id))} aria-label={`${c.title} löschen`}>
-                    <X size={14} />
-                  </Button>
-                </li>
-              );
-            })}
+                  )}
+                  <p className="text-xs text-muted num">
+                    {c.phaseLabel && <span className="spec mr-2 text-moss">{c.phaseLabel}</span>}
+                    {formatDate(c.startsAt, { day: "numeric", month: "short" })} – {formatDate(c.endsAt, { day: "numeric", month: "short", year: "numeric" })}
+                    {c.entryCount != null && ` · ${c.entryCount} ${c.entryCount === 1 ? "Einreichung" : "Einreichungen"}`}
+                    {c.judging === "JURY" && " · Jury"}
+                  </p>
+                </div>
+                <Button size="sm" variant="ghost" disabled={pending} onClick={async () => (await confirmDialog({ title: "Wettbewerb löschen?", body: "Alle Einreichungen und Stimmen werden ebenfalls gelöscht.", confirmLabel: "Löschen" })) && run(() => deleteChallengeAction(communityId, c.id))} aria-label={`${c.title} löschen`}>
+                  <X size={14} />
+                </Button>
+              </li>
+            ))}
           </ul>
         )}
       </div>

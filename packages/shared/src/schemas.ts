@@ -360,14 +360,27 @@ export const communityPostSchema = z.object({
   poll: pollInputSchema.optional(),
 });
 
+export const CHALLENGE_JUDGING = ["VOTES", "JURY"] as const;
+export const CHALLENGE_VOTES_PER_PERSON = 3;
+
 export const communityChallengeSchema = z
   .object({
-    title: z.string().trim().min(3).max(120),
+    title: z.string().trim().min(3, "Mindestens 3 Zeichen").max(120),
     description: z.string().trim().max(2000).default(""),
+    rules: z.string().trim().max(3000).default(""),
+    prize: z.string().trim().max(200).default(""),
+    judging: z.enum(CHALLENGE_JUDGING).default("VOTES"),
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
+    votingEndsAt: z.coerce.date().nullish(),
   })
-  .refine((c) => c.endsAt > c.startsAt, { message: "Das Ende muss nach dem Start liegen", path: ["endsAt"] });
+  .refine((c) => c.endsAt > c.startsAt, { message: "Das Ende muss nach dem Start liegen", path: ["endsAt"] })
+  .refine((c) => c.judging !== "VOTES" || !c.votingEndsAt || c.votingEndsAt > c.endsAt, { message: "Die Abstimmung endet nach dem Einreichungsschluss", path: ["votingEndsAt"] });
+
+export const challengeEntrySchema = z.object({
+  projectId: z.string().min(1, "Wähle ein Projekt"),
+  note: z.string().trim().max(500, "Höchstens 500 Zeichen").default(""),
+});
 
 export type CommunityUpsertInput = z.infer<typeof communityUpsertSchema>;
 

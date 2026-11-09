@@ -25,6 +25,7 @@ import { sendEventReminders } from "@/server/communities/events";
 import { syncPendingConnectAccounts } from "@/server/commerce/shops";
 import { syncPayouts } from "@/server/commerce/payouts";
 import { syncProSubscriptions } from "@/server/pro/service";
+import { runCompetitionPhases } from "@/server/communities/competitions";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -56,6 +57,7 @@ const Q = {
   events: "event.reminders",
   stripeSync: "stripe.sync",
   proSync: "pro.sync",
+  competitions: "competition.phases",
 } as const;
 
 async function dispatchOutbox(boss: PgBoss) {
@@ -258,6 +260,7 @@ async function main() {
   await boss.work(Q.emailInstant, guarded(Q.emailInstant, async () => sendEmails("instant")));
   await boss.work(Q.emailDigest, guarded(Q.emailDigest, async () => sendEmails("digest")));
   await boss.work(Q.cleanup, guarded(Q.cleanup, async () => cleanup()));
+  await boss.work(Q.competitions, guarded(Q.competitions, async () => void (await runCompetitionPhases())));
   await boss.work(Q.proSync, guarded(Q.proSync, async () => void (await syncProSubscriptions())));
   await boss.work(Q.push, guarded(Q.push, async () => void (await deliverPendingPushes())));
 
@@ -281,6 +284,7 @@ async function main() {
   await boss.schedule(Q.scheduled, "* * * * *");
   await boss.schedule(Q.cleanup, "30 3 * * *", null, { tz: "Europe/Zurich" });
   await boss.schedule(Q.proSync, "15 */6 * * *");
+  await boss.schedule(Q.competitions, "*/5 * * * *");
   await boss.schedule(Q.push, "* * * * *");
   await boss.schedule(Q.polls, "* * * * *");
   await boss.schedule(Q.posts, "* * * * *");

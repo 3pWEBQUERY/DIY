@@ -21,6 +21,7 @@ export const postInclude = {
   product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, shop: { select: { slug: true, name: true } } } },
   article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
+  coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
   poll: { select: { id: true, endsAt: true, multiple: true, voterCount: true, options: { orderBy: { position: "asc" }, select: { id: true, label: true, voteCount: true } } } },
   repostOf: {
     select: {
@@ -75,6 +76,7 @@ function toView(p: PostRow, viewer: ViewerState) {
     publishedAt: p.publishedAt.toISOString(),
     editedAt: p.editedAt?.toISOString() ?? null,
     author: { id: p.author.id, handle: p.author.profile?.handle ?? "unbekannt", displayName: p.author.profile?.displayName ?? "Unbekannt", avatarUrl: p.author.profile?.avatarUrl ?? null },
+    coauthors: p.coauthors.filter((c) => c.user.profile).map((c) => ({ id: c.user.id, handle: c.user.profile!.handle, displayName: c.user.profile!.displayName, avatarUrl: c.user.profile!.avatarUrl })),
     media: p.media
       .filter((m) => m.media.state === "READY" || m.media.state === "PROCESSING")
       .map((m) => ({ id: m.mediaId, alt: m.alt, kind: m.media.kind, variants: m.media.variants as Record<string, string>, width: m.media.width, height: m.media.height })),
@@ -96,7 +98,7 @@ function toView(p: PostRow, viewer: ViewerState) {
         : null,
     poll: pollView(p, viewer),
     counts: { likes: p.likeCount, comments: p.commentCount, saves: p.saveCount, reposts: p.repostCount },
-    viewer: { liked: viewer.liked.has(p.id), saved: viewer.saved.has(p.id), isAuthor: viewer.id === p.authorId },
+    viewer: { liked: viewer.liked.has(p.id), saved: viewer.saved.has(p.id), isAuthor: viewer.id === p.authorId, isCoauthor: !!viewer.id && p.coauthors.some((c) => c.user.id === viewer.id) },
   };
 }
 
@@ -165,7 +167,10 @@ export async function getFeed(kind: FeedKind, viewer: { id: string; interests: s
       {
         ...base,
         ...communityFilter,
-        OR: [{ authorId: { in: [...rel.following, viewerId] } }, ...(followedProjects.length ? [{ projectId: { in: followedProjects.map((p) => p.projectId) } }] : [])],
+        OR: [
+          { authorId: { in: [...rel.following, viewerId] } },
+          { coauthors: { some: { status: "ACCEPTED", userId: { in: [...rel.following, viewerId] } } } },
+          ...(followedProjects.length ? [{ projectId: { in: followedProjects.map((p) => p.projectId) } }] : [])],
       },
       viewerId,
       { cursor },

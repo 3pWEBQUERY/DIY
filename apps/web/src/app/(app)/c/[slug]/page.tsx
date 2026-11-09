@@ -6,6 +6,7 @@ import { ArrowUpRight, CalendarPlus, Lock, Settings, Trophy } from "lucide-react
 import { listCommunityEvents, nextCommunityEvent } from "@/server/communities/events";
 import { EventCard } from "@/components/events/event-card";
 import { COMMUNITY_ROLE_LABEL, COMMUNITY_VISIBILITY_LABEL, PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
+import { competitionPhase } from "@/server/communities/competitions";
 import { currentUser } from "@/server/auth/session";
 import {
   getCommunityPage,
@@ -56,20 +57,31 @@ const TABS = [
   { key: "ueber", label: "Über" },
 ] as const;
 
-function ChallengeBanner({ ch }: { ch: NonNullable<CommunityPageData["challenge"]> }) {
-  const running = ch.startsAt <= new Date();
-  const daysLeft = Math.max(0, Math.ceil((ch.endsAt.getTime() - Date.now()) / 86400_000));
+function ChallengeBanner({ ch, slug }: { ch: NonNullable<CommunityPageData["challenge"]>; slug: string }) {
+  const phase = competitionPhase(ch);
+  const days = (d: Date) => Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400_000));
+  const status =
+    phase === "upcoming"
+      ? `Wettbewerb ab ${formatDate(ch.startsAt, { day: "numeric", month: "long" })}`
+      : phase === "open"
+        ? `Wettbewerb · Einreichung noch ${pluralize(days(ch.endsAt), "Tag", "Tage")}`
+        : phase === "voting" && ch.votingEndsAt
+          ? `Wettbewerb · Abstimmung noch ${pluralize(days(ch.votingEndsAt), "Tag", "Tage")}`
+          : phase === "jury"
+            ? "Wettbewerb · Die Jury entscheidet"
+            : "Wettbewerb · Ergebnis ist da";
+  const cta = phase === "open" ? "Mitmachen" : phase === "voting" ? "Abstimmen" : phase === "ended" ? "Ergebnis ansehen" : "Ansehen";
   return (
-    <aside aria-label="Challenge" className="mb-8 grid gap-3 border border-clay/40 bg-clay-soft px-5 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center rounded-2xl">
-      <span className="grid size-10 place-items-center border border-clay text-clay-ink rounded-xl"><Trophy size={18} aria-hidden /></span>
+    <aside aria-label="Wettbewerb" className="relative mb-8 grid gap-3 rounded-2xl border border-clay/40 bg-clay-soft px-5 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+      <span className="grid size-10 place-items-center rounded-xl border border-clay text-clay-ink"><Trophy size={18} aria-hidden /></span>
       <div className="min-w-0">
-        <p className="spec text-clay-ink">{running ? `Challenge läuft · noch ${pluralize(daysLeft, "Tag", "Tage")}` : `Challenge ab ${formatDate(ch.startsAt, { day: "numeric", month: "long" })}`}</p>
-        <p className="headline mt-0.5 text-lg">{ch.title}</p>
-        {ch.description && <p className="mt-1 text-sm text-ink-2">{ch.description}</p>}
+        <p className="spec text-clay-ink">{status}</p>
+        <p className="headline mt-0.5 text-lg">
+          <Link href={`/c/${slug}/wettbewerbe/${ch.id}`} className="after:absolute after:inset-0 hover:underline">{ch.title}</Link>
+        </p>
+        {ch.description && <p className="mt-1 line-clamp-2 text-sm text-ink-2">{ch.description}</p>}
       </div>
-      <p className="font-mono text-[11px] text-clay-ink num">
-        {formatDate(ch.startsAt, { day: "2-digit", month: "2-digit" })} – {formatDate(ch.endsAt, { day: "2-digit", month: "2-digit", year: "numeric" })}
-      </p>
+      <span className="inline-flex h-10 items-center justify-center rounded-xl bg-clay px-4 text-sm font-semibold text-paper">{cta}</span>
     </aside>
   );
 }
@@ -329,7 +341,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
       </header>
 
       <div className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-6 lg:px-10">
-        {canView && data.challenge && <ChallengeBanner ch={data.challenge} />}
+        {canView && data.challenge && <ChallengeBanner ch={data.challenge} slug={c.slug} />}
         {canView && tab === "beitraege" && nextEvent && (
           <aside aria-label="Nächstes Event" className="mx-auto mb-8 max-w-[660px]">
             <p className="spec mb-2 flex items-center justify-between">

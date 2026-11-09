@@ -194,7 +194,7 @@ export default async function CommunityDetailPage({ params, searchParams }: { pa
                 ["Beiträge", counts.posts],
                 ["Ausgeblendete Beiträge", counts.postsHidden],
                 ["Geteilte Projekte", counts.projects],
-                ["Challenges", counts.challenges],
+                ["Wettbewerbe", counts.challenges],
                 ["Offene Fälle", counts.openCases],
                 ["Fälle gesamt", counts.cases],
                 ["Meldungen zur Community", counts.reports],

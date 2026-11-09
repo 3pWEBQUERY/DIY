@@ -1,4 +1,5 @@
 import "server-only";
+import * as comp from "@/server/communities/competitions";
 import { fail } from "@/server/errors";
 import { requireCommunityModerator } from "@/server/authz";
 import * as cs from "@/server/communities/service";
@@ -57,6 +58,21 @@ export const communityRoutes: RouteDef[] = [
     const [projects, shareable] = await Promise.all([cs.listCommunityProjects(c.p.id!, v?.id ?? null), v ? cs.shareableProjects(v.id, c.p.id!) : Promise.resolve([])]);
     return { projects, shareable };
   }),
+  // Wettbewerbe
+  GET("/competitions", async () => comp.listCompetitions(await viewer())),
+  GET("/competitions/:id", async (c) => need(await comp.getCompetition(c.p.id!, await viewer()), "Wettbewerb nicht gefunden.")),
+  GET("/competitions/:id/project-options", async () => comp.entryProjectOptions((await me()).id)),
+  POST("/competitions/:id/entry", async (c) => comp.submitEntry(await me(), c.p.id!, await c.json<unknown>())),
+  DELETE("/competitions/:id/entry", async (c) => comp.withdrawEntry(await me(), c.p.id!)),
+  POST("/competitions/:id/results", async (c) => {
+    const { places } = await c.json<{ places?: { entryId: string; place: number }[] }>();
+    return comp.publishJuryResult(await me(), c.p.id!, places ?? []);
+  }),
+  POST("/competition-entries/:id/vote", async (c) => {
+    const { on } = await c.json<{ on?: boolean }>();
+    return comp.voteEntry(await me(), c.p.id!, on !== false);
+  }),
+  DELETE("/competition-entries/:id", async (c) => comp.removeEntry(await me(), c.p.id!)),
   GET("/communities/:id/challenges", async (c) => ((await cs.canViewCommunityPost(c.p.id!, await viewer())) ? cs.listChallenges(c.p.id!) : [])),
   GET("/communities/:id/manage", async (c) => {
     // Nur Community-Leitung bzw. Plattform-Moderation (wie /c/[slug]/verwalten im Web)

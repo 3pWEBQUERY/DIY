@@ -105,3 +105,55 @@ export async function loadFeedAction(kind: posts.FeedKind, cursor: string | null
   const u = await currentUser();
   return posts.getFeed(kind, u ? { id: u.id, interests: u.profile?.categories ?? [] } : null, cursor);
 }
+
+/* ───────────── Koautorenschaft ───────────── */
+
+export async function listCoauthorsAction(postId: string) {
+  return act(async () => {
+    const { listCoauthors } = await import("@/server/social/coauthors");
+    return listCoauthors(await requireUser(), postId);
+  });
+}
+
+export async function inviteCoauthorsAction(postId: string, handles: string[]) {
+  return act(async () => {
+    const { inviteCoauthors } = await import("@/server/social/coauthors");
+    const r = await inviteCoauthors(await requireUser(), postId, handles);
+    revalidatePath(`/beitrag/${postId}`);
+    return r;
+  });
+}
+
+export async function removeCoauthorAction(postId: string, userId: string) {
+  return act(async () => {
+    const { removeCoauthor } = await import("@/server/social/coauthors");
+    const r = await removeCoauthor(await requireUser(), postId, userId);
+    revalidatePath(`/beitrag/${postId}`);
+    return r;
+  }, "Entfernt.");
+}
+
+export async function respondCoauthorAction(postId: string, accept: boolean) {
+  return act(async () => {
+    const { respondCoauthor } = await import("@/server/social/coauthors");
+    const r = await respondCoauthor(await requireUser(), postId, accept);
+    revalidatePath(`/beitrag/${postId}`);
+    return r;
+  }, accept ? "Du bist jetzt Koautor:in dieses Beitrags." : "Einladung abgelehnt.");
+}
+
+export async function leaveCoauthorAction(postId: string) {
+  return act(async () => {
+    const { leaveCoauthor } = await import("@/server/social/coauthors");
+    const r = await leaveCoauthor(await requireUser(), postId);
+    revalidatePath(`/beitrag/${postId}`);
+    return r;
+  }, "Du bist nicht mehr Koautor:in dieses Beitrags.");
+}
+
+export async function coauthorCandidatesAction() {
+  return act(async () => {
+    const { coauthorCandidates } = await import("@/server/social/coauthors");
+    return coauthorCandidates((await requireUser()).id);
+  });
+}

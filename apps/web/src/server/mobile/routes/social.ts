@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import * as posts from "@/server/social/posts";
 import * as ix from "@/server/social/interactions";
+import * as coauthors from "@/server/social/coauthors";
 import { activeProjectsOf, suggestedCommunities, suggestedCreators, trendingProjects } from "@/server/discovery/suggestions";
 import { categoryOptions } from "@/server/categories/settings";
 import { isBlockedBetween, relationsFor } from "@/server/visibility";
@@ -72,6 +73,20 @@ export const socialRoutes: RouteDef[] = [
   }),
   // ── Entwürfe & geplante Beiträge (Erstellen: POST /posts mit publish: "draft" | "schedule", scheduledAt) ──
   POST("/posts/:id/publish", async (c) => posts.publishDraft(await me(), c.p.id!)),
+  // Koautorenschaft (§9.3)
+  GET("/me/coauthor-candidates", async () => coauthors.coauthorCandidates((await me()).id)),
+  GET("/me/coauthor-invites", async () => coauthors.myCoauthorInvites((await me()).id)),
+  GET("/posts/:id/coauthors", async (c) => coauthors.listCoauthors(await me(), c.p.id!)),
+  POST("/posts/:id/coauthors", async (c) => {
+    const { handles } = await c.json<{ handles?: string[] }>();
+    return coauthors.inviteCoauthors(await me(), c.p.id!, handles ?? []);
+  }),
+  POST("/posts/:id/coauthors/respond", async (c) => {
+    const { accept } = await c.json<{ accept?: boolean }>();
+    return coauthors.respondCoauthor(await me(), c.p.id!, !!accept);
+  }),
+  DELETE("/posts/:id/coauthors/me", async (c) => coauthors.leaveCoauthor(await me(), c.p.id!)),
+  DELETE("/posts/:id/coauthors/:userId", async (c) => coauthors.removeCoauthor(await me(), c.p.id!, c.p.userId!)),
   // { scheduledAt: ISO | null }
   POST("/posts/:id/schedule", async (c) => {
     const at = (await c.json<{ scheduledAt?: string | null }>()).scheduledAt;
@@ -159,7 +174,7 @@ export const socialRoutes: RouteDef[] = [
       : await Promise.all([
           listProjects({ ownerId: userId, sort: "updated" }, vid, { take: 24 }),
           listTutorials({ authorId: userId }, vid, { take: 12 }),
-          posts.listPosts({ ...base, authorId: userId, communityId: null }, vid, { take: 12 }),
+          posts.listPosts({ ...base, communityId: null, OR: [{ authorId: userId }, { coauthors: { some: { userId, status: "ACCEPTED" } } }] }, vid, { take: 12 }),
           profile.user.shop?.status === "ACTIVE"
             ? db.product.findMany({
                 where: { shop: { ownerId: userId }, status: { in: ["ACTIVE", "SOLD_OUT"] } },
@@ -218,7 +233,7 @@ export const socialRoutes: RouteDef[] = [
     const vid = await viewerId();
     if (vid && vid !== prof.userId && (await isBlockedBetween(vid, prof.userId))) return { items: [], nextCursor: null };
     const base = await posts.baseFeedWhere(vid, { includeMuted: true });
-    return posts.listPosts({ ...base, authorId: prof.userId, communityId: null }, vid, { take: 20, cursor: str(c.q, "cursor") ?? null });
+    return posts.listPosts({ ...base, communityId: null, OR: [{ authorId: prof.userId }, { coauthors: { some: { userId: prof.userId, status: "ACCEPTED" } } }] }, vid, { take: 20, cursor: str(c.q, "cursor") ?? null });
   }),
   GET("/users/:handle/blog", async (c) => {
     const h = need(await resolveHandle(c.p.handle!));

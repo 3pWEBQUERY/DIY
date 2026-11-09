@@ -191,8 +191,9 @@ export async function getCommunityPage(slug: string, viewer: SessionUser | null)
   const now = new Date();
   const [challenge, pending, projectCount] = await Promise.all([
     db.communityChallenge.findFirst({
-      where: { communityId: c.id, endsAt: { gte: now }, startsAt: { lte: new Date(now.getTime() + 14 * 86400_000) } },
-      orderBy: { startsAt: "asc" },
+      // Laufend (Einreichung/Abstimmung/Jury), bald startend oder vor kurzem entschieden
+      where: { communityId: c.id, startsAt: { lte: new Date(now.getTime() + 14 * 86400_000) }, OR: [{ endsAt: { gte: now } }, { resultsAt: null }, { resultsAt: { gte: new Date(now.getTime() - 7 * 86400_000) } }] },
+      orderBy: { endsAt: "asc" },
     }),
     isModRole(m) || platformMod ? db.communityMember.count({ where: { communityId: c.id, state: "PENDING" } }) : Promise.resolve(0),
     db.communityProject.count({ where: { communityId: c.id, project: { visibility: "PUBLIC", state: "PUBLISHED" } } }),
@@ -694,7 +695,8 @@ export async function createChallenge(communityId: string, input: unknown) {
   const data = communityChallengeSchema.parse(input);
   if (data.endsAt < new Date()) throw fail.invalid("Das Ende liegt in der Vergangenheit.", { endsAt: "Das Ende liegt in der Vergangenheit." });
   return db.$transaction(async (tx) => {
-    const ch = await tx.communityChallenge.create({ data: { communityId, ...data } });
+    const votingEndsAt = data.judging === "VOTES" ? (data.votingEndsAt ?? new Date(data.endsAt.getTime() + 7 * 86400_000)) : null;
+    const ch = await tx.communityChallenge.create({ data: { communityId, ...data, votingEndsAt, createdById: user.id } });
     await recordAction(tx, { communityId, moderatorId: user.id, targetType: "COMMUNITY", targetId: communityId, action: "CREATE_CHALLENGE", reason: data.title });
     return { id: ch.id };
   });

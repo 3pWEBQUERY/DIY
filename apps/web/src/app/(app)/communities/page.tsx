@@ -31,7 +31,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
     <PageHeader
       kicker="Communities"
       title="Gemeinsam werkeln"
-      description="Gruppen rund um ein Handwerk, eine Region oder ein Projekt. Stell Fragen, zeig Zwischenstände, mach bei Challenges mit."
+      description="Gruppen rund um ein Handwerk, eine Region oder ein Projekt. Stell Fragen, zeig Zwischenstände, mach bei Wettbewerben mit."
       actions={
         <>
           <LinkButton href="/events" variant="outline">

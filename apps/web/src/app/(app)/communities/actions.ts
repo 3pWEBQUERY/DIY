@@ -182,7 +182,7 @@ export async function createChallengeAction(id: string, input: unknown) {
     const r = await cs.createChallenge(id, input);
     refresh();
     return r;
-  }, "Challenge angelegt.");
+  }, "Wettbewerb angelegt.");
 }
 
 export async function deleteChallengeAction(id: string, challengeId: string) {
@@ -190,5 +190,5 @@ export async function deleteChallengeAction(id: string, challengeId: string) {
     await cs.deleteChallenge(id, challengeId);
     refresh();
     return null;
-  }, "Challenge gelöscht.");
+  }, "Wettbewerb gelöscht.");
 }

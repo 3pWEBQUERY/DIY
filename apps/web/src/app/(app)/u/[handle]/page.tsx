@@ -86,7 +86,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     : await Promise.all([
         listProjects({ ownerId: userId, sort: "updated" }, viewerId, { take: 24 }),
         listTutorials({ authorId: userId }, viewerId, { take: 12 }),
-        listPosts({ ...base, authorId: userId, communityId: null }, viewerId, { take: 12 }),
+        listPosts({ ...base, communityId: null, OR: [{ authorId: userId }, { coauthors: { some: { userId, status: "ACCEPTED" } } }] }, viewerId, { take: 12 }),
         profile.user.shop?.status === "ACTIVE"
           ? db.product.findMany({ where: { shop: { ownerId: userId }, status: { in: ["ACTIVE", "SOLD_OUT"] } }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
           : Promise.resolve([]),

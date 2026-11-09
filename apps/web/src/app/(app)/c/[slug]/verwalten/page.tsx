@@ -8,6 +8,7 @@ import { categoryOptions } from "@/server/categories/settings";
 import { getCommunityPage, listByState, listChallenges, listHiddenPosts, listMembers, moderationLog, ROLE_RANK } from "@/server/communities/service";
 import { Page, TabLinks } from "@/components/shell/page";
 import { CommunityForm, RulesForm } from "@/components/communities/community-forms";
+import { competitionPhase, PHASE_LABEL } from "@/server/communities/competitions";
 import { BannedList, ChallengesManager, InvitePanel, MembersManager, RequestsList } from "@/components/communities/community-manage";
 import { HiddenPosts } from "@/components/communities/community-feed";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
@@ -33,7 +34,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
     { key: "mitglieder", label: "Mitglieder & Rollen" },
     { key: "anfragen", label: "Anfragen", count: data.pendingCount },
     { key: "beitraege", label: "Ausgeblendet" },
-    { key: "challenges", label: "Challenges" },
+    { key: "challenges", label: "Wettbewerbe" },
     { key: "protokoll", label: "Protokoll" },
   ];
   const active = SECTIONS.find((s) => s.key === sp.bereich)?.key ?? SECTIONS[0]!.key;
@@ -107,7 +108,7 @@ export default async function ManageCommunityPage({ params, searchParams }: Prop
     }
     case "challenges": {
       const challenges = await listChallenges(c.id);
-      body = <ChallengesManager communityId={c.id} challenges={challenges.map((ch) => ({ id: ch.id, title: ch.title, description: ch.description, startsAt: ch.startsAt.toISOString(), endsAt: ch.endsAt.toISOString() }))} />;
+      body = <ChallengesManager communityId={c.id} challenges={challenges.map((ch) => ({ id: ch.id, title: ch.title, description: ch.description, startsAt: ch.startsAt.toISOString(), endsAt: ch.endsAt.toISOString(), judging: ch.judging, entryCount: ch.entryCount, phaseLabel: PHASE_LABEL[competitionPhase(ch)], href: `/c/${c.slug}/wettbewerbe/${ch.id}` }))} />;
       break;
     }
     default: {
