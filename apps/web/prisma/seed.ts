@@ -82,7 +82,12 @@ async function rebrand() {
 async function admin() {
   const email = (process.env.ADMIN_EMAIL ?? "admin@werkraum.local").toLowerCase();
   const password = process.env.ADMIN_PASSWORD ?? "Werkraum-Admin-2026!";
-  const exists = await db.user.findUnique({ where: { email } });
+  // Bestehende Redaktion wiederverwenden – auch wenn ihre E-Mail-Adresse inzwischen geändert wurde
+  // (ADMIN_EMAIL gilt nur für die allererste Einrichtung). Nie ein zweites Redaktionskonto anlegen.
+  const exists =
+    (await db.user.findUnique({ where: { email } })) ??
+    (await db.user.findFirst({ where: { profile: { handle: "werkraum" } } })) ??
+    (await db.user.findFirst({ where: { role: "SUPERADMIN", status: { not: "DELETED" } }, orderBy: { createdAt: "asc" } }));
   if (exists) {
     await rebrand();
     return exists;
