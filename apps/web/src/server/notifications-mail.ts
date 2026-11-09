@@ -1,6 +1,7 @@
 import "server-only";
 import { db, type Prisma } from "@/server/db";
 import { sendMail } from "@/server/mail";
+import { unsubscribeUrl } from "@/server/mail-unsubscribe";
 import { captureError } from "@/server/monitoring";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
 import { notificationHref, notificationText } from "@/server/notifications-format";
@@ -84,15 +85,25 @@ async function mailBatch(pending: PendingMail[]) {
     const to = list[0]!.recipient.email;
     if (to.endsWith(".invalid")) continue;
     // Vollständige Sätze inkl. Titel/Bestellnummer statt nur „Typ: Name“
-    const lines = list.map((n) => {
+    const items = list.slice(0, 20).map((n) => {
       const d = (n.data ?? {}) as Record<string, unknown>;
-      const excerpt = typeof d.excerpt === "string" && d.excerpt ? `\n  „${d.excerpt.slice(0, 140)}“` : "";
-      return `• ${notificationText(n)}${excerpt}`;
+      const excerpt = typeof d.excerpt === "string" && d.excerpt ? d.excerpt.slice(0, 140) : undefined;
+      return { text: notificationText(n), excerpt, url: `${appUrl}${notificationHref(n)}` };
     });
+    const more = list.length > items.length ? ` Hier die neuesten ${items.length} von ${list.length}:` : "";
+    // Sicherheits-, Bestell- und Moderationsmails lassen sich nicht abbestellen – nur Neuigkeiten
+    const optional = list.some((n) => !ALWAYS_INSTANT.includes(n.type as NotificationType));
     const target = list.length === 1 ? notificationHref(list[0]!) : "/benachrichtigungen";
     const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
     try {
-      const r = await sendMail(to, subject, `Das ist in deiner Werkstatt passiert:\n\n${lines.join("\n\n")}`, { cta: { label: "Ansehen", url: `${appUrl}${target}` } });
+      const r = await sendMail(to, subject, list.length > items.length ? `Das ist in deiner Werkstatt passiert.${more}` : "Das ist in deiner Werkstatt passiert:", {
+        eyebrow: list.length === 1 ? "Neuigkeit" : `${list.length} Neuigkeiten`,
+        heading: list.length === 1 ? (NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit") : "Neues aus deiner Werkstatt",
+        preheader: items.map((i) => i.text).join(" · ").slice(0, 140),
+        items,
+        cta: { label: list.length === 1 ? "Ansehen" : "Alle Benachrichtigungen", url: `${appUrl}${target}` },
+        unsubscribeUrl: optional ? unsubscribeUrl(list[0]!.recipientId) : undefined,
+      });
       // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut; nach 48 Std. aufgeben
       // (sonst Endlosschleife, z.B. solange die Absender-Domain nicht bestätigt ist)
       const failed = "failed" in r && r.failed;

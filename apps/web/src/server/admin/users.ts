@@ -258,10 +258,10 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
     oldEmail,
     "Deine E-Mail-Adresse bei Werkuno wurde geändert",
     `Der Werkuno-Support hat die E-Mail-Adresse deines Kontos auf ${data.email.replace(/(.{2}).*@/, "$1…@")} geändert.\n\nWarst du das nicht oder hast du das nicht angefragt? Antworte bitte sofort auf diese E-Mail oder schreib uns über die Hilfe-Seite.`,
-    { cta: { label: "Hilfe & Support", url: `${env().APP_URL}/hilfe` } },
+    { eyebrow: "Konto & Sicherheit", cta: { label: "Hilfe & Support", url: `${env().APP_URL}/hilfe` } },
   ).catch(() => {});
   if (data.markVerified) {
-    await sendMail(data.email, "Deine E-Mail-Adresse bei Werkuno", "Diese Adresse ist jetzt mit deinem Werkuno-Konto verknüpft. Du meldest dich ab sofort damit an.", { cta: { label: "Zu Werkuno", url: `${env().APP_URL}/anmelden` } }).catch(() => {});
+    await sendMail(data.email, "Deine E-Mail-Adresse bei Werkuno", "Diese Adresse ist jetzt mit deinem Werkuno-Konto verknüpft. Du meldest dich ab sofort damit an.", { eyebrow: "Konto & Sicherheit", cta: { label: "Zu Werkuno", url: `${env().APP_URL}/anmelden` } }).catch(() => {});
   } else {
     await sendVerification(userId, data.email).catch(() => {});
   }

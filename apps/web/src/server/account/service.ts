@@ -18,6 +18,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { sendMail } from "@/server/mail";
 import { attachMedia } from "@/server/media/service";
 import { changePassword, isHandleAvailable, sendVerification } from "@/server/identity/service";
+import { env } from "@/server/env";
 import { BRAND } from "@/config/brand";
 import type { SessionUser } from "@/server/auth/session";
 import { browserFromUserAgent } from "@/lib/user-agent";
@@ -254,6 +255,7 @@ export async function createSupportTicket(user: Pick<SessionUser, "id" | "email"
     user.email,
     `Wir haben deine Anfrage erhalten (#${ref})`,
     `Hallo ${user.profile.displayName}\n\nDanke für deine Nachricht zum Thema „${SUPPORT_TOPIC_LABEL[d.topic]}“. Wir melden uns in der Regel innerhalb von zwei Werktagen per E-Mail.\n\nBetreff: ${d.subject}\nReferenz: #${ref}\n\nBei dringenden Sicherheitsproblemen (z.B. Betrugsversuch, Konto übernommen) ändere bitte sofort dein Passwort und beende alle Sitzungen in den Einstellungen.\n\nDein ${BRAND.name}-Team`,
+    { eyebrow: "Support", heading: "Wir haben deine Anfrage erhalten", cta: { label: "Zur Hilfe", url: `${env().APP_URL}/hilfe` } },
   ).catch((e) => console.warn(JSON.stringify({ level: "warn", msg: "support_mail_failed", err: String(e) })));
   return { id: t.id, ref };
 }

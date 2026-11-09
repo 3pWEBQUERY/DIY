@@ -3,9 +3,9 @@ import { env, features } from "@/server/env";
 import { BRAND } from "@/config/brand";
 
 /** E-Mail-Adapter: Resend in Produktion, Konsole in Entwicklung (§25.8 externe Dienste über Adapter). */
-export async function sendMail(to: string, subject: string, text: string, opts: { cta?: { label: string; url: string } } = {}) {
+export async function sendMail(to: string, subject: string, text: string, opts: MailOptions = {}) {
   const e = env();
-  const html = renderMail(subject, text, opts.cta);
+  const html = renderMail(subject, text, opts);
   const masked = to.replace(/(.{2}).*@/, "$1…@");
   if (!features.email()) {
     // Links (enthalten Einmal-Tokens für Passwort/Verifizierung) nur lokal ausgeben – nie in Produktions-Logs
@@ -17,7 +17,15 @@ export async function sendMail(to: string, subject: string, text: string, opts: 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${e.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: e.MAIL_FROM, to, subject, text: opts.cta ? `${text}\n\n${opts.cta.label}: ${opts.cta.url}` : text, html }),
+      body: JSON.stringify({
+        from: e.MAIL_FROM,
+        to,
+        subject,
+        text: plainText(text, opts),
+        html,
+        // Abmelden mit einem Klick direkt im Postfach (RFC 8058) – nur bei Benachrichtigungs-Mails
+        ...(opts.unsubscribeUrl ? { headers: { "List-Unsubscribe": `<${opts.unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
+      }),
     });
     if (!res.ok) {
       // Kein Throw: Registrierung/Passwort-Reset dürfen nicht an einem Mail-Ausfall scheitern
@@ -34,6 +42,14 @@ export async function sendMail(to: string, subject: string, text: string, opts: 
     await reportMailFailure(String(err).slice(0, 200));
     return { delivered: false, failed: true, reason: "Resend nicht erreichbar" };
   }
+}
+
+function plainText(text: string, opts: MailOptions) {
+  const parts = [text];
+  if (opts.items?.length) parts.push(opts.items.map((i) => `• ${i.text}${i.excerpt ? `\n  „${i.excerpt}“` : ""}${i.url ? `\n  ${i.url}` : ""}`).join("\n\n"));
+  if (opts.cta) parts.push(`${opts.cta.label}: ${opts.cta.url}`);
+  parts.push(`—\n${BRAND.name} · ${BRAND.claim}${opts.unsubscribeUrl ? `\nE-Mails abbestellen: ${opts.unsubscribeUrl}` : ""}`);
+  return parts.join("\n\n");
 }
 
 /** Fehlermeldung von Resend lesbar machen (enthält keine Geheimnisse). */
@@ -88,19 +104,107 @@ function esc(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-function renderMail(subject: string, text: string, cta?: { label: string; url: string }) {
-  const paragraphs = text
+/** Farben und Schrift wie auf der Website (globals.css). */
+const C = {
+  paper: "#faf8f5",
+  card: "#ffffff",
+  sunken: "#f3efeb",
+  ink: "#262427",
+  ink2: "#3d393c",
+  muted: "#6b6461",
+  line: "#e7e2de",
+  coral: "#b64b3a",
+  coralSoft: "#f6e5e0",
+};
+const FONT = `Manrope,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif`;
+
+export type MailItem = { text: string; excerpt?: string; url?: string };
+export type MailOptions = {
+  cta?: { label: string; url: string };
+  /** Kleine Überschrift über dem Titel (wie auf der Website, z. B. „Konto & Sicherheit“). */
+  eyebrow?: string;
+  /** Titel in der Mail, falls er vom Betreff abweichen soll. */
+  heading?: string;
+  /** Vorschautext in der Postfach-Liste. */
+  preheader?: string;
+  /** Liste von Ereignissen (Benachrichtigungen) als Karten. */
+  items?: MailItem[];
+  /** Benachrichtigungs-Mails: Abmeldelink (Fusszeile + List-Unsubscribe-Header). */
+  unsubscribeUrl?: string;
+};
+
+/** Text in Absätze; einfache Aufzählungen („• “) werden zu Listenpunkten. */
+function paragraphs(text: string) {
+  return text
     .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 16px;line-height:1.6">${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .map((p) => {
+      const lines = p.split("\n");
+      if (lines.every((l) => /^[•\-–] /.test(l))) {
+        return `<ul style="margin:0 0 18px;padding:0 0 0 20px">${lines.map((l) => `<li style="margin:0 0 6px;font-size:16px;line-height:1.6;color:${C.ink2}">${esc(l.replace(/^[•\-–] /, ""))}</li>`).join("")}</ul>`;
+      }
+      return `<p style="margin:0 0 18px;font-size:16px;line-height:1.6;color:${C.ink2}">${esc(p).replace(/\n/g, "<br>")}</p>`;
+    })
     .join("");
-  const button = cta
-    ? `<p style="margin:24px 0"><a href="${esc(cta.url)}" style="display:inline-block;background:#B64B3A;color:#fff;padding:12px 20px;text-decoration:none;font-weight:600">${esc(cta.label)}</a></p>`
+}
+
+function itemCards(items: MailItem[]) {
+  const rows = items
+    .map((it) => {
+      const excerpt = it.excerpt ? `<div style="margin-top:6px;font-size:14px;line-height:1.55;color:${C.muted}">„${esc(it.excerpt)}“</div>` : "";
+      const body = `<div style="font-size:15px;line-height:1.5;color:${C.ink};font-weight:600">${esc(it.text)}</div>${excerpt}`;
+      const inner = it.url ? `<a href="${esc(it.url)}" style="text-decoration:none;color:${C.ink};display:block">${body}</a>` : body;
+      return `<tr><td style="padding:0 0 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.sunken};border-radius:12px"><tr><td style="padding:14px 16px;border-left:3px solid ${C.coral};border-radius:12px">${inner}</td></tr></table></td></tr>`;
+    })
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 14px">${rows}</table>`;
+}
+
+function button(cta: { label: string; url: string }) {
+  const url = esc(cta.url);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 22px"><tr><td style="background:${C.coral};border-radius:12px">
+<a href="${url}" style="display:inline-block;padding:14px 26px;font-family:${FONT};font-size:15px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:12px">${esc(cta.label)}&nbsp;&rarr;</a>
+</td></tr></table>
+<p style="margin:0 0 4px;font-size:12px;line-height:1.5;color:${C.muted}">Funktioniert der Button nicht? Öffne diesen Link:<br><a href="${url}" style="color:${C.coral};word-break:break-all">${url}</a></p>`;
+}
+
+export function renderMail(subject: string, text: string, opts: MailOptions = {}) {
+  const app = env().APP_URL.replace(/\/$/, "");
+  const heading = opts.heading ?? subject;
+  const preheader = opts.preheader ?? text.replace(/\s+/g, " ").slice(0, 140);
+  const eyebrow = opts.eyebrow
+    ? `<p style="margin:0 0 14px;font-size:11px;line-height:16px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${C.ink2}"><span style="display:inline-block;width:7px;height:7px;background:${C.coral};border-radius:50%;vertical-align:1px;margin-right:9px"></span>${esc(opts.eyebrow)}</p>`
     : "";
-  return `<!doctype html><html lang="de"><body style="margin:0;background:#FAF8F5;font-family:Manrope,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#262427">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #E7E2DE">
-<tr><td style="padding:20px 28px;border-bottom:1px solid #E7E2DE;font-weight:700;letter-spacing:.18em;font-size:12px">${BRAND.name}</td></tr>
-<tr><td style="padding:28px"><h1 style="font-family:Manrope,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-weight:700;font-size:24px;margin:0 0 16px">${esc(subject)}</h1>${paragraphs}${button}</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #E7E2DE;font-size:12px;color:#77706D">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Benachrichtigungen kannst du in den Einstellungen anpassen.</td></tr>
-</table></td></tr></table></body></html>`;
+  const footerLinks = [
+    opts.unsubscribeUrl ? `<a href="${esc(opts.unsubscribeUrl)}" style="color:${C.muted};text-decoration:underline;white-space:nowrap">E-Mails abbestellen</a>` : null,
+    `<a href="${app}/einstellungen/benachrichtigungen" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Benachrichtigungen</a>`,
+    `<a href="${app}/hilfe" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Hilfe</a>`,
+    `<a href="${app}/rechtliches/datenschutz" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Datenschutz</a>`,
+  ]
+    .filter(Boolean)
+    .join(`&nbsp;· `);
+  return `<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
+<title>${esc(subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>body{margin:0;padding:0}a{color:${C.coral}}@media (max-width:620px){.wk-pad{padding:28px 22px!important}.wk-h1{font-size:26px!important}}</style>
+</head>
+<body style="margin:0;padding:0;background:${C.paper};font-family:${FONT};color:${C.ink};-webkit-font-smoothing:antialiased">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.paper}"><tr><td align="center" style="padding:36px 16px 40px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px">
+<tr><td style="padding:0 4px 22px"><a href="${app}" style="text-decoration:none"><img src="${app}/brand/werkuno-logo-email.png" width="150" height="37" alt="${BRAND.name}" style="display:block;border:0;width:150px;height:auto"></a></td></tr>
+<tr><td style="background:${C.card};border:1px solid ${C.line};border-radius:16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="wk-pad" style="padding:40px 40px 34px;font-family:${FONT}">
+${eyebrow}<h1 class="wk-h1" style="margin:0 0 18px;font-family:${FONT};font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em;color:${C.ink}">${esc(heading)}</h1>
+${paragraphs(text)}${opts.items?.length ? itemCards(opts.items) : ""}${opts.cta ? button(opts.cta) : ""}
+</td></tr></table>
+</td></tr>
+<tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.muted}">
+<p style="margin:0 0 10px;font-weight:700;color:${C.ink2}">${esc(BRAND.claim)}</p>
+<p style="margin:0 0 10px">${footerLinks}</p>
+<p style="margin:0">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Fragen? <a href="mailto:${BRAND.supportEmail}" style="color:${C.muted}">${BRAND.supportEmail}</a></p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }

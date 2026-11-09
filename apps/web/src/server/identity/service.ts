@@ -44,7 +44,7 @@ export async function sendVerification(userId: string, email: string) {
     email,
     "Bestätige deine E-Mail-Adresse",
     "Willkommen bei Werkuno! Bitte bestätige deine E-Mail-Adresse, damit wir dich bei wichtigen Ereignissen erreichen können.\n\nDer Link ist 48 Stunden gültig.",
-    { cta: { label: "E-Mail bestätigen", url: `${env().APP_URL}/verifizieren/${raw}` } },
+    { eyebrow: "Willkommen", cta: { label: "E-Mail bestätigen", url: `${env().APP_URL}/verifizieren/${raw}` } },
   );
 }
 
@@ -105,7 +105,7 @@ export async function signIn(input: unknown) {
       user.email,
       "Neue Anmeldung bei deinem Konto",
       `Wir haben eine Anmeldung von einem neuen Gerät festgestellt: ${s.deviceLabel}.\n\nWarst du das nicht? Ändere sofort dein Passwort und melde alle Sitzungen ab.`,
-      { cta: { label: "Sitzungen prüfen", url: `${env().APP_URL}/einstellungen/sicherheit` } },
+      { eyebrow: "Konto & Sicherheit", cta: { label: "Sitzungen prüfen", url: `${env().APP_URL}/einstellungen/sicherheit` } },
     ).catch(() => {});
   }
   // mfaRequired: Passwort korrekt, Session wartet auf den zweiten Faktor
@@ -137,6 +137,7 @@ export async function requestPasswordReset(email: string) {
   if (!user || user.status === "DELETED" || user.status === "BANNED") return;
   const raw = await issueToken(user.id, "PASSWORD_RESET", RESET_MINUTES);
   await sendMail(user.email, "Passwort zurücksetzen", "Du hast ein neues Passwort angefordert. Der Link ist 60 Minuten gültig.\n\nFalls du das nicht warst, kannst du diese E-Mail ignorieren.", {
+    eyebrow: "Konto & Sicherheit",
     cta: { label: "Neues Passwort festlegen", url: `${env().APP_URL}/passwort-zuruecksetzen/${raw}` },
   });
 }

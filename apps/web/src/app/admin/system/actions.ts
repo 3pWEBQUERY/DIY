@@ -48,7 +48,10 @@ export async function sendTestMailAction() {
     const u = await requireRole("ADMIN");
     const { sendMail } = await import("@/server/mail");
     const { audit } = await import("@/server/audit");
-    const r = await sendMail(u.email, "Test-E-Mail von Werkuno", `Hallo!\n\nDiese Test-E-Mail bestätigt, dass der Versand über Resend funktioniert.\n\nGesendet am ${new Date().toLocaleString("de-CH", { timeZone: "Europe/Zurich" })}.`);
+    const r = await sendMail(u.email, "Test-E-Mail von Werkuno", `Hallo!\n\nDiese Test-E-Mail bestätigt, dass der Versand über Resend funktioniert.\n\nGesendet am ${new Date().toLocaleString("de-CH", { timeZone: "Europe/Zurich" })}.`, {
+      eyebrow: "Systemtest",
+      cta: { label: "Zur Systemübersicht", url: `${(await import("@/server/env")).env().APP_URL}/admin/system` },
+    });
     await audit({ actorId: u.id, action: "admin.mail_test", meta: { delivered: r.delivered } });
     if (!r.delivered) {
       const { fail } = await import("@/server/errors");
