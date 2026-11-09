@@ -5,6 +5,7 @@ import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { sendTestMailAction } from "@/app/admin/system/actions";
+import { callAction } from "@/lib/use-action";
 
 export function MailTestButton() {
   const [pending, start] = useTransition();
@@ -16,7 +17,7 @@ export function MailTestButton() {
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await sendTestMailAction();
+            const r = await callAction(() => sendTestMailAction());
             const res = r.ok ? { ok: true, text: `Gesendet an ${r.data.to}. Schau in dein Postfach (auch im Spam-Ordner).` } : { ok: false, text: r.error };
             setResult(res);
             toast(res.text, res.ok ? "ok" : "error");

@@ -21,6 +21,7 @@ import {
   setPostHiddenAction,
   setPostPinnedAction,
 } from "@/app/(app)/communities/actions";
+import { callAction } from "@/lib/use-action";
 
 type Viewer = { id: string; displayName: string; avatarUrl: string | null } | null;
 
@@ -38,7 +39,7 @@ export function CommunityComposer({ communityId, communityName, viewer, isMod }:
   const canPost = (body.trim() || ready.length) && !uploading && pollReady(poll) && (!poll || !!body.trim());
   const submit = () =>
     start(async () => {
-      const r = await createCommunityPostAction(communityId, { body, media: ready.map((m) => ({ id: m.id, alt: m.alt })), isAnnouncement: announce, poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined });
+      const r = await callAction(() => createCommunityPostAction(communityId, { body, media: ready.map((m) => ({ id: m.id, alt: m.alt })), isAnnouncement: announce, poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined }));
       if (r.ok) {
         toast("Veröffentlicht.");
         setBody("");
@@ -252,7 +253,7 @@ export function HiddenPosts({ communityId, posts, viewer }: { communityId: strin
               disabled={pending}
               onClick={() =>
                 start(async () => {
-                  const r = await setPostHiddenAction(communityId, p.id, false);
+                  const r = await callAction(() => setPostHiddenAction(communityId, p.id, false));
                   if (r.ok) {
                     toast("Beitrag wiederhergestellt.");
                     router.refresh();

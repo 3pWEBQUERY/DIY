@@ -25,6 +25,7 @@ import {
   updateShoppingListItemAction,
 } from "@/app/(app)/einkaufslisten/actions";
 import { MaterialInput } from "./line-editor";
+import { callAction } from "@/lib/use-action";
 
 type Item = ShoppingListView["items"][number];
 
@@ -72,7 +73,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
     const prev = items;
     setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...p } : x)));
     start(async () => {
-      const r = await updateShoppingListItemAction(id, p);
+      const r = await callAction(() => updateShoppingListItemAction(id, p));
       if (!r.ok) {
         setItems(prev);
         toast(r.error, "error");
@@ -84,7 +85,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
     const prev = items;
     setItems((xs) => xs.filter((x) => x.id !== id));
     start(async () => {
-      const r = await removeShoppingListItemAction(id);
+      const r = await callAction(() => removeShoppingListItemAction(id));
       if (!r.ok) {
         setItems(prev);
         toast(r.error, "error");
@@ -96,7 +97,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
     e.preventDefault();
     if (!name.trim()) return;
     start(async () => {
-      const r = await addShoppingListItemAction(list.id, { name, quantity: qty, materialId });
+      const r = await callAction(() => addShoppingListItemAction(list.id, { name, quantity: qty, materialId }));
       if (r.ok) {
         setItems((xs) => [...xs, { id: r.data.id, name: name.trim(), quantity: qty.trim(), haveIt: false, purchased: false, sourceType: null, sourceTitle: null, category: null, materialId: materialId ?? null, materialSlug: null }]);
         setName("");
@@ -108,7 +109,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
 
   const share = (on: boolean) =>
     start(async () => {
-      const r = await setShoppingListSharedAction(list.id, on);
+      const r = await callAction(() => setShoppingListSharedAction(list.id, on));
       if (r.ok) {
         setToken(r.data.shareToken);
         if (on && r.data.shareToken) {
@@ -121,7 +122,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
     { label: "Umbenennen", icon: <Pencil size={15} />, onSelect: () => setRenaming(true) },
     ...(otherLists.length ? [{ label: "Mit anderer Liste zusammenführen", icon: <Combine size={15} />, onSelect: () => setMergeOpen(true) }] : []),
     ...(done.length ? [{ label: "Erledigte entfernen", icon: <Check size={15} />, onSelect: () => start(async () => {
-      const r = await clearDoneItemsAction(list.id);
+      const r = await callAction(() => clearDoneItemsAction(list.id));
       if (r.ok) {
         setItems((xs) => xs.filter((x) => !x.purchased && !x.haveIt));
         toast(r.message ?? "Entfernt.");
@@ -135,7 +136,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
       onSelect: async () =>
         (await confirmDialog(`«${title}» löschen?`)) &&
         start(async () => {
-          const r = await deleteShoppingListAction(list.id);
+          const r = await callAction(() => deleteShoppingListAction(list.id));
           if (r.ok) router.push("/einkaufslisten");
           else toast(r.error, "error");
         }),
@@ -152,7 +153,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
             onSubmit={(e) => {
               e.preventDefault();
               start(async () => {
-                const r = await renameShoppingListAction(list.id, { title });
+                const r = await callAction(() => renameShoppingListAction(list.id, { title }));
                 if (r.ok) setRenaming(false);
                 else toast(r.error, "error");
               });
@@ -240,7 +241,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
             e.preventDefault();
             if (!mergeFrom) return;
             start(async () => {
-              const r = await mergeShoppingListsAction(list.id, mergeFrom);
+              const r = await callAction(() => mergeShoppingListsAction(list.id, mergeFrom));
               if (r.ok) {
                 setMergeOpen(false);
                 toast(`${r.data.added} übernommen, ${r.data.merged} zusammengefasst.`);
@@ -273,7 +274,7 @@ function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch
   if (!items.length) return null;
   const toStock = (it: Item) =>
     start(async () => {
-      const r = await stockFromShoppingItemAction(it.id);
+      const r = await callAction(() => stockFromShoppingItemAction(it.id));
       if (r.ok) {
         setStocked((s) => new Set(s).add(it.id));
         toast(r.message ?? "Im Bestand.");
@@ -344,7 +345,7 @@ export function CreateShoppingList() {
         e.preventDefault();
         if (!title.trim()) return;
         start(async () => {
-          const r = await createShoppingListAction({ title });
+          const r = await callAction(() => createShoppingListAction({ title }));
           if (r.ok) router.push(`/einkaufslisten/${r.data.id}`);
           else toast(r.error, "error");
         });

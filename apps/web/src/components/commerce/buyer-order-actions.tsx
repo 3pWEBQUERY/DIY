@@ -9,6 +9,7 @@ import { Field, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { confirmReceiptAction, createReviewAction, reportProblemAction } from "@/app/(app)/bestellungen/actions";
+import { callAction } from "@/lib/use-action";
 
 export function ReportProblemButton({ orderId }: { orderId: string }) {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function ReportProblemButton({ orderId }: { orderId: string }) {
           onSubmit={(e) => {
             e.preventDefault();
             start(async () => {
-              const r = await reportProblemAction(orderId, note);
+              const r = await callAction(() => reportProblemAction(orderId, note));
               if (r.ok) {
                 toast(r.message ?? "Gemeldet.");
                 setOpen(false);
@@ -60,7 +61,7 @@ export function ConfirmReceiptButton({ orderId }: { orderId: string }) {
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const r = await confirmReceiptAction(orderId);
+          const r = await callAction(() => confirmReceiptAction(orderId));
           if (r.ok) {
             toast(r.message ?? "Bestätigt.");
             router.refresh();
@@ -126,7 +127,7 @@ export function ReviewForm({ orderId, orderItemId, title }: { orderId: string; o
           return;
         }
         start(async () => {
-          const r = await createReviewAction(orderId, { orderItemId, productRating: product, sellerRating: seller || undefined, body });
+          const r = await callAction(() => createReviewAction(orderId, { orderItemId, productRating: product, sellerRating: seller || undefined, body }));
           if (r.ok) {
             toast(r.message ?? "Danke!");
             router.refresh();

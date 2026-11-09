@@ -20,6 +20,7 @@ import { GroupInfo } from "./group-info";
 import { GroupAvatar } from "./inbox";
 import { leaveGroupAction } from "@/app/(app)/nachrichten/actions";
 import { LIVE_EVENT, refreshCounts, type LiveDetail } from "@/components/shell/live-counts";
+import { callAction } from "@/lib/use-action";
 
 const POLL_MS = 5000; // Rückfall, falls der Live-Kanal (SSE) nicht verfügbar ist
 
@@ -192,7 +193,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           setAnnounce(`Neue Nachricht von ${people.get(last.senderId)?.displayName ?? otherName}: ${last.body ? last.body.slice(0, 120) : "Bild"}`);
           if (nearBottom.current) requestAnimationFrame(() => scrollToBottom(true));
           else setNewBelow(true);
-          await markReadAction(thread.id);
+          await callAction(() => markReadAction(thread.id));
           refreshCounts();
           router.refresh();
         }
@@ -224,7 +225,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
   }, [poll]);
 
   async function send(body: string, media: { id: string; alt: string }[]) {
-    const r = await sendMessageAction(thread.id, { body, media });
+    const r = await callAction(() => sendMessageAction(thread.id, { body, media }));
     if (!r.ok) {
       toast(r.error, "error");
       return false;
@@ -244,7 +245,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
       if (!first) return;
       const el = scroller.current;
       const prevHeight = el?.scrollHeight ?? 0;
-      const r = await loadOlderMessagesAction(thread.id, first.createdAt);
+      const r = await callAction(() => loadOlderMessagesAction(thread.id, first.createdAt));
       if (!r.ok) return toast(r.error, "error");
       setMessages((prev) => [...r.data.messages.filter((m) => !prev.some((p) => p.id === m.id)), ...prev]);
       setHasMore(r.data.hasMore);
@@ -255,7 +256,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
 
   const respond = (accept: boolean) =>
     start(async () => {
-      const r = await respondToRequestAction(thread.id, accept);
+      const r = await callAction(() => respondToRequestAction(thread.id, accept));
       if (!r.ok) return toast(r.error, "error");
       refreshCounts();
       toast(r.message ?? "");
@@ -277,7 +278,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
             onSelect: async () =>
               (await confirmDialog("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.")) &&
               start(async () => {
-                const r = await leaveGroupAction(thread.id);
+                const r = await callAction(() => leaveGroupAction(thread.id));
                 if (!r.ok) return toast(r.error, "error");
                 toast(r.message ?? "");
                 router.push("/nachrichten");
@@ -292,7 +293,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
             icon: archived ? <ArchiveRestore size={15} /> : <Archive size={15} />,
             onSelect: () =>
               start(async () => {
-                const r = await archiveConversationAction(thread.id, !archived);
+                const r = await callAction(() => archiveConversationAction(thread.id, !archived));
                 if (r.ok) {
                   setArchived(!archived);
                   toast(r.message ?? "");
@@ -312,7 +313,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
             onSelect: async () =>
               (await confirmDialog(`${otherName} blockieren? Ihr könnt euch dann keine Nachrichten mehr schicken.`)) &&
               start(async () => {
-                const r = await blockAction(thread.other!.id, true);
+                const r = await callAction(() => blockAction(thread.other!.id, true));
                 if (r.ok) {
                   toast("Profil blockiert.");
                   router.push("/nachrichten");

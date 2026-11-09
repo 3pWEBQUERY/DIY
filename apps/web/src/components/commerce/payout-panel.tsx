@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/toast";
 import { bankUpdateLinkAction, requestPayoutAction, setPayoutScheduleAction } from "@/app/studio/einnahmen/actions";
 import { parseMoneyInput, minorToInput } from "@/server/commerce/rules";
 import { cn, formatDate } from "@/lib/utils";
+import { callAction } from "@/lib/use-action";
 
 type Interval = "manual" | "daily" | "weekly" | "monthly";
 export type PayoutPanelData = {
@@ -70,7 +71,7 @@ export function PayoutPanel({ data }: { data: PayoutPanelData }) {
 
   const openBank = () =>
     start(async () => {
-      const r = await bankUpdateLinkAction();
+      const r = await callAction(() => bankUpdateLinkAction());
       if (r.ok) location.assign(r.data.url);
       else toast(r.error, "error");
     });
@@ -139,7 +140,7 @@ function SchedulePicker({ schedule, disabled, onSaved }: { schedule: PayoutPanel
 
   const save = () =>
     start(async () => {
-      const r = await setPayoutScheduleAction({ interval, weeklyAnchor: interval === "weekly" ? weekly : null, monthlyAnchor: interval === "monthly" ? Number(monthly) : null });
+      const r = await callAction(() => setPayoutScheduleAction({ interval, weeklyAnchor: interval === "weekly" ? weekly : null, monthlyAnchor: interval === "monthly" ? Number(monthly) : null }));
       if (r.ok) {
         toast("Auszahlungsplan gespeichert.");
         onSaved();
@@ -214,7 +215,7 @@ function RequestDialog({ open, onClose, data, onDone }: { open: boolean; onClose
   const submit = () =>
     start(async () => {
       setError(null);
-      const r = await requestPayoutAction({ amountMinor: minor ?? undefined, switchToManual: automatic });
+      const r = await callAction(() => requestPayoutAction({ amountMinor: minor ?? undefined, switchToManual: automatic }));
       if (r.ok) {
         const when = r.data.arrivalAt ? formatDate(r.data.arrivalAt, { weekday: "long", day: "numeric", month: "long" }) : null;
         toast(`Auszahlung von ${formatMoney(r.data.amountMinor, c)} ausgelöst${when ? ` – voraussichtlich am ${when} auf deinem Konto` : ""}.`);

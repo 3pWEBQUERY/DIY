@@ -11,6 +11,7 @@ import { PeoplePicker, type Candidate } from "@/components/messages/people-picke
 import { coauthorCandidatesAction, inviteCoauthorsAction, leaveCoauthorAction, listCoauthorsAction, removeCoauthorAction, respondCoauthorAction } from "@/app/(app)/social-actions";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
+import { callAction } from "@/lib/use-action";
 
 const MAX = 3;
 type Row = { id: string; handle: string; displayName: string; avatarUrl: string | null; status: "QUEUED" | "PENDING" | "ACCEPTED" };
@@ -40,7 +41,7 @@ export function CoauthorDialog({ postId, open, onClose }: { postId: string; open
   const free = MAX - (rows?.length ?? 0);
   const invite = () =>
     start(async () => {
-      const r = await inviteCoauthorsAction(postId, handles);
+      const r = await callAction(() => inviteCoauthorsAction(postId, handles));
       if (r.ok) {
         toast(r.data.queued ? "Vorgemerkt – die Einladung geht beim Veröffentlichen raus." : r.data.invited.length === 1 ? `${r.data.invited[0]} wurde eingeladen.` : `${r.data.invited.length} Personen wurden eingeladen.`);
         setHandles([]);
@@ -50,7 +51,7 @@ export function CoauthorDialog({ postId, open, onClose }: { postId: string; open
     });
   const remove = (row: Row) =>
     start(async () => {
-      const r = await removeCoauthorAction(postId, row.id);
+      const r = await callAction(() => removeCoauthorAction(postId, row.id));
       if (r.ok) {
         load();
         router.refresh();
@@ -103,7 +104,7 @@ export function CoauthorInviteBanner({ postId, invitedBy }: { postId: string; in
   const [pending, start] = useTransition();
   const answer = (accept: boolean) =>
     start(async () => {
-      const r = await respondCoauthorAction(postId, accept);
+      const r = await callAction(() => respondCoauthorAction(postId, accept));
       if (r.ok) {
         toast(r.message ?? "Gespeichert.");
         router.refresh();
@@ -129,7 +130,7 @@ export function CoauthorInviteBanner({ postId, invitedBy }: { postId: string; in
 /** Menüpunkt-Aktion für Koautor:innen: austreten. */
 export async function leaveCoauthor(postId: string, onDone: () => void) {
   if (!(await confirmDialog({ title: "Als Koautor:in austreten?", body: "Du wirst nicht mehr am Beitrag genannt, und er verschwindet aus deinem Profil.", confirmLabel: "Austreten", tone: "danger" }))) return;
-  const r = await leaveCoauthorAction(postId);
+  const r = await callAction(() => leaveCoauthorAction(postId));
   if (r.ok) {
     toast(r.message ?? "Erledigt.");
     onDone();

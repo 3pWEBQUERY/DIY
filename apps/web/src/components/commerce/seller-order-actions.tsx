@@ -10,6 +10,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { parseMoneyInput, minorToInput } from "@/server/commerce/rules";
 import { addShipmentAction, cancelOrderAction, refundOrderAction, transitionOrderAction } from "@/app/studio/bestellungen/actions";
+import { callAction } from "@/lib/use-action";
 
 const CARRIERS = ["Die Post", "DHL", "DPD", "Planzer", "UPS", "GLS", "Persönliche Übergabe", "Andere"];
 
@@ -105,7 +106,7 @@ export function SellerOrderActions({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              start(async () => done(await transitionOrderAction(orderId, dialog.to, note)));
+              start(async () => done(await callAction(() => transitionOrderAction(orderId, dialog.to, note))));
             }}
           >
             <Field label="Notiz an die Käuferin / den Käufer" optional hint={dialog.to === "PROBLEM" ? "Beschreibe kurz, was nicht stimmt." : undefined}>
@@ -122,7 +123,7 @@ export function SellerOrderActions({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              start(async () => done(await addShipmentAction(orderId, ship)));
+              start(async () => done(await callAction(() => addShipmentAction(orderId, ship))));
             }}
           >
             <Field label="Versanddienstleister" error={fields.carrier}>
@@ -160,7 +161,7 @@ export function SellerOrderActions({
                 return;
               }
               if (!(await confirmDialog(`${formatMoney(amountMinor, currency)} erstatten? Das kann nicht rückgängig gemacht werden.`))) return;
-              start(async () => done(await refundOrderAction(orderId, { amountMinor, reason: refund.reason })));
+              start(async () => done(await callAction(() => refundOrderAction(orderId, { amountMinor, reason: refund.reason }))));
             }}
           >
             <Field label={`Betrag in ${currency}`} error={fields.amountMinor} hint="Für eine Teilerstattung den Betrag anpassen.">
@@ -180,7 +181,7 @@ export function SellerOrderActions({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              start(async () => done(await cancelOrderAction(orderId, note)));
+              start(async () => done(await callAction(() => cancelOrderAction(orderId, note))));
             }}
           >
             <Field label="Grund (wird der Käuferin bzw. dem Käufer mitgeteilt)" error={fields.reason}>

@@ -10,6 +10,7 @@ import { Checkbox, Field, Input, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { addProjectUpdateAction, deleteProjectUpdateAction } from "@/app/(app)/projekte/actions";
+import { callAction } from "@/lib/use-action";
 
 /**
  * „Fortschritt eintragen“ (PRD §10.5): Text, Meilenstein, Problem → Lösung, Zeit, Bilder,
@@ -45,7 +46,7 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     start(async () => {
-      const r = await addProjectUpdateAction(projectId, {
+      const r = await callAction(() => addProjectUpdateAction(projectId, {
         body,
         milestone: milestone.trim() || undefined,
         problem: withProblem ? problem.trim() || undefined : undefined,
@@ -53,7 +54,7 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
         minutes: minutes ? Number(minutes) : undefined,
         media: media.filter((m) => m.state === "ready").map((m) => ({ id: m.id, alt: m.alt })),
         shareToFeed: share,
-      });
+      }));
       if (r.ok) {
         toast(share ? "Fortschritt eingetragen und im Feed geteilt." : "Fortschritt eingetragen.");
         reset();
@@ -143,7 +144,7 @@ export function DeleteJournalEntry({ id, className }: { id: string; className?: 
       onClick={async () => {
         if (!(await confirmDialog("Diesen Journaleintrag löschen? Ein geteilter Feed-Beitrag bleibt bestehen."))) return;
         start(async () => {
-          const r = await deleteProjectUpdateAction(id);
+          const r = await callAction(() => deleteProjectUpdateAction(id));
           if (r.ok) {
             toast("Eintrag gelöscht.");
             router.refresh();

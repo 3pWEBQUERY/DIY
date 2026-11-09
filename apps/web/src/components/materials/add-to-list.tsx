@@ -11,6 +11,7 @@ import { Input, Label } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { addSourceToShoppingListAction, myShoppingListsAction } from "@/app/(app)/einkaufslisten/actions";
+import { callAction } from "@/lib/use-action";
 
 /**
  * „Materialliste übernehmen“: Materialien eines Projekts oder einer Anleitung in eine
@@ -30,7 +31,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
     setOpen(true);
     setDone(null);
     start(async () => {
-      const r = await myShoppingListsAction();
+      const r = await callAction(() => myShoppingListsAction());
       if (r.ok) {
         setLists(r.data);
         if (r.data[0]) setTarget(r.data[0].id);
@@ -41,7 +42,7 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     start(async () => {
-      const r = await addSourceToShoppingListAction({ kind, id, listId: target === "new" ? null : target, newTitle: target === "new" ? newTitle : null });
+      const r = await callAction(() => addSourceToShoppingListAction({ kind, id, listId: target === "new" ? null : target, newTitle: target === "new" ? newTitle : null }));
       if (r.ok) setDone(r.data);
       else toast(r.error, "error");
     });

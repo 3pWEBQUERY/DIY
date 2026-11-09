@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { addGroupMembersAction, groupCandidatesAction, leaveGroupAction, removeGroupMemberAction, renameGroupAction, setGroupAdminAction } from "@/app/(app)/nachrichten/actions";
 import { PeoplePicker, type Candidate } from "./people-picker";
+import { callAction } from "@/lib/use-action";
 
 type Group = NonNullable<ThreadData["group"]>;
 
@@ -73,7 +74,7 @@ export function GroupInfo({ open, onClose, conversationId, group }: { open: bool
               size="sm"
               onClick={() => {
                 setAdding(true);
-                if (!candidates) start(async () => { const r = await groupCandidatesAction(); setCandidates(r.ok ? r.data : []); });
+                if (!candidates) start(async () => { const r = await callAction(() => groupCandidatesAction()); setCandidates(r.ok ? r.data : []); });
               }}
             >
               <UserPlus size={14} aria-hidden /> Hinzufügen
@@ -147,7 +148,7 @@ export function GroupInfo({ open, onClose, conversationId, group }: { open: bool
           onClick={async () =>
             (await confirmDialog("Gruppe verlassen? Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.")) &&
             start(async () => {
-              const r = await leaveGroupAction(conversationId);
+              const r = await callAction(() => leaveGroupAction(conversationId));
               if (!r.ok) return toast(r.error, "error");
               toast(r.message ?? "");
               router.push("/nachrichten");

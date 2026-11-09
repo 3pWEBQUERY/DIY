@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { registerWebPushAction, unregisterWebPushAction, webPushKeyAction } from "@/app/(app)/einstellungen/actions";
+import { callAction } from "@/lib/use-action";
 
 type State = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on";
 
@@ -49,12 +50,12 @@ function useWebPush() {
         if (permission === "denied") toast("Push ist im Browser blockiert. Erlaube Benachrichtigungen in den Website-Einstellungen.", "error");
         return;
       }
-      const key = await webPushKeyAction();
+      const key = await callAction(() => webPushKeyAction());
       if (!key.ok) throw new Error(key.error);
       const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(key.data.publicKey) }));
-      const r = await registerWebPushAction(sub.toJSON());
+      const r = await callAction(() => registerWebPushAction(sub.toJSON()));
       if (!r.ok) throw new Error(r.error);
       setState("on");
       toast("Push ist auf diesem Gerät aktiv.");
@@ -72,7 +73,7 @@ function useWebPush() {
       const reg = await navigator.serviceWorker.getRegistration("/");
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        await unregisterWebPushAction(sub.endpoint);
+        await callAction(() => unregisterWebPushAction(sub.endpoint));
         await sub.unsubscribe();
       }
       setState("off");

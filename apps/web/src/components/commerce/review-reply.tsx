@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { replyToReviewAction } from "@/app/(app)/markt/review-actions";
+import { callAction } from "@/lib/use-action";
 
 /** Antwort des Shops auf eine Bewertung – nur für die Shop-Inhaberin bzw. den Inhaber sichtbar. */
 export function ReviewReply({ reviewId, current, path }: { reviewId: string; current: string | null; path: string }) {
@@ -25,7 +26,7 @@ export function ReviewReply({ reviewId, current, path }: { reviewId: string; cur
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const r = await replyToReviewAction(reviewId, text, path);
+          const r = await callAction(() => replyToReviewAction(reviewId, text, path));
           if (!r.ok) return toast(r.error, "error");
           toast(text.trim() ? "Antwort veröffentlicht." : "Antwort entfernt.");
           setOpen(false);

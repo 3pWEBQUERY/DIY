@@ -10,6 +10,7 @@ import { Notice } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { cn, slugify } from "@/lib/utils";
 import { checkShopSlugAction, saveShopAction } from "@/app/studio/shop/actions";
+import { callAction } from "@/lib/use-action";
 
 export type ShopFormValues = {
   name: string;
@@ -65,7 +66,7 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
 
   function save(submit: boolean) {
     start(async () => {
-      const r = await saveShopAction(v, submit);
+      const r = await callAction(() => saveShopAction(v, submit));
       if (r.ok) {
         setFields({});
         toast(submit ? "Antrag eingereicht. Als Nächstes verbindest du dein Auszahlungskonto." : "Gespeichert.");

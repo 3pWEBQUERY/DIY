@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import { publishJuryResultAction, removeEntryAction, submitEntryAction, voteEntryAction, withdrawEntryAction } from "@/app/(app)/c/[slug]/wettbewerbe/actions";
+import { callAction } from "@/lib/use-action";
 
 type Option = { id: string; title: string; coverUrl: string | null };
 
@@ -63,7 +64,7 @@ export function EntryPanel({ c, options, loggedIn }: { c: CompetitionView; optio
   const withdraw = async () => {
     if (!(await confirmDialog({ title: "Einreichung zurückziehen?", body: "Du kannst bis zum Einreichungsschluss jederzeit erneut einreichen.", confirmLabel: "Zurückziehen", tone: "danger" }))) return;
     start(async () => {
-      const r = await withdrawEntryAction(c.community.slug, c.id);
+      const r = await callAction(() => withdrawEntryAction(c.community.slug, c.id));
       if (r.ok) {
         toast(r.message ?? "Erledigt.");
         router.refresh();
@@ -112,7 +113,7 @@ function SubmitDialog({ open, onClose, c, options }: { open: boolean; onClose: (
   const [pending, start] = useTransition();
   const submit = () =>
     start(async () => {
-      const r = await submitEntryAction(c.community.slug, c.id, { projectId, note });
+      const r = await callAction(() => submitEntryAction(c.community.slug, c.id, { projectId, note }));
       if (r.ok) {
         toast(r.data.replaced ? "Einreichung aktualisiert." : (r.message ?? "Eingereicht."));
         onClose();
@@ -183,7 +184,7 @@ export function EntriesGrid({ c }: { c: CompetitionView }) {
     if (on && left <= 0) return toast(`Du hast alle ${CHALLENGE_VOTES_PER_PERSON} Stimmen vergeben. Nimm eine zurück, um neu zu wählen.`, "error");
     setVotes((v) => (on ? [...v, entryId] : v.filter((x) => x !== entryId)));
     start(async () => {
-      const r = await voteEntryAction(entryId, on);
+      const r = await callAction(() => voteEntryAction(entryId, on));
       if (!r.ok) {
         setVotes((v) => (on ? v.filter((x) => x !== entryId) : [...v, entryId]));
         toast(r.error, "error");
@@ -193,7 +194,7 @@ export function EntriesGrid({ c }: { c: CompetitionView }) {
   const remove = async (entryId: string, title: string) => {
     if (!(await confirmDialog({ title: "Einreichung entfernen?", body: `„${title}“ wird aus dem Wettbewerb entfernt; die Person wird benachrichtigt.`, confirmLabel: "Entfernen", tone: "danger" }))) return;
     start(async () => {
-      const r = await removeEntryAction(c.community.slug, c.id, entryId);
+      const r = await callAction(() => removeEntryAction(c.community.slug, c.id, entryId));
       if (r.ok) router.refresh();
       else toast(r.error, "error");
     });
@@ -207,7 +208,7 @@ export function EntriesGrid({ c }: { c: CompetitionView }) {
     const list = Object.entries(places).map(([entryId, place]) => ({ entryId, place }));
     if (!(await confirmDialog({ title: "Ergebnis veröffentlichen?", body: "Alle Teilnehmenden werden benachrichtigt. Das Ergebnis lässt sich danach nicht mehr ändern.", confirmLabel: "Veröffentlichen" }))) return;
     start(async () => {
-      const r = await publishJuryResultAction(c.community.slug, c.id, list);
+      const r = await callAction(() => publishJuryResultAction(c.community.slug, c.id, list));
       if (r.ok) {
         toast(r.message ?? "Veröffentlicht.");
         router.refresh();

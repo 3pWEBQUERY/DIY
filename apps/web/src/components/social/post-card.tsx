@@ -20,6 +20,7 @@ import { PollBlock } from "./poll";
 import { deletePostAction, repostAction, updatePostAction } from "@/app/(app)/social-actions";
 import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/media/video";
+import { callAction } from "@/lib/use-action";
 
 const KIND_LABEL: Partial<Record<string, string>> = {
   PROJECT_UPDATE: "Fortschritt",
@@ -151,7 +152,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
       onSelect: async () =>
         (await confirmDialog("Beitrag endgültig löschen?")) &&
         start(async () => {
-          const r = await deletePostAction(post.id);
+          const r = await callAction(() => deletePostAction(post.id));
           if (r.ok) {
             setGone(true);
             toast("Beitrag gelöscht.");
@@ -317,7 +318,7 @@ function RepostDialog({ open, onClose, post }: { open: boolean; onClose: () => v
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await repostAction(post.id, body);
+            const r = await callAction(() => repostAction(post.id, body));
             if (r.ok) {
               toast("Geteilt.");
               onClose();
@@ -344,7 +345,7 @@ function EditDialog({ open, onClose, post }: { open: boolean; onClose: () => voi
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await updatePostAction(post.id, { body, category: post.category ?? undefined, visibility: post.visibility });
+            const r = await callAction(() => updatePostAction(post.id, { body, category: post.category ?? undefined, visibility: post.visibility }));
             if (r.ok) {
               toast("Gespeichert.");
               onClose();

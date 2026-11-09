@@ -14,6 +14,7 @@ import { followProjectAction } from "@/app/(app)/social-actions";
 import { deleteProjectAction, setProjectStatusAction } from "@/app/(app)/projekte/actions";
 import { StatusMark } from "./status";
 import { Select } from "@/components/ui/select";
+import { callAction } from "@/lib/use-action";
 
 type Props = {
   project: { id: string; title: string; href: string; status: ProjectStatus };
@@ -36,7 +37,7 @@ export function ProjectActions({ project, owner, viewer, counts }: Props) {
     setFollowing(next);
     setFollowers((n) => n + (next ? 1 : -1));
     start(async () => {
-      const r = await followProjectAction(project.id, next);
+      const r = await callAction(() => followProjectAction(project.id, next));
       if (!r.ok) {
         setFollowing(!next);
         setFollowers((n) => n + (next ? -1 : 1));
@@ -85,7 +86,7 @@ export function ProjectOwnerBar({ project, ownerHandle }: { project: { id: strin
     const prev = status;
     setStatus(next);
     start(async () => {
-      const r = await setProjectStatusAction(project.id, next);
+      const r = await callAction(() => setProjectStatusAction(project.id, next));
       if (!r.ok) {
         setStatus(prev);
         toast(r.error, "error");
@@ -105,7 +106,7 @@ export function ProjectOwnerBar({ project, ownerHandle }: { project: { id: strin
       onSelect: async () => {
         if (!(await confirmDialog("Projekt endgültig löschen? Journal, Galerie und Materialliste werden entfernt. Verknüpfte Beiträge und Anleitungen bleiben bestehen."))) return;
         start(async () => {
-          const r = await deleteProjectAction(project.id);
+          const r = await callAction(() => deleteProjectAction(project.id));
           if (r.ok) {
             toast("Projekt gelöscht.");
             router.push(`/u/${ownerHandle}`);

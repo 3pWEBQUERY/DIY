@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { votePollAction } from "@/app/(app)/social-actions";
+import { callAction } from "@/lib/use-action";
 
 type Poll = NonNullable<PostView["poll"]>;
 
@@ -34,7 +35,7 @@ export function PollBlock({ postId, poll: initial, signedIn }: { postId: string;
 
   function vote(ids: string[]) {
     start(async () => {
-      const r = await votePollAction(postId, ids);
+      const r = await callAction(() => votePollAction(postId, ids));
       if (r.ok && r.data) setPoll(r.data);
       else if (!r.ok) toast(r.error, "error");
     });

@@ -13,6 +13,7 @@ import { Textarea, Label } from "@/components/ui/field";
 import { confirmDialog } from "@/components/ui/confirm";
 import { ShareSheet } from "./share-sheet";
 import { likeAction, bookmarkAction, reportAction, hideAction, muteAction, blockAction, followAction } from "@/app/(app)/social-actions";
+import { callAction } from "@/lib/use-action";
 
 function useAuthRedirect() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export function LikeButton({ type, id, liked: initial, count: initialCount, size
         setLiked(next);
         setCount((c) => c + (next ? 1 : -1));
         start(async () => {
-          const r = await likeAction(type, id, next);
+          const r = await callAction(() => likeAction(type, id, next));
           if (!r.ok) {
             setLiked(!next);
             setCount((c) => c + (next ? -1 : 1));
@@ -70,7 +71,7 @@ export function SaveButton({ type, id, saved: initial, label }: { type: TargetTy
         const next = !saved;
         setSaved(next);
         start(async () => {
-          const r = await bookmarkAction(type, id, next);
+          const r = await callAction(() => bookmarkAction(type, id, next));
           if (!r.ok) {
             setSaved(!next);
             if (!authRedirect(r.code)) toast(r.error, "error");
@@ -129,7 +130,7 @@ export function FollowButton({ userId, following: initial, size = "md", classNam
         const next = !following;
         setFollowing(next);
         start(async () => {
-          const r = await followAction(userId, next);
+          const r = await callAction(() => followAction(userId, next));
           if (!r.ok) {
             setFollowing(!next);
             if (!authRedirect(r.code)) toast(r.error, "error");
@@ -172,7 +173,7 @@ export function ReportDialog({ open, onClose, targetType, targetId }: { open: bo
             e.preventDefault();
             if (!reason) return;
             start(async () => {
-              const r = await reportAction({ targetType, targetId, reason, details });
+              const r = await callAction(() => reportAction({ targetType, targetId, reason, details }));
               if (r.ok) setCaseNo(r.data.caseNumber ?? 0);
               else if (!authRedirect(r.code)) toast(r.error, "error");
             });

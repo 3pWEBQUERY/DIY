@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { abandonOrderAction, resumePaymentAction, simulatePaymentAction } from "@/app/(app)/markt/actions";
+import { callAction } from "@/lib/use-action";
 
 function go(router: ReturnType<typeof useRouter>, url: string) {
   if (/^https?:\/\//.test(url)) window.location.assign(url);
@@ -21,7 +22,7 @@ export function ResumePaymentButton({ orderId, label = "Jetzt bezahlen", variant
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const r = await resumePaymentAction(orderId);
+          const r = await callAction(() => resumePaymentAction(orderId));
           if (r.ok) go(router, r.data.url);
           else {
             toast(r.error, "error");
@@ -44,7 +45,7 @@ export function AbandonOrderButton({ orderId, redirectTo = "/warenkorb" }: { ord
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const r = await abandonOrderAction(orderId);
+          const r = await callAction(() => abandonOrderAction(orderId));
           if (r.ok) {
             toast(r.message ?? "Verworfen.");
             router.push(redirectTo);
@@ -63,7 +64,7 @@ export function SimulationPanel({ orderId }: { orderId: string }) {
   const [pending, start] = useTransition();
   const run = (outcome: "success" | "failure") =>
     start(async () => {
-      const r = await simulatePaymentAction(orderId, outcome);
+      const r = await callAction(() => simulatePaymentAction(orderId, outcome));
       if (!r.ok) {
         toast(r.error, "error");
         return;

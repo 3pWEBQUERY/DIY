@@ -11,6 +11,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import { addStockAction, removeStockAction, toggleStockAction, updateStockAction } from "@/app/(app)/materialien/actions";
 import { MaterialInput } from "./line-editor";
+import { callAction } from "@/lib/use-action";
 
 /** „Habe ich“-Schalter für ein Material der Datenbank. */
 export function StockToggle({ materialId, name, initialHave, signedIn, size = "md", className }: { materialId: string; name: string; initialHave: boolean; signedIn: boolean; size?: "sm" | "md"; className?: string }) {
@@ -22,7 +23,7 @@ export function StockToggle({ materialId, name, initialHave, signedIn, size = "m
     const next = !have;
     setHave(next);
     start(async () => {
-      const r = await toggleStockAction(materialId, next);
+      const r = await callAction(() => toggleStockAction(materialId, next));
       if (!r.ok) {
         setHave(!next);
         toast(r.error, "error");
@@ -63,7 +64,7 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
     e.preventDefault();
     if (!name.trim()) return;
     start(async () => {
-      const r = await addStockAction({ materialId: materialId ?? null, name, quantity: qty });
+      const r = await callAction(() => addStockAction({ materialId: materialId ?? null, name, quantity: qty }));
       if (r.ok) {
         setName("");
         setQty("");
@@ -84,7 +85,7 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
   const patch = (id: string, p: { quantity?: string; note?: string }) => {
     setEntries((xs) => xs.map((x) => (x.id === id ? { ...x, ...p } : x)));
     start(async () => {
-      const r = await updateStockAction(id, p);
+      const r = await callAction(() => updateStockAction(id, p));
       if (!r.ok) toast(r.error, "error");
     });
   };
@@ -93,7 +94,7 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
     const prev = entries;
     setEntries((xs) => xs.filter((x) => x.id !== e.id));
     start(async () => {
-      const r = await removeStockAction(e.id);
+      const r = await callAction(() => removeStockAction(e.id));
       if (!r.ok) {
         setEntries(prev);
         toast(r.error, "error");

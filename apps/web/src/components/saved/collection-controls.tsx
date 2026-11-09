@@ -12,6 +12,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { createCollectionAction, deleteCollectionAction, moveBookmarkAction, removeBookmarkAction, updateCollectionAction } from "@/app/(app)/gespeichert/actions";
+import { callAction } from "@/lib/use-action";
 
 type Collection = { id: string; title: string; description: string; visibility: Visibility };
 
@@ -28,7 +29,7 @@ function CollectionForm({ initial, onDone }: { initial?: Collection; onDone: (id
         e.preventDefault();
         start(async () => {
           const input = { title, description, visibility };
-          const r = initial ? await updateCollectionAction(initial.id, input) : await createCollectionAction(input);
+          const r = initial ? await callAction(() => updateCollectionAction(initial.id, input)) : await callAction(() => createCollectionAction(input));
           if (r.ok) {
             toast(r.message ?? "Gespeichert.");
             onDone(r.data && "id" in r.data ? r.data.id : initial?.id);
@@ -96,7 +97,7 @@ export function EditCollectionButtons({ collection }: { collection: Collection }
         onClick={async () =>
           (await confirmDialog(`Sammlung «${collection.title}» löschen? Die Inhalte bleiben unter «Gespeichert».`)) &&
           start(async () => {
-            const r = await deleteCollectionAction(collection.id);
+            const r = await callAction(() => deleteCollectionAction(collection.id));
             if (r.ok) {
               toast(r.message ?? "Gelöscht.");
               router.push("/gespeichert");
@@ -137,7 +138,7 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
             const prev = value;
             setValue(next);
             start(async () => {
-              const r = await moveBookmarkAction(type, id, next || null);
+              const r = await callAction(() => moveBookmarkAction(type, id, next || null));
               if (r.ok) {
                 toast(r.message ?? "Verschoben.");
                 router.refresh();
@@ -161,7 +162,7 @@ export function SavedItemControls({ type, id, collectionId, collections, classNa
         aria-label="Nicht mehr speichern"
         onClick={() =>
           start(async () => {
-            const r = await removeBookmarkAction(type, id);
+            const r = await callAction(() => removeBookmarkAction(type, id));
             if (r.ok) {
               toast(r.message ?? "Entfernt.");
               router.refresh();

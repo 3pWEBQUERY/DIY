@@ -14,6 +14,7 @@ import { uploadFile } from "@/components/media/uploader";
 import { cn, pad } from "@/lib/utils";
 import { checkHandleAction } from "@/app/(auth)/actions";
 import { finishOnboardingAction, skipOnboardingAction, suggestionsAction, joinCommunityQuickAction } from "./actions";
+import { callAction } from "@/lib/use-action";
 
 type Initial = { displayName: string; handle: string; interests: string[]; bio: string; region: string; avatarUrl: string | null };
 type Suggestions = Awaited<ReturnType<typeof suggestionsAction>>;
@@ -46,7 +47,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
   function save(next: () => void) {
     setError(null);
     start(async () => {
-      const r = await finishOnboardingAction(data);
+      const r = await callAction(() => finishOnboardingAction(data));
       if (r.ok) next();
       else {
         setError(r.error);
@@ -213,7 +214,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                           type="button"
                           aria-pressed={joined.has(c.id)}
                           onClick={async () => {
-                            const r = await joinCommunityQuickAction(c.id);
+                            const r = await callAction(() => joinCommunityQuickAction(c.id));
                             if (r.ok && r.data.joined) setJoined((s) => new Set(s).add(c.id));
                           }}
                           className={cn("flex w-full items-center justify-between border px-4 py-3 text-left rounded-2xl", joined.has(c.id) ? "border-moss bg-moss-soft" : "border-line hover:border-rule-strong")}
@@ -266,7 +267,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                   className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
                   onClick={() =>
                     start(async () => {
-                      const r = step === 0 ? await skipOnboardingAction() : await finishOnboardingAction(data);
+                      const r = step === 0 ? await callAction(() => skipOnboardingAction()) : await callAction(() => finishOnboardingAction(data));
                       if (r.ok) router.push("/feed");
                       else setError(r.error);
                     })

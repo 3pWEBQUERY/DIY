@@ -24,6 +24,7 @@ import {
   unpublishArticleAction,
 } from "@/app/studio/blog/actions";
 import { TagInput } from "@/components/ui/tag-input";
+import { callAction } from "@/lib/use-action";
 
 type Initial = {
   id: string;
@@ -158,7 +159,7 @@ export function ArticleEditor({
         }
         const v = version.current;
         startSave(async () => {
-          const r = await saveArticleAction(id, payload());
+          const r = await callAction(() => saveArticleAction(id, payload()));
           if (r.ok) {
             setFieldErrors({});
             if (version.current === v) setDirty(false);
@@ -227,7 +228,7 @@ export function ArticleEditor({
 
   async function loadRevisions() {
     if (!id) return;
-    const r = await listRevisionsAction(id);
+    const r = await callAction(() => listRevisionsAction(id));
     if (r.ok) setRevisions(r.data);
     else toast(r.error, "error");
   }
@@ -237,7 +238,7 @@ export function ArticleEditor({
     if (dirty && !(await confirmDialog("Du hast ungespeicherte Änderungen. Trotzdem diese Revision wiederherstellen?"))) return;
     if (!dirty && !(await confirmDialog(`Revision vom ${formatDate(rev.createdAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} wiederherstellen?`))) return;
     startAct(async () => {
-      const r = await restoreRevisionAction(id, rev.id);
+      const r = await callAction(() => restoreRevisionAction(id, rev.id));
       if (r.ok) {
         setTitle(r.data.title);
         setBlocks(r.data.blocks);
@@ -280,7 +281,7 @@ export function ArticleEditor({
                 id &&
                 (await confirmDialog(state === "SCHEDULED" ? { title: "Planung aufheben und zum Entwurf machen?", confirmLabel: "Zum Entwurf machen" } : { title: "Artikel offline nehmen?", body: "Er ist dann nur noch für dich sichtbar.", confirmLabel: "Offline nehmen", tone: "danger" })) &&
                 startAct(async () => {
-                  const r = await unpublishArticleAction(id);
+                  const r = await callAction(() => unpublishArticleAction(id));
                   if (r.ok) {
                     setState("DRAFT");
                     if (state === "SCHEDULED") setPublishedAt(null);
@@ -483,7 +484,7 @@ export function ArticleEditor({
                 onClick={async () =>
                   (await confirmDialog("Artikel endgültig löschen? Das kann nicht rückgängig gemacht werden.")) &&
                   startAct(async () => {
-                    const r = await deleteArticleAction(id);
+                    const r = await callAction(() => deleteArticleAction(id));
                     if (r.ok) {
                       setDirty(false);
                       toast("Artikel gelöscht.");
@@ -508,7 +509,7 @@ export function ArticleEditor({
         onConfirm={async (opts) => {
           const savedId = dirty || !id ? await save({ quiet: true }) : id;
           if (!savedId) return false;
-          const r = await publishArticleAction(savedId, opts);
+          const r = await callAction(() => publishArticleAction(savedId, opts));
           if (!r.ok) {
             toast(r.error, "error");
             return false;

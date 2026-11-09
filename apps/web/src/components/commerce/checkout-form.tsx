@@ -11,6 +11,7 @@ import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field"
 import { Notice } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { startCheckoutAction } from "@/app/(app)/markt/actions";
+import { callAction } from "@/lib/use-action";
 
 type Address = { name: string; line1: string; line2: string; postalCode: string; city: string; country: string };
 export type Details = { firstName: string; lastName: string; line1: string; line2: string; postalCode: string; city: string; country: string; phone: string };
@@ -64,7 +65,7 @@ export function CheckoutForm({
     e.preventDefault();
     setError(null);
     start(async () => {
-      const r = await startCheckoutAction({
+      const r = await callAction(() => startCheckoutAction({
         details: editing ? d : undefined,
         saveDetails: !saved || saveDetails,
         shipToOther: !digitalOnly && shipToOther,
@@ -72,7 +73,7 @@ export function CheckoutForm({
         buyerNote: note,
         idempotencyKey,
         expectedTotalMinor: totalMinor,
-      });
+      }));
       if (r.ok) {
         if (/^https?:\/\//.test(r.data.url)) window.location.assign(r.data.url);
         else router.push(r.data.url);

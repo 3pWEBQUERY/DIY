@@ -17,6 +17,7 @@ import { coauthorCandidatesAction } from "@/app/(app)/social-actions";
 import Link from "next/link";
 import { Input } from "@/components/ui/field";
 import { PollEditor, emptyPoll, pollReady, type PollDraft } from "./poll-editor";
+import { callAction } from "@/lib/use-action";
 
 /**
  * Beitragseditor – so einfach wie in einem modernen sozialen Netzwerk (§5.4, §9.3).
@@ -71,7 +72,7 @@ export function Composer({
 
   function submit(mode: "now" | "draft" | "schedule" = "now") {
     start(async () => {
-      const r = await createPostAction({
+      const r = await callAction(() => createPostAction({
         publish: mode,
         scheduledAt: mode === "schedule" && when ? new Date(when).toISOString() : undefined,
         body,
@@ -81,7 +82,7 @@ export function Composer({
         visibility,
         poll: poll ? { options: poll.options.map((o) => o.trim()), durationHours: poll.durationHours, multiple: poll.multiple } : undefined,
         coauthors: coauthors.length ? coauthors : undefined,
-      });
+      }));
       if (r.ok) {
         toast(
           mode === "draft"

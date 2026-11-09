@@ -7,6 +7,7 @@ import { ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { refreshStripeAction, setShopPausedAction, simulateVerificationAction, startOnboardingAction } from "@/app/studio/shop/actions";
+import { callAction } from "@/lib/use-action";
 
 /** Weiter zu Stripe Connect (Express) – Konto wird bei Bedarf serverseitig angelegt. */
 export function StripeOnboardingButton({ label = "Auszahlungskonto verbinden" }: { label?: string }) {
@@ -16,7 +17,7 @@ export function StripeOnboardingButton({ label = "Auszahlungskonto verbinden" }:
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const r = await startOnboardingAction();
+          const r = await callAction(() => startOnboardingAction());
           if (r.ok) window.location.assign(r.data.url);
           else toast(r.error, "error");
         })
@@ -35,7 +36,7 @@ export function RefreshStripeButton({ auto }: { auto?: boolean }) {
   const done = useRef(false);
   const run = () =>
     start(async () => {
-      const r = await refreshStripeAction();
+      const r = await callAction(() => refreshStripeAction());
       if (r.ok) {
         if (r.data.status === "ACTIVE") toast("Dein Shop ist verifiziert und aktiv.");
         router.refresh();
@@ -64,7 +65,7 @@ export function SimulateVerificationButton() {
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const r = await simulateVerificationAction();
+          const r = await callAction(() => simulateVerificationAction());
           if (r.ok) {
             toast(r.message ?? "Verifiziert.");
             router.refresh();
@@ -87,7 +88,7 @@ export function PauseShopButton({ paused }: { paused: boolean }) {
       onClick={async () => {
         if (!paused && !(await confirmDialog("Shop pausieren? Deine Produkte bleiben sichtbar, können aber nicht gekauft werden. Offene Bestellungen sind nicht betroffen."))) return;
         start(async () => {
-          const r = await setShopPausedAction(!paused);
+          const r = await callAction(() => setShopPausedAction(!paused));
           if (r.ok) {
             toast(r.message ?? "Gespeichert.");
             router.refresh();

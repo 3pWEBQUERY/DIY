@@ -15,6 +15,7 @@ import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { publishDraftAction, removePostAction, savePostAction, scheduleDraftAction } from "./actions";
 import { Input } from "@/components/ui/field";
 import { CalendarClock, Send } from "lucide-react";
+import { callAction } from "@/lib/use-action";
 
 export function PostEditor({ post, projects, categories = CATEGORIES }: { post: PostEditData; projects: { id: string; title: string }[]; categories?: readonly CategoryOption[] }) {
   const router = useRouter();
@@ -44,13 +45,13 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
   function save() {
     setError(null);
     startSave(async () => {
-      const r = await savePostAction(post.id, {
+      const r = await callAction(() => savePostAction(post.id, {
         body,
         category: category || undefined,
         visibility,
         media: media.filter((m) => m.state === "ready").map((m) => ({ id: m.id, alt: m.alt })),
         projectId: projectId || null,
-      });
+      }));
       if (r.ok) {
         toast("Beitrag gespeichert.");
         router.refresh();
@@ -61,7 +62,7 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
   async function publishNow() {
     if (dirty && !(await confirmDialog("Ungespeicherte Änderungen gehen verloren. Trotzdem veröffentlichen? (Speichere zuerst, um sie zu übernehmen.)"))) return;
     startPublish(async () => {
-      const r = await publishDraftAction(post.id);
+      const r = await callAction(() => publishDraftAction(post.id));
       if (r.ok) {
         toast("Veröffentlicht.");
         router.push(r.data.href);
@@ -71,7 +72,7 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
 
   function schedule(at: string | null) {
     startPublish(async () => {
-      const r = await scheduleDraftAction(post.id, at ? new Date(at).toISOString() : null);
+      const r = await callAction(() => scheduleDraftAction(post.id, at ? new Date(at).toISOString() : null));
       if (r.ok) {
         toast(r.message ?? "");
         if (!at) setWhen("");
@@ -83,7 +84,7 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
   async function remove() {
     if (!(await confirmDialog(isDraft ? "Diesen Entwurf endgültig löschen?" : "Diesen Beitrag endgültig löschen? Kommentare und Reaktionen verschwinden ebenfalls aus der Ansicht."))) return;
     startDelete(async () => {
-      const r = await removePostAction(post.id);
+      const r = await callAction(() => removePostAction(post.id));
       if (r.ok) {
         toast("Beitrag gelöscht.");
         router.push("/studio/inhalte");

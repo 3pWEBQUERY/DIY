@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn, formatMinutes, pad } from "@/lib/utils";
 import { completeTutorialAction, resetTutorialProgressAction, toggleTutorialStepAction } from "@/app/(app)/anleitungen/actions";
+import { callAction } from "@/lib/use-action";
 
 type Props = {
   tutorialId: string;
@@ -70,7 +71,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
       return;
     }
     start(async () => {
-      const r = await toggleTutorialStepAction(tutorialId, key, next);
+      const r = await callAction(() => toggleTutorialStepAction(tutorialId, key, next));
       if (!r.ok) {
         setDone((s) => {
           const n = new Set(s);
@@ -86,7 +87,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
   const complete = () => {
     if (!signedIn) return router.push(`/anmelden?weiter=${encodeURIComponent(location.pathname)}`);
     start(async () => {
-      const r = await completeTutorialAction(tutorialId);
+      const r = await callAction(() => completeTutorialAction(tutorialId));
       if (r.ok) {
         setCompleted(true);
         setDone(new Set(steps.map((s) => s.stableKey)));
@@ -99,7 +100,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
   const reset = () =>
     start(async () => {
       if (canTrack) {
-        const r = await resetTutorialProgressAction(tutorialId);
+        const r = await callAction(() => resetTutorialProgressAction(tutorialId));
         if (!r.ok) return toast(r.error, "error");
       }
       setDone(new Set());

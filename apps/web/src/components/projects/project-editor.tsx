@@ -27,6 +27,7 @@ import { cn, formatMinutes } from "@/lib/utils";
 import { createProjectAction, updateProjectAction } from "@/app/(app)/projekte/actions";
 import { StatusMark } from "./status";
 import { TagInput } from "@/components/ui/tag-input";
+import { callAction } from "@/lib/use-action";
 
 type Values = ProjectEditData["values"];
 
@@ -142,7 +143,7 @@ export function ProjectEditor({
       remixNote: isRemix ? remixNote : undefined,
     };
     start(async () => {
-      const r = mode === "edit" && projectId ? await updateProjectAction(projectId, payload) : await createProjectAction(payload);
+      const r = mode === "edit" && projectId ? await callAction(() => updateProjectAction(projectId, payload)) : await callAction(() => createProjectAction(payload));
       if (r.ok) {
         toast(mode === "edit" ? "Änderungen gespeichert." : isRemix ? "Nachbau angelegt – viel Freude beim Bauen!" : "Projekt angelegt.");
         router.push(r.data.href);

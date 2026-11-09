@@ -9,6 +9,7 @@ import { Cover, type Variants } from "@/components/ui/media";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { removeCartItemAction, updateCartItemAction } from "@/app/(app)/markt/actions";
+import { callAction } from "@/lib/use-action";
 
 export type CartLine = {
   id: string;
@@ -34,7 +35,7 @@ function Line({ line, currency }: { line: CartLine; currency: Currency }) {
 
   function setQty(q: number) {
     start(async () => {
-      const r = await updateCartItemAction(line.id, q);
+      const r = await callAction(() => updateCartItemAction(line.id, q));
       if (!r.ok) toast(r.error, "error");
       else if (r.data.capped) toast(`Nur noch ${r.data.quantity} verfügbar.`);
       router.refresh();
@@ -100,7 +101,7 @@ function Remove({ id, title }: { id: string; title: string }) {
       className="inline-flex items-center gap-1 text-[13px] text-muted hover:text-danger"
       onClick={() =>
         start(async () => {
-          const r = await removeCartItemAction(id);
+          const r = await callAction(() => removeCartItemAction(id));
           if (!r.ok) toast(r.error, "error");
           router.refresh();
         })

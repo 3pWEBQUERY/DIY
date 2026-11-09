@@ -15,6 +15,7 @@ import type { CategoryOption } from "@/server/categories/types";
 import { minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
 import { saveProductAction } from "@/app/studio/produkte/actions";
 import { isStaleDeployError, promptReload } from "@/lib/stale-deploy";
+import { callAction } from "@/lib/use-action";
 
 export type ProductEditorInitial = {
   id: string | null;
@@ -157,7 +158,7 @@ export function ProductEditor({
       return;
     }
     start(async () => {
-      const r = await saveProductAction(
+      const r = await callAction(() => saveProductAction(
         initial.id,
         {
           title: v.title,
@@ -184,7 +185,7 @@ export function ProductEditor({
           status,
         },
         { shipsFrom: v.shipsFrom, digitalMediaId: isDigital ? (digital?.mediaId ?? null) : null, announce: announce && status === "ACTIVE", announceText },
-      ).catch((e: unknown) => {
+      )).catch((e: unknown) => {
         // Nach einem Deploy: neu laden anbieten, Eingaben bleiben bis dahin erhalten
         if (!isStaleDeployError(e)) throw e;
         promptReload();

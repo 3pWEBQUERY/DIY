@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import { CATEGORIES, PROFILE_COUNTRIES, PROFILE_COUNTRY_LABEL, listCategories } from "@werkraum/shared";
-import { useAction } from "@/lib/use-action";
+import { useAction, callAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { uploadFile } from "@/components/media/uploader";
 import { Avatar } from "@/components/ui/misc";
@@ -70,7 +70,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     if (h.length < 3) return setHandleState({ status: "error", reason: "Mindestens 3 Zeichen" });
     setHandleState({ status: "checking" });
     const t = setTimeout(async () => {
-      const r = await checkHandleAction(h);
+      const r = await callAction(() => checkHandleAction(h));
       if (!r.ok) return setHandleState({ status: "error", reason: r.error });
       setHandleState(r.data.ok ? { status: "ok" } : { status: "error", reason: r.data.reason });
     }, 350);

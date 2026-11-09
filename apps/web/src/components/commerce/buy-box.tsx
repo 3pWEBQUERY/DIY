@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { addToCartAction } from "@/app/(app)/markt/actions";
+import { callAction } from "@/lib/use-action";
 
 type Variant = { id: string; name: string; priceDeltaMinor: number; available: number };
 
@@ -61,7 +62,7 @@ export function BuyBox({
       return;
     }
     start(async () => {
-      const r = await addToCartAction({ productId, variantId: variantId ?? undefined, quantity: qty });
+      const r = await callAction(() => addToCartAction({ productId, variantId: variantId ?? undefined, quantity: qty }));
       if (r.ok) {
         setAdded(true);
         toast(r.data.capped ? `Im Warenkorb – mehr ist derzeit nicht verfügbar (${r.data.quantity}).` : "In den Warenkorb gelegt.");

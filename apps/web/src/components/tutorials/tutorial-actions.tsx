@@ -7,6 +7,7 @@ import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu } from "@/
 import { buttonClass } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { markTutorialVersionSeenAction } from "@/app/(app)/anleitungen/actions";
+import { callAction } from "@/lib/use-action";
 
 /** Aktionsleiste einer Anleitung: Gefällt mir, Merken, Teilen, Melden bzw. Bearbeiten. */
 export function TutorialActions({
@@ -61,7 +62,7 @@ export function VersionBanner({ tutorialId, version, changeNote, isMajor, publis
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const r = await markTutorialVersionSeenAction(tutorialId);
+            const r = await callAction(() => markTutorialVersionSeenAction(tutorialId));
             if (r.ok) setHidden(true);
             else toast(r.error, "error");
           })

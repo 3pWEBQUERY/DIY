@@ -18,6 +18,7 @@ import { LineEditor, newLine, type Line } from "@/components/materials/line-edit
 import { DurationInput } from "@/components/projects/project-editor";
 import { cn, formatMinutes, pad } from "@/lib/utils";
 import { saveTutorialAction } from "@/app/(app)/anleitungen/actions";
+import { callAction } from "@/lib/use-action";
 
 type Values = TutorialEditData["values"];
 
@@ -163,7 +164,7 @@ export function TutorialEditor({
 
   const save = (publish: boolean) =>
     start(async () => {
-      const r = await saveTutorialAction(tutorialId, payload(), publish);
+      const r = await callAction(() => saveTutorialAction(tutorialId, payload(), publish));
       if (r.ok) {
         setFields({});
         setSavedState(serialized);

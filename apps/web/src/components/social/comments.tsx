@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { relativeTime, cn } from "@/lib/utils";
 import { commentAction, deleteCommentAction, listCommentsAction } from "@/app/(app)/social-actions";
 import { LikeButton, ReportDialog } from "./actions";
+import { callAction } from "@/lib/use-action";
 
 /** Kommentare & Fragen mit einer Antwortebene (§9.4). */
 export function Comments({
@@ -116,7 +117,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
         e.preventDefault();
         if (!body.trim() || body.trim() === initialBody.trim()) return;
         start(async () => {
-          const r = await commentAction(targetType, targetId, { body, parentId });
+          const r = await callAction(() => commentAction(targetType, targetId, { body, parentId }));
           if (r.ok) {
             setBody("");
             onDone();
@@ -185,7 +186,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
           {viewer && (viewer.id === c.author.id || canModerate) && (
             <button
               type="button"
-              onClick={async () => (await confirmDialog(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?")) && start(async () => { const r = await deleteCommentAction(c.id); if (r.ok) onChange(); })}
+              onClick={async () => (await confirmDialog(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?")) && start(async () => { const r = await callAction(() => deleteCommentAction(c.id)); if (r.ok) onChange(); })}
               className="text-xs text-muted hover:text-danger"
             >
               Löschen

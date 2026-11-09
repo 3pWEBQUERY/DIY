@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { loadNotificationsAction, markReadAction } from "@/app/(app)/benachrichtigungen/actions";
 import { adjustCounts, refreshCounts } from "@/components/shell/live-counts";
+import { callAction } from "@/lib/use-action";
 
 const ICONS: Record<string, LucideIcon> = {
   "user-plus": UserPlus,
@@ -87,7 +88,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
     if (!n.read) {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       adjustCounts({ notifications: -1 }); // Badge sofort, ohne auf den Server zu warten
-      await markReadAction([n.id]);
+      await callAction(() => markReadAction([n.id]));
       refreshCounts();
     }
     router.push(n.href);
@@ -96,7 +97,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
   function loadMore() {
     if (!cursor) return;
     start(async () => {
-      const r = await loadNotificationsAction(filter, cursor);
+      const r = await callAction(() => loadNotificationsAction(filter, cursor));
       if (!r.ok) return toast(r.error, "error");
       setItems((prev) => [...prev, ...r.data.items.filter((x) => !prev.some((p) => p.id === x.id))]);
       setCursor(r.data.nextCursor);
