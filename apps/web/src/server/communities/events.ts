@@ -272,10 +272,8 @@ export async function setAttendance(user: SessionUser, eventId: string, status: 
     }
     if (status) await tx.eventAttendee.upsert({ where: { eventId_userId: { eventId, userId: user.id } }, create: { eventId, userId: user.id, status }, update: { status } });
     else await tx.eventAttendee.delete({ where: { eventId_userId: { eventId, userId: user.id } } });
-    const [going, interested] = await Promise.all([
-      tx.eventAttendee.count({ where: { eventId, status: "GOING" } }),
-      tx.eventAttendee.count({ where: { eventId, status: "INTERESTED" } }),
-    ]);
+    const going = await tx.eventAttendee.count({ where: { eventId, status: "GOING" } });
+    const interested = await tx.eventAttendee.count({ where: { eventId, status: "INTERESTED" } });
     await tx.communityEvent.update({ where: { id: eventId }, data: { goingCount: going, interestedCount: interested } });
   });
   if (status === "GOING" && e.organizerId !== user.id) {

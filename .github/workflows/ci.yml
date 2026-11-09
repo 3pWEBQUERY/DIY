@@ -1,0 +1,85 @@
+name: CI
+
+# Bei jedem Push und Pull Request: Typen, Unit-Tests, Build und Browser-Tests.
+# Schlägt ein Schritt fehl, ist der Commit rot – bevor ein Fehler live geht.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typen & Unit-Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: ffmpeg (Video-Tests)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: pnpm install --frozen-lockfile
+      - name: Typen prüfen
+        run: pnpm -r typecheck
+      - name: Unit-Tests
+        run: pnpm -r test
+
+  e2e:
+    name: Browser-Tests
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: werkraum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/werkraum
+      SESSION_SECRET: ci-only-session-secret-0123456789abcdef
+      APP_URL: http://localhost:3100
+      SEED_DEMO: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Datenbank (Migrationen + Demo-Daten)
+        run: pnpm db:migrate && pnpm db:seed
+      - name: Build
+        run: pnpm build
+      - name: Browser installieren
+        run: pnpm --filter @werkraum/web exec playwright install --with-deps chromium
+      - name: Browser-Tests
+        run: pnpm --filter @werkraum/web e2e
+      - name: Bericht bei Fehlern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7

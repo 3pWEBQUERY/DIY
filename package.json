@@ -14,6 +14,6 @@
     "db:seed": "pnpm --filter @werkraum/web db:seed",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "predeploy": "pnpm db:migrate && pnpm db:seed"
+    "predeploy": "pnpm db:migrate 2>&1 && pnpm db:seed 2>&1"
   }
 }

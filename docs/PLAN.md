@@ -79,7 +79,8 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Folgen, Melden, Blockieren (wechselseitig), Stummschalten
 - [x] Ranking: Frische, Interessen-Match, Qualität, Diversität (Autor-Deckel), kein reines Follower-Ranking
 - [x] Verkaufsposts gekennzeichnet; Dedupe im Feed
-- ✅ Umfragen (2–4 Antworten, 1/3/7 Tage, Mehrfachauswahl) · ✅ Entwürfe und geplante Veröffentlichung · ⏳ Koautoren
+- ✅ Umfragen (2–4 Antworten, 1/3/7 Tage, Mehrfachauswahl) · ✅ Entwürfe und geplante Veröffentlichung · ✅ Koautoren (bis 3, mit Bestätigung)
+- ✅ Eigenes Teilen-Menü (Werkuno-Nachricht, WhatsApp, Nachrichten, E-Mail, Instagram, …) · ✅ eigene Bestätigungsdialoge
 
 ### WP4 – Projekte (PROJ-001 … PROJ-035) – Produktkern
 - [x] Projekt-CRUD mit allen Feldern aus §10.2, Status §10.3
@@ -96,7 +97,8 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 
 ### WP6 – Profile (PROF-001 … PROF-025)
 - [x] `/u/[handle]`, Tabs, leere Bereiche ausgeblendet, Profilaktionen
-- ⏳ Pro-Gestaltung, Medienkit
+- ✅ Bewertungen im Profil (Shops immer, Käufer:innen mit abgegebenen Bewertungen)
+- ✅ Creator Pro (Abo via Stripe Billing): Schaufenster, Pro-Kennzeichen, Medienkit, 12-Monats-Statistik + CSV, längere Videos, tiefere Provision
 
 ### WP7 – Marktplatz (SHOP-001 … SHOP-050)
 - [x] Shop-Eröffnung (Studio-Wizard), Verkäuferverifizierung via Stripe Connect
@@ -107,6 +109,9 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Bewertungen nur nach bestätigtem Kauf, 1× pro Position
 - [x] Provision konfigurierbar (Default 6 %), transparent vor Kauf
 - 🟡 Digitale Produkte: Datenmodell + Entitlements + geschützter Download (Web); iOS ⏳
+- ✅ Käuferangaben einmal erfassen (Name, Adresse), Schnappschuss je Bestellung
+- ✅ Auszahlungen über Werkuno (Guthaben, beantragen, Auszahlungsplan, Bankkonto), Benachrichtigung bei jeder Auszahlung
+- ✅ Produkte: mehrere Materialien, Masse H/B/T, Angebotsart „Unbearbeiteter Artikel“
 
 ### WP8 – Blog (BLOG-001 … BLOG-030)
 - [x] Blockbasierter Editor (Überschrift, Absatz, Liste, Zitat, Bild, Hinweis, Projekt-/Tutorial-/Produktkarte)
@@ -116,7 +121,7 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 ### WP9 – Communities (GROUP-001 … GROUP-030)
 - [x] Öffentlich / Beitrittsanfrage / Privat, Regeln, Rollen, Anheften, Ankündigungen
 - [x] Gruppenmoderation (Community-Moderator-Rolle)
-- ✅ Events/Workshops/Tauschbörsen (Zusagen, Plätze, Erinnerung, .ics) · ✅ Challenges · ⏳ Wettbewerbe mit Einreichungen
+- ✅ Events/Workshops/Tauschbörsen (Zusagen, Plätze, Erinnerung, .ics) · ✅ Wettbewerbe mit Einreichungen (Abstimmung mit 3 Stimmen oder Jury, Gewinner:innen, Übersicht `/wettbewerbe`)
 
 ### WP10 – Nachrichten (MSG-001 … MSG-020)
 - [x] Direktnachrichten, Käufer↔Verkäufer-Kontext, Bilder, Archiv, Melden
@@ -135,7 +140,9 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 
 ### WP13 – Benachrichtigungen (NOTIF-001 … NOTIF-015)
 - [x] Alle Ereignisse aus §19.1, In-App + E-Mail, Einstellungen je Ereignis/Kanal, Bündelung
-- 🍎 iOS-Push
+- ⏳ Browser-Push (Web)
+- 🍎 iOS-Push (APNs-Schlüssel fehlen noch)
+- ❗ E-Mail-Versand in Produktion erst mit `RESEND_API_KEY` aktiv
 
 ### WP14 – Werkuno Studio (CREATOR-001 … CREATOR-030)
 - [x] Übersicht mit ehrlich beschrifteten Kennzahlen (§20.4)
@@ -155,6 +162,9 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] WCAG 2.2 AA: Fokus, Skip-Link, Labels, Kontraste, reduzierte Bewegung
 - [x] Performance: RSC, Bildvarianten, Three.js nur auf Landing & lazy
 - [x] Tests (Vitest) für Ranking, Gebühren, Berechtigungen, Webhook-Idempotenz
+- [x] Browser-Tests (Playwright, `apps/web/e2e`): Anmeldung, Kauf, Auszahlung, Studio, Teilen, Koautoren, Creator Pro, Wettbewerbe
+- [x] CI (GitHub Actions): Typen, Unit-Tests, Build und Browser-Tests bei jedem Push
+- [x] Eigene Fehlerüberwachung, Feature-Flags, stabile Server-Action-IDs über Deploys
 - [x] Healthcheck `/api/health`, strukturierte Logs ohne PII
 
 ### WP18 – Railway

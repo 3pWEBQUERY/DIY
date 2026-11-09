@@ -250,10 +250,9 @@ export async function mergeMaterial(actor: Actor, sourceId: string, input: { tar
   const d = mergeSchema.parse(input);
   if (d.targetId === sourceId) throw fail.invalid("Quelle und Ziel sind identisch.", { choice: "Anderes Material wählen" });
   return db.$transaction(async (tx) => {
-    const [source, target] = await Promise.all([
-      tx.material.findUnique({ where: { id: sourceId }, select: { id: true, name: true } }),
-      tx.material.findUnique({ where: { id: d.targetId }, select: { id: true, name: true } }),
-    ]);
+    // In einer Transaktion nacheinander abfragen (eine Verbindung, keine parallelen Queries)
+    const source = await tx.material.findUnique({ where: { id: sourceId }, select: { id: true, name: true } });
+    const target = await tx.material.findUnique({ where: { id: d.targetId }, select: { id: true, name: true } });
     if (!source) throw fail.notFound("Material nicht gefunden.");
     if (!target) throw fail.invalid("Zielmaterial nicht gefunden.", { choice: "Nicht gefunden" });
     const pm = await tx.projectMaterial.updateMany({ where: { materialId: sourceId }, data: { materialId: target.id } });
@@ -272,10 +271,9 @@ export async function mergeTool(actor: Actor, sourceId: string, input: { targetI
   const d = mergeSchema.parse(input);
   if (d.targetId === sourceId) throw fail.invalid("Quelle und Ziel sind identisch.", { choice: "Anderes Werkzeug wählen" });
   return db.$transaction(async (tx) => {
-    const [source, target] = await Promise.all([
-      tx.tool.findUnique({ where: { id: sourceId }, select: { id: true, name: true } }),
-      tx.tool.findUnique({ where: { id: d.targetId }, select: { id: true, name: true } }),
-    ]);
+    // In einer Transaktion nacheinander abfragen (eine Verbindung, keine parallelen Queries)
+    const source = await tx.tool.findUnique({ where: { id: sourceId }, select: { id: true, name: true } });
+    const target = await tx.tool.findUnique({ where: { id: d.targetId }, select: { id: true, name: true } });
     if (!source) throw fail.notFound("Werkzeug nicht gefunden.");
     if (!target) throw fail.invalid("Zielwerkzeug nicht gefunden.", { choice: "Nicht gefunden" });
     const pt = await tx.projectTool.updateMany({ where: { toolId: sourceId }, data: { toolId: target.id } });

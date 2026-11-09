@@ -55,3 +55,18 @@ pnpm db:migrate && pnpm db:seed
 pnpm dev            # http://localhost:3000
 pnpm worker         # Hintergrundjobs
 ```
+
+## Tests & CI
+
+| Was | Befehl | Hinweis |
+|---|---|---|
+| Typen | `pnpm -r typecheck` | |
+| Unit-Tests (Vitest) | `pnpm -r test` | `src/**/__tests__`; Video-Tests nur mit ffmpeg |
+| Browser-Tests (Playwright) | `pnpm --filter @werkraum/web e2e` | `apps/web/e2e`; brauchen eine DB mit Demo-Daten (`SEED_DEMO=true pnpm db:seed`) und einen Build (`pnpm build`). Ein laufender Server auf Port 3100 (`PORT=3100 NODE_ENV=test pnpm start`) wird wiederverwendet, sonst startet Playwright ihn selbst. |
+
+- Die Browser-Tests laufen im Testmodus (Zahlungen simuliert) und nacheinander; `e2e/global-setup.ts`
+  räumt Überbleibsel früherer Läufe auf, sie sind also wiederholbar.
+- Zahlungen und Worker-Jobs werden in Tests direkt ausgelöst (`runServer` in `e2e/helpers.ts`).
+- Eigene Dialoge statt Browser-Dialogen: Ein `alert`/`confirm` lässt jeden Browser-Test fehlschlagen.
+- **CI** (`.github/workflows/ci.yml`): bei jedem Push Typen + Unit-Tests, danach Build + Browser-Tests
+  gegen eine frische Postgres-Datenbank. Bei Fehlern liegt der Playwright-Bericht als Artefakt bei.
