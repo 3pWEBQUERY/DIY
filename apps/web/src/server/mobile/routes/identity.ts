@@ -85,6 +85,13 @@ export const identityRoutes: RouteDef[] = [
     if (!b.identityToken) throw fail.invalid("identityToken fehlt.");
     return signInWithAppleIdToken(b.identityToken, [b.givenName, b.familyName].filter(Boolean).join(" ") || null);
   }),
+  // E-Mail-Adresse ändern: { email, password } → Bestätigungslink an die neue Adresse
+  POST("/me/email", async (c) => {
+    const b = await c.body({ email: z.string().max(254).optional(), password: z.string().max(200).optional() });
+    const { requestEmailChange } = await import("@/server/account/email-change");
+    const r = await requestEmailChange((await meAllowSuspended()).id, { email: b.email ?? "", password: b.password ?? "" });
+    return { ...r, message: `Wir haben einen Bestätigungslink an ${r.email} geschickt. Erst nach dem Klick wird die Adresse umgestellt.` };
+  }),
   POST("/auth/resend-verification", async () => {
     await account.resendVerification(await meAllowSuspended());
     return { message: "Wir haben dir einen neuen Bestätigungslink geschickt." };

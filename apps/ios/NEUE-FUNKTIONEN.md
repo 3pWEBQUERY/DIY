@@ -131,3 +131,23 @@ Web: `/wettbewerbe`, `/c/[slug]/wettbewerbe/[id]`.
 - Es fehlen nur die Railway-Variablen `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (.p8 als eine Zeile mit `\n`) und `APNS_BUNDLE_ID=ch.werkuno.app`. Gesetzt werden sie beim **web**- und **worker**-Service.
 - Den Schlüssel erstellst du im Apple Developer Account → Keys → „Apple Push Notifications service“.
 - Browser-Push (Web Push) betrifft die App nicht.
+
+## 9. E-Mail-Adresse ändern — Bereich `Me` (Einstellungen → Konto)
+
+Web: `/einstellungen/konto` → „Adresse ändern“.
+
+| Methode | Pfad | Body | Antwort |
+|---|---|---|---|
+| POST | `/me/email` | `{ email, password }` | `{ email, message }` |
+
+- Umgestellt wird erst, wenn der Link in der Mail an die **neue** Adresse geöffnet wird (Webseite `/e-mail-bestaetigen/…`). Die App zeigt nur die `message`.
+- Konten ohne Passwort (nur Apple) bekommen 422 mit `fields.password` – Hinweis „zuerst Passwort festlegen“ anzeigen.
+
+## 10. Geänderte Fehlercodes der App-Schnittstelle (Paket L)
+
+- Ungültiges JSON bzw. kein Objekt als Body → **400**; falsche Feldtypen → **422** mit `fields`.
+- Unbekannte Methode auf bestehendem Pfad → **405** (Header `Allow`).
+- Nicht gefundene Einträge (Projekt, Anleitung, Beleg, Einspruch, Editor mit `?id`) → **404** statt `data: null`.
+- `take`/`limit` werden auf 1…50 (bzw. die jeweilige Obergrenze) begrenzt, `page` auf 1…500.
+- Profile gebannter/gelöschter Konten → 404; bei Blockierung leere Listen.
+- Gesperrte Verkäufer:innen können `/studio/orders/*` weiterhin nutzen (bestehende Bestellungen abwickeln).

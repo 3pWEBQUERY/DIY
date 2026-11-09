@@ -15,7 +15,7 @@ import { browseCategories, categoryOptions } from "@/server/categories/settings"
 import { getSetting } from "@/server/settings";
 import { getCustomerDetails, saveCustomerDetails } from "@/server/account/customer";
 import { z } from "zod";
-import { DELETE, GET, PATCH, POST, PUT, me, need, str, takeParam, viewer, viewerId, zBool, zStr, type RouteDef } from "../router";
+import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, str, takeParam, viewer, viewerId, zBool, zStr, type RouteDef } from "../router";
 
 /** Marktplatz, Warenkorb, Kasse, Bestellungen, Shop & Verkauf (PRD §13, §20.3). */
 
@@ -242,29 +242,29 @@ export const commerceRoutes: RouteDef[] = [
 
   // ── Studio: Bestellungen (§13.8) ──
   GET("/studio/orders", async (c) => {
-    const u = await me();
+    const u = await meAllowSuspended();
     const shop = need(await shops.getMyShop(u.id), "Kein Shop vorhanden.");
     const [list, counts] = await Promise.all([orders.listShopOrders(u, str(c.q, "tab"), str(c.q, "cursor") ?? null, takeParam(c.q, "take", 30)), orders.sellerOrderCounts(shop.id)]);
     return { ...(list as object), counts };
   }),
-  GET("/studio/orders/:id", async (c) => need(await orders.getSellerOrder(await me(), c.p.id!), "Bestellung nicht gefunden.")),
+  GET("/studio/orders/:id", async (c) => need(await orders.getSellerOrder(await meAllowSuspended(), c.p.id!), "Bestellung nicht gefunden.")),
   POST("/studio/orders/:id/transition", async (c) => {
     const { to, note } = await c.body({ to: z.string().max(40).optional(), note: zStr });
     if (!to) throw fail.invalid("Zielstatus fehlt.");
-    await orders.transitionOrder(await me(), c.p.id!, to as never, note ?? "");
+    await orders.transitionOrder(await meAllowSuspended(), c.p.id!, to as never, note ?? "");
     return { message: "Status aktualisiert. Die Käuferin bzw. der Käufer wurde informiert." };
   }),
   POST("/studio/orders/:id/shipment", async (c) => {
-    await orders.addShipment(await me(), c.p.id!, await c.json());
+    await orders.addShipment(await meAllowSuspended(), c.p.id!, await c.json());
     return { message: "Als versendet markiert." };
   }),
   POST("/studio/orders/:id/refund", async (c) => {
-    await orders.refundOrder(await me(), c.p.id!, await c.json());
+    await orders.refundOrder(await meAllowSuspended(), c.p.id!, await c.json());
     return { message: "Erstattung ausgelöst. Sie erscheint als bestätigt, sobald der Zahlungsanbieter sie verbucht hat." };
   }),
   POST("/studio/orders/:id/cancel", async (c) => {
     const { reason } = await c.body({ reason: zStr });
-    const r = await orders.cancelBySeller(await me(), c.p.id!, reason ?? "");
+    const r = await orders.cancelBySeller(await meAllowSuspended(), c.p.id!, reason ?? "");
     return { ...r, message: r.refundDeferred ? "Bestellung storniert. Der Zahlungsanbieter ist gerade nicht erreichbar – die Erstattung wird automatisch erneut ausgelöst." : "Bestellung storniert. Der Betrag wird erstattet." };
   }),
 ];
