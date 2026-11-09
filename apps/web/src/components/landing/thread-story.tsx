@@ -38,6 +38,8 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
       if (disposed || !canvasHost.current || !container.current) return;
 
       const host = canvasHost.current;
+      // Element festhalten: React löst die Ref beim Verlassen der Seite schon vor dem Aufräumen
+      const stage = container.current;
       let renderer: InstanceType<typeof THREE.WebGLRenderer>;
       try {
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
@@ -118,7 +120,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
 
       let visible = true;
       const io = new IntersectionObserver((entries) => (visible = entries[0]?.isIntersecting ?? true));
-      io.observe(container.current);
+      io.observe(stage);
 
       const start = performance.now();
       let last = start;
@@ -128,6 +130,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
       const v = new THREE.Vector3();
 
       const frame = (now: number) => {
+        if (disposed) return;
         raf = requestAnimationFrame(frame);
         if (!visible || document.hidden) {
           last = now;
@@ -137,7 +140,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
         last = now;
 
         // Scrollfortschritt → Formindex f ∈ [0,3]
-        const rect = container.current!.getBoundingClientRect();
+        const rect = stage.getBoundingClientRect();
         const vh = window.innerHeight;
         const pos = -rect.top / vh;
         let f = clamp(pos - 0.9, 0, 3);
