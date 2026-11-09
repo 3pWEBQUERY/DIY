@@ -255,6 +255,8 @@ export async function toggleTutorialStep(user: SessionUser, tutorialId: string, 
   const t = await viewableTutorial(user, tutorialId);
   if (!t.keys.has(stableKey)) throw fail.invalid("Dieser Schritt existiert in der aktuellen Version nicht mehr.");
   const keys = await db.$transaction(async (tx) => {
+    // Schnelle Klicks auf mehrere Schritte nacheinander verarbeiten (sonst geht einer verloren)
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tutorial-progress:${tutorialId}:${user.id}`}))`;
     const p = await tx.tutorialProgress.findUnique({ where: { userId_tutorialId: { userId: user.id, tutorialId } }, select: { completedKeys: true } });
     const set = new Set((p?.completedKeys ?? []).filter((k) => t.keys.has(k)));
     if (done) set.add(stableKey);
@@ -274,6 +276,7 @@ export async function toggleTutorialStep(user: SessionUser, tutorialId: string, 
 export async function completeTutorial(user: SessionUser, tutorialId: string) {
   const t = await viewableTutorial(user, tutorialId);
   await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tutorial-progress:${tutorialId}:${user.id}`}))`;
     const p = await tx.tutorialProgress.findUnique({ where: { userId_tutorialId: { userId: user.id, tutorialId } }, select: { completedAt: true } });
     await tx.tutorialProgress.upsert({
       where: { userId_tutorialId: { userId: user.id, tutorialId } },

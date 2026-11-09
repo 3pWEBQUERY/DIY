@@ -128,13 +128,22 @@ export function ProductEditor({
     }
   }
 
+  // Zuletzt bekannter Bestand (beim Laden bzw. nach dem letzten Speichern) – der Server wendet nur die
+  // Änderung dagegen an, damit Verkäufe in der Zwischenzeit nicht überschrieben werden
+  const stockBase = useRef(initial.id ? { stock: initial.stock, variants: new Map(initial.variants.map((x) => [x.name.trim().toLowerCase(), x.stock])) } : null);
+
   function submit(status: "DRAFT" | "ACTIVE" | "PAUSED") {
     const errs: Record<string, string> = {};
     const price = parseMoneyInput(v.price);
     if (price == null) errs.priceMinor = "Bitte gib einen gültigen Preis an (z.B. 48.00)";
     const ship = isDigital ? 0 : parseMoneyInput(v.shipping);
     if (ship == null) errs.shippingMinor = "Bitte gib gültige Versandkosten an";
-    const variants = v.variants.map((x) => ({ name: x.name.trim(), priceDeltaMinor: Math.round((Number(x.priceDelta.replace(",", ".")) || 0) * 100), stock: x.stock }));
+    const variants = v.variants.map((x) => ({
+      name: x.name.trim(),
+      priceDeltaMinor: Math.round((Number(x.priceDelta.replace(",", ".")) || 0) * 100),
+      stock: x.stock,
+      stockBase: stockBase.current?.variants.get(x.name.trim().toLowerCase()),
+    }));
     if (variants.some((x) => !x.name)) errs.variants = "Jede Variante braucht einen Namen";
     if (v.kind === "RAW" && v.description.trim().length < 20) errs.description = "Beschreibe den Zustand des Artikels (mind. 20 Zeichen)";
     const materialList = v.materialList.map((m) => m.trim()).filter(Boolean);
@@ -158,6 +167,7 @@ export function ProductEditor({
           priceMinor: price,
           currency: "CHF",
           stock: v.stock,
+          stockBase: stockBase.current?.stock,
           materialList: materialList,
           dimensions: v.dimensions,
           heightMm: dims.height,
@@ -183,6 +193,7 @@ export function ProductEditor({
       if (!r) return;
       if (r.ok) {
         setFields({});
+        stockBase.current = { stock: v.stock, variants: new Map(variants.map((x) => [x.name.toLowerCase(), x.stock])) };
         toast(
           r.data.status === "SOLD_OUT"
             ? "Gespeichert – ohne Bestand wird es als „Vergriffen“ angezeigt."

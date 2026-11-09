@@ -60,7 +60,20 @@ const Q = {
   competitions: "competition.phases",
 } as const;
 
+let dispatching = false;
+
+/** Cron-Job und 3-Sekunden-Takt teilen sich diese Funktion – nie zwei Läufe gleichzeitig (sonst doppelte Fan-outs). */
 async function dispatchOutbox(boss: PgBoss) {
+  if (dispatching) return;
+  dispatching = true;
+  try {
+    await dispatchOutboxOnce(boss);
+  } finally {
+    dispatching = false;
+  }
+}
+
+async function dispatchOutboxOnce(boss: PgBoss) {
   const events = await db.outboxEvent.findMany({ where: { publishedAt: null, attempts: { lt: 10 } }, orderBy: { createdAt: "asc" }, take: 100 });
   for (const e of events) {
     try {
@@ -111,8 +124,8 @@ async function dispatchOutbox(boss: PgBoss) {
 
 /** Neue Beiträge gefolgter Creator – gebündelt pro Autor, nur öffentliche Beiträge. */
 async function fanoutPost(postId: string, authorId: string) {
-  const post = await db.post.findUnique({ where: { id: postId }, select: { visibility: true, state: true, communityId: true, author: { select: { profile: { select: { handle: true } } } } } });
-  if (!post || post.state !== "PUBLISHED" || post.visibility === "PRIVATE" || post.communityId) return;
+  const post = await db.post.findUnique({ where: { id: postId }, select: { visibility: true, state: true, communityId: true, author: { select: { status: true, profile: { select: { handle: true } } } } } });
+  if (!post || post.state !== "PUBLISHED" || post.visibility === "PRIVATE" || post.communityId || post.author.status !== "ACTIVE") return;
   let cursor: string | undefined;
   for (;;) {
     const followers = await db.follow.findMany({ where: { followeeId: authorId }, select: { followerId: true }, take: 500, ...(cursor ? { cursor: { followerId_followeeId: { followerId: cursor, followeeId: authorId } }, skip: 1 } : {}) });

@@ -169,6 +169,8 @@ export const productUpsertSchema = z.object({
   priceMinor: z.coerce.number().int().min(100, "Mindestpreis CHF 1.00").max(5_000_000),
   currency: z.enum(["CHF", "EUR"]).default("CHF"),
   stock: z.coerce.number().int().min(0).max(100_000).default(1),
+  /** Bestand, den der Editor beim Laden angezeigt hat – dann wird nur die Differenz angewendet (keine Überverkäufe durch alte Tabs) */
+  stockBase: z.coerce.number().int().min(0).max(100_000).optional(),
   /** Ältere Clients: ein Freitextfeld. Neu: `materialList` (eine Angabe pro Eintrag). */
   materials: z.string().trim().max(1000).default(""),
   materialList: z.array(z.string().trim().min(1).max(200, "Höchstens 200 Zeichen")).max(20, "Höchstens 20 Materialangaben").optional(),
@@ -186,7 +188,7 @@ export const productUpsertSchema = z.object({
   tutorialId: z.string().optional(),
   media: z.array(mediaRefSchema).min(1, "Mindestens ein Produktbild").max(12),
   variants: z
-    .array(z.object({ name: z.string().trim().min(1).max(60), priceDeltaMinor: z.coerce.number().int().default(0), stock: z.coerce.number().int().min(0).default(0) }))
+    .array(z.object({ name: z.string().trim().min(1).max(60), priceDeltaMinor: z.coerce.number().int().default(0), stock: z.coerce.number().int().min(0).default(0), stockBase: z.coerce.number().int().min(0).optional() }))
     .max(20)
     .default([]),
   status: z.enum(["DRAFT", "ACTIVE", "PAUSED"]).default("ACTIVE"),

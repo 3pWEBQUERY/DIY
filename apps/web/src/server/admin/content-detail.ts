@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
 import { bumpCounter } from "@/server/social/targets";
+import { syncPostCount } from "@/server/social/counters";
 import { setContentHidden, setFeatured } from "@/server/admin/content";
 import type { SessionUser } from "@/server/auth/session";
 
@@ -553,7 +554,7 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
       if (!p) throw fail.notFound();
       if (p.state === "REMOVED") throw fail.conflict("Bereits entfernt.");
       await tx.post.update({ where: { id }, data: { state: "REMOVED" } });
-      await tx.userProfile.updateMany({ where: { userId: p.authorId, postCount: { gt: 0 } }, data: { postCount: { decrement: 1 } } });
+      await syncPostCount(tx, p.authorId);
       ({ ownerId, title, from } = { ownerId: p.authorId, title: postTitle(p.body), from: p.state });
     }
     await audit({ actorId: actor.id, action: "admin.content_removed", targetType: k, targetId: id, meta: { reason: d.reason, from } }, tx);
@@ -595,12 +596,15 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
       if (to === "PUBLISHED") await tx.post.updateMany({ where: { articleId: id, state: "HIDDEN" }, data: { state: "PUBLISHED" } });
       ({ ownerId, title } = { ownerId: a.authorId, title: a.title });
     } else {
-      const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true } });
+      const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true, scheduledAt: true } });
       if (!p) throw fail.notFound();
       if (p.state !== "REMOVED") throw fail.conflict("Der Inhalt ist nicht entfernt.");
-      to = "PUBLISHED";
+      // Zurück in den Zustand vor dem Entfernen (Entwurf/geplant bleibt Entwurf, nicht sofort veröffentlicht)
+      const removal = await tx.auditEvent.findFirst({ where: { action: "admin.content_removed", targetId: id }, orderBy: { seq: "desc" }, select: { meta: true } });
+      const from = (removal?.meta as { from?: string } | null)?.from;
+      to = from === "DRAFT" || (p.scheduledAt && p.scheduledAt > new Date()) ? "DRAFT" : from === "HIDDEN" ? "HIDDEN" : "PUBLISHED";
       await tx.post.update({ where: { id }, data: { state: to } });
-      await tx.userProfile.updateMany({ where: { userId: p.authorId }, data: { postCount: { increment: 1 } } });
+      await syncPostCount(tx, p.authorId);
       ({ ownerId, title } = { ownerId: p.authorId, title: postTitle(p.body) });
     }
     await audit({ actorId: actor.id, action: "admin.content_reinstated", targetType: k, targetId: id, meta: { reason: r, to } }, tx);

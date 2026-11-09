@@ -170,7 +170,7 @@ function mergeQuantity(a: string, b: string) {
   return `${a} + ${b}`.slice(0, 40);
 }
 
-type IncomingItem = { name: string; quantity: string; materialId: string | null; sourceType?: string | null; sourceId?: string | null; sourceTitle?: string | null; haveIt?: boolean };
+type IncomingItem = { name: string; quantity: string; materialId: string | null; sourceType?: string | null; sourceId?: string | null; sourceTitle?: string | null; haveIt?: boolean; purchased?: boolean };
 
 /** Positionen in eine Liste übernehmen; gleiche Materialien werden zusammengefasst. */
 async function mergeInto(listId: string, incoming: IncomingItem[]) {
@@ -187,13 +187,15 @@ async function mergeInto(listId: string, incoming: IncomingItem[]) {
       if (hit) {
         const quantity = mergeQuantity(hit.quantity, it.quantity);
         const sourceTitle = hit.sourceTitle && it.sourceTitle && hit.sourceTitle !== it.sourceTitle ? `${hit.sourceTitle} + ${it.sourceTitle}`.slice(0, 160) : (hit.sourceTitle ?? it.sourceTitle ?? null);
-        await tx.shoppingListItem.update({ where: { id: hit.id }, data: { quantity, sourceTitle, purchased: false } });
+        // „Gekauft“ bzw. „Habe ich“ nur zurücksetzen, wenn tatsächlich noch etwas fehlt
+        const stillNeeded = !(it.purchased || it.haveIt);
+        await tx.shoppingListItem.update({ where: { id: hit.id }, data: { quantity, sourceTitle, ...(stillNeeded ? { purchased: false } : {}) } });
         hit.quantity = quantity;
         hit.sourceTitle = sourceTitle;
         merged++;
       } else {
         const row = await tx.shoppingListItem.create({
-          data: { listId, name: it.name.slice(0, 120), quantity: it.quantity.slice(0, 40), materialId: it.materialId, sourceType: it.sourceType ?? null, sourceId: it.sourceId ?? null, sourceTitle: it.sourceTitle ?? null, haveIt: !!it.haveIt, position: position++ },
+          data: { listId, name: it.name.slice(0, 120), quantity: it.quantity.slice(0, 40), materialId: it.materialId, sourceType: it.sourceType ?? null, sourceId: it.sourceId ?? null, sourceTitle: it.sourceTitle ?? null, haveIt: !!it.haveIt, purchased: !!it.purchased, position: position++ },
         });
         byKey.set(key(row), row);
         added++;
@@ -209,7 +211,7 @@ export async function mergeShoppingLists(user: SessionUser, targetId: string, so
   if (targetId === sourceId) throw fail.invalid("Wähle zwei verschiedene Listen.");
   await Promise.all([ownedList(user, targetId), ownedList(user, sourceId)]);
   const items = await db.shoppingListItem.findMany({ where: { listId: sourceId }, orderBy: { position: "asc" } });
-  const r = await mergeInto(targetId, items.map((i) => ({ name: i.name, quantity: i.quantity, materialId: i.materialId, sourceType: i.sourceType, sourceId: i.sourceId, sourceTitle: i.sourceTitle })));
+  const r = await mergeInto(targetId, items.map((i) => ({ name: i.name, quantity: i.quantity, materialId: i.materialId, sourceType: i.sourceType, sourceId: i.sourceId, sourceTitle: i.sourceTitle, haveIt: i.haveIt, purchased: i.purchased })));
   await db.shoppingList.delete({ where: { id: sourceId } });
   return r;
 }

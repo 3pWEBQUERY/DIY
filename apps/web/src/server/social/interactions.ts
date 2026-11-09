@@ -140,8 +140,11 @@ export async function deleteComment(user: SessionUser, commentId: string) {
   // Autor, Inhaltseigentümer oder Moderation dürfen entfernen
   if (meta?.ownerId !== user.id) assertOwnerOrMod(user, c.authorId);
   await db.$transaction(async (tx) => {
-    await tx.comment.update({ where: { id: commentId }, data: { state: "REMOVED" } });
-    await bumpCounter(tx, c.targetType, c.targetId, "comment", -1);
+    // Nur ein sichtbarer Kommentar zählt – ein von der Moderation ausgeblendeter wurde schon abgezogen,
+    // und ein gleichzeitiger zweiter Aufruf darf nicht nochmals abziehen
+    const visible = await tx.comment.updateMany({ where: { id: commentId, state: "PUBLISHED" }, data: { state: "REMOVED" } });
+    if (visible.count) await bumpCounter(tx, c.targetType, c.targetId, "comment", -1);
+    else await tx.comment.updateMany({ where: { id: commentId, state: { not: "REMOVED" } }, data: { state: "REMOVED" } });
   });
 }
 

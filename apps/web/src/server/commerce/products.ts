@@ -142,6 +142,13 @@ async function searchProductIds(q: string) {
  * Nur aktive Produkte aktiver Shops, keine Produkte blockierter Konten,
  * digitale Produkte nur wenn im Web freigeschaltet. Cursor = letzte Produkt-ID.
  */
+/** Aktueller Bestand einer Variante – innerhalb der Transaktion gelesen (FOR UPDATE), damit parallele Verkäufe zählen. */
+async function currentOnHand(tx: Tx, variantId: string | null) {
+  if (!variantId) return null;
+  const rows = await tx.$queryRaw<{ onHand: number }[]>`SELECT "onHand" FROM "InventoryItem" WHERE "variantId" = ${variantId} FOR UPDATE`;
+  return rows[0]?.onHand ?? null;
+}
+
 export async function listProducts(
   filters: ProductFilters = {},
   cursor?: string | null,
@@ -310,7 +317,7 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
   }
 
   // Einzelstück: höchstens 1 Stück (je Variante)
-  const clampStock = (n: number) => (data.kind === "UNIQUE" ? Math.min(n, 1) : n);
+  const clampStock = (n: number) => Math.max(0, data.kind === "UNIQUE" ? Math.min(n, 1) : n);
 
   const product = await db.$transaction(async (tx) => {
     const mediaIds = data.media.map((m) => m.id);
@@ -360,7 +367,10 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
       const keep = new Set<string>();
       for (const [i, v] of data.variants.entries()) {
         const match = old.find((o) => o.name.toLowerCase() === v.name.toLowerCase());
-        const stock = clampStock(v.stock);
+        // Mit stockBase nur die Änderung anwenden: Verkäufe seit dem Laden des Editors bleiben erhalten
+        // (sonst setzt ein alter Tab ein verkauftes Einzelstück wieder auf „verfügbar“)
+        const current = await currentOnHand(tx, match?.id ?? null);
+        const stock = clampStock(v.stockBase != null && match && current != null ? current + (v.stock - v.stockBase) : v.stock);
         const reserved = match?.inventory?.reserved ?? 0;
         if (stock < reserved) throw fail.invalid(`„${v.name}“: ${reserved} Stück sind in offenen Bestellungen reserviert. Der Bestand kann nicht tiefer sein.`, { variants: "Bestand unter Reservierung" });
         const variant = match
@@ -381,8 +391,9 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
     } else {
       if (existing?.variants.some((v) => (v.inventory?.reserved ?? 0) > 0)) throw fail.conflict("Varianten mit offenen Reservierungen können nicht entfernt werden.");
       await tx.productVariant.deleteMany({ where: { productId: p.id } });
-      const stock = clampStock(data.stock);
-      const inv = await tx.inventoryItem.findFirst({ where: { productId: p.id, variantId: null } });
+      // Zeile sperren: ein gleichzeitiger Verkauf wartet bzw. wird mitgezählt
+      const inv = (await tx.$queryRaw<{ id: string; onHand: number; reserved: number }[]>`SELECT id, "onHand", reserved FROM "InventoryItem" WHERE "productId" = ${p.id} AND "variantId" IS NULL FOR UPDATE`)[0];
+      const stock = clampStock(data.stockBase != null && inv ? inv.onHand + (data.stock - data.stockBase) : data.stock);
       if (inv && stock < inv.reserved) throw fail.invalid(`${inv.reserved} Stück sind in offenen Bestellungen reserviert. Der Bestand kann nicht tiefer sein.`, { stock: "Bestand unter Reservierung" });
       if (inv) await tx.inventoryItem.update({ where: { id: inv.id }, data: { onHand: stock } });
       else await tx.inventoryItem.create({ data: { productId: p.id, onHand: stock } });

@@ -449,6 +449,8 @@ export async function votePoll(user: SessionUser, postId: string, optionIds: str
   if (!poll.multiple && chosen.length > 1) throw fail.invalid("Hier ist nur eine Antwort möglich.");
   try {
     await db.$transaction(async (tx) => {
+      // Gleichzeitige Stimmen derselben Person (verschiedene Optionen) nacheinander prüfen
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`poll-vote:${poll.id}:${user.id}`}))`;
       if (await tx.pollVote.findFirst({ where: { pollId: poll.id, userId: user.id }, select: { pollId: true } })) throw fail.conflict("Du hast bereits abgestimmt.");
       await tx.pollVote.createMany({ data: chosen.map((optionId) => ({ pollId: poll.id, optionId, userId: user.id })) });
       await tx.pollOption.updateMany({ where: { id: { in: chosen } }, data: { voteCount: { increment: 1 } } });
@@ -546,7 +548,8 @@ export async function listDrafts(userId: string, take = 50) {
 
 /** Worker (minütlich): fällige geplante Beiträge veröffentlichen und Autor:in informieren. */
 export async function publishScheduledPosts() {
-  const due = await db.post.findMany({ where: { state: "DRAFT", scheduledAt: { lte: new Date() } }, orderBy: { scheduledAt: "asc" }, take: 50, select: { id: true } });
+  // Gesperrte/gebannte Konten veröffentlichen nichts (keine Benachrichtigungen in ihrem Namen)
+  const due = await db.post.findMany({ where: { state: "DRAFT", scheduledAt: { lte: new Date() }, author: { status: "ACTIVE" } }, orderBy: { scheduledAt: "asc" }, take: 50, select: { id: true } });
   let n = 0;
   for (const d of due) {
     const p = await publishDraftNow(d.id);

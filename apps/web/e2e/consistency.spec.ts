@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { one, runServer, sql, userId } from "./helpers";
+import { loginAs, one, runServer, sql, userId } from "./helpers";
 
 /** Paket C: gleichzeitige Aufrufe dürfen Limits und Zähler nicht verfälschen. */
 
@@ -78,5 +78,61 @@ test("Auszahlung: gleichzeitige Meldungen nur einmal, Endzustand wird nicht zur�
     await sql(`DELETE FROM "Notification" WHERE "recipientId" = $1 AND data->>'kind' = 'payout' AND data->>'amount' LIKE '%42.00%'`, [lena]);
     await sql(`DELETE FROM "PayoutRecord" WHERE "providerRef" = 'po_e2e'`);
     await sql(`UPDATE "Shop" SET "stripeAccountId" = $2 WHERE id = $1`, [shop.id, shop.stripeAccountId]);
+  }
+});
+
+test("Produkt speichern aus altem Tab: Verkäufe seit dem Laden bleiben erhalten (kein Überverkauf)", async ({ browser }) => {
+  const lena = await userId("lena");
+  const prod = await one<{ id: string; invId: string; onHand: number; reserved: number; status: string }>(
+    `SELECT p.id, i.id "invId", i."onHand", i.reserved, p.status FROM "Product" p JOIN "InventoryItem" i ON i."productId" = p.id AND i."variantId" IS NULL
+     JOIN "Shop" s ON s.id = p."shopId" WHERE s."ownerId" = $1 AND p.kind IN ('SMALL_BATCH','KIT','RAW','MADE_TO_ORDER') AND p.status IN ('ACTIVE','SOLD_OUT')
+     AND EXISTS (SELECT 1 FROM "ProductMedia" pm WHERE pm."productId" = p.id)
+     AND NOT EXISTS (SELECT 1 FROM "ProductVariant" v WHERE v."productId" = p.id) ORDER BY p."createdAt" DESC LIMIT 1`,
+    [lena],
+  );
+  test.skip(!prod, "Kein passendes Produkt");
+  await sql(`UPDATE "InventoryItem" SET "onHand" = 3, reserved = 0 WHERE id = $1`, [prod!.invId]);
+  try {
+    const page = await loginAs(browser, "lena");
+    await page.goto(`/studio/produkte/${prod!.id}`);
+    const stock = page.getByLabel("Bestand (Stück)");
+    await expect(stock).toHaveValue("3");
+    // Inzwischen zwei Stück verkauft (anderer Tab / Kundschaft)
+    await sql(`UPDATE "InventoryItem" SET "onHand" = 1 WHERE id = $1`, [prod!.invId]);
+    await stock.fill("5");
+    await page.getByRole("button", { name: "Speichern", exact: true }).click();
+    await expect.poll(async () => (await one<{ onHand: number }>(`SELECT "onHand" FROM "InventoryItem" WHERE id = $1`, [prod!.invId]))!.onHand, { timeout: 10_000 }).toBe(3);
+    // Erneut speichern ohne Änderung: bleibt 3 (nicht nochmals +2)
+    await page.getByRole("button", { name: "Speichern", exact: true }).click();
+    await page.waitForTimeout(1500);
+    expect((await one<{ onHand: number }>(`SELECT "onHand" FROM "InventoryItem" WHERE id = $1`, [prod!.invId]))!.onHand).toBe(3);
+  } finally {
+    await sql(`UPDATE "InventoryItem" SET "onHand" = $2, reserved = $3 WHERE id = $1`, [prod!.invId, prod!.onHand, prod!.reserved]);
+    await sql(`UPDATE "Product" SET status = $2::"ProductStatus" WHERE id = $1`, [prod!.id, prod!.status]);
+  }
+});
+
+test("Umfrage: gleichzeitige Stimmen für zwei Antworten zählen nur einmal", async () => {
+  const mira = await userId("mira");
+  const poll = await one<{ postId: string; pollId: string }>(
+    `SELECT p.id "postId", pl.id "pollId" FROM "Poll" pl JOIN "Post" p ON p.id = pl."postId" WHERE pl."endsAt" > now() AND pl.multiple = false AND p.state = 'PUBLISHED' AND p."communityId" IS NULL AND p."authorId" <> $1 LIMIT 1`,
+    [mira],
+  );
+  test.skip(!poll, "Keine laufende Umfrage");
+  const opts = await sql<{ id: string }>(`SELECT id FROM "PollOption" WHERE "pollId" = $1 ORDER BY position LIMIT 2`, [poll!.pollId]);
+  const before = (await one<{ v: number }>(`SELECT "voterCount" v FROM "Poll" WHERE id = $1`, [poll!.pollId]))!.v;
+  await sql(`DELETE FROM "PollVote" WHERE "pollId" = $1 AND "userId" = $2`, [poll!.pollId, mira]);
+  try {
+    runServer(`import("./src/server/social/posts").then(async (m) => {
+      const { db } = await import("./src/server/db");
+      const u = (await db.user.findUniqueOrThrow({ where: { id: "${mira}" }, include: { profile: true } })) as never;
+      await Promise.allSettled([m.votePoll(u, "${poll!.postId}", ["${opts[0]!.id}"]), m.votePoll(u, "${poll!.postId}", ["${opts[1]!.id}"])]);
+    })`);
+    expect((await one<{ n: number }>(`SELECT count(*)::int n FROM "PollVote" WHERE "pollId" = $1 AND "userId" = $2`, [poll!.pollId, mira]))!.n).toBe(1);
+    expect((await one<{ v: number }>(`SELECT "voterCount" v FROM "Poll" WHERE id = $1`, [poll!.pollId]))!.v).toBe(before + 1);
+  } finally {
+    const votes = await sql<{ optionId: string }>(`DELETE FROM "PollVote" WHERE "pollId" = $1 AND "userId" = $2 RETURNING "optionId"`, [poll!.pollId, mira]);
+    for (const v of votes) await sql(`UPDATE "PollOption" SET "voteCount" = "voteCount" - 1 WHERE id = $1`, [v.optionId]);
+    if (votes.length) await sql(`UPDATE "Poll" SET "voterCount" = "voterCount" - 1 WHERE id = $1`, [poll!.pollId]);
   }
 });

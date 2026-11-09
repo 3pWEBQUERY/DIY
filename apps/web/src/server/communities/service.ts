@@ -441,8 +441,14 @@ export async function joinCommunity(user: SessionUser, communityId: string) {
   if (await isBlockedBetween(user.id, c.ownerId)) throw fail.forbidden("Du kannst dieser Community nicht beitreten.");
   if (m?.state === "INVITED" || c.visibility === "PUBLIC") {
     await db.$transaction(async (tx) => {
-      if (m) await tx.communityMember.update({ where: { communityId_userId: { communityId, userId: user.id } }, data: { state: "ACTIVE", joinedAt: new Date() } });
-      else await tx.communityMember.create({ data: { communityId, userId: user.id, state: "ACTIVE" } });
+      // Bedingt umstellen: ein Doppelklick zählt nicht zweimal
+      if (m) {
+        const r = await tx.communityMember.updateMany({ where: { communityId, userId: user.id, state: "INVITED" }, data: { state: "ACTIVE", joinedAt: new Date() } });
+        if (!r.count) return;
+      } else {
+        const r = await tx.communityMember.createMany({ data: [{ communityId, userId: user.id, state: "ACTIVE" }], skipDuplicates: true });
+        if (!r.count) return;
+      }
       await tx.community.update({ where: { id: communityId }, data: { memberCount: { increment: 1 } } });
     });
     return { state: "ACTIVE" as const };
@@ -503,10 +509,11 @@ export async function decideRequest(communityId: string, userId: string, approve
   if (!m || m.state !== "PENDING") throw fail.notFound("Anfrage nicht gefunden.");
   await db.$transaction(async (tx) => {
     if (approve) {
-      await tx.communityMember.update({ where: { communityId_userId: { communityId, userId } }, data: { state: "ACTIVE", joinedAt: new Date() } });
+      const r = await tx.communityMember.updateMany({ where: { communityId, userId, state: "PENDING" }, data: { state: "ACTIVE", joinedAt: new Date() } });
+      if (!r.count) throw fail.notFound("Anfrage nicht gefunden.");
       await tx.community.update({ where: { id: communityId }, data: { memberCount: { increment: 1 } } });
     } else {
-      await tx.communityMember.delete({ where: { communityId_userId: { communityId, userId } } });
+      await tx.communityMember.deleteMany({ where: { communityId, userId, state: "PENDING" } });
     }
     await recordAction(tx, { communityId, moderatorId: user.id, targetType: "USER", targetId: userId, action: approve ? "APPROVE_MEMBER" : "DECLINE_MEMBER" });
   });

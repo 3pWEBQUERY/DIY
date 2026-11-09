@@ -160,10 +160,14 @@ export async function getSellerOrder(user: SessionUser, orderId: string) {
 
 async function requireSellerOrder(tx: Prisma.TransactionClient, user: SessionUser, orderId: string) {
   await lockOrder(tx, orderId);
-  const o = await tx.order.findUnique({ where: { id: orderId }, include: { shop: { select: { ownerId: true, status: true } }, shipments: { select: { id: true } } } });
-  if (!o || o.shop.ownerId !== user.id) throw fail.notFound();
-  if (o.shop.status === "SUSPENDED") throw fail.forbidden("Dein Shop ist gesperrt.");
-  return o;
+  // Einzelabfragen statt include mit mehreren Relationen (in Transaktionen sonst parallel auf einer Verbindung)
+  const base = await tx.order.findUnique({ where: { id: orderId } });
+  if (!base) throw fail.notFound();
+  const shop = await tx.shop.findUniqueOrThrow({ where: { id: base.shopId }, select: { ownerId: true, status: true } });
+  if (shop.ownerId !== user.id) throw fail.notFound();
+  if (shop.status === "SUSPENDED") throw fail.forbidden("Dein Shop ist gesperrt.");
+  const shipments = await tx.shipment.findMany({ where: { orderId }, select: { id: true } });
+  return { ...base, shop, shipments };
 }
 
 /** Generischer Statuswechsel durch Verkäufer (ohne Versand/Storno, die eigene Abläufe haben). */
@@ -175,6 +179,10 @@ export async function transitionOrder(user: SessionUser, orderId: string, to: Or
   return db.$transaction(async (tx) => {
     const o = await requireSellerOrder(tx, user, orderId);
     if (!canTransition(o.status, to)) throw fail.conflict(`Von „${ORDER_STATUS_LABEL[o.status]}“ nach „${ORDER_STATUS_LABEL[to]}“ ist kein gültiger Schritt.`);
+    // Abschliessen nur mit erfasstem Versand – ausser die Bestellung ist rein digital
+    if (to === "COMPLETED" && !o.shipments.length && (await tx.orderItem.count({ where: { orderId, isDigital: false } })) > 0) {
+      throw fail.conflict("Erfasse zuerst den Versand – erst danach kann die Bestellung abgeschlossen werden.");
+    }
     const now = new Date();
     await tx.order.update({ where: { id: orderId }, data: { status: to, ...(to === "COMPLETED" ? { completedAt: now } : {}) } });
     await tx.orderEvent.create({ data: { orderId, actorId: user.id, from: o.status, to, note: note.slice(0, 1000) } });

@@ -15,7 +15,8 @@ import { audit } from "@/server/audit";
 import { emit } from "@/server/events";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
-import { targetMeta } from "@/server/social/targets";
+import { bumpCounter, targetMeta } from "@/server/social/targets";
+import { syncPostCount, syncProjectCount } from "@/server/social/counters";
 import type { SessionUser } from "@/server/auth/session";
 
 /**
@@ -245,16 +246,20 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
         return { kind: "content", model: "post", id, field: "reachLimited", value: p.reachLimited };
       }
       await tx.post.update({ where: { id }, data: { state: contentState } });
+      await syncPostCount(tx, (await tx.post.findUniqueOrThrow({ where: { id }, select: { authorId: true } })).authorId);
       return { kind: "content", model: "post", id, field: "state", value: p.state };
     }
     case "COMMENT": {
-      const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true, targetType: true, targetId: true } });
       await tx.comment.update({ where: { id }, data: { state: contentState } });
+      // Kommentarzähler nur beim Übergang aus „sichtbar“
+      if (c.state === "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", -1);
       return { kind: "content", model: "comment", id, field: "state", value: c.state };
     }
     case "PROJECT": {
       const p = await tx.project.findUniqueOrThrow({ where: { id }, select: { state: true } });
       await tx.project.update({ where: { id }, data: { state: contentState, isFeatured: false } });
+      await syncProjectCount(tx, (await tx.project.findUniqueOrThrow({ where: { id }, select: { ownerId: true } })).ownerId);
       return { kind: "content", model: "project", id, field: "state", value: p.state };
     }
     case "TUTORIAL":
@@ -391,6 +396,15 @@ async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolea
     case "product":
       count = (await tx.product.updateMany(args)).count;
       break;
+  }
+  if (count > 0) {
+    // Zähler passend zum wiederhergestellten Zustand
+    if (prior.model === "post") await syncPostCount(tx, (await tx.post.findUniqueOrThrow({ where: { id: prior.id }, select: { authorId: true } })).authorId);
+    if (prior.model === "project") await syncProjectCount(tx, (await tx.project.findUniqueOrThrow({ where: { id: prior.id }, select: { ownerId: true } })).ownerId);
+    if (prior.model === "comment" && prior.value === "PUBLISHED") {
+      const c = await tx.comment.findUniqueOrThrow({ where: { id: prior.id }, select: { targetType: true, targetId: true } });
+      await bumpCounter(tx, c.targetType, c.targetId, "comment", 1);
+    }
   }
   return count > 0;
 }

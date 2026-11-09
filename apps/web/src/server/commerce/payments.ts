@@ -159,7 +159,12 @@ export async function markPaymentProcessing(orderId: string, providerRef?: strin
 export async function markPaymentFailed(orderId: string, opts: { kind: "failed" | "expired" | "abandoned"; reason?: string | null; actorId?: string | null }) {
   const order = await db.order.findUnique({ where: { id: orderId }, select: { status: true, checkoutSessionId: true, payments: { select: { provider: true }, take: 1 } } });
   if (!order || order.status !== "PENDING_PAYMENT") return false;
-  if (opts.kind !== "expired" && order.checkoutSessionId && order.payments[0]?.provider !== "simulated") await expireCheckoutSession(order.checkoutSessionId);
+  if (opts.kind !== "expired" && order.checkoutSessionId && order.payments[0]?.provider !== "simulated") {
+    const sess = await expireCheckoutSession(order.checkoutSessionId);
+    // Bereits bezahlt (Webhook noch unterwegs) oder Stripe gerade nicht erreichbar → NICHT stornieren:
+    // sonst wäre eine bezahlte Bestellung storniert und der Bestand für eine Doppelbestellung frei
+    if (!sess || sess.status === "complete") return false;
+  }
   return db.$transaction((tx) =>
     cancelPendingOrderTx(tx, orderId, {
       paymentStatus: opts.kind === "failed" ? "FAILED" : "CANCELLED",

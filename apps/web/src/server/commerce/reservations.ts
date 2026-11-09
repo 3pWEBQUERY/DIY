@@ -48,7 +48,8 @@ export async function releaseExpiredReservations(opts: { limit?: number; now?: D
     try {
       if (stripeMode && o.checkoutSessionId) {
         const s = await retrieveCheckoutSession(o.checkoutSessionId).catch(() => null);
-        if (s?.status === "complete") {
+        // Stripe nicht erreichbar: lieber später erneut prüfen als eine evtl. bezahlte Bestellung stornieren
+        if (!s || s.status === "complete") {
           skipped++;
           continue;
         }

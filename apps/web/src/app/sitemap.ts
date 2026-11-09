@@ -11,11 +11,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages = ["/", "/entdecken", "/projekte", "/anleitungen", "/communities", "/markt", "/blogs", "/materialien", "/wettbewerbe", "/events", "/hilfe", "/richtlinien/community", "/richtlinien/marktplatz", "/richtlinien/sicherheit", "/richtlinien/urheberrecht", "/rechtliches/datenschutz", "/rechtliches/agb", "/rechtliches/impressum"].map((p) => ({ url: u(p), changeFrequency: "daily" as const, priority: p === "/" ? 1 : 0.7 }));
   try {
     const [projects, tutorials, profiles, communities, articles, products, shops, materials] = await Promise.all([
-      db.project.findMany({ where: { state: "PUBLISHED", visibility: "PUBLIC" }, select: { slug: true, updatedAt: true, owner: { select: { profile: { select: { handle: true } } } } }, take: 20000 }),
-      db.tutorial.findMany({ where: { state: "PUBLISHED" }, select: { slug: true, updatedAt: true }, take: 20000 }),
+      db.project.findMany({ where: { state: "PUBLISHED", visibility: "PUBLIC", owner: { status: "ACTIVE" } }, select: { slug: true, updatedAt: true, owner: { select: { profile: { select: { handle: true } } } } }, take: 20000 }),
+      db.tutorial.findMany({ where: { state: "PUBLISHED", author: { status: "ACTIVE" } }, select: { slug: true, updatedAt: true }, take: 20000 }),
       db.userProfile.findMany({ where: { user: { status: "ACTIVE" }, OR: [{ projectCount: { gt: 0 } }, { postCount: { gt: 0 } }] }, select: { handle: true, updatedAt: true }, take: 20000 }),
       db.community.findMany({ where: { state: "PUBLISHED", visibility: { not: "PRIVATE" } }, select: { slug: true, updatedAt: true } }),
-      db.blogArticle.findMany({ where: { state: "PUBLISHED" }, select: { slug: true, updatedAt: true, author: { select: { profile: { select: { handle: true } } } } }, take: 20000 }),
+      db.blogArticle.findMany({ where: { state: "PUBLISHED", author: { status: "ACTIVE" } }, select: { slug: true, updatedAt: true, author: { select: { profile: { select: { handle: true } } } } }, take: 20000 }),
       db.product.findMany({ where: { status: "ACTIVE", shop: { status: "ACTIVE" } }, select: { slug: true, updatedAt: true, shop: { select: { slug: true } } }, take: 20000 }),
       db.shop.findMany({ where: { status: "ACTIVE" }, select: { slug: true, updatedAt: true }, take: 20000 }),
       db.material.findMany({ select: { slug: true }, take: 20000 }),
