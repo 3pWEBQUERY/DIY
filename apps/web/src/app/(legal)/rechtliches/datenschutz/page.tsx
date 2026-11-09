@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalDoc, FactList } from "@/components/legal/legal-doc";
 import { BRAND } from "@/config/brand";
+import { LEGAL_BRAND, LEGAL_ROBOTS, legalValue } from "@/config/legal";
 
-export const metadata: Metadata = { title: "Datenschutzerklärung", alternates: { canonical: "/rechtliches/datenschutz" } };
+export const metadata: Metadata = { title: "Datenschutzerklärung", alternates: { canonical: "/rechtliches/datenschutz" }, robots: LEGAL_ROBOTS };
 
 export default function PrivacyPage() {
   return (
@@ -25,9 +26,9 @@ export default function PrivacyPage() {
             <>
               <FactList
                 items={[
-                  ["Verantwortlich", `${BRAND.name} (Arbeitstitel), [Firma], [Adresse], Schweiz`],
+                  ["Verantwortlich", `${LEGAL_BRAND}, ${legalValue("company", "Firma")}, ${legalValue("address", "Adresse")}, Schweiz`],
                   ["Datenschutzkontakt", <a key="m" href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a>],
-                  ["EU-Vertretung (Art. 27 DSGVO)", "[Name, Adresse in der EU – vor Launch benennen]"],
+                  ["EU-Vertretung (Art. 27 DSGVO)", legalValue("euRepresentative", "Name, Adresse in der EU – vor Launch benennen")],
                 ]}
               />
               <p>Bei Fragen zum Datenschutz kannst du uns jederzeit schreiben – auch über <Link href="/einstellungen/hilfe-support">Hilfe & Support</Link> mit dem Thema „Datenschutz & Auskunft“.</p>

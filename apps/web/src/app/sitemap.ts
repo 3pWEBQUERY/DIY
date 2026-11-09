@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { CATEGORIES, listCategories } from "@werkraum/shared";
 import { db } from "@/server/db";
+import { LEGAL_FINAL, LEGAL_PAGES } from "@/config/legal";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 async function build(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.APP_URL ?? "http://localhost:3000";
   const u = (p: string) => `${base}${p}`;
-  const staticPages = ["/", "/entdecken", "/projekte", "/anleitungen", "/communities", "/markt", "/blogs", "/materialien", "/wettbewerbe", "/events", "/hilfe", "/richtlinien/community", "/richtlinien/marktplatz", "/richtlinien/sicherheit", "/richtlinien/urheberrecht", "/rechtliches/datenschutz", "/rechtliches/agb", "/rechtliches/impressum"].map((p) => ({ url: u(p), changeFrequency: "daily" as const, priority: p === "/" ? 1 : 0.7 }));
+  const staticPages = ["/", "/entdecken", "/projekte", "/anleitungen", "/communities", "/markt", "/blogs", "/materialien", "/wettbewerbe", "/events", "/hilfe", "/richtlinien/community", "/richtlinien/marktplatz", "/richtlinien/sicherheit", "/richtlinien/urheberrecht", ...(LEGAL_FINAL ? LEGAL_PAGES : [])].map((p) => ({ url: u(p), changeFrequency: "daily" as const, priority: p === "/" ? 1 : 0.7 }));
   try {
     const [projects, tutorials, profiles, communities, articles, products, shops, materials] = await Promise.all([
       db.project.findMany({ where: { state: "PUBLISHED", visibility: "PUBLIC", owner: { status: "ACTIVE" } }, select: { slug: true, updatedAt: true, owner: { select: { profile: { select: { handle: true } } } } }, take: 20000 }),

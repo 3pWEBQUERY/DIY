@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalDoc } from "@/components/legal/legal-doc";
 import { BRAND } from "@/config/brand";
+import { LEGAL_BRAND, LEGAL_ROBOTS, legalValue } from "@/config/legal";
 
-export const metadata: Metadata = { title: "Nutzungsbedingungen", alternates: { canonical: "/rechtliches/agb" } };
+export const metadata: Metadata = { title: "Nutzungsbedingungen", alternates: { canonical: "/rechtliches/agb" }, robots: LEGAL_ROBOTS };
 
 export default function TermsPage() {
   return (
@@ -23,7 +24,7 @@ export default function TermsPage() {
           title: "Geltungsbereich & Vertragspartner",
           body: (
             <>
-              <p>Vertragspartnerin ist {BRAND.name} (Arbeitstitel), [Firma], [Adresse], Schweiz („wir“). Die Bedingungen gelten für Website, Apps und Schnittstellen.</p>
+              <p>Vertragspartnerin ist {LEGAL_BRAND}, {legalValue("company", "Firma")}, {legalValue("address", "Adresse")}, Schweiz („wir“). Die Bedingungen gelten für Website, Apps und Schnittstellen.</p>
               <p>Für Käufe im Marktplatz gelten ergänzend die <Link href="/richtlinien/marktplatz">Marktplatz-Richtlinien</Link>. Der Kaufvertrag kommt dabei zwischen Käufer:in und Verkäufer:in zustande – nicht mit uns.</p>
             </>
           ),
@@ -123,7 +124,7 @@ export default function TermsPage() {
         {
           id: "recht",
           title: "Anwendbares Recht & Gerichtsstand",
-          body: <p>Es gilt Schweizer Recht unter Ausschluss des UN-Kaufrechts. Gerichtsstand ist [Ort], Schweiz. Für Verbraucher:innen gelten zusätzlich die zwingenden Gerichtsstände und Schutzvorschriften ihres Wohnsitzstaates.</p>,
+          body: <p>Es gilt Schweizer Recht unter Ausschluss des UN-Kaufrechts. Gerichtsstand ist {legalValue("venue", "Ort")}, Schweiz. Für Verbraucher:innen gelten zusätzlich die zwingenden Gerichtsstände und Schutzvorschriften ihres Wohnsitzstaates.</p>,
         },
       ]}
     />

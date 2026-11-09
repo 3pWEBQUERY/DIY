@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { LegalDoc, FactList } from "@/components/legal/legal-doc";
 import { BRAND } from "@/config/brand";
+import { LEGAL, LEGAL_BRAND, LEGAL_ROBOTS, legalValue } from "@/config/legal";
 
-export const metadata: Metadata = { title: "Impressum", alternates: { canonical: "/rechtliches/impressum" } };
+export const metadata: Metadata = { title: "Impressum", alternates: { canonical: "/rechtliches/impressum" }, robots: LEGAL_ROBOTS };
 
 export default function ImpressumPage() {
   return (
@@ -19,13 +21,13 @@ export default function ImpressumPage() {
           body: (
             <FactList
               items={[
-                ["Plattform", `${BRAND.name} (Arbeitstitel)`],
-                ["Betreiberin", "[Firma]"],
-                ["Rechtsform", "[Rechtsform, z. B. GmbH]"],
-                ["Adresse", "[Adresse], Schweiz"],
-                ["Handelsregister", "[Handelsregisteramt des Kantons …], UID [CHE-xxx.xxx.xxx]"],
-                ["MWST-Nummer", "[CHE-xxx.xxx.xxx MWST]"],
-                ["Vertretungsberechtigt", "[Name der Geschäftsführung]"],
+                ["Plattform", LEGAL_BRAND],
+                ["Betreiberin", legalValue("company", "Firma")],
+                ["Rechtsform", legalValue("legalForm", "Rechtsform, z. B. GmbH")],
+                ["Adresse", `${legalValue("address", "Adresse")}, Schweiz`],
+                ["Handelsregister", `${legalValue("register", "Handelsregisteramt des Kantons …")}, UID ${legalValue("uid", "CHE-xxx.xxx.xxx")}`],
+                ...(LEGAL.vat ? [["MWST-Nummer", LEGAL.vat] as [string, string]] : []),
+                ["Vertretungsberechtigt", legalValue("representative", "Name der Geschäftsführung")],
               ]}
             />
           ),
@@ -38,7 +40,7 @@ export default function ImpressumPage() {
               <FactList
                 items={[
                   ["E-Mail", <a key="m" href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a>],
-                  ["Telefon", "[+41 xx xxx xx xx]"],
+                  ...(LEGAL.phone ? [["Telefon", <a key="t" href={`tel:${LEGAL.phone.replace(/\s/g, "")}`}>{LEGAL.phone}</a>] as [string, ReactNode]] : []),
                   ["Support", <Link key="s" href="/einstellungen/hilfe-support">Formular „Hilfe & Support“</Link>],
                 ]}
               />

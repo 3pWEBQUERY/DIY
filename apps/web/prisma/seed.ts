@@ -10,8 +10,13 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProjectStatus } from "../src/generated/prisma/client";
-import { hashPassword } from "../src/server/crypto";
+import { hashPassword, verifyPassword } from "../src/server/crypto";
 import { purgeDemo } from "./demo-purge";
+
+const PRODUCTION = process.env.NODE_ENV === "production";
+// Öffentlich bekannte Standardpasswörter (stehen im Repo) – nur für lokale Entwicklung und CI
+const DEFAULT_ADMIN_PASSWORD = "Werkraum-Admin-2026!";
+const DEFAULT_DEMO_PASSWORD = "Werkraum-Demo-2026!";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -81,7 +86,7 @@ async function rebrand() {
 
 async function admin() {
   const email = (process.env.ADMIN_EMAIL ?? "admin@werkraum.local").toLowerCase();
-  const password = process.env.ADMIN_PASSWORD ?? "Werkraum-Admin-2026!";
+  const password = process.env.ADMIN_PASSWORD ?? (PRODUCTION ? null : DEFAULT_ADMIN_PASSWORD);
   // Bestehende Redaktion wiederverwenden – auch wenn ihre E-Mail-Adresse inzwischen geändert wurde
   // (ADMIN_EMAIL gilt nur für die allererste Einrichtung). Nie ein zweites Redaktionskonto anlegen.
   const exists =
@@ -89,8 +94,12 @@ async function admin() {
     (await db.user.findFirst({ where: { profile: { handle: "werkraum" } } })) ??
     (await db.user.findFirst({ where: { role: "SUPERADMIN", status: { not: "DELETED" } }, orderBy: { createdAt: "asc" } }));
   if (exists) {
+    if (PRODUCTION) await secureAdminLogin(exists.id, exists.passwordHash);
     await rebrand();
     return exists;
+  }
+  if (!password) {
+    throw new Error("ADMIN_PASSWORD fehlt – in Produktion wird kein Administrationskonto mit Standardpasswort angelegt. Bitte ADMIN_PASSWORD setzen und erneut deployen.");
   }
   console.log(`→ Admin angelegt: ${email}`);
   return db.user.create({
@@ -106,6 +115,38 @@ async function admin() {
       preference: { create: { interests: ["haekeln-stricken", "naehen-textil", "holz"] } },
     },
   });
+}
+
+/**
+ * Produktion: Ein Administrationskonto mit dem öffentlich bekannten Standardpasswort darf es nicht geben.
+ * Mit ADMIN_PASSWORD wird es ersetzt, sonst wird der Passwort-Login gesperrt (alle Sitzungen beendet).
+ * Ein gesperrtes Konto (kein Passwort) erhält beim nächsten Deploy mit ADMIN_PASSWORD wieder Zugang.
+ */
+async function secureAdminLogin(userId: string, hash: string | null) {
+  const isDefault = !!hash && (await verifyPassword(DEFAULT_ADMIN_PASSWORD, hash));
+  const next = process.env.ADMIN_PASSWORD;
+  if (next && next !== DEFAULT_ADMIN_PASSWORD && (isDefault || !hash)) {
+    await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(next) } });
+    await db.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    console.log("→ Standardpasswort der Administration durch ADMIN_PASSWORD ersetzt, Sitzungen beendet.");
+  } else if (isDefault) {
+    await db.user.update({ where: { id: userId }, data: { passwordHash: null } });
+    await db.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    console.warn("⚠ Administration hatte das Standardpasswort – Login gesperrt. ADMIN_PASSWORD setzen und erneut deployen.");
+  }
+}
+
+/** Produktion ohne DEMO_PASSWORD: Demo-Konten mit dem öffentlichen Standardpasswort für den Login sperren. */
+async function lockDemoLogins() {
+  const users = await db.user.findMany({ where: { email: { endsWith: "@demo.werkraum.local" }, passwordHash: { not: null } }, select: { id: true, passwordHash: true } });
+  let locked = 0;
+  for (const u of users) {
+    if (!(await verifyPassword(DEFAULT_DEMO_PASSWORD, u.passwordHash))) continue;
+    await db.user.update({ where: { id: u.id }, data: { passwordHash: null } });
+    await db.session.updateMany({ where: { userId: u.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    locked++;
+  }
+  if (locked) console.log(`→ ${locked} Demo-Konten mit Standardpasswort für den Login gesperrt (Inhalte bleiben sichtbar).`);
 }
 
 // ───────────────────────── Demo-Community ─────────────────────────
@@ -549,7 +590,9 @@ async function demo(adminId: string) {
     console.log("→ Demo-Daten existieren bereits – übersprungen.");
     return;
   }
-  const pw = await hashPassword(process.env.DEMO_PASSWORD ?? "Werkraum-Demo-2026!");
+  // In Produktion ohne DEMO_PASSWORD: Demo-Konten ohne Passwort (kein Login möglich, nur Inhalte)
+  const demoPassword = process.env.DEMO_PASSWORD ?? (PRODUCTION ? null : DEFAULT_DEMO_PASSWORD);
+  const pw = demoPassword ? await hashPassword(demoPassword) : null;
   const users = new Map<string, string>();
   users.set("werkraum", adminId);
   for (const [i, c] of CREATORS.entries()) {
@@ -861,12 +904,13 @@ async function demo(adminId: string) {
   await db.post.create({ data: { authorId: uid("sophie.naeht"), kind: "ARTICLE", body: "Neuer Artikel im Blog – über Leinen, Geduld und Kappnähte.", articleId: art.id, category: "naehen-textil", publishedAt: days(4) } });
 
   console.log(`→ Demo-Community: ${CREATORS.length} Creator, ${projectIds.size} Projekte, ${TUTORIALS.length} Anleitungen, ${COMMUNITIES.length} Communities.`);
-  console.log(`  Demo-Login z. B. lena-haekelt@demo.werkraum.local / ${process.env.DEMO_PASSWORD ? "(DEMO_PASSWORD)" : "Werkraum-Demo-2026!"}`);
+  if (demoPassword) console.log(`  Demo-Login z. B. lena-haekelt@demo.werkraum.local / ${process.env.DEMO_PASSWORD ? "(DEMO_PASSWORD)" : DEFAULT_DEMO_PASSWORD}`);
 }
 
 async function main() {
   await baseData();
   const a = await admin();
+  if (PRODUCTION && !process.env.DEMO_PASSWORD) await lockDemoLogins();
   if (process.env.SEED_DEMO === "true") await demo(a.id);
   // Demo-Daten entfernen (einmalig vor dem Start): PURGE_DEMO=true, Testlauf mit PURGE_DEMO=dry-run
   else if (process.env.PURGE_DEMO === "true" || process.env.PURGE_DEMO === "dry-run") await purgeDemo(db, { adminId: a.id, dryRun: process.env.PURGE_DEMO === "dry-run" });

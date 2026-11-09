@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/shell/wordmark";
 import { LinkButton } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
+import { LEGAL_BRAND } from "@/config/legal";
 import { CATEGORIES, listCategories } from "@werkraum/shared";
 
 export function MarketingHeader() {
@@ -71,7 +72,7 @@ export function MarketingFooter() {
       </div>
       <div className="border-t border-line">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-5 py-5 text-xs text-muted sm:px-8">
-          <span>© {new Date().getFullYear()} {BRAND.name} (Arbeitstitel)</span>
+          <span>© {new Date().getFullYear()} {LEGAL_BRAND}</span>
           <span className="font-mono uppercase tracking-[0.12em]">{BRAND.claim}</span>
         </div>
       </div>

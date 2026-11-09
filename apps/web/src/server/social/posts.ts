@@ -31,7 +31,7 @@ export const postInclude = {
       visibility: true,
       communityId: true,
       publishedAt: true,
-      author: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
+      author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
       media: { orderBy: { position: "asc" }, take: 1, include: { media: { select: { variants: true } } } },
     },
   },
@@ -96,7 +96,9 @@ function toView(p: PostRow, viewer: ViewerState) {
             id: p.repostOf.id,
             body: p.repostOf.body,
             publishedAt: p.repostOf.publishedAt.toISOString(),
-            author: p.repostOf.author.profile,
+            // `id` gehört dazu: die iOS-App dekodiert den Autor als UserMini (Pflichtfeld id) –
+            // ohne id schlägt das Dekodieren der ganzen Feed-Seite fehl
+            author: p.repostOf.author.profile ? { id: p.repostOf.author.id, ...p.repostOf.author.profile } : null,
             cover: (p.repostOf.media[0]?.media.variants as Record<string, string> | undefined) ?? null,
           }
         : null,

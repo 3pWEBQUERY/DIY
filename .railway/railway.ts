@@ -36,7 +36,8 @@ export default defineRailway((ctx) => {
       SESSION_SECRET: ctx.shared.SESSION_SECRET,
       ADMIN_EMAIL: ctx.shared.ADMIN_EMAIL,
       ADMIN_PASSWORD: ctx.shared.ADMIN_PASSWORD,
-      SEED_DEMO: "true",
+      // Demo-Community nur ausserhalb der Produktion (in Produktion sperrt der Seed Demo-Logins mit Standardpasswort)
+      SEED_DEMO: ctx.environment === "production" ? "false" : "true",
       DB_POOL_MAX: "8",
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
@@ -57,6 +58,11 @@ export default defineRailway((ctx) => {
       APP_URL: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
       SESSION_SECRET: ctx.shared.SESSION_SECRET,
       DB_POOL_MAX: "4",
+      // Der Worker verschickt alle Benachrichtigungs-Mails und führt Stripe-Abgleich, Erstattungen,
+      // Auszahlungen und Abo-Kündigungen aus – ohne diese Schlüssel laufen diese Jobs ins Leere
+      RESEND_API_KEY: preserve(),
+      MAIL_FROM: preserve(),
+      STRIPE_SECRET_KEY: preserve(),
       // iOS-Push wird vom Worker zugestellt
       APNS_KEY_ID: preserve(),
       APNS_TEAM_ID: preserve(),

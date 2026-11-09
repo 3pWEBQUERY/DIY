@@ -326,6 +326,16 @@ export async function syncProSubscriptions() {
     await tell(s.userId, `Dein geschenkter ${PRO_NAME}-Zugang ist abgelaufen.`);
   }
   if (paymentsMode() !== "stripe") return;
+  // Gelöschte Konten mit noch laufendem Stripe-Abo (Kündigung beim Löschen nicht möglich gewesen) nachholen
+  const orphaned = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, user: { status: "DELETED" } }, select: { userId: true }, take: 200 });
+  for (const s of orphaned) {
+    try {
+      await endProForDeletedAccount(s.userId);
+    } catch (e) {
+      const { captureError } = await import("@/server/monitoring");
+      await captureError(e, { source: "WORKER", path: "pro.cancel_deleted" });
+    }
+  }
   const due = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, OR: [{ currentPeriodEnd: { lt: new Date(now.getTime() + 86400_000) } }, { status: { in: ["incomplete", "past_due"] } }] }, take: 200 });
   for (const s of due) {
     try {
@@ -341,7 +351,15 @@ export async function syncProSubscriptions() {
 export async function endProForDeletedAccount(userId: string) {
   const s = await db.subscription.findUnique({ where: { userId } });
   if (!s || s.status === "canceled") return false;
-  if (s.provider === "stripe" && s.subscriptionId && paymentsMode() === "stripe") {
+  if (s.provider === "stripe" && s.subscriptionId) {
+    // Ohne Stripe-Schlüssel (z. B. im Worker vergessen) kann das Abo nicht gekündigt werden. Dann NICHT
+    // lokal als beendet markieren – sonst bucht Stripe weiter ab, während Werkuno es für beendet hält.
+    // `syncProSubscriptions` holt die Kündigung nach, sobald der Schlüssel gesetzt ist.
+    if (paymentsMode() !== "stripe") {
+      const { captureError } = await import("@/server/monitoring");
+      await captureError(new Error("Pro-Abo eines gelöschten Kontos konnte nicht gekündigt werden: STRIPE_SECRET_KEY fehlt"), { source: "WORKER", path: "pro.cancel_deleted", meta: { subscriptionId: s.subscriptionId } });
+      return false;
+    }
     try {
       await stripe().subscriptions.cancel(s.subscriptionId, { invoice_now: false, prorate: false });
     } catch (e) {

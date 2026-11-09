@@ -52,6 +52,11 @@ export async function linkAppleClaims(claims: AppleClaims, displayName: string |
         await db.$transaction(async (tx) => {
           await tx.user.update({ where: { id: existing.id }, data: { emailVerifiedAt: new Date(), passwordHash: null, totpSecret: null, totpEnabledAt: null, totpLastStep: null } });
           await tx.mfaRecoveryCode.deleteMany({ where: { userId: existing.id } });
+          // Offene Links (E-Mail-Wechsel, Passwort-Reset, Bestätigung) und Push-Geräte der Person, die das
+          // Konto vorab angelegt hat, entwerten – sonst stellt ein alter E-Mail-Wechsel-Link das Konto später
+          // auf ihre Adresse um bzw. ihr Gerät empfängt weiter die Benachrichtigungen
+          await tx.verificationToken.deleteMany({ where: { userId: existing.id } });
+          await tx.pushDevice.deleteMany({ where: { userId: existing.id } });
           await tx.session.updateMany({ where: { userId: existing.id, revokedAt: null }, data: { revokedAt: new Date() } });
           await tx.authAccount.deleteMany({ where: { userId: existing.id, provider: "apple" } });
           await audit({ actorId: existing.id, action: "account.apple_claimed_unverified", targetType: "USER", targetId: existing.id }, tx);

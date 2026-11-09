@@ -31,7 +31,7 @@ pnpm dev                                  # http://localhost:3000
 pnpm worker                               # zweites Terminal
 ```
 
-Demo-Login: `lena-haekelt@demo.werkraum.local` / `Werkuno-Demo-2026!` · Admin: `admin@werkraum.local` / `Werkuno-Admin-2026!` (lokal, bitte in Produktion per `ADMIN_EMAIL`/`ADMIN_PASSWORD` setzen).
+Demo-Login: `lena-haekelt@demo.werkraum.local` / `Werkraum-Demo-2026!` · Admin: `admin@werkraum.local` / `Werkraum-Admin-2026!` – nur lokal und in CI. In Produktion (`NODE_ENV=production`) legt der Seed ohne `ADMIN_PASSWORD` kein Administrationskonto an und sperrt Demo-Konten mit Standardpasswort für den Login (eigenes Passwort über `DEMO_PASSWORD`).
 
 ## iOS-App
 

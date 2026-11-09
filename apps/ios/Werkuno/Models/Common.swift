@@ -144,6 +144,19 @@ struct PostItem: Codable, Hashable, Identifiable, Sendable {
         var author: UserMini?
         var media: [MediaItem]?
         var publishedAt: Date?
+
+        private enum CodingKeys: String, CodingKey { case id, body, author, media, publishedAt }
+
+        // Tolerant dekodieren: Ein unvollständiger Autor oder unerwartete Medien dürfen nicht die ganze
+        // Feed-Seite (Page<PostItem>) unlesbar machen – dann wird nur dieses Feld weggelassen.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            body = try c.decodeIfPresent(String.self, forKey: .body)
+            author = (try? c.decodeIfPresent(UserMini.self, forKey: .author)) ?? nil
+            media = (try? c.decodeIfPresent([MediaItem].self, forKey: .media)) ?? nil
+            publishedAt = (try? c.decodeIfPresent(Date.self, forKey: .publishedAt)) ?? nil
+        }
     }
 
     var id: String

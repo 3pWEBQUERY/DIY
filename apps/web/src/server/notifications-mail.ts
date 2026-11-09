@@ -2,6 +2,7 @@ import "server-only";
 import { db, type Prisma } from "@/server/db";
 import { sendMail } from "@/server/mail";
 import { unsubscribeUrl } from "@/server/mail-unsubscribe";
+import { features } from "@/server/env";
 import { captureError } from "@/server/monitoring";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
 import { notificationHref, notificationText } from "@/server/notifications-format";
@@ -69,6 +70,13 @@ async function skipUnmailable() {
 
 export async function sendEmails(mode: "instant" | "digest") {
   await skipUnmailable();
+  // Produktion ohne RESEND_API_KEY (z. B. im Worker-Service vergessen): nichts als „versendet“ markieren,
+  // sonst gehen die Mails endgültig verloren. Offen lassen, damit sie nach dem Nachtragen des Schlüssels
+  // rausgehen – nur Einträge älter als 48 Std. verwerfen (wie bei Versandfehlern, kein alter Mail-Schwall).
+  if (!features.email() && process.env.NODE_ENV === "production") {
+    await db.notification.updateMany({ where: { emailedAt: null, createdAt: { lt: new Date(Date.now() - 48 * 3600_000) } }, data: { emailedAt: new Date() } });
+    return;
+  }
   // Kurze Wartezeit erlaubt Bündelung (z. B. mehrere Likes in Folge)
   const before = new Date(Date.now() - (mode === "instant" ? 90_000 : 0));
   let after: { createdAt: Date; id: string } | null = null;

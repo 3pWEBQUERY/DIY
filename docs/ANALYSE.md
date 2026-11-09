@@ -17,6 +17,17 @@ Fazit: Der Code ist sauber typisiert und gut getestet. Die Probleme liegen in **
 
 ---
 
+## Bearbeitungsstand
+
+| Befund | Status |
+|---|---|
+| I-1 Demo-Konten in Produktion | ✅ `SEED_DEMO=false` in Produktion. Der Seed sperrt in Produktion Demo-Logins mit Standardpasswort, die Inhalte bleiben |
+| I-3 Standard-Superadmin | ✅ In Produktion ohne `ADMIN_PASSWORD` wird kein Konto angelegt. Ein bestehendes Konto mit Standardpasswort wird gesperrt bzw. auf `ADMIN_PASSWORD` umgestellt |
+| I-2 Worker ohne Mail-/Stripe-Schlüssel | ✅ IaC ergänzt. Mails bleiben ohne Schlüssel offen statt verloren. Pro-Abos gelöschter Konten werden nicht mehr fälschlich als beendet markiert, die Kündigung holt `pro.sync` nach |
+| F-1 Rechtstexte | 🟡 Angaben zentral in `apps/web/src/config/legal.ts`. Solange sie unvollständig oder ungeprüft sind: `noindex` und keine Aufnahme in die Sitemap. **Die Firmendaten fehlen noch** |
+| M-1 iOS-Repost | ✅ Server liefert `author.id`. Die App dekodiert den Repost zusätzlich tolerant |
+| A-1 Kontoübernahme nach Apple-Anmeldung | ✅ Offene Links und Push-Geräte werden bei der Übernahme entwertet |
+
 ## 1. Sofort beheben (vor dem Launch)
 
 1. 🔴 **Demo-Konten mit öffentlichem Passwort in Produktion.** `.railway/railway.ts:39` setzt `SEED_DEMO: "true"` für alle Umgebungen, und `predeploy` seedet bei jedem Deploy.

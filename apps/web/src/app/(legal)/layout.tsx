@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/shell/wordmark";
 import { BRAND } from "@/config/brand";
+import { LEGAL_BRAND } from "@/config/legal";
 
 const LINKS = {
   Rechtliches: [
@@ -59,7 +60,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           ))}
         </div>
         <div className="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-2 border-t border-line px-4 py-4 text-xs text-muted sm:px-6 lg:px-10">
-          <span>© {new Date().getFullYear()} {BRAND.name} (Arbeitstitel) · Schweiz</span>
+          <span>© {new Date().getFullYear()} {LEGAL_BRAND} · Schweiz</span>
           <span>Kontakt: {BRAND.supportEmail}</span>
         </div>
       </footer>

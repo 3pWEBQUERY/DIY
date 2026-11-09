@@ -102,7 +102,10 @@ aws s3 sync s3://$S3_BUCKET ./bucket-backup --endpoint-url "$S3_ENDPOINT"
 - Externe Dienste (Stripe, Resend, Apple) sind über Adapter in `src/server/*` gekapselt.
 
 ## Demo-Daten entfernen
-Einmalig vor dem Start: in Railway (Service `web`) `SEED_DEMO` entfernen und `PURGE_DEMO=true` setzen → beim
+In der Produktion setzt `.railway/railway.ts` `SEED_DEMO=false`; bereits angelegte Demo-Konten mit dem
+Standardpasswort sperrt der Seed bei jedem Deploy für den Login (die Inhalte bleiben sichtbar).
+⚠ Vor einem Purge Befund D-2 in `docs/ANALYSE.md` beachten (Kaskaden treffen auch echte Inhalte).
+Einmalig vor dem Start: in Railway (Service `web`) `PURGE_DEMO=true` setzen → beim
 nächsten Deploy löscht der Seed alle Konten `@demo.werkraum.local` samt Inhalten, Bestellungen, Gesprächen und
 redaktionellen Demo-Sammlungen; Zähler echter Konten werden neu berechnet. Testlauf ohne Löschen: `PURGE_DEMO=dry-run`.
 Danach `PURGE_DEMO` wieder entfernen (ohne Demo-Konten passiert ohnehin nichts).

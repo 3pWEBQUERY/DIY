@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { LEGAL_FINAL } from "@/config/legal";
 
 export type LegalSection = { id: string; title: string; body: ReactNode };
 
@@ -13,7 +14,7 @@ export function LegalDoc({
   intro,
   updated,
   sections,
-  draft = true,
+  draft = !LEGAL_FINAL,
   aside,
 }: {
   kicker: string;
