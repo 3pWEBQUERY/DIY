@@ -14,6 +14,7 @@ import { slugify } from "@/lib/utils";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { audit } from "@/server/audit";
 import { requireFlag } from "@/server/flags";
+import { dropFutureAttendance } from "./events";
 
 /**
  * Communities (PRD §15): Sichtbarkeit PUBLIC / REQUEST / PRIVATE, Rollen, Beitritt,
@@ -470,6 +471,7 @@ export async function leaveCommunity(user: SessionUser, communityId: string) {
   await db.$transaction(async (tx) => {
     await tx.communityMember.delete({ where: { communityId_userId: { communityId, userId: user.id } } });
     if (m.state === "ACTIVE") await tx.community.update({ where: { id: communityId }, data: { memberCount: { decrement: 1 } } });
+    await dropFutureAttendance(tx, communityId, user.id);
   });
   return { state: null };
 }
@@ -590,6 +592,7 @@ export async function removeMember(communityId: string, userId: string, opts: { 
     if (opts.ban) await tx.communityMember.update({ where: { communityId_userId: { communityId, userId } }, data: { state: "BANNED", role: "MEMBER", mutedUntil: null } });
     else await tx.communityMember.delete({ where: { communityId_userId: { communityId, userId } } });
     if (m.state === "ACTIVE") await tx.community.update({ where: { id: communityId }, data: { memberCount: { decrement: 1 } } });
+    await dropFutureAttendance(tx, communityId, userId);
     await recordAction(tx, { communityId, moderatorId: user.id, targetType: "USER", targetId: userId, action: opts.ban ? "BAN_MEMBER" : "REMOVE_MEMBER", reason: opts.reason });
   });
 }

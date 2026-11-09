@@ -53,12 +53,13 @@ async function storeRecoveryCodes(userId: string) {
 
 /** Schritt 2: ersten Code bestätigen → aktiv. Gibt die Wiederherstellungscodes einmalig zurück. */
 export async function confirmMfaSetup(user: U, code: string) {
-  await guardAttempts(user.id);
+  await reserveAttempt(user.id);
   const u = await db.user.findUnique({ where: { id: user.id }, select: { totpSecret: true, totpEnabledAt: true } });
   if (!u?.totpSecret) throw fail.invalid("Bitte starte die Einrichtung neu.");
   if (u.totpEnabledAt) throw fail.conflict("Die Zwei-Faktor-Anmeldung ist bereits aktiv.");
   const step = verifyTotp(decryptSecret(u.totpSecret), code, null);
   if (step == null) await recordFailure(user.id);
+  else await releaseAttempt(user.id);
   if (step == null) {
     const msg = "Der Code stimmt nicht. Prüfe die Uhrzeit deines Handys und nimm den aktuellen Code.";
     throw fail.invalid(msg, { code: msg });
@@ -71,26 +72,37 @@ export async function confirmMfaSetup(user: U, code: string) {
 }
 
 /**
- * Gezählt werden nur Fehlversuche: 10 je 15 Minuten und 30 je Tag. Bei 3 gültigen Codes je
- * Versuch (±30 s) liegt die Erfolgschance eines Rateangriffs damit unter 0,01 % pro Tag.
+ * Gezählt werden (am Ende) nur Fehlversuche: 10 je 15 Minuten und 30 je Tag. Jeder Versuch wird
+ * aber schon VOR der Prüfung atomar gezählt und bei Erfolg wieder freigegeben – so können viele
+ * gleichzeitige Anfragen die Sperre nicht umgehen (sonst sähen alle „noch nicht gesperrt“).
  */
-async function guardAttempts(userId: string) {
-  if ((await isLimited("mfaFail", userId)) || (await isLimited("mfaFailDay", userId))) throw fail.rate();
+async function reserveAttempt(userId: string) {
+  await limit("mfaFailDay", userId);
+  try {
+    await limit("mfaFail", userId);
+  } catch (e) {
+    await releaseAttempt(userId, ["mfaFailDay"]);
+    throw e;
+  }
 }
 
+async function releaseAttempt(userId: string, keys: ("mfaFail" | "mfaFailDay")[] = ["mfaFail", "mfaFailDay"]) {
+  for (const k of keys) await db.$executeRaw`UPDATE "RateLimitBucket" SET "count" = GREATEST("count" - 1, 0) WHERE "key" = ${`${k}:${userId}`}`;
+}
+
+/** Fehlversuch ist bereits gezählt (reserveAttempt) – hier nur die Warnung beim Erreichen der Sperre. */
 async function recordFailure(userId: string) {
-  await limit("mfaFailDay", userId).catch(() => {});
-  const r = await limit("mfaFail", userId).catch(() => null);
-  if (r?.remaining === 0) {
+  if (await isLimited("mfaFail", userId)) {
     await securityNotice(userId, "Mehrere falsche Codes bei der Zwei-Faktor-Anmeldung. Weitere Versuche sind für 15 Minuten gesperrt. Warst du das nicht, ändere dein Passwort.");
   }
 }
 
 /** Prüft einen TOTP- oder Wiederherstellungscode für ein Konto (mit Wiederverwendungsschutz). */
 async function checkSecondFactor(userId: string, code: string, kind: "totp" | "recovery") {
-  await guardAttempts(userId);
+  await reserveAttempt(userId);
   const ok = await checkSecondFactorRaw(userId, code, kind);
-  if (!ok) await recordFailure(userId);
+  if (ok) await releaseAttempt(userId);
+  else await recordFailure(userId);
   return ok;
 }
 

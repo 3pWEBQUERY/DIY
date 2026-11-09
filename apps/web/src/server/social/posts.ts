@@ -6,7 +6,7 @@ import { emit } from "@/server/events";
 import { limit } from "@/server/ratelimit";
 import { notify } from "@/server/notifications";
 import { relationsFor, visibleContentWhere, canViewContent } from "@/server/visibility";
-import { assertOwnerOrMod } from "@/server/authz";
+import { assertOwnerOrMod, hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
 import { attachMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
@@ -16,10 +16,10 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
   media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, width: true, height: true, kind: true, state: true } } } },
-  project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, difficulty: true, owner: { select: { profile: { select: { handle: true } } } } } },
-  tutorial: { select: { id: true, slug: true, title: true, difficulty: true, minutes: true, coverUrl: true, category: true } },
-  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, shop: { select: { slug: true, name: true } } } },
-  article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, author: { select: { profile: { select: { handle: true } } } } } },
+  project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, difficulty: true, state: true, visibility: true, owner: { select: { profile: { select: { handle: true } } } } } },
+  tutorial: { select: { id: true, slug: true, title: true, difficulty: true, minutes: true, coverUrl: true, category: true, state: true } },
+  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true, status: true } } } },
+  article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
   coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
   poll: { select: { id: true, endsAt: true, multiple: true, voterCount: true, options: { orderBy: { position: "asc" }, select: { id: true, label: true, voteCount: true } } } },
@@ -29,6 +29,7 @@ export const postInclude = {
       body: true,
       state: true,
       visibility: true,
+      communityId: true,
       publishedAt: true,
       author: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
       media: { orderBy: { position: "asc" }, take: 1, include: { media: { select: { variants: true } } } },
@@ -80,14 +81,17 @@ function toView(p: PostRow, viewer: ViewerState) {
     media: p.media
       .filter((m) => m.media.state === "READY" || m.media.state === "PROCESSING")
       .map((m) => ({ id: m.mediaId, alt: m.alt, kind: m.media.kind, variants: m.media.variants as Record<string, string>, width: m.media.width, height: m.media.height })),
-    project: p.project ? { ...p.project, ownerHandle: p.project.owner.profile?.handle ?? "" } : null,
-    tutorial: p.tutorial,
-    product: p.product,
-    article: p.article ? { ...p.article, authorHandle: p.article.author.profile?.handle ?? "" } : null,
+    // Verknüpfte Inhalte nur zeigen, solange sie öffentlich sind (nach Moderation, Privat-Stellen oder
+    // Deaktivieren eines Angebots darf der Beitrag Titel, Bild und Preis nicht weiter verbreiten)
+    project: p.project && p.project.state === "PUBLISHED" && p.project.visibility === "PUBLIC" ? { ...p.project, ownerHandle: p.project.owner.profile?.handle ?? "" } : null,
+    tutorial: p.tutorial && p.tutorial.state === "PUBLISHED" ? p.tutorial : null,
+    product: p.product && ["ACTIVE", "SOLD_OUT"].includes(p.product.status) && p.product.shop.status === "ACTIVE" ? p.product : null,
+    article: p.article && p.article.state === "PUBLISHED" ? { ...p.article, authorHandle: p.article.author.profile?.handle ?? "" } : null,
     community: p.community,
     repostOf:
       // Original nur zeigen, solange es veröffentlicht und öffentlich ist (sonst Leck nach Sichtbarkeitswechsel)
-      p.repostOf && p.repostOf.state === "PUBLISHED" && p.repostOf.visibility === "PUBLIC"
+      // Community-Beiträge nie als Repost zeigen – private Communities würden sonst öffentlich
+      p.repostOf && p.repostOf.state === "PUBLISHED" && p.repostOf.visibility === "PUBLIC" && !p.repostOf.communityId
         ? {
             id: p.repostOf.id,
             body: p.repostOf.body,
@@ -260,8 +264,9 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
     if (!pr || pr.ownerId !== user.id) throw fail.forbidden("Du kannst nur eigene Projekte verknüpfen.");
   }
   if (data.repostOfId) {
-    const orig = await db.post.findUnique({ where: { id: data.repostOfId }, select: { authorId: true, visibility: true, state: true } });
-    if (!orig || !(await canViewContent(user.id, { ownerId: orig.authorId, visibility: orig.visibility, state: orig.state })) || orig.visibility !== "PUBLIC") {
+    const orig = await db.post.findUnique({ where: { id: data.repostOfId }, select: { authorId: true, visibility: true, state: true, communityId: true } });
+    // Community-Beiträge bleiben in ihrer Community (auch öffentliche – Mitglieder teilen dort, nicht im Profil)
+    if (!orig || orig.communityId || !(await canViewContent(user.id, { ownerId: orig.authorId, visibility: orig.visibility, state: orig.state })) || orig.visibility !== "PUBLIC") {
       throw fail.invalid("Dieser Beitrag kann nicht geteilt werden.");
     }
   }
@@ -409,8 +414,9 @@ export async function canViewCommunityContentOf(communityId: string, viewerId: s
   if (!c || c.state === "REMOVED") return false;
   if (c.visibility !== "PRIVATE") return true;
   if (!viewerId) return false;
-  const viewer = await db.user.findUnique({ where: { id: viewerId }, select: { role: true } });
-  if (viewer && viewer.role !== "MEMBER") return true;
+  // Plattform-Moderation nur mit aktiver Zwei-Faktor-Anmeldung (wie im Admin-Bereich)
+  const viewer = await db.user.findUnique({ where: { id: viewerId }, select: { role: true, totpEnabledAt: true } });
+  if (viewer && hasRole(viewer, "PLATFORM_MODERATOR")) return true;
   const m = await db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId: viewerId } }, select: { state: true } });
   return m?.state === "ACTIVE";
 }

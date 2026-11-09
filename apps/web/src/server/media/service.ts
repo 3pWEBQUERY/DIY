@@ -45,6 +45,8 @@ export async function requestUpload(user: SessionUser, input: { mime: string; by
   if (!isImage && !isVideo && !isFile) throw fail.invalid("Dieser Dateityp wird nicht unterstützt.");
   if (isVideo) await requireFlag("uploads.video", user.id);
   if (isFile && input.purpose !== "private") throw fail.invalid("Dateien sind nur für digitale Produkte erlaubt.");
+  // Dateien (PDF/ZIP) gibt es nur als digitale Produkte – also nur für Shop-Inhaber:innen
+  if (isFile && !(await db.shop.findUnique({ where: { ownerId: user.id }, select: { id: true } }))) throw fail.forbidden("Dateien kannst du hochladen, sobald du einen Shop hast.");
   const limits = isVideo ? await videoLimits(user.id) : null;
   const maxMb = isImage ? await getSetting("media.maxImageMb") : limits ? limits.maxMb : 100;
   if (!Number.isFinite(input.bytes) || input.bytes <= 0 || input.bytes > maxMb * 1024 * 1024) {
@@ -74,25 +76,43 @@ export async function requestUpload(user: SessionUser, input: { mime: string; by
   return { mediaId: media.id, uploadUrl, fallbackUrl: `/api/v1/media/${media.id}/upload`, headers: { "Content-Type": mime } };
 }
 
-/** Upload über den Server in den Bucket – nur Eigentümer:in, nur angemeldete Grösse, nur einmal. */
+/** Laufende Server-Uploads je Person (im Prozess) – begrenzt parallele grosse Uploads. */
+const activeUploads = new Map<string, number>();
+const MAX_PARALLEL_SERVER_UPLOADS = 2;
+
+/**
+ * Upload über den Server in den Bucket – nur Eigentümer:in, nur angemeldete Grösse, nur einmal.
+ * Die Datei wird durchgereicht (Stream), nicht im Arbeitsspeicher gesammelt; eine Datei, die
+ * grösser als angemeldet ist, bricht den Upload ab.
+ */
 export async function uploadViaServer(user: SessionUser, mediaId: string, body: ReadableStream<Uint8Array> | null, contentLength: number) {
   const m = await db.media.findUnique({ where: { id: mediaId } });
   if (!m || m.ownerId !== user.id) throw fail.notFound();
   if (m.state !== "PENDING") throw fail.conflict("Dieses Medium wurde bereits hochgeladen.");
   if (!body) throw fail.invalid("Keine Datei erhalten.");
   if (contentLength && Math.abs(contentLength - m.bytes) > 1024) throw fail.invalid("Die Datei weicht von der Anmeldung ab.");
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  const reader = body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > m.bytes + 1024) throw fail.invalid("Die Datei ist grösser als angemeldet.");
-    chunks.push(value);
+  const running = activeUploads.get(user.id) ?? 0;
+  if (running >= MAX_PARALLEL_SERVER_UPLOADS) throw fail.rate();
+  activeUploads.set(user.id, running + 1);
+  try {
+    const { Readable, Transform } = await import("node:stream");
+    let size = 0;
+    const guard = new Transform({
+      transform(chunk: Buffer, _enc, done) {
+        size += chunk.byteLength;
+        if (size > m.bytes + 1024) return done(fail.invalid("Die Datei ist grösser als angemeldet."));
+        done(null, chunk);
+      },
+    });
+    const stream = Readable.fromWeb(body as import("node:stream/web").ReadableStream<Uint8Array>).pipe(guard);
+    // Gestreamt braucht S3 die Länge vorab: die angemeldete Grösse (Abweichung prüft completeUpload)
+    await storage().putStream(m.storageKey, stream, contentLength || m.bytes, m.mime, "private, no-store");
+    return { ok: true };
+  } finally {
+    const n = (activeUploads.get(user.id) ?? 1) - 1;
+    if (n <= 0) activeUploads.delete(user.id);
+    else activeUploads.set(user.id, n);
   }
-  await storage().put(m.storageKey, Buffer.concat(chunks), m.mime, "private, no-store");
-  return { ok: true };
 }
 
 /** Upload abgeschlossen → Verarbeitung asynchron im Worker (§25.6 Nr. 4). */

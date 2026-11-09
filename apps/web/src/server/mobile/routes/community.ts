@@ -105,7 +105,12 @@ export const communityRoutes: RouteDef[] = [
     return ev.eventsOverview(await viewer(), { mode: mode === "ONLINE" || mode === "IN_PERSON" ? mode : null, category: str(c.q, "category") ?? null });
   }),
   GET("/events/:id", async (c) => need(await ev.getEvent(c.p.id!, await viewer()), "Event nicht gefunden.")),
-  GET("/communities/:id/events", async (c) => ev.listCommunityEvents(c.p.id!, await viewer(), str(c.q, "when") === "past" ? "past" : "upcoming")),
+  GET("/communities/:id/events", async (c) => {
+    // Wie im Web: Events privater/versteckter Communities nur für Berechtigte
+    const v = await viewer();
+    if (!(await cs.canViewCommunityPost(c.p.id!, v))) return [];
+    return ev.listCommunityEvents(c.p.id!, v, str(c.q, "when") === "past" ? "past" : "upcoming");
+  }),
   POST("/communities/:id/events", async (c) => ev.createEvent(await me(), c.p.id!, await c.json())),
   PATCH("/events/:id", async (c) => ev.updateEvent(await me(), c.p.id!, await c.json())),
   POST("/events/:id/cancel", async (c) => ev.cancelEvent(await me(), c.p.id!, String((await c.json<{ reason?: string }>()).reason ?? ""))),

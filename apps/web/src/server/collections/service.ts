@@ -62,9 +62,15 @@ async function hydrate(type: SavedType, ids: string[], viewerId: string | null):
   switch (type) {
     case "POST": {
       // hydratePosts prüft keine Sichtbarkeit – deshalb vorher filtern
-      const rows = await db.post.findMany({ where: { id: { in: ids } }, select: { id: true, authorId: true, visibility: true, state: true } });
+      const rows = await db.post.findMany({ where: { id: { in: ids } }, select: { id: true, authorId: true, visibility: true, state: true, communityId: true } });
       const ok = new Set<string>();
-      for (const r of rows) if (await canViewContent(viewerId, { ownerId: r.authorId, visibility: r.visibility, state: r.state })) ok.add(r.id);
+      const { canViewCommunityContentOf } = await import("@/server/social/posts");
+      for (const r of rows) {
+        if (!(await canViewContent(viewerId, { ownerId: r.authorId, visibility: r.visibility, state: r.state }))) continue;
+        // Beiträge privater Communities nur für Mitglieder – auch in öffentlichen Sammlungen
+        if (r.communityId && !(await canViewCommunityContentOf(r.communityId, viewerId))) continue;
+        ok.add(r.id);
+      }
       return { type, items: await hydratePosts(ids.filter((i) => ok.has(i)), viewerId) };
     }
     case "PROJECT":

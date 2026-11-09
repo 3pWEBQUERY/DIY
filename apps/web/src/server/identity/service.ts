@@ -5,7 +5,8 @@ import { db } from "@/server/db";
 import { hashPassword, verifyPassword, sha256, token } from "@/server/crypto";
 import { fail } from "@/server/errors";
 import { createSession, clientIpHash } from "@/server/auth/session";
-import { limit, rateLimit } from "@/server/ratelimit";
+import { isLimited, limit, rateLimit } from "@/server/ratelimit";
+import { headers } from "next/headers";
 import { sendMail } from "@/server/mail";
 import { notify } from "@/server/notifications";
 import { audit } from "@/server/audit";
@@ -77,14 +78,23 @@ export async function signUp(input: unknown) {
 
 export async function signIn(input: unknown) {
   const data = signInSchema.parse(input);
-  await limit("signIn", `${await clientIpHash()}:${data.email}`);
-  await limit("signInAccount", data.email);
+  const ipHash = await clientIpHash();
+  await limit("signIn", `${ipHash}:${data.email}`);
   const user = await db.user.findUnique({
     where: { email: data.email },
     select: { id: true, email: true, passwordHash: true, status: true, suspendedUntil: true },
   });
+  // Konto-Limit (gegen verteiltes Durchprobieren) zählt nur Fehlversuche und gilt nicht für bekannte
+  // Geräte (dieselbe IP und derselbe Browser wie bei einer früheren Anmeldung) – so kann niemand
+  // ein fremdes Konto durch absichtliche Fehlversuche aussperren.
+  const ua = (await headers()).get("user-agent")?.slice(0, 300) ?? null;
+  const knownDevice = user ? !!(await db.session.findFirst({ where: { userId: user.id, ipHash, userAgent: ua, createdAt: { gt: new Date(Date.now() - 90 * 86400_000) } }, select: { id: true } })) : false;
+  if (!knownDevice && (await isLimited("signInAccount", data.email))) throw fail.rate();
   const valid = await verifyPassword(data.password, user?.passwordHash);
-  if (!user || !valid) throw fail.invalid("E-Mail oder Passwort ist nicht korrekt.");
+  if (!user || !valid) {
+    if (!knownDevice) await limit("signInAccount", data.email).catch(() => {});
+    throw fail.invalid("E-Mail oder Passwort ist nicht korrekt.");
+  }
   if (user.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");
   if (user.status === "DELETED") throw fail.invalid("E-Mail oder Passwort ist nicht korrekt.");
   const s = await createSession(user.id);
@@ -119,7 +129,7 @@ export async function requestPasswordReset(email: string) {
   // Zusätzlich je Adresse (unabhängig von der IP): schützt Postfächer vor Reset-Mail-Fluten.
   // Still abbrechen statt Fehler – die Antwort bleibt für alle Adressen gleich.
   try {
-    await rateLimit(`pwreset-mail:${sha256(normalized)}`, 5, 86400);
+    await rateLimit(`pwreset-mail:${sha256(normalized)}`, 5, 3600);
   } catch {
     return;
   }

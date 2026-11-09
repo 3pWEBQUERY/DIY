@@ -1,5 +1,8 @@
 import "server-only";
 import { mkdir, readFile, writeFile, unlink, stat } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+import type { Readable } from "node:stream";
 import path from "node:path";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -16,6 +19,8 @@ interface Driver {
   presignPut(key: string, mime: string, bytes: number): Promise<string>;
   presignGet(key: string, expiresIn: number, downloadName?: string): Promise<string>;
   put(key: string, body: Buffer, mime: string, cacheControl: string): Promise<void>;
+  /** Streamend schreiben (ohne die ganze Datei im Speicher zu halten); `bytes` = bekannte Länge. */
+  putStream(key: string, body: Readable, bytes: number, mime: string, cacheControl: string): Promise<void>;
   get(key: string): Promise<{ body: Buffer; mime?: string } | null>;
   head(key: string): Promise<{ bytes: number } | null>;
   del(key: string): Promise<void>;
@@ -52,6 +57,9 @@ const s3Driver: Driver = {
   },
   async put(key, body, mime, cacheControl) {
     await s3().send(new PutObjectCommand({ Bucket: env().S3_BUCKET, Key: key, Body: body, ContentType: mime, CacheControl: cacheControl }));
+  },
+  async putStream(key, body, bytes, mime, cacheControl) {
+    await s3().send(new PutObjectCommand({ Bucket: env().S3_BUCKET, Key: key, Body: body, ContentLength: bytes, ContentType: mime, CacheControl: cacheControl }));
   },
   async get(key) {
     try {
@@ -97,6 +105,11 @@ const localDriver: Driver = {
     const p = safe(key);
     await mkdir(/*turbopackIgnore: true*/ path.dirname(p), { recursive: true });
     await writeFile(/*turbopackIgnore: true*/ p, body);
+  },
+  async putStream(key, body) {
+    const p = safe(key);
+    await mkdir(/*turbopackIgnore: true*/ path.dirname(p), { recursive: true });
+    await pipeline(body, createWriteStream(/*turbopackIgnore: true*/ p));
   },
   async get(key) {
     try {

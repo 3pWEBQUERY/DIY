@@ -215,8 +215,11 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound("Unterhaltung nicht gefunden.");
   const before = opts.before ? new Date(opts.before) : null;
+  // Gruppen: Verlauf erst ab dem Beitritt (bzw. der Einladung) – frühere Nachrichten bleiben den
+  // bisherigen Mitgliedern vorbehalten
+  const joined = isGroup ? { gte: me.joinedAt } : {};
   const rows = await db.message.findMany({
-    where: { conversationId, ...(before && !Number.isNaN(before.getTime()) ? { createdAt: { lt: before } } : {}) },
+    where: { conversationId, createdAt: { ...joined, ...(before && !Number.isNaN(before.getTime()) ? { lt: before } : {}) } },
     orderBy: { createdAt: "desc" },
     take: PAGE + 1,
   });
@@ -274,17 +277,19 @@ export type ThreadData = Awaited<ReturnType<typeof getThread>>;
 
 /** Für das Polling: neue Nachrichten seit Zeitpunkt + Lesestand der Gegenseite. */
 export async function messagesSince(user: SessionUser, conversationId: string, after: string | null) {
-  await membershipOrThrow(user.id, conversationId);
+  const me = await membershipOrThrow(user.id, conversationId);
   const since = after ? new Date(after) : null;
+  const kind = (await db.conversation.findUnique({ where: { id: conversationId }, select: { kind: true } }))?.kind;
+  const joined = kind === "GROUP" ? { gte: me.joinedAt } : {};
   const [rows, others] = await Promise.all([
     db.message.findMany({
-      where: { conversationId, ...(since && !Number.isNaN(since.getTime()) ? { createdAt: { gt: since } } : {}) },
+      where: { conversationId, createdAt: { ...joined, ...(since && !Number.isNaN(since.getTime()) ? { gt: since } : {}) } },
       orderBy: { createdAt: "asc" },
       take: 100,
     }),
     otherMembers(conversationId, user.id),
   ]);
-  const isGroup = (await db.conversation.findUnique({ where: { id: conversationId }, select: { kind: true } }))?.kind === "GROUP";
+  const isGroup = kind === "GROUP";
   // Gruppen: keine Lesebestätigungen und keine Blockier-Sperre
   const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound();
@@ -310,7 +315,7 @@ async function buildMedia(tx: Prisma.TransactionClient, userId: string, refs: { 
   });
 }
 
-function assertCanMessage(user: SessionUser) {
+export function assertCanMessage(user: SessionUser) {
   if (!canMessage(user)) {
     const until = user.messagingRestrictedUntil?.toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" });
     throw fail.forbidden(`Deine Nachrichtenfunktion ist${until ? ` bis ${until}` : ""} eingeschränkt.`);

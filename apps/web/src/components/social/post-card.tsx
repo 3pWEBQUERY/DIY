@@ -276,7 +276,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           <span className="num font-medium">{post.counts.comments > 0 ? compactNumber(post.counts.comments) : ""}</span>
           <span className="sr-only">Kommentare</span>
         </button>
-        {post.visibility === "PUBLIC" && !post.repostOf && (
+        {post.visibility === "PUBLIC" && !post.repostOf && !post.community && (
           <button type="button" onClick={() => (viewer ? setRepostOpen(true) : router.push("/anmelden"))} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-moss" aria-label="Mit eigener Einordnung teilen">
             <Repeat2 size={18} strokeWidth={1.7} />
             <span className="num font-medium">{post.counts.reposts > 0 ? compactNumber(post.counts.reposts) : ""}</span>

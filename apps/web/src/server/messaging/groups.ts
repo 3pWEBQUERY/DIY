@@ -121,6 +121,9 @@ export async function createGroup(user: SessionUser, input: unknown) {
 
 export async function addGroupMembers(user: SessionUser, conversationId: string, input: unknown) {
   const data = groupAddMembersSchema.parse(input);
+  // Wer eine Nachrichtensperre hat, lädt auch niemanden ein (sonst gingen Benachrichtigungen an bis zu 25 Personen)
+  if (!canMessage(user)) throw fail.forbidden("Deine Nachrichtenfunktion ist eingeschränkt.");
+  await requireFlag("messages.new", user.id);
   const { conv } = await requireAdmin(user, conversationId);
   const current = await db.conversationMember.findMany({ where: { conversationId }, select: { userId: true } });
   const invitees = await resolveInvitees(user, data.handles, new Set(current.map((c) => c.userId)));
@@ -168,6 +171,7 @@ export async function leaveGroup(user: SessionUser, conversationId: string) {
 
 export async function renameGroup(user: SessionUser, conversationId: string, title: unknown) {
   const t = groupTitleSchema.parse(title);
+  if (!canMessage(user)) throw fail.forbidden("Deine Nachrichtenfunktion ist eingeschränkt.");
   const { conv } = await requireAdmin(user, conversationId);
   if (conv.title === t) return { title: t };
   await db.conversation.update({ where: { id: conversationId }, data: { title: t } });

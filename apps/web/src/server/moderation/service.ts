@@ -232,7 +232,7 @@ export function allowedActions(type: TargetType, hasSubject: boolean): Moderatio
 /** Vorheriger Zustand, damit ein Einspruch die Massnahme exakt zurücknehmen kann. */
 type Prior =
   | { kind: "content"; model: string; id: string; field: "state" | "status" | "reachLimited"; value: string | boolean }
-  | { kind: "user"; userId: string; status: string; suspendedUntil: string | null; messagingRestrictedUntil: string | null }
+  | { kind: "user"; userId: string; status: string; suspendedUntil: string | null; messagingRestrictedUntil: string | null; shops?: { id: string; status: string }[] }
   | { kind: "none" };
 
 async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HIDE" | "REMOVE" | "LIMIT_REACH" | "DISABLE_LISTING"): Promise<Prior> {
@@ -313,56 +313,86 @@ async function applyToUser(tx: Tx, userId: string, action: "RESTRICT_MESSAGING" 
   } else {
     await tx.user.update({ where: { id: userId }, data: { status: "BANNED", suspendedUntil: null } });
     await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
-    // Verkaufsangebote eines dauerhaft gesperrten Kontos sind nicht mehr kaufbar
-    await tx.shop.updateMany({ where: { ownerId: userId, status: { in: ["ACTIVE", "PENDING_VERIFICATION", "PAUSED"] } }, data: { status: "SUSPENDED" } });
+    // Verkaufsangebote eines dauerhaft gesperrten Kontos sind nicht mehr kaufbar – vorherigen Shop-Status
+    // merken, damit ein stattgegebener Einspruch den Shop wiederherstellt
+    const shops = await tx.shop.findMany({ where: { ownerId: userId, status: { in: ["ACTIVE", "PENDING_VERIFICATION", "PAUSED"] } }, select: { id: true, status: true } });
+    if (shops.length) await tx.shop.updateMany({ where: { id: { in: shops.map((x) => x.id) } }, data: { status: "SUSPENDED" } });
+    (prior as Extract<Prior, { kind: "user" }>).shops = shops;
   }
   return prior;
 }
 
-async function revertPrior(tx: Tx, prior: Prior) {
-  if (prior.kind === "none") return;
+/** Zustand, den eine Inhaltsmassnahme gesetzt hat – nur dann darf ein Einspruch zurücksetzen. */
+function appliedValue(model: string, field: string, action: string): string | boolean | null {
+  if (field === "reachLimited") return true;
+  if (model === "product") return action === "HIDE" ? "PAUSED" : "DISABLED";
+  if (model === "blogArticle") return "HIDDEN";
+  if (action === "HIDE") return "HIDDEN";
+  if (action === "REMOVE") return "REMOVED";
+  return null;
+}
+
+/**
+ * Massnahme zurücknehmen (stattgegebener Einspruch) – aber nur, solange der aktuelle Zustand noch
+ * der von dieser Massnahme gesetzte ist. Wurde seither anders entschieden (z.B. inzwischen gebannt
+ * oder vom Admin entfernt), bleibt der neuere Zustand bestehen. Gibt zurück, ob zurückgesetzt wurde.
+ */
+async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolean> {
+  if (prior.kind === "none") return false;
   if (prior.kind === "user") {
-    await tx.user.update({
-      where: { id: prior.userId },
-      data: {
-        status: prior.status as "ACTIVE" | "SUSPENDED" | "BANNED" | "DELETED",
-        suspendedUntil: prior.suspendedUntil ? new Date(prior.suspendedUntil) : null,
-        messagingRestrictedUntil: prior.messagingRestrictedUntil ? new Date(prior.messagingRestrictedUntil) : null,
-      },
+    if (action === "RESTRICT_MESSAGING") {
+      await tx.user.update({ where: { id: prior.userId }, data: { messagingRestrictedUntil: prior.messagingRestrictedUntil ? new Date(prior.messagingRestrictedUntil) : null } });
+      return true;
+    }
+    const expected = action === "BAN" ? "BANNED" : "SUSPENDED";
+    // Zurück auf den Stand vor dieser Massnahme (z.B. Bann → vorherige befristete Sperre bleibt)
+    const target = (["ACTIVE", "SUSPENDED", "BANNED"].includes(prior.status) ? prior.status : "ACTIVE") as "ACTIVE" | "SUSPENDED" | "BANNED";
+    const r = await tx.user.updateMany({
+      where: { id: prior.userId, status: expected },
+      data: { status: target, suspendedUntil: target === "SUSPENDED" && prior.suspendedUntil ? new Date(prior.suspendedUntil) : null },
     });
-    return;
+    if (!r.count) return false;
+    for (const sh of prior.shops ?? []) {
+      await tx.shop.updateMany({ where: { id: sh.id, status: "SUSPENDED" }, data: { status: sh.status as "ACTIVE" | "PENDING_VERIFICATION" | "PAUSED" } });
+    }
+    return true;
   }
-  const data = { [prior.field]: prior.value } as never;
-  const where = { where: { id: prior.id }, data };
+  const expected = appliedValue(prior.model, prior.field, action);
+  if (expected === null) return false;
+  const where = { id: prior.id, [prior.field]: expected };
+  const data = { [prior.field]: prior.value };
+  const args = { where, data } as never;
+  let count = 0;
   switch (prior.model) {
     case "post":
-      await tx.post.update(where);
+      count = (await tx.post.updateMany(args)).count;
       break;
     case "comment":
-      await tx.comment.update(where);
+      count = (await tx.comment.updateMany(args)).count;
       break;
     case "project":
-      await tx.project.update(where);
+      count = (await tx.project.updateMany(args)).count;
       break;
     case "tutorial":
-      await tx.tutorial.update(where);
+      count = (await tx.tutorial.updateMany(args)).count;
       break;
     case "blogArticle":
-      await tx.blogArticle.update(where);
+      count = (await tx.blogArticle.updateMany(args)).count;
       break;
     case "community":
-      await tx.community.update(where);
+      count = (await tx.community.updateMany(args)).count;
       break;
     case "message":
-      await tx.message.update(where);
+      count = (await tx.message.updateMany(args)).count;
       break;
     case "review":
-      await tx.review.update(where);
+      count = (await tx.review.updateMany(args)).count;
       break;
     case "product":
-      await tx.product.update(where);
+      count = (await tx.product.updateMany(args)).count;
       break;
   }
+  return count > 0;
 }
 
 /** Standarddauer je Kontomassnahme, wenn keine angegeben ist. */
@@ -391,6 +421,9 @@ export async function decideCase(actor: Actor, caseId: string, input: unknown) {
   const until = data.action === "RESTRICT_MESSAGING" || data.action === "SUSPEND" ? new Date(Date.now() + (days ?? 7) * DAY) : null;
 
   const result = await db.$transaction(async (tx) => {
+    // Fall beanspruchen: entscheiden zwei Personen gleichzeitig, gewinnt nur eine (keine doppelten Massnahmen)
+    const claimed = await tx.moderationCase.updateMany({ where: { id: caseId, status: { in: OPEN_STATUSES } }, data: { status: "RESOLVED" } });
+    if (claimed.count !== 1) throw fail.conflict("Dieser Fall wurde bereits entschieden.");
     let prior: Prior = { kind: "none" };
     switch (data.action) {
       case "HIDE":
@@ -555,14 +588,22 @@ export async function decideAppeal(actor: Actor, appealId: string, input: unknow
     if (others > 0) throw fail.forbidden("Bitte lass den Einspruch von einer anderen Person aus dem Team prüfen.");
   }
   const applied = ((appeal.case.snapshot ?? {}) as { applied?: { prior?: Prior; action?: string } }).applied;
+  // Banns hebt nur die Administration auf (wie beim direkten Entsperren)
+  if (data.decision === "OVERTURNED" && applied?.action === "BAN" && !hasRole(actor, "ADMIN")) throw fail.forbidden("Einen dauerhaften Bann kann nur die Administration aufheben.");
 
   await db.$transaction(async (tx) => {
     const upd = await tx.appeal.updateMany({ where: { id: appealId, status: "OPEN" }, data: { status: data.decision, decidedBy: actor.id, decision: data.note, decidedAt: new Date() } });
     if (upd.count !== 1) throw fail.conflict("Über diesen Einspruch wurde bereits entschieden.");
     if (data.decision === "OVERTURNED") {
-      if (applied?.prior) await revertPrior(tx, applied.prior);
+      const reverted = applied?.prior ? await revertPrior(tx, applied.prior, applied.action ?? "") : false;
       await tx.moderationAction.create({
-        data: { caseId: appeal.caseId, moderatorId: actor.id, action: "NONE", reason: `Einspruch stattgegeben – Massnahme aufgehoben. ${data.note}`, publicNote: data.note },
+        data: {
+          caseId: appeal.caseId,
+          moderatorId: actor.id,
+          action: "NONE",
+          reason: reverted || !applied?.prior || applied.prior.kind === "none" ? `Einspruch stattgegeben – Massnahme aufgehoben. ${data.note}` : `Einspruch stattgegeben – der Zustand wurde inzwischen durch eine andere Entscheidung geändert und bleibt bestehen. ${data.note}`,
+          publicNote: data.note,
+        },
       });
     }
     await tx.moderationCase.update({ where: { id: appeal.caseId }, data: { status: "CLOSED" } });

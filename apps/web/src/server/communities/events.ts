@@ -1,6 +1,6 @@
 import "server-only";
 import { eventUpsertSchema } from "@werkraum/shared";
-import { db, type Prisma } from "@/server/db";
+import { db, type Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { hasRole, communityRole } from "@/server/authz";
 import { rateLimit } from "@/server/ratelimit";
@@ -210,8 +210,26 @@ async function requireEditor(user: SessionUser, eventId: string) {
   const e = await db.communityEvent.findUnique({ where: { id: eventId }, select: { id: true, communityId: true, organizerId: true, state: true, title: true, startsAt: true, endsAt: true, locationName: true, address: true, onlineUrl: true, mode: true, community: { select: { slug: true } } } });
   if (!e) throw fail.notFound("Event nicht gefunden.");
   const m = await communityRole(e.communityId, user.id);
-  if (e.organizerId !== user.id && !isModRole(m) && !hasRole(user, "PLATFORM_MODERATOR")) throw fail.forbidden("Nur Veranstalter:in und Moderation können das Event ändern.");
+  // Veranstalter:in nur, solange sie bzw. er aktives Mitglied ist (gebannt/ausgetreten → keine Änderungen mehr)
+  const organizer = e.organizerId === user.id && m?.state === "ACTIVE";
+  if (!organizer && !isModRole(m) && !hasRole(user, "PLATFORM_MODERATOR")) throw fail.forbidden("Nur Veranstalter:in und Moderation können das Event ändern.");
   return e;
+}
+
+/**
+ * Austritt oder Bann: Zusagen für kommende Events dieser Community entfernen und die Zählung
+ * neu setzen – sonst belegen Ehemalige Plätze, bekommen Erinnerungen und sehen den Online-Link.
+ */
+export async function dropFutureAttendance(tx: Tx, communityId: string, userId: string) {
+  const rows = await tx.eventAttendee.findMany({ where: { userId, event: { communityId, startsAt: { gt: new Date() } } }, select: { eventId: true } });
+  if (!rows.length) return 0;
+  const ids = rows.map((r) => r.eventId);
+  await tx.eventAttendee.deleteMany({ where: { userId, eventId: { in: ids } } });
+  for (const id of ids) {
+    const going = await tx.eventAttendee.count({ where: { eventId: id, status: "GOING" } });
+    await tx.communityEvent.update({ where: { id }, data: { goingCount: going } });
+  }
+  return ids.length;
 }
 
 /** Teilnehmende über Änderungen informieren (ohne die handelnde Person). */
@@ -231,8 +249,9 @@ export async function updateEvent(user: SessionUser, eventId: string, input: unk
   const next = clean(data);
   const going = await db.eventAttendee.count({ where: { eventId, status: "GOING" } });
   if (next.capacity != null && next.capacity < going) throw fail.invalid(`Es haben bereits ${going} Personen zugesagt.`, { capacity: `Mindestens ${going}` });
-  await db.communityEvent.update({ where: { id: eventId }, data: next });
   const moved = prev.startsAt.getTime() !== next.startsAt.getTime() || prev.endsAt.getTime() !== next.endsAt.getTime();
+  // Verschoben → Erinnerung zum neuen Termin erneut fällig
+  await db.communityEvent.update({ where: { id: eventId }, data: { ...next, ...(prev.startsAt.getTime() !== next.startsAt.getTime() ? { reminderSentAt: null } : {}) } });
   const relocated = prev.locationName !== next.locationName || prev.address !== next.address || prev.onlineUrl !== next.onlineUrl || prev.mode !== next.mode;
   if (moved || relocated) {
     const what = moved && relocated ? "Zeit und Ort" : moved ? `die Zeit (neu: ${when(next.startsAt)})` : "den Ort";

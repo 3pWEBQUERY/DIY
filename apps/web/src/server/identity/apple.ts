@@ -6,7 +6,9 @@ import { slugify } from "@/lib/utils";
 import { isHandleAvailable } from "./service";
 import { createPublicKey, createVerify } from "node:crypto";
 import { fail } from "@/server/errors";
-import { createSession } from "@/server/auth/session";
+import { audit } from "@/server/audit";
+import { createSession, clientIpHash } from "@/server/auth/session";
+import { rateLimit } from "@/server/ratelimit";
 import { requireFlag } from "@/server/flags";
 
 export function appleClient() {
@@ -31,7 +33,7 @@ export async function resolveAppleUser(code: string, rawUser: string | null) {
   return linkAppleClaims(claims, name);
 }
 
-async function linkAppleClaims(claims: AppleClaims, displayName: string | null) {
+export async function linkAppleClaims(claims: AppleClaims, displayName: string | null) {
   const linked = await db.authAccount.findUnique({ where: { provider_providerAccountId: { provider: "apple", providerAccountId: claims.sub } } });
   if (linked) return { userId: linked.userId, isNew: false };
 
@@ -39,8 +41,21 @@ async function linkAppleClaims(claims: AppleClaims, displayName: string | null) 
   const verified = claims.email_verified === true || claims.email_verified === "true";
   // Mit bestehendem Konto nur verknüpfen, wenn Apple die Adresse bestätigt hat (Kontoübernahme verhindern)
   if (email && verified) {
-    const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
+    const existing = await db.user.findUnique({ where: { email }, select: { id: true, emailVerifiedAt: true } });
     if (existing) {
+      if (!existing.emailVerifiedAt) {
+        // Unbestätigtes Konto mit derselben Adresse: könnte jemand anderes vorab angelegt haben
+        // (Kontoübernahme). Apple hat die Adresse bestätigt → dieses Konto gehört der Apple-Person:
+        // fremdes Passwort, 2FA und alle Sitzungen entfernen. Wer das Konto selbst angelegt hat,
+        // setzt das Passwort über „Passwort vergessen“ neu (die Mail geht an dieselbe Adresse).
+        await db.$transaction(async (tx) => {
+          await tx.user.update({ where: { id: existing.id }, data: { emailVerifiedAt: new Date(), passwordHash: null, totpSecret: null, totpEnabledAt: null, totpLastStep: null } });
+          await tx.mfaRecoveryCode.deleteMany({ where: { userId: existing.id } });
+          await tx.session.updateMany({ where: { userId: existing.id, revokedAt: null }, data: { revokedAt: new Date() } });
+          await tx.authAccount.deleteMany({ where: { userId: existing.id, provider: "apple" } });
+          await audit({ actorId: existing.id, action: "account.apple_claimed_unverified", targetType: "USER", targetId: existing.id }, tx);
+        });
+      }
       await db.authAccount.create({ data: { userId: existing.id, provider: "apple", providerAccountId: claims.sub } });
       return { userId: existing.id, isNew: false };
     }
@@ -95,6 +110,7 @@ function b64url(s: string) {
 export async function signInWithAppleIdToken(idToken: string, displayName: string | null) {
   const audience = process.env.APPLE_IOS_CLIENT_ID;
   if (!audience) throw fail.unavailable("Anmelden mit Apple ist in der App noch nicht aktiviert.");
+  await rateLimit(`apple-native:${await clientIpHash()}`, 30, 600);
   const [h, p, sig] = idToken.split(".");
   if (!h || !p || !sig) throw fail.invalid("Ungültiges Apple-Token.");
   const header = JSON.parse(b64url(h).toString("utf8")) as { kid?: string; alg?: string };
