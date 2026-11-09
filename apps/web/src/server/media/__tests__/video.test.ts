@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { VideoRejected, ffmpegAvailable, probe, transcode } from "../video";
 
 const hasFfmpeg = await ffmpegAvailable();
@@ -24,7 +24,14 @@ describe.skipIf(!hasFfmpeg)("Video-Transkodierung", () => {
     // Wie iPhone-Hochformat: Querformat-Pixel + Drehung als Anzeige-Metadaten
     const rotated = make("iphone-rot.mov", ["-display_rotation", "90", "-i", src, "-c", "copy"]);
     expect((await probe(rotated)).height).toBeGreaterThan((await probe(rotated)).width!);
-    const r = await transcode(readFileSync(rotated), { maxSeconds: 180 });
+    // Ergebnis nur innerhalb des Callbacks auf der Platte – danach räumt transcode auf
+    let tmpPath = "";
+    const r = await transcode(rotated, { maxSeconds: 180 }, async (res) => {
+      tmpPath = res.videoPath;
+      expect(statSync(res.videoPath).size).toBe(res.videoBytes);
+      return { ...res, video: readFileSync(res.videoPath) };
+    });
+    expect(existsSync(tmpPath)).toBe(false);
     const out = join(dir, "out.mp4");
     writeFileSync(out, r.video);
     const info = await probe(out);
@@ -45,11 +52,15 @@ describe.skipIf(!hasFfmpeg)("Video-Transkodierung", () => {
 
   it("lehnt zu lange Videos mit verständlicher Meldung ab", async () => {
     const src = make("long.mp4", ["-f", "lavfi", "-i", "testsrc2=size=320x240:rate=10:duration=6", "-c:v", "libx264", "-preset", "ultrafast"]);
-    await expect(transcode(readFileSync(src), { maxSeconds: 3 })).rejects.toThrow(/zu lang \(6 Sek\.\)/);
-    await expect(transcode(readFileSync(src), { maxSeconds: 3 })).rejects.toBeInstanceOf(VideoRejected);
+    const use = vi.fn(async () => undefined);
+    await expect(transcode(src, { maxSeconds: 3 }, use)).rejects.toThrow(/zu lang \(6 Sek\.\)/);
+    await expect(transcode(src, { maxSeconds: 3 }, use)).rejects.toBeInstanceOf(VideoRejected);
+    expect(use).not.toHaveBeenCalled();
   }, 60_000);
 
   it("lehnt Dateien ohne Videospur ab", async () => {
-    await expect(transcode(Buffer.from("kein video, nur text".repeat(100)), { maxSeconds: 180 })).rejects.toBeInstanceOf(VideoRejected);
+    const txt = join(dir, "text.bin");
+    writeFileSync(txt, "kein video, nur text".repeat(100));
+    await expect(transcode(txt, { maxSeconds: 180 }, async () => undefined)).rejects.toBeInstanceOf(VideoRejected);
   }, 30_000);
 });

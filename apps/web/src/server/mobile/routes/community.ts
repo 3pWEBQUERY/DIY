@@ -5,6 +5,7 @@ import { requireCommunityModerator } from "@/server/authz";
 import * as cs from "@/server/communities/service";
 import * as ev from "@/server/communities/events";
 import * as blog from "@/server/blog/service";
+import { recordViewAfter } from "@/server/analytics/service";
 import * as msg from "@/server/messaging/service";
 import * as groups from "@/server/messaging/groups";
 import { listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
@@ -205,7 +206,7 @@ export const communityRoutes: RouteDef[] = [
     if (res.kind === "redirect") return { redirect: res.to };
     const r = res as unknown as { article: { id: string; authorId: string; categoryId: string | null; tags: string[]; projects: { projectId: string }[] }; isLive: boolean; isAuthor: boolean };
     const [related, projects] = await Promise.all([r.isLive ? blog.relatedArticles(r.article, vid) : Promise.resolve([]), blog.linkedProjects(r.article.projects.map((p) => p.projectId))]);
-    if (r.isLive && !r.isAuthor) void blog.recordArticleView(r.article.id).catch(() => {});
+    if (r.isLive && !r.isAuthor) await recordViewAfter({ viewerId: vid, targetType: "ARTICLE", targetId: r.article.id, ref: "ios" });
     return { ...(res as object), related, linkedProjects: projects };
   }),
   GET("/studio/articles", async (c) => blog.listMyArticles((await me()).id, str(c.q, "state") as never)),

@@ -1,43 +1,84 @@
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import sharp from "sharp";
 import { db } from "@/server/db";
 import { storage, publicMediaUrl } from "@/server/storage";
 import { videoLimits } from "./service";
 import { notify } from "@/server/notifications";
 import { VideoRejected, ffmpegAvailable, transcode } from "./video";
+import { decodeHeic, isHevcHeif } from "./heic";
 
 const SIZES = { thumb: 240, sm: 480, md: 960, lg: 1600 } as const;
+
+type Storage = ReturnType<typeof storage>;
+const PUBLIC_CACHE = "public, max-age=31536000, immutable";
+const MAX_IMAGE_PIXELS = 80_000_000;
+
+function hex(c: { r: number; g: number; b: number }) {
+  return `#${[c.r, c.g, c.b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Objekt streamend in eine lokale Datei laden (Videos bis 1 GB nie komplett im Speicher). */
+async function download(st: Storage, key: string, file: string) {
+  const obj = await st.getStream(key);
+  if (!obj || obj === "unsatisfiable") return false;
+  await pipeline(Readable.fromWeb(obj.body as import("node:stream/web").ReadableStream<Uint8Array>), createWriteStream(file));
+  return true;
+}
+
+/** Objekt streamend kopieren (Speicher → Speicher). */
+async function copyObject(st: Storage, from: string, to: string, mime: string, cacheControl: string) {
+  const obj = await st.getStream(from);
+  if (!obj || obj === "unsatisfiable") throw new Error("Quelldatei fehlt");
+  await st.putStream(to, Readable.fromWeb(obj.body as import("node:stream/web").ReadableStream<Uint8Array>), obj.size, mime, cacheControl);
+}
+
+/** Bild für sharp öffnen; HEVC-HEIC (iPhone) vorher mit libheif dekodieren (siehe heic.ts). */
+async function openImage(body: Buffer) {
+  if (isHevcHeif(body)) {
+    const img = await decodeHeic(body, MAX_IMAGE_PIXELS);
+    return sharp(img.data, { raw: { width: img.width, height: img.height, channels: img.channels }, limitInputPixels: MAX_IMAGE_PIXELS });
+  }
+  return sharp(body, { failOn: "error", limitInputPixels: MAX_IMAGE_PIXELS }).rotate();
+}
 
 /**
  * Medienverarbeitung (§25.6 Nr. 4–6):
  * - Bilder: Auto-Rotation, EXIF/GPS-Entfernung (sharp verwirft Metadaten standardmässig),
- *   WebP-Varianten, Abmessungen, dominante Farbe.
+ *   WebP-Varianten, Abmessungen, dominante Farbe. HEIC/HEIF (iPhone) über libheif (heic.ts).
  * - Videos: ffmpeg-Transkodierung nach MP4 (H.264/AAC, max. 1080p/30 fps, ohne Metadaten)
  *   plus Vorschaubild; Länge gemäss Einstellung „media.maxVideoSeconds“ (siehe video.ts).
  *   Ohne ffmpeg (lokale Entwicklung) wird das Original durchgereicht.
+ *   Videos und Dateien laufen streamend über temporäre Dateien – nie als ganzer Puffer im Speicher.
  * - Private Dateien (digitale Produkte) wandern nach `private/…` und sind nie öffentlich.
  */
 export async function processMedia(mediaId: string) {
   const m = await db.media.findUnique({ where: { id: mediaId } });
   if (!m || m.state === "READY") return;
   const st = storage();
-  const raw = await st.get(m.storageKey);
-  if (!raw) {
+  if (!(await st.head(m.storageKey))) {
     await db.media.update({ where: { id: m.id }, data: { state: "FAILED" } });
     return;
   }
   try {
     if (m.kind === "IMAGE") {
-      const base = sharp(raw.body, { failOn: "error", limitInputPixels: 80_000_000 }).rotate();
+      // Bilder sind klein (media.maxImageMb) – als Puffer verarbeiten
+      const raw = await st.get(m.storageKey);
+      if (!raw) throw new Error("Quelldatei fehlt");
+      const base = await openImage(raw.body);
       const meta = await base.metadata();
       const variants: Record<string, string> = {};
       for (const [name, width] of Object.entries(SIZES)) {
         const buf = await base.clone().resize({ width, withoutEnlargement: true }).webp({ quality: name === "thumb" ? 70 : 80 }).toBuffer();
         const key = `m/${m.id}/${name}.webp`;
-        await st.put(key, buf, "image/webp", "public, max-age=31536000, immutable");
+        await st.put(key, buf, "image/webp", PUBLIC_CACHE);
         variants[name] = publicMediaUrl(key);
       }
       const { dominant } = await base.clone().stats();
-      const hex = `#${[dominant.r, dominant.g, dominant.b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
       const oriented = (meta.orientation ?? 1) >= 5;
       await db.media.update({
         where: { id: m.id },
@@ -46,7 +87,7 @@ export async function processMedia(mediaId: string) {
           variants,
           width: oriented ? meta.height : meta.width,
           height: oriented ? meta.width : meta.height,
-          dominant: hex,
+          dominant: hex(dominant),
         },
       });
     } else if (m.kind === "VIDEO") {
@@ -54,52 +95,59 @@ export async function processMedia(mediaId: string) {
         console.warn(JSON.stringify({ level: "warn", msg: "ffmpeg_missing", mediaId: m.id }));
         const ext = m.storageKey.split(".").pop();
         const key = `m/${m.id}/video.${ext}`;
-        await st.put(key, raw.body, m.mime, "public, max-age=31536000, immutable");
+        await copyObject(st, m.storageKey, key, m.mime, PUBLIC_CACHE);
         await db.media.update({ where: { id: m.id }, data: { state: "READY", variants: { video: publicMediaUrl(key) } } });
       } else {
         const { maxSeconds } = await videoLimits(m.ownerId);
-        let r;
+        const work = await mkdtemp(join(tmpdir(), "werkuno-src-"));
         try {
-          r = await transcode(raw.body, { maxSeconds });
-        } catch (e) {
-          if (e instanceof VideoRejected) {
-            // Fachlich abgelehnt (zu lang, kein Video) → kein erneuter Versuch, Person informieren
-            await rejectVideo(m.id, m.ownerId, e.message);
-            await st.del(m.storageKey).catch(() => {});
-            return;
+          const src = join(work, "in");
+          if (!(await download(st, m.storageKey, src))) throw new Error("Quelldatei fehlt");
+          try {
+            await transcode(src, { maxSeconds }, async (r) => {
+              const videoKey = `m/${m.id}/video.mp4`;
+              await st.putStream(videoKey, createReadStream(r.videoPath), r.videoBytes, "video/mp4", PUBLIC_CACHE);
+              const variants: Record<string, string> = { video: publicMediaUrl(videoKey) };
+              const posterImg = sharp(r.poster);
+              for (const [name, width] of [["poster", 1280], ["sm", 480]] as const) {
+                const buf = await posterImg.clone().resize({ width, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+                const key = `m/${m.id}/${name}.webp`;
+                await st.put(key, buf, "image/webp", PUBLIC_CACHE);
+                variants[name] = publicMediaUrl(key);
+              }
+              const { dominant } = await posterImg.clone().stats();
+              await db.media.update({
+                where: { id: m.id },
+                data: {
+                  state: "READY",
+                  mime: "video/mp4",
+                  bytes: r.videoBytes,
+                  variants,
+                  width: r.width || null,
+                  height: r.height || null,
+                  durationMs: r.durationMs,
+                  dominant: hex(dominant),
+                  processingError: null,
+                },
+              });
+            });
+          } catch (e) {
+            if (e instanceof VideoRejected) {
+              // Fachlich abgelehnt (zu lang, kein Video) → kein erneuter Versuch, Person informieren
+              await rejectVideo(m.id, m.ownerId, e.message);
+              await st.del(m.storageKey).catch(() => {});
+              return;
+            }
+            throw e;
           }
-          throw e;
+        } finally {
+          await rm(work, { recursive: true, force: true }).catch(() => {});
         }
-        const videoKey = `m/${m.id}/video.mp4`;
-        await st.put(videoKey, r.video, "video/mp4", "public, max-age=31536000, immutable");
-        const variants: Record<string, string> = { video: publicMediaUrl(videoKey) };
-        const posterImg = sharp(r.poster);
-        for (const [name, width] of [["poster", 1280], ["sm", 480]] as const) {
-          const buf = await posterImg.clone().resize({ width, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
-          const key = `m/${m.id}/${name}.webp`;
-          await st.put(key, buf, "image/webp", "public, max-age=31536000, immutable");
-          variants[name] = publicMediaUrl(key);
-        }
-        const { dominant } = await posterImg.clone().stats();
-        await db.media.update({
-          where: { id: m.id },
-          data: {
-            state: "READY",
-            mime: "video/mp4",
-            bytes: r.video.length,
-            variants,
-            width: r.width || null,
-            height: r.height || null,
-            durationMs: r.durationMs,
-            dominant: `#${[dominant.r, dominant.g, dominant.b].map((v) => v.toString(16).padStart(2, "0")).join("")}`,
-            processingError: null,
-          },
-        });
       }
     } else {
       const ext = m.storageKey.split(".").pop();
       const key = `private/${m.ownerId}/${m.id}.${ext}`;
-      await st.put(key, raw.body, m.mime, "private, no-store");
+      await copyObject(st, m.storageKey, key, m.mime, "private, no-store");
       await db.media.update({ where: { id: m.id }, data: { state: "READY", isPrivate: true, storageKey: key } });
     }
     if (!m.storageKey.startsWith("private/")) await st.del(m.storageKey).catch(() => {});

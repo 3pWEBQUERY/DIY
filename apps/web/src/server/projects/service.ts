@@ -1,5 +1,4 @@
 import "server-only";
-import { track } from "@/server/analytics/service";
 import { cache } from "react";
 import { projectUpsertSchema, projectUpdateEntrySchema, projectStatusChangeSchema, type ProjectStatus } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
@@ -284,6 +283,8 @@ export async function deleteProject(user: SessionUser, projectId: string) {
     });
     return;
   }
+  // Ausgeblendete Projekte bleiben als Nachweis für Einspruch und Fallakte erhalten
+  if (p.state === "HIDDEN") throw fail.forbidden("Dieses Projekt wurde von der Moderation ausgeblendet und kann nicht gelöscht werden.");
   await db.$transaction(async (tx) => {
     const originals = await tx.projectRelation.findMany({ where: { fromId: projectId, kind: "REMIX" }, select: { toId: true } });
     for (const o of originals) await tx.project.updateMany({ where: { id: o.toId, remixCount: { gt: 0 } }, data: { remixCount: { decrement: 1 } } });
@@ -350,11 +351,6 @@ export async function deleteProjectUpdate(user: SessionUser, updateId: string) {
   if (!u) throw fail.notFound();
   if (u.authorId !== user.id && u.project.ownerId !== user.id && !hasRole(user, "PLATFORM_MODERATOR")) throw fail.forbidden();
   await db.projectUpdate.delete({ where: { id: updateId } });
-}
-
-export async function recordProjectView(projectId: string) {
-  const r = await db.project.update({ where: { id: projectId }, data: { viewCount: { increment: 1 } }, select: { ownerId: true } }).catch(() => null);
-  if (r) await track("view", { targetType: "PROJECT", targetId: projectId, ownerId: r.ownerId });
 }
 
 // ───────────────────────── Karten & Listen ─────────────────────────

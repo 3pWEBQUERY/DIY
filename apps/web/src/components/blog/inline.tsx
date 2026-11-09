@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { parseInline, type Inline } from "@/lib/inline-marks";
+import { isInternalHref, parseInline, type Inline } from "@/lib/inline-marks";
 
 export { parseInline, stripInline, safeHref } from "@/lib/inline-marks";
 
@@ -16,7 +16,7 @@ function render(nodes: Inline[], key: string): ReactNode[] {
       case "i":
         return <em key={k}>{render(n.c, k)}</em>;
       case "a": {
-        const internal = n.href.startsWith("/");
+        const internal = isInternalHref(n.href);
         return internal ? (
           <a key={k} href={n.href}>{render(n.c, k)}</a>
         ) : (

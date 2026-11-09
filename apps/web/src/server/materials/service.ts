@@ -6,6 +6,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { canViewContent } from "@/server/visibility";
 import { token } from "@/server/crypto";
 import { stockLookup } from "@/server/materials/stock";
+import { visibleProjectsWhere } from "@/server/projects/service";
 import type { SessionUser } from "@/server/auth/session";
 
 /**
@@ -17,6 +18,12 @@ const MAX_LISTS = 100;
 const MAX_ITEMS = 300;
 
 const writeLimit = (userId: string) => rateLimit(`shopping:${userId}`, 600, 3600);
+
+/**
+ * „In X Projekten verwendet“ zählt nur öffentlich sichtbare Projekte – private, ausgeblendete
+ * oder entfernte Projekte dürfen nicht durch eine Zahl auf der Materialseite durchscheinen.
+ */
+const PUBLIC_PROJECT: Prisma.ProjectWhereInput = { state: "PUBLISHED", visibility: "PUBLIC", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } } };
 
 // ───────────────────────── Materialdatenbank ─────────────────────────
 
@@ -56,7 +63,7 @@ export async function browseMaterials(opts: { categorySlug?: string; q?: string;
     select: {
       id: true, slug: true, name: true, type: true, unit: true, brand: true, notes: true, safetyInfo: true, properties: true,
       category: { select: { slug: true, name: true } },
-      _count: { select: { projectMaterials: true } },
+      _count: { select: { projectMaterials: { where: { project: PUBLIC_PROJECT } } } },
     },
   });
   const page = rows.slice(0, take);
@@ -337,19 +344,22 @@ export async function getMaterialPage(slug: string, viewerId: string | null | un
     select: {
       id: true, slug: true, name: true, type: true, unit: true, brand: true, productRef: true, notes: true, safetyInfo: true, properties: true,
       category: { select: { slug: true, name: true } },
-      _count: { select: { projectMaterials: true } },
     },
   });
   if (!m) return null;
-  const [uses, stock] = await Promise.all([
-    db.projectMaterial.findMany({ where: { materialId: m.id }, distinct: ["projectId"], orderBy: { project: { publishedAt: { sort: "desc", nulls: "last" } } }, take: 40, select: { projectId: true } }),
+  const [usedIn, uses, stock] = await Promise.all([
+    db.project.count({ where: { ...PUBLIC_PROJECT, materials: { some: { materialId: m.id } } } }),
+    // Sichtbarkeit vor dem Begrenzen filtern, sonst verdrängen private/entfernte Projekte die sichtbaren
+    visibleProjectsWhere(viewerId).then((visible) =>
+      db.projectMaterial.findMany({ where: { materialId: m.id, project: visible }, distinct: ["projectId"], orderBy: { project: { publishedAt: { sort: "desc", nulls: "last" } } }, take: 40, select: { projectId: true } }),
+    ),
     viewerId ? db.materialStock.findUnique({ where: { userId_materialId: { userId: viewerId, materialId: m.id } }, select: { id: true, quantity: true, note: true } }) : null,
   ]);
   const related = await db.material.findMany({ where: { category: { slug: m.category.slug }, id: { not: m.id } }, orderBy: { name: "asc" }, take: 8, select: { slug: true, name: true, type: true } });
   return {
     ...m,
     properties: (m.properties ?? {}) as Record<string, unknown>,
-    usedIn: m._count.projectMaterials,
+    usedIn,
     projectIds: uses.map((u) => u.projectId),
     stock,
     related,

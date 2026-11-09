@@ -460,6 +460,24 @@ export async function assertNotSilencedInCommunity(communityId: string, userId: 
   if (m?.mutedUntil && m.mutedUntil > new Date()) throw fail.forbidden("Du bist in dieser Community derzeit stummgeschaltet.");
 }
 
+/**
+ * Wie `canViewCommunityContentOf`, aber für viele Communities mit festen drei Abfragen (statt je Community).
+ * Gleiche Regeln: öffentlich + veröffentlicht für alle; privat oder ausgeblendet nur Mitglieder und Moderation.
+ */
+export async function viewableCommunityIds(communityIds: string[], viewerId: string | null): Promise<Set<string>> {
+  const ids = [...new Set(communityIds)];
+  if (!ids.length) return new Set();
+  const rows = await db.community.findMany({ where: { id: { in: ids }, state: { not: "REMOVED" } }, select: { id: true, visibility: true, state: true } });
+  const ok = new Set(rows.filter((c) => c.visibility !== "PRIVATE" && c.state === "PUBLISHED").map((c) => c.id));
+  const restricted = rows.filter((c) => !ok.has(c.id)).map((c) => c.id);
+  if (!restricted.length || !viewerId) return ok;
+  const viewer = await db.user.findUnique({ where: { id: viewerId }, select: { role: true, totpEnabledAt: true } });
+  if (viewer && hasRole(viewer, "PLATFORM_MODERATOR")) return new Set([...ok, ...restricted]);
+  const ms = await db.communityMember.findMany({ where: { communityId: { in: restricted }, userId: viewerId, state: "ACTIVE" }, select: { communityId: true } });
+  for (const m of ms) ok.add(m.communityId);
+  return ok;
+}
+
 export async function getPostForViewer(postId: string, viewerId: string | null) {
   const p = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, visibility: true, state: true, communityId: true, scheduledAt: true } });
   if (!p || !(await canViewContent(viewerId, { ownerId: p.authorId, visibility: p.visibility, state: p.state }))) return null;

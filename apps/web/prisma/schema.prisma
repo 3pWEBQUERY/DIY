@@ -1001,7 +1001,10 @@ model BlogArticle {
   seoTitle       String?
   seoDescription String?
   state          ArticleState @default(DRAFT)
+  /// Wunsch der Autorin/des Autors (Editor-Schalter)
   commentsEnabled Boolean     @default(true)
+  /// Sperre durch die Moderation – getrennt vom Autorenschalter, damit Speichern sie nicht aufhebt
+  commentsLockedAt DateTime?
   viewCount      Int          @default(0)
   likeCount      Int          @default(0)
   isFeatured     Boolean      @default(false)

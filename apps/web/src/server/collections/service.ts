@@ -1,11 +1,12 @@
 import "server-only";
 import { collectionUpsertSchema } from "@werkraum/shared";
-import { db, type TargetType } from "@/server/db";
+import { cache } from "react";
+import { db, type Prisma, type TargetType } from "@/server/db";
 import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
-import { canViewContent, isBlockedBetween, relationsFor } from "@/server/visibility";
+import { canViewContent, isBlockedBetween, relationsFor, visibleContentWhere } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
-import { hydratePosts, type PostView } from "@/server/social/posts";
+import { hydratePosts, viewableCommunityIds, type PostView } from "@/server/social/posts";
 import { getProjectCards, type ProjectCardData } from "@/server/projects/service";
 import { getTutorialCards, type TutorialCardData } from "@/server/tutorials/service";
 import { slugify } from "@/lib/utils";
@@ -67,16 +68,25 @@ export type SavedItems =
 async function hydrate(type: SavedType, ids: string[], viewerId: string | null): Promise<SavedItems> {
   switch (type) {
     case "POST": {
-      // hydratePosts prüft keine Sichtbarkeit – deshalb vorher filtern
-      const rows = await db.post.findMany({ where: { id: { in: ids }, author: { status: { in: ["ACTIVE", "SUSPENDED"] } } }, select: { id: true, authorId: true, visibility: true, state: true, communityId: true } });
-      const ok = new Set<string>();
-      const { canViewCommunityContentOf } = await import("@/server/social/posts");
-      for (const r of rows) {
-        if (!(await canViewContent(viewerId, { ownerId: r.authorId, visibility: r.visibility, state: r.state }))) continue;
-        // Beiträge privater Communities nur für Mitglieder – auch in öffentlichen Sammlungen
-        if (r.communityId && !(await canViewCommunityContentOf(r.communityId, viewerId))) continue;
-        ok.add(r.id);
-      }
+      if (!ids.length) return { type, items: [] };
+      // hydratePosts prüft keine Sichtbarkeit – deshalb vorher filtern. Gleiche Regeln wie canViewContent,
+      // aber als eine Abfrage für alle Beiträge (statt zwei Abfragen je Beitrag).
+      const rel = await relationsFor(viewerId);
+      const rows = await db.post.findMany({
+        where: {
+          id: { in: ids },
+          author: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+          state: { not: "REMOVED" },
+          OR: [
+            ...(viewerId ? [{ authorId: viewerId }] : []),
+            { state: "PUBLISHED", ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}), AND: [visibleContentWhere(viewerId, rel.following) as Prisma.PostWhereInput] },
+          ],
+        },
+        select: { id: true, communityId: true },
+      });
+      // Beiträge privater Communities nur für Mitglieder – auch in öffentlichen Sammlungen
+      const communities = await viewableCommunityIds(rows.flatMap((r) => (r.communityId ? [r.communityId] : [])), viewerId);
+      const ok = new Set(rows.filter((r) => !r.communityId || communities.has(r.communityId)).map((r) => r.id));
       return { type, items: await hydratePosts(ids.filter((i) => ok.has(i)), viewerId) };
     }
     case "PROJECT":
@@ -168,8 +178,11 @@ export async function deleteCollection(user: SessionUser, id: string) {
   await db.collection.delete({ where: { id } });
 }
 
-/** Öffentliche bzw. eigene Sammlungsseite. Inhalte werden aus Sicht der Betrachtenden gefiltert. */
-export async function getCollectionPage(id: string, viewerId: string | null) {
+/**
+ * Öffentliche bzw. eigene Sammlungsseite. Inhalte werden aus Sicht der Betrachtenden gefiltert.
+ * Mit `cache()`: generateMetadata und die Seite teilen sich das Ergebnis innerhalb einer Anfrage.
+ */
+export const getCollectionPage = cache(async (id: string, viewerId: string | null) => {
   const c = await db.collection.findUnique({
     where: { id },
     include: { owner: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } },
@@ -193,7 +206,7 @@ export async function getCollectionPage(id: string, viewerId: string | null) {
     total: sections.reduce((a, s) => a + s.items.length, 0),
     sections: sections.filter((s) => s.items.length > 0),
   };
-}
+});
 
 /** Öffentliche Sammlungen eines Profils (für Profilseiten). */
 export async function listPublicCollections(ownerId: string, viewerId: string | null) {

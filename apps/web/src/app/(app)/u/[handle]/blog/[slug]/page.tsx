@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { cache } from "react";
 import type { Metadata } from "next";
-import { after } from "next/server";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowUpRight, Pencil } from "lucide-react";
 import { PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
-import { articleBaseUrl, articleHref, getArticleForReader, linkedProjects, recordArticleView, relatedArticles } from "@/server/blog/service";
+import { recordViewAfter } from "@/server/analytics/service";
+import { articleBaseUrl, articleHref, getArticleForReader, linkedProjects, relatedArticles } from "@/server/blog/service";
 import { ArticleRenderer, articleOutline } from "@/components/blog/article-renderer";
 import { ArticleActions } from "@/components/blog/article-actions";
 import { ArticleCard } from "@/components/blog/article-card";
@@ -78,7 +78,7 @@ export default async function ArticlePage({ params }: Props) {
     isLive ? relatedArticles(a, viewerId) : Promise.resolve([]),
     linkedProjects(a.projects.map((p) => p.projectId)),
   ]);
-  if (isLive && !isAuthor) after(() => recordArticleView(a.id));
+  if (isLive && !isAuthor) await recordViewAfter({ viewerId: viewer?.id ?? null, targetType: "ARTICLE", targetId: a.id });
   const viewerLite = viewer?.profile ? { id: viewer.id, displayName: viewer.profile.displayName, avatarUrl: viewer.profile.avatarUrl } : null;
   const published = a.publishedAt ? formatDate(a.publishedAt, { day: "numeric", month: "long", year: "numeric" }) : null;
   const edited = a.publishedAt && a.updatedAt.getTime() - a.publishedAt.getTime() > 86400_000 ? formatDate(a.updatedAt, { day: "numeric", month: "long", year: "numeric" }) : null;

@@ -10,13 +10,30 @@ export type Inline =
   | { t: "i"; c: Inline[] }
   | { t: "a"; href: string; c: Inline[] };
 
+const DUMMY_ORIGIN = "https://werkuno.invalid";
+
+/**
+ * Prüft ein Linkziel. Backslashes und Steuerzeichen sind nie erlaubt: Browser werten `\` wie `/`,
+ * aus `/\evil.com` würde sonst `https://evil.com/` – ein externer Link, der als intern gilt.
+ * Interne Pfade müssen gegen einen Platzhalter-Ursprung aufgelöst auf demselben Ursprung bleiben.
+ */
 export function safeHref(raw: string): string | null {
   const url = raw.trim();
-  if (!url || /\s/.test(url)) return null;
+  if (!url || /[\s\\\u0000-\u001f\u007f]/.test(url)) return null;
   if (/^https?:\/\/[^/]/i.test(url)) return url;
   if (/^mailto:[^\s@]+@[^\s@]+$/i.test(url)) return url;
-  if (url.startsWith("/") && !url.startsWith("//")) return url;
+  if (isInternalHref(url)) return url;
   return null;
+}
+
+/** Relativer Pfad dieser Seite (`/…`), der beim Auflösen nicht auf einen fremden Ursprung zeigt. */
+export function isInternalHref(href: string): boolean {
+  if (!/^\/(?![/\\])/.test(href) || /[\\\u0000-\u001f\u007f]/.test(href)) return false;
+  try {
+    return new URL(href, DUMMY_ORIGIN).origin === DUMMY_ORIGIN;
+  } catch {
+    return false;
+  }
 }
 
 export function parseInline(src: string, depth = 0): Inline[] {

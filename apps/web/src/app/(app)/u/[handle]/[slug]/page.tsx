@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { after } from "next/server";
 import { ArrowRight, ArrowUpRight, GitFork } from "lucide-react";
 import { DIFFICULTY_LABEL, PROJECT_STATUS_LABEL, categoryBySlug, formatMoney } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
-import { getProjectPage, recordProjectView, type ProjectPageView } from "@/server/projects/service";
+import { getProjectPage, type ProjectPageView } from "@/server/projects/service";
+import { recordViewAfter } from "@/server/analytics/service";
 import { Page } from "@/components/shell/page";
 import { Avatar, Difficulty, Empty, Notice, SectionTitle } from "@/components/ui/misc";
 import { Cover, MediaImage } from "@/components/ui/media";
@@ -67,7 +67,7 @@ export default async function ProjectPage({ params }: Params) {
   if (!r) notFound();
   if (r.kind === "redirect") permanentRedirect(r.to);
   const p = r.project;
-  if (!p.viewer.isOwner) after(() => recordProjectView(p.id));
+  if (!p.viewer.isOwner) await recordViewAfter({ viewerId: user?.id ?? null, targetType: "PROJECT", targetId: p.id });
 
   const cat = categoryBySlug(p.category);
   const viewer = user?.profile ? { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl } : null;

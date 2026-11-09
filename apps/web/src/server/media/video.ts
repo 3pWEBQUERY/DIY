@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -61,15 +61,26 @@ export async function probe(file: string) {
   return { hasVideo: !!v, audio, duration: Number.isFinite(duration) ? duration : 0, codec: v?.codec_name ?? null, width: rotation ? v?.height : v?.width, height: rotation ? v?.width : v?.height };
 }
 
-export type TranscodeResult = { video: Buffer; poster: Buffer; width: number; height: number; durationMs: number };
+export type TranscodeResult = {
+  /** Pfad der fertigen MP4-Datei (temporär – nur innerhalb von `use` gültig) */
+  videoPath: string;
+  videoBytes: number;
+  poster: Buffer;
+  width: number;
+  height: number;
+  durationMs: number;
+};
 
-export async function transcode(input: Buffer, opts: { maxSeconds: number; timeoutMs?: number }): Promise<TranscodeResult> {
+/**
+ * Transkodiert die Datei `src`. Ein- und Ausgabe bleiben auf der Platte (ein 1-GB-Video
+ * belegt so keinen Arbeitsspeicher); `use` erhält das Ergebnis und lädt es z. B. streamend hoch.
+ * Danach wird das temporäre Verzeichnis gelöscht.
+ */
+export async function transcode<T>(src: string, opts: { maxSeconds: number; timeoutMs?: number }, use: (r: TranscodeResult) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "werkuno-video-"));
-  const src = join(dir, "in");
   const out = join(dir, "out.mp4");
   const poster = join(dir, "poster.jpg");
   try {
-    await writeFile(src, input);
     const info = await probe(src).catch(() => null);
     if (!info?.hasVideo) throw new VideoRejected("Die Datei enthält kein lesbares Video.");
     if (info.duration > opts.maxSeconds + 1) {
@@ -97,13 +108,14 @@ export async function transcode(input: Buffer, opts: { maxSeconds: number; timeo
     const at = Math.min(1, Math.max(0, info.duration / 3)).toFixed(2);
     await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-ss", at, "-i", out, "-frames:v", "1", "-q:v", "3", poster], 60_000);
     const final = await probe(out);
-    return {
-      video: await readFile(out),
+    return await use({
+      videoPath: out,
+      videoBytes: (await stat(out)).size,
       poster: await readFile(poster),
       width: final.width ?? info.width ?? 0,
       height: final.height ?? info.height ?? 0,
       durationMs: Math.round((final.duration || info.duration) * 1000),
-    };
+    });
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
