@@ -449,7 +449,7 @@ struct ProjectDetailView: View {
                             router.present(.tutorialEditor(seedProjectId: p.id))
                         }
                     }
-                    if app.hasActiveShop && (p.products ?? []).isEmpty {
+                    if app.hasActiveShop && app.marketplaceEnabled && (p.products ?? []).isEmpty {
                         ownerHint(title: "Produkte aus diesem Projekt", text: "Verkaufst du Stücke oder Materialsets dazu? Verknüpfe sie direkt mit dem Faden.", action: "Produkt anlegen", symbol: "tag") {
                             router.present(.productEditor())
                         }
@@ -603,7 +603,7 @@ struct ProjectDetailView: View {
                 }
                 Button("Journal-Eintrag", systemImage: "plus.bubble") { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) }
                 Button("Anleitung aus Projekt", systemImage: "list.number") { router.present(.tutorialEditor(seedProjectId: p.id)) }
-                if app.hasActiveShop { Button("Produkt anlegen", systemImage: "tag") { router.present(.productEditor()) } }
+                if app.hasActiveShop && app.marketplaceEnabled { Button("Produkt anlegen", systemImage: "tag") { router.present(.productEditor()) } }
                 Button("Auf Einkaufsliste", systemImage: "cart.badge.plus") { router.present(.shoppingListPicker(kind: "PROJECT", id: p.id, title: p.title)) }
                 if let url = shareURL(p) { ShareLink(item: url) { Label("Teilen", systemImage: "square.and.arrow.up") } }
                 Divider()

@@ -21,10 +21,13 @@ struct StudioView: View {
                         Button("Projekt starten", systemImage: "hammer") { router.present(.projectEditor()) }
                         Button("Anleitung schreiben", systemImage: "list.number") { router.present(.tutorialEditor()) }
                         Button("Artikel verfassen", systemImage: "text.book.closed") { router.present(.articleEditor()) }
-                        if app.me?.shop != nil {
-                            Button("Produkt anlegen", systemImage: "tag") { router.present(.productEditor()) }
-                        } else {
-                            Button("Shop eröffnen", systemImage: "storefront") { router.present(.shopWizard) }
+                        // Marktplatz pausiert: keine Produkt-/Shop-Einstiege
+                        if app.marketplaceEnabled {
+                            if app.me?.shop != nil {
+                                Button("Produkt anlegen", systemImage: "tag") { router.present(.productEditor()) }
+                            } else {
+                                Button("Shop eröffnen", systemImage: "storefront") { router.present(.shopWizard) }
+                            }
                         }
                     } label: { Image(systemName: "plus") }
                     .accessibilityLabel("Erstellen")
@@ -89,7 +92,7 @@ struct StudioView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeader("Verwalten", number: o.shop != nil ? "05" : "04")
                     MeGroup {
-                        ForEach(StudioSection.allCases) { s in
+                        ForEach(StudioSection.allCases.filter { app.marketplaceEnabled || !Route.studioSection($0).needsMarketplace }) { s in
                             MeNavRow(symbol: s.symbol, title: s.title, subtitle: subtitle(s), tint: isShopSection(s) ? .clay : .ink) { router.open(.studioSection(s)) }
                         }
                     }

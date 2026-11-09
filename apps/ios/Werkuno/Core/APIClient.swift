@@ -23,11 +23,14 @@ enum AppConfig {
 
     static var environment: ServerEnvironment {
         get {
-            if let raw = UserDefaults.standard.string(forKey: envKey), let e = ServerEnvironment(rawValue: raw) { return e }
             #if DEBUG
+            if let raw = UserDefaults.standard.string(forKey: envKey), let e = ServerEnvironment(rawValue: raw) { return e }
             if let raw = ProcessInfo.processInfo.environment["WERKUNO_SERVER"], let e = ServerEnvironment(rawValue: raw) { return e }
-            #endif
             return .production
+            #else
+            // Release: kein Server-Umschalter (Entwicklermenü nur in Debug) – immer Produktion
+            return .production
+            #endif
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: envKey) }
     }

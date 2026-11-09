@@ -27,9 +27,11 @@ struct SettingsView: View {
                 MeGroup(title: "Hilfe") {
                     row(.support, "Anfrage an das Team, Richtlinien")
                 }
+                #if DEBUG
                 MeGroup(title: "Technik") {
                     row(.developer, AppConfig.environment.label)
                 }
+                #endif
                 VStack(spacing: 4) {
                     Wordmark(size: 18)
                     Text(MeAppInfo.version).font(.wr(.caption2)).foregroundStyle(Color.muted)
@@ -70,7 +72,12 @@ struct SettingsSectionView: View {
             case .feed: MeFeedSettingsView()
             case .privacy: MePrivacySettingsView()
             case .support: MeSupportView()
-            case .developer: MeDeveloperSettings()
+            case .developer:
+                #if DEBUG
+                MeDeveloperSettings()
+                #else
+                EmptyView()
+                #endif
             }
         }
         .navigationTitle(section.title)
@@ -441,10 +448,17 @@ private struct MeDeleteAccountSheet: View {
 
     private func delete() async {
         let body: [String: JSONValue] = ["password": hasPassword ? .string(password) : .null, "confirm": .string(confirmText.trimmed)]
-        if await app.run("Dein Konto wurde gelöscht.", { _ = try await APIClient.shared.post("/settings/delete-account", body) as JSONValue }) {
-            dismiss()
-            await app.signOut()
+        do {
+            _ = try await APIClient.shared.post("/settings/delete-account", body) as JSONValue
+        } catch {
+            app.show(error: error)
+            return
         }
+        dismiss()
+        // Alle Sitzungen sind serverseitig widerrufen: keine Abmelde-Anfragen mehr (sie liefen in 401 →
+        // „Sitzung abgelaufen“ statt der Erfolgsmeldung). Meldung erst nach dem Abmelden zeigen.
+        await app.signOut(sessionRevoked: true)
+        app.show("Dein Konto wurde gelöscht.")
     }
 }
 
@@ -998,9 +1012,11 @@ private struct MeDeveloperSettings: View {
         .confirmationDialog("Server wechseln?", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }), titleVisibility: .visible, presenting: pending) { e in
             Button("Zu \(e.label) wechseln", role: .destructive) {
                 Task {
+                    // Erst auf dem bisherigen Server abmelden (Sitzung + Push-Gerät widerrufen),
+                    // danach umschalten – sonst ginge die Abmeldung samt Token an den neuen Server
+                    await app.signOut()
                     AppConfig.environment = e
                     env = e
-                    await app.signOut()
                     await app.refresh()
                 }
             }

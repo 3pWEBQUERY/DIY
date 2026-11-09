@@ -1,6 +1,8 @@
 import Foundation
 import SwiftUI
 import Observation
+import Network
+import UserNotifications
 
 // MARK: - Bootstrap
 
@@ -8,9 +10,23 @@ struct Bootstrap: Decodable, Sendable {
     struct Payments: Decodable, Sendable { var mode: String; var feeBps: Int }
     struct Features: Decodable, Sendable { var apple: Bool?; var appleNative: Bool? }
     var categories: [Category]
+    /// Feature-Flags (Admin → System), z. B. `marketplace: false` → Marktplatz ausblenden
+    var flags: [String: Bool]?
     var payments: Payments
     var features: Features?
     var me: Me?
+
+    private enum CodingKeys: String, CodingKey { case categories, flags, payments, features, me }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        categories = try c.decode([Category].self, forKey: .categories)
+        // Tolerant: unerwartete Flag-Werte dürfen den Start nicht verhindern
+        flags = (try? c.decodeIfPresent([String: Bool].self, forKey: .flags)) ?? nil
+        payments = try c.decode(Payments.self, forKey: .payments)
+        features = (try? c.decodeIfPresent(Features.self, forKey: .features)) ?? nil
+        me = try c.decodeIfPresent(Me.self, forKey: .me)
+    }
 }
 
 struct Me: Decodable, Sendable, Equatable {
@@ -61,6 +77,16 @@ final class AppState {
     var feeBps: Int = 600
     var appleNative = false
     var lastError: String?
+    /// Feature-Flags aus dem letzten Bootstrap (fehlende Schlüssel gelten als eingeschaltet)
+    var flags: [String: Bool] = [:]
+    /// Marktplatz per Admin-Schalter pausiert → Tab, Warenkorb und Shop-Einstiege ausblenden
+    var marketplaceEnabled: Bool { flags["marketplace"] ?? true }
+
+    /// Bootstrap ist fehlgeschlagen (offline/Serverfehler), obwohl ein Token gespeichert ist: Die App läuft
+    /// ohne Konto weiter, das Token bleibt erhalten – erneuter Versuch beim Aktivieren, Pull-to-Refresh,
+    /// im Zähler-Intervall und sobald das Netz zurück ist.
+    private(set) var needsBootstrap = false
+    var isOffline: Bool { needsBootstrap && me == nil && api.isSignedIn }
 
     /// Zwei-Faktor-Anmeldung: Passwort bzw. Apple-Anmeldung war erfolgreich, die Session wartet
     /// auf den Code (TOTP/Wiederherstellungscode). Das Token wird erst danach im Keychain gespeichert.
@@ -77,6 +103,12 @@ final class AppState {
     private var countsTask: Task<Void, Never>?
     private var liveObserver: NSObjectProtocol?
     private var isActive = true
+    private var isRefreshing = false
+    /// Während des Abmeldens: 401-Antworten (z. B. Push-Abmeldung mit bereits widerrufenem Token) nicht als
+    /// „Sitzung abgelaufen“ melden
+    private var isSigningOut = false
+    private var lastBadge: Int?
+    private let pathMonitor = NWPathMonitor()
     let api = APIClient.shared
 
     init() {
@@ -87,6 +119,12 @@ final class AppState {
             guard let e = LiveEvent(n) else { return }
             Task { @MainActor in self?.handleLive(e) }
         }
+        // Netz wieder da → ausstehenden Bootstrap nachholen (Start ohne Verbindung)
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in await self?.retryBootstrapIfNeeded() }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "ch.werkuno.app.network"))
     }
 
     var isSignedIn: Bool { me != nil }
@@ -111,17 +149,36 @@ final class AppState {
     }
 
     func refresh() async {
+        isRefreshing = true
+        defer { isRefreshing = false }
         do {
             let b: Bootstrap = try await api.get("/bootstrap")
+            needsBootstrap = false
             apply(b)
         } catch let e as APIError where e.isAuth {
+            needsBootstrap = false
             api.token = nil
             me = nil
             phase = .signedOut
+            updateBadge()
         } catch {
             lastError = (error as? APIError)?.message ?? error.localizedDescription
-            if phase == .launching { phase = api.isSignedIn ? .ready : .signedOut }
+            // Offline bzw. Serverfehler ≠ abgemeldet: Token behalten, später erneut versuchen
+            if api.isSignedIn && me == nil {
+                let first = !needsBootstrap
+                needsBootstrap = true
+                if phase == .launching || phase == .signedOut { phase = .ready }
+                if first && !(error is CancellationError) { show("Keine Verbindung zu Werkuno – wir versuchen es automatisch erneut.", style: .warning) }
+            } else if phase == .launching {
+                phase = .signedOut
+            }
         }
+    }
+
+    /// Bootstrap nachholen, wenn der letzte Versuch (z. B. beim Start ohne Netz) fehlgeschlagen ist.
+    func retryBootstrapIfNeeded() async {
+        guard needsBootstrap, !isRefreshing, api.isSignedIn else { return }
+        await refresh()
     }
 
     private func apply(_ b: Bootstrap) {
@@ -129,8 +186,10 @@ final class AppState {
         paymentsMode = b.payments.mode
         feeBps = b.payments.feeBps
         appleNative = b.features?.appleNative ?? false
+        flags = b.flags ?? [:]
         me = b.me
         liveCounts = nil
+        updateBadge()
         if b.me == nil {
             if api.token != nil { api.token = nil }
             phase = isGuest ? .ready : .signedOut
@@ -149,14 +208,29 @@ final class AppState {
 
     /// Zähler frisch vom Server (leichtgewichtig, ohne kompletten Bootstrap)
     func refreshCounts() async {
+        // Start ohne Netz: erst das Konto laden (das Zähler-Intervall wirkt als Wiederholung)
+        if needsBootstrap { await retryBootstrapIfNeeded(); return }
         guard api.isSignedIn, me != nil else { return }
         do {
             let c: ShellCounts = try await api.send("GET", "/me/counts", body: Optional<Int>.none, root: "/api/v1")
             if c != liveCounts { withAnimation(.snappy) { liveCounts = c } }
+            updateBadge()
         } catch let e as APIError where e.status == 404 {
             // Älterer Server ohne /me/counts → Bootstrap
-            if let b: Bootstrap = try? await api.get("/bootstrap"), let m = b.me { withAnimation(.snappy) { me = m; liveCounts = nil } }
+            if let b: Bootstrap = try? await api.get("/bootstrap"), let m = b.me {
+                withAnimation(.snappy) { me = m; liveCounts = nil }
+                if let f = b.flags { flags = f }
+                updateBadge()
+            }
         } catch {}
+    }
+
+    /// App-Symbol-Badge = ungelesene Benachrichtigungen (wie `aps.badge` vom Server); abgemeldet → 0.
+    func updateBadge() {
+        let n = me == nil ? 0 : unreadNotifications
+        guard n != lastBadge else { return }
+        lastBadge = n
+        UNUserNotificationCenter.current().setBadgeCount(n) { _ in }
     }
 
     /// Optimistisch: Badge sinkt sofort (Benachrichtigung angetippt / „Alle gelesen“), Server bestätigt danach.
@@ -165,6 +239,7 @@ final class AppState {
         var c = liveCounts ?? ShellCounts(notifications: current, messages: unreadMessages, requests: pendingRequests, cart: cartCount)
         c.notifications = n.map { max(0, current - $0) } ?? 0
         withAnimation(.snappy) { liveCounts = c }
+        updateBadge()
     }
 
     /// Wie die Web-Shell: alle 15 s, solange die App aktiv ist (Rückfall zum Live-Stream)
@@ -184,6 +259,7 @@ final class AppState {
         isActive = active
         if active {
             if me != nil { LiveStream.shared.start() }
+            // refreshCounts holt bei Bedarf auch den ausstehenden Bootstrap nach
             Task { await refreshCounts() }
         } else {
             LiveStream.shared.stop()
@@ -264,27 +340,45 @@ final class AppState {
 
     /// `true` = angemeldet; `false` = zweiter Faktor nötig (`needsMfa`).
     @discardableResult
-    func signInWithApple(identityToken: String, givenName: String?, familyName: String?) async throws -> Bool {
-        let r: AppleResult = try await api.post("/auth/apple", ["identityToken": JSONValue.string(identityToken), "givenName": .from(givenName), "familyName": .from(familyName)])
+    func signInWithApple(identityToken: String, givenName: String?, familyName: String?, authorizationCode: String? = nil, nonce: String? = nil) async throws -> Bool {
+        var body: [String: JSONValue] = ["identityToken": .string(identityToken), "givenName": .from(givenName), "familyName": .from(familyName)]
+        // Optional (ältere Server ignorieren sie): Autorisierungscode für den Token-Austausch bei Apple und
+        // die Roh-Nonce, deren SHA-256 im Identity-Token stehen muss
+        if let authorizationCode { body["authorizationCode"] = .string(authorizationCode) }
+        if let nonce { body["nonce"] = .string(nonce) }
+        let r: AppleResult = try await api.post("/auth/apple", body)
         return await completeSignIn(token: r.token, mfaRequired: r.mfaRequired ?? false)
     }
 
-    func signOut() async {
+    /// `sessionRevoked`: Die Sitzung ist serverseitig schon beendet (z. B. Konto gelöscht) – dann keine
+    /// Abmelde-Anfragen mehr senden (sie liefen nur in 401 und „Sitzung abgelaufen“).
+    func signOut(sessionRevoked: Bool = false) async {
+        isSigningOut = true
+        defer { isSigningOut = false }
         LiveStream.shared.stop()
-        await PushRegistration.unregister()
-        await api.logout()
+        if !sessionRevoked {
+            await PushRegistration.unregister()
+            await api.logout()
+        }
         api.token = nil
         me = nil
+        liveCounts = nil
+        needsBootstrap = false
         phase = .signedOut
-        ImageCache.shared.clear()
+        LocalData.wipe()
+        updateBadge()
     }
 
     private func handleUnauthorized() {
-        guard me != nil || api.token != nil else { return }
+        guard !isSigningOut, me != nil || api.token != nil else { return }
         LiveStream.shared.stop()
         api.token = nil
         me = nil
+        liveCounts = nil
+        needsBootstrap = false
         phase = .signedOut
+        LocalData.wipe()
+        updateBadge()
         show("Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.", style: .warning)
     }
 
@@ -318,6 +412,24 @@ final class AppState {
         } catch {
             show(error: error)
             return false
+        }
+    }
+}
+
+/// Persönliche Daten, die ausserhalb des Keychains auf dem Gerät liegen – beim Abmelden entfernen.
+enum LocalData {
+    /// Präfixe der App-eigenen Dateien im temporären Ordner (Datenexport, Video-Kopien, Downloads)
+    static let tempPrefixes = ["werkuno-", "Downloads-"]
+
+    static func wipe() {
+        UserDefaults.standard.removeObject(forKey: "werkuno.search.recent")
+        ImageCache.shared.clear()
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory
+        if let items = try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil) {
+            for url in items where tempPrefixes.contains(where: { url.lastPathComponent.hasPrefix($0) }) {
+                try? fm.removeItem(at: url)
+            }
         }
     }
 }

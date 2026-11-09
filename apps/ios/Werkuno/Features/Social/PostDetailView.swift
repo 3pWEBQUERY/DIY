@@ -103,6 +103,8 @@ struct PostDetailView: View {
 
             if !post.media.isEmpty { MediaStrip(media: post.media) }
 
+            if let poll = post.poll, poll.isUsable { PostPollView(postId: post.id, poll: poll) }
+
             if let r = post.repostOf { repost(r) }
 
             linked(post)

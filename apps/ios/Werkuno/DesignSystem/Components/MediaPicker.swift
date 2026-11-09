@@ -50,7 +50,7 @@ struct PickedMovie: Transferable {
     let url: URL
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(contentType: .movie) { SentTransferredFile($0.url) } importing: { received in
-            let dst = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "." + (received.file.pathExtension.isEmpty ? "mov" : received.file.pathExtension))
+            let dst = FileManager.default.temporaryDirectory.appendingPathComponent("werkuno-video-" + UUID().uuidString + "." + (received.file.pathExtension.isEmpty ? "mov" : received.file.pathExtension))
             try FileManager.default.copyItem(at: received.file, to: dst)
             return PickedMovie(url: dst)
         }

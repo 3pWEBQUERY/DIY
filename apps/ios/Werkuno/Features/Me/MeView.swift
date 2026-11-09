@@ -15,10 +15,13 @@ struct MeView: View {
                 quickTiles
                 MeGroup(title: "Werkstatt") {
                     MeNavRow(symbol: "chart.bar.xaxis", title: "Werkuno Studio", subtitle: "Inhalte, Kennzahlen, Medien", tint: .moss) { router.open(.studio) }
-                    if let shop = app.me?.shop {
-                        MeNavRow(symbol: "storefront", title: shop.name, subtitle: "Shop · \(L.shopStatus[shop.status] ?? shop.status)", tint: .clay) { router.open(.studioSection(.shop)) }
-                    } else {
-                        MeNavRow(symbol: "storefront", title: "Shop eröffnen", subtitle: "Verkaufe Einzelstücke, Sets und Anleitungen", tint: .clay) { router.present(.shopWizard) }
+                    // Marktplatz pausiert: Shop-Einstieg ausblenden (Bestellungen bleiben erreichbar)
+                    if app.marketplaceEnabled {
+                        if let shop = app.me?.shop {
+                            MeNavRow(symbol: "storefront", title: shop.name, subtitle: "Shop · \(L.shopStatus[shop.status] ?? shop.status)", tint: .clay) { router.open(.studioSection(.shop)) }
+                        } else {
+                            MeNavRow(symbol: "storefront", title: "Shop eröffnen", subtitle: "Verkaufe Einzelstücke, Sets und Anleitungen", tint: .clay) { router.present(.shopWizard) }
+                        }
                     }
                     MeNavRow(symbol: "shippingbox", title: "Meine Bestellungen", subtitle: "Käufe, Status, Belege") { router.open(.orders) }
                 }
@@ -128,6 +131,13 @@ struct MeView: View {
     // MARK: Hinweise
 
     @ViewBuilder private var notices: some View {
+        if app.isOffline {
+            VStack(alignment: .leading, spacing: 10) {
+                NoticeView(tone: .warn, title: "Keine Verbindung", message: "Dein Konto konnte nicht geladen werden. Du bleibst angemeldet – wir versuchen es automatisch erneut, sobald das Netz zurück ist.")
+                AsyncButton { await app.retryBootstrapIfNeeded() } label: { Text("Erneut versuchen").font(.wr(.subheadline, .semibold)) }
+                    .buttonStyle(.glass)
+            }
+        }
         if let me = app.me {
             if me.status == "SUSPENDED" {
                 NoticeView(tone: .danger, title: "Dein Konto ist eingeschränkt",

@@ -13,10 +13,13 @@ struct MainTabView: View {
             Tab("Entdecken", systemImage: "safari", value: AppTab.discover) {
                 TabStack(tab: .discover) { DiscoverView() }
             }
-            Tab("Markt", systemImage: "bag", value: AppTab.market) {
-                TabStack(tab: .market) { MarketView() }
+            // Marktplatz per Feature-Flag pausiert → Tab ausblenden (Bestellungen bleiben unter „Ich“)
+            if app.marketplaceEnabled {
+                Tab("Markt", systemImage: "bag", value: AppTab.market) {
+                    TabStack(tab: .market) { MarketView() }
+                }
+                .badge(app.cartCount)
             }
-            .badge(app.cartCount)
             Tab("Ich", systemImage: "person.crop.circle", value: AppTab.me) {
                 TabStack(tab: .me) { if app.isGuest { GuestMeView() } else { MeView() } }
             }
@@ -26,6 +29,9 @@ struct MainTabView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .onChange(of: app.marketplaceEnabled) { _, enabled in
+            if !enabled && router.tab == .market { router.tab = .workbench }
+        }
         .tabViewBottomAccessory(isEnabled: router.immersiveCount == 0) { if app.isGuest { GuestAccessory() } else { WorkbenchAccessory() } }
         .sheet(item: $router.sheet) { route in
             SheetHost(route: route)
@@ -53,7 +59,23 @@ struct TabStack<Root: View>: View {
 /// Zentrale Zuordnung Route → Bildschirm
 struct RouteView: View {
     var route: Route
+    @Environment(AppState.self) private var app
+
     var body: some View {
+        Group {
+            if !app.marketplaceEnabled && route.needsMarketplace {
+                MarketPausedView()
+            } else {
+                destination
+            }
+        }
+        .background(Color.paper)
+        .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
+        .onAppear { if hidesTabBar { router.immersiveCount += 1 } }
+        .onDisappear { if hidesTabBar { router.immersiveCount = max(0, router.immersiveCount - 1) } }
+    }
+
+    @ViewBuilder private var destination: some View {
         Group {
             switch route {
             case .post(let id): PostDetailView(id: id)
@@ -99,10 +121,6 @@ struct RouteView: View {
             case .web(let p): WebPageView(url: AppConfig.webURL(p))
             }
         }
-        .background(Color.paper)
-        .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
-        .onAppear { if hidesTabBar { router.immersiveCount += 1 } }
-        .onDisappear { if hidesTabBar { router.immersiveCount = max(0, router.immersiveCount - 1) } }
     }
     @Environment(Router.self) private var router
 
@@ -112,6 +130,37 @@ struct RouteView: View {
         case .post, .project, .tutorial, .product, .conversation, .article, .checkout, .order, .sellerOrder: true
         default: false
         }
+    }
+}
+
+extension Route {
+    /// Ziele, die der Server bei pausiertem Marktplatz sperrt (`MARKET_PREFIXES`, Studio-Produkte/-Shop).
+    /// Bestellungen bleiben einsehbar.
+    var needsMarketplace: Bool {
+        switch self {
+        case .product, .shop, .cart, .checkout: true
+        case .studioSection(let s): s == .products || s == .shop
+        default: false
+        }
+    }
+}
+
+extension SheetRoute {
+    var needsMarketplace: Bool {
+        switch self {
+        case .productEditor, .shopWizard: true
+        default: false
+        }
+    }
+}
+
+/// Platzhalter, wenn der Marktplatz per Admin-Schalter pausiert ist
+struct MarketPausedView: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        EmptyStateView(symbol: "bag.badge.minus", title: "Marktplatz pausiert", message: "Der Marktplatz ist gerade pausiert. Bitte versuche es später erneut. Deine Bestellungen findest du weiterhin unter „Ich“.", actionTitle: "Zurück") { dismiss() }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.paper)
     }
 }
 
@@ -136,7 +185,16 @@ struct StudioSectionView: View {
 /// Modale Editoren
 struct SheetHost: View {
     var route: SheetRoute
+    @Environment(AppState.self) private var app
     var body: some View {
+        if !app.marketplaceEnabled && route.needsMarketplace {
+            NavigationStack { MarketPausedView() }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder private var content: some View {
         switch route {
         case .composer(let p, let c): ComposerSheet(projectId: p, communityId: c)
         case .editPost(let id): EditPostSheet(id: id)

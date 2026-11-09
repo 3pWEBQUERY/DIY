@@ -16,11 +16,19 @@ enum Fmt {
         return f.string(from: NSNumber(value: Double(minor) / 100)) ?? "\(currency ?? "CHF") \(Double(minor) / 100)"
     }
 
-    /// Eingabe „12.50“ / „12,50“ → Rappen
+    /// Grösster akzeptierter Betrag in Rappen (CHF 1 Mio.) – schützt vor Überlauf bei `Int(...)`
+    static let maxMoneyMinor = 100_000_000
+
+    /// Eingabe „12.50“ / „12,50“ → Rappen. `nil` bei ungültigen, nicht endlichen („inf“, „nan“)
+    /// oder zu grossen Werten (sonst stürzt `Int(Double)` ab).
     static func parseMoney(_ s: String) -> Int? {
         let t = s.replacingOccurrences(of: "CHF", with: "").replacingOccurrences(of: "’", with: "").replacingOccurrences(of: "'", with: "").replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
-        guard let d = Double(t), d >= 0 else { return nil }
-        return Int((d * 100).rounded())
+        // Nur Ziffern und ein Dezimalpunkt – `Double` akzeptiert sonst auch „inf“, „nan“, „1e300“ oder Hex
+        guard !t.isEmpty, t.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }), t.filter({ $0 == "." }).count <= 1 else { return nil }
+        guard let d = Double(t), d.isFinite, d >= 0 else { return nil }
+        let minor = (d * 100).rounded()
+        guard minor.isFinite, minor <= Double(maxMoneyMinor) else { return nil }
+        return Int(minor)
     }
 
     static func moneyInput(_ minor: Int?) -> String {

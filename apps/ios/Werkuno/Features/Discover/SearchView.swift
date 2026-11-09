@@ -334,7 +334,7 @@ struct SearchView: View {
                     shortcut("Communities", "person.3") { router.open(.communities) }
                     shortcut("Blogs", "text.book.closed") { router.open(.blogHome) }
                     shortcut("Materialien", "shippingbox") { router.open(.materials) }
-                    shortcut("Markt", "bag") { router.tab = .market }
+                    if app.marketplaceEnabled { shortcut("Markt", "bag") { router.tab = .market } }
                 }
             }
             .padding(.horizontal, Space.gutter)
