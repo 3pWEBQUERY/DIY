@@ -19,6 +19,7 @@ import { track, isQualifiedComment } from "@/server/analytics/service";
 import { deliverPendingPushes } from "@/server/push/service";
 import { captureError } from "@/server/monitoring";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
+import { liftExpiredSuspensions } from "@/server/moderation/expiry";
 import { sendEventReminders } from "@/server/communities/events";
 import { syncPendingConnectAccounts } from "@/server/commerce/shops";
 import { syncPayouts } from "@/server/commerce/payouts";
@@ -247,7 +248,11 @@ async function main() {
   await boss.work(Q.reservations, guarded(Q.reservations, async () => void (await releaseReservations?.())));
   await boss.work(Q.scheduled, guarded(Q.scheduled, async () => void (await publishScheduled?.())));
   await boss.work(Q.polls, guarded(Q.polls, async () => void (await notifyEndedPolls())));
-  await boss.work(Q.posts, guarded(Q.posts, async () => void (await publishScheduledPosts())));
+  await boss.work(Q.posts, guarded(Q.posts, async () => {
+    // Zuerst abgelaufene Sperren aufheben – sonst blieben geplante Beiträge dieser Konten liegen
+    await liftExpiredSuspensions();
+    await publishScheduledPosts();
+  }));
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
   await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => {
       await syncPendingConnectAccounts();

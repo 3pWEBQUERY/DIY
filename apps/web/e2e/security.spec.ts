@@ -147,3 +147,43 @@ test("Events: Austritt entfernt Zusagen für kommende Events", async () => {
     if (wasMember) await sql(`INSERT INTO "CommunityMember" ("communityId", "userId", role, state, "joinedAt") VALUES ($1, $2, $3::"CommunityRoleKind", $4::"MembershipState", now()) ON CONFLICT DO NOTHING`, [c, mira, wasMember.role, wasMember.state]);
   }
 });
+
+test("Sperre: läuft von selbst ab, Gesperrte erhalten trotzdem Moderationsmails", async () => {
+  const elias = await userId("elias");
+  const before = (await one<{ status: string; suspendedUntil: Date | null }>(`SELECT status, "suspendedUntil" FROM "User" WHERE id = $1`, [elias]))!;
+  try {
+    // Abgelaufene befristete Sperre → Worker setzt das Konto wieder aktiv und informiert
+    await sql(`UPDATE "User" SET status = 'SUSPENDED', "suspendedUntil" = now() - interval '1 minute' WHERE id = $1`, [elias]);
+    runServer(`import("./src/server/moderation/expiry").then((m) => m.liftExpiredSuspensions())`);
+    const u = (await one<{ status: string; suspendedUntil: Date | null }>(`SELECT status, "suspendedUntil" FROM "User" WHERE id = $1`, [elias]))!;
+    expect(u.status).toBe("ACTIVE");
+    expect(u.suspendedUntil).toBeNull();
+    expect((await one<{ n: number }>(`SELECT count(*)::int n FROM "Notification" WHERE "recipientId" = $1 AND type = 'MODERATION' AND data->>'message' LIKE '%Sperre deines Kontos ist abgelaufen%'`, [elias]))!.n).toBeGreaterThan(0);
+
+    // Noch laufende Sperre bleibt
+    await sql(`UPDATE "User" SET status = 'SUSPENDED', "suspendedUntil" = now() + interval '1 day' WHERE id = $1`, [elias]);
+    runServer(`import("./src/server/moderation/expiry").then((m) => m.liftExpiredSuspensions())`);
+    expect((await one<{ status: string }>(`SELECT status FROM "User" WHERE id = $1`, [elias]))!.status).toBe("SUSPENDED");
+
+    // Gebannt: Moderationsentscheid geht per Mail raus, andere Neuigkeiten nicht
+    await sql(`UPDATE "User" SET status = 'BANNED', "suspendedUntil" = NULL WHERE id = $1`, [elias]);
+    await sql(`UPDATE "Notification" SET "emailedAt" = now() WHERE "emailedAt" IS NULL`);
+    await sql(
+      `INSERT INTO "Notification" (id, "recipientId", type, data, "createdAt", "updatedAt") VALUES
+       ('e2e_mod_mail', $1, 'MODERATION', '{"kind":"ACCOUNT","message":"E2E Entscheid"}', now() - interval '5 minutes', now()),
+       ('e2e_like_mail', $1, 'LIKE', '{}', now() - interval '5 minutes', now())`,
+      [elias],
+    );
+    const out = runServer(`import("./src/server/notifications-mail").then((m) => m.sendEmails("instant"))`);
+    const mails = out.split("\n").filter((l) => l.includes('"mail (dev)"'));
+    expect(mails.some((l) => l.includes("el…@"))).toBe(true);
+    const own = mails.filter((l) => l.includes("el…@"));
+    expect(own.length).toBe(1);
+    // Nur der Entscheid – das „Gefällt mir“ wird für gebannte Konten nicht verschickt
+    expect(own[0]).not.toContain("Neuigkeiten");
+    expect((await one<{ emailedAt: Date | null }>(`SELECT "emailedAt" FROM "Notification" WHERE id = 'e2e_mod_mail'`))!.emailedAt).not.toBeNull();
+  } finally {
+    await sql(`DELETE FROM "Notification" WHERE id IN ('e2e_mod_mail', 'e2e_like_mail')`);
+    await sql(`UPDATE "User" SET status = $2::"AccountStatus", "suspendedUntil" = $3 WHERE id = $1`, [elias, before.status, before.suspendedUntil]);
+  }
+});

@@ -30,7 +30,7 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
   const [sp, user] = await Promise.all([searchParams, currentUser()]);
   if (!user?.profile) redirect("/anmelden?weiter=/studio/bestellungen");
   if (!(await getMyShop(user.id))) redirect("/studio/shop");
-  const { tab, items, nextCursor, counts } = await listShopOrders(await requirePageUser("/studio/bestellungen"), sp.status, sp.cursor ?? null);
+  const { tab, items, nextCursor, counts } = await listShopOrders(await requirePageUser("/studio/bestellungen", { allowSuspended: true }), sp.status, sp.cursor ?? null);
   const working = tab.status === "NEW" || tab.status === "IN_PROGRESS" || tab.status === "READY_TO_SHIP";
 
   return (

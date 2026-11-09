@@ -13,7 +13,7 @@ function refresh(orderId: string) {
 
 export async function transitionOrderAction(orderId: string, to: OrderStatus, note: string) {
   return act(async () => {
-    await orders.transitionOrder(await requireUser(), orderId, to, note);
+    await orders.transitionOrder(await requireUser({ allowSuspended: true }), orderId, to, note);
     refresh(orderId);
     return null;
   }, "Status aktualisiert. Die Käuferin bzw. der Käufer wurde informiert.");
@@ -21,7 +21,7 @@ export async function transitionOrderAction(orderId: string, to: OrderStatus, no
 
 export async function addShipmentAction(orderId: string, input: { carrier: string; trackingNo: string; trackingUrl: string; note: string }) {
   return act(async () => {
-    await orders.addShipment(await requireUser(), orderId, input);
+    await orders.addShipment(await requireUser({ allowSuspended: true }), orderId, input);
     refresh(orderId);
     return null;
   }, "Als versendet markiert.");
@@ -29,7 +29,7 @@ export async function addShipmentAction(orderId: string, input: { carrier: strin
 
 export async function refundOrderAction(orderId: string, input: { amountMinor: number; reason: string }) {
   return act(async () => {
-    await orders.refundOrder(await requireUser(), orderId, input);
+    await orders.refundOrder(await requireUser({ allowSuspended: true }), orderId, input);
     refresh(orderId);
     return null;
   }, "Erstattung ausgelöst. Sie erscheint als bestätigt, sobald der Zahlungsanbieter sie verbucht hat.");
@@ -37,7 +37,7 @@ export async function refundOrderAction(orderId: string, input: { amountMinor: n
 
 export async function cancelOrderAction(orderId: string, reason: string) {
   return act(async () => {
-    const r = await orders.cancelBySeller(await requireUser(), orderId, reason);
+    const r = await orders.cancelBySeller(await requireUser({ allowSuspended: true }), orderId, reason);
     refresh(orderId);
     return r;
   }, (r) => (r.refundDeferred ? "Bestellung storniert. Der Zahlungsanbieter ist gerade nicht erreichbar – die Erstattung wird automatisch erneut ausgelöst." : "Bestellung storniert. Der Betrag wird erstattet."));

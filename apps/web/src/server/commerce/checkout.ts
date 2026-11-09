@@ -29,7 +29,7 @@ type CheckoutResponse = { url: string; orderIds: string[]; mode: "stripe" | "sim
 const lineInclude = {
   product: {
     include: {
-      shop: { select: { id: true, name: true, status: true, ownerId: true, stripeAccountId: true, chargesEnabled: true } },
+      shop: { select: { id: true, name: true, status: true, ownerId: true, stripeAccountId: true, chargesEnabled: true, owner: { select: { status: true } } } },
       inventory: { where: { variantId: null }, select: { id: true } },
     },
   },
@@ -108,7 +108,7 @@ export async function startCheckout(user: SessionUser, input: unknown): Promise<
           const p = it.product;
           const title = `„${p.title}“`;
           if (p.status !== "ACTIVE") throw fail.conflict(`${title} ist nicht mehr verfügbar.`);
-          if (p.shop.status !== "ACTIVE") throw fail.conflict(`Der Shop „${p.shop.name}“ nimmt gerade keine Bestellungen an.`);
+          if (p.shop.status !== "ACTIVE" || p.shop.owner.status !== "ACTIVE") throw fail.conflict(`Der Shop „${p.shop.name}“ nimmt gerade keine Bestellungen an.`);
           if (p.shop.ownerId === user.id) throw fail.invalid("Du kannst keine eigenen Produkte kaufen.");
           if (mode === "stripe" && (!p.shop.stripeAccountId || !p.shop.chargesEnabled)) throw fail.conflict(`Der Shop „${p.shop.name}“ kann gerade keine Zahlungen annehmen.`);
           const isDigital = p.kind === "DIGITAL";

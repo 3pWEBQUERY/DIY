@@ -421,7 +421,8 @@ export async function restoreRevision(user: SessionUser, articleId: string, revi
 /** Worker-Job: fällige geplante Artikel veröffentlichen (idempotent, mehrfach aufrufbar). */
 export async function publishScheduledArticles(now = new Date()) {
   const due = await db.blogArticle.findMany({
-    where: { state: "SCHEDULED", publishedAt: { lte: now } },
+    // Gesperrte/gebannte Konten veröffentlichen nichts – nach Ablauf einer Sperre geht der Artikel online
+    where: { state: "SCHEDULED", publishedAt: { lte: now }, author: { status: "ACTIVE" } },
     select: { id: true, authorId: true, title: true, dek: true },
     orderBy: { publishedAt: "asc" },
     take: 200,

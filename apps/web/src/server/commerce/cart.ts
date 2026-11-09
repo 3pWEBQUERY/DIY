@@ -150,12 +150,13 @@ export async function addToCart(user: SessionUser, input: unknown) {
   const p = await db.product.findUnique({
     where: { id: data.productId },
     include: {
-      shop: { select: { ownerId: true, status: true } },
+      shop: { select: { ownerId: true, status: true, owner: { select: { status: true } } } },
       variants: { select: { id: true, inventory: { select: { onHand: true, reserved: true } } } },
       inventory: { where: { variantId: null }, select: { onHand: true, reserved: true } },
     },
   });
-  if (!p || p.status !== "ACTIVE" || p.shop.status !== "ACTIVE") throw fail.invalid("Dieses Produkt ist derzeit nicht erhältlich.");
+  // Gesperrte Verkäufer:innen können keine Bestellungen bearbeiten → nicht kaufbar
+  if (!p || p.status !== "ACTIVE" || p.shop.status !== "ACTIVE" || p.shop.owner.status !== "ACTIVE") throw fail.invalid("Dieses Produkt ist derzeit nicht erhältlich.");
   if (p.shop.ownerId === user.id) throw fail.invalid("Du kannst keine eigenen Produkte kaufen.");
   if (await isBlockedBetween(user.id, p.shop.ownerId)) throw fail.notFound();
   const isDigital = p.kind === "DIGITAL";

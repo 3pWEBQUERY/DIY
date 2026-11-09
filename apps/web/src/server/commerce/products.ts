@@ -494,7 +494,7 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
     project,
     tutorial,
     isOwner,
-    purchasable: p.status === "ACTIVE" && p.shop.status === "ACTIVE" && (baseAvailable === null || baseAvailable > 0),
+    purchasable: p.status === "ACTIVE" && p.shop.status === "ACTIVE" && p.shop.owner.status === "ACTIVE" && (baseAvailable === null || baseAvailable > 0),
     available: baseAvailable,
     variantStock: stock,
     viewer: { saved: !!saved, entitlementId: entitled && !entitled.revokedAt ? entitled.id : null },

@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Bestellung" };
 export default async function StudioOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, viewer] = await Promise.all([params, currentUser()]);
   if (!viewer?.profile) redirect(`/anmelden?weiter=/studio/bestellungen/${id}`);
-  const user = await requirePageUser("/studio/bestellungen");
+  const user = await requirePageUser("/studio/bestellungen", { allowSuspended: true });
   const o = await getSellerOrder(user, id);
   if (!o) notFound();
 

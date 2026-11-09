@@ -99,6 +99,11 @@ export const getSession = cache(async () => {
   if (session.mfaPending) return null;
   const u = session.user;
   if (u.status === "BANNED" || u.status === "DELETED") return null;
+  if (u.status === "SUSPENDED" && u.suspendedUntil && u.suspendedUntil <= new Date()) {
+    // Sperre abgelaufen → sofort wieder aktiv (der Worker erledigt das sonst innerhalb einer Minute)
+    const { liftExpiredSuspension } = await import("@/server/moderation/expiry");
+    if (await liftExpiredSuspension(u.id).catch(() => false)) Object.assign(u, { status: "ACTIVE", suspendedUntil: null });
+  }
   if (Date.now() - session.lastUsedAt.getTime() > TOUCH_INTERVAL_MS) {
     await db.session.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
     await db.user.update({ where: { id: u.id }, data: { lastSeenAt: new Date() } }).catch(() => {});

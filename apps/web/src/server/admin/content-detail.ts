@@ -512,7 +512,7 @@ export async function setDetailHidden(actor: Actor, kind: DetailKind, id: string
     await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: k, targetId: id, meta: { reason: r, from } }, tx);
     return { ownerId, title };
   });
-  await inform(owner.ownerId, hidden ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.` : `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`, hidden ? r : "");
+  await inform(owner.ownerId, hidden ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.` : `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`);
 }
 
 /* ───────────────────────────── Entfernen & Wiederherstellen (Admin) ───────────────────────────── */
@@ -664,6 +664,7 @@ export async function moderateComment(actor: Actor, commentId: string, decision:
   const excerpt = res.body.trim().slice(0, 50) + (res.body.trim().length > 50 ? "…" : "");
   const message =
     dec === "HIDE" ? `Dein Kommentar „${excerpt}“ wurde ausgeblendet.` : dec === "REMOVE" ? `Dein Kommentar „${excerpt}“ wurde entfernt.` : `Dein Kommentar „${excerpt}“ ist wieder sichtbar.`;
-  await inform(res.authorId, message, dec === "RESTORE" ? "" : r);
+  // Die Begründung ist intern (Audit) – sie geht nicht an die betroffene Person
+  await inform(res.authorId, message);
   return { targetType: res.targetType, targetId: res.targetId };
 }

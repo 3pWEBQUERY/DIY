@@ -26,10 +26,13 @@ function pendingMails(mode: "instant" | "digest", before: Date, after: { created
   const where: Prisma.NotificationWhereInput = {
     emailedAt: null,
     createdAt: { lte: before },
-    recipient: { status: "ACTIVE" },
-    // Fortsetzung hinter dem letzten Eintrag (kein Prisma-Cursor: der Cursor-Eintrag ist nach dem Versand
-    // bereits markiert und fiele aus dem Filter – dann würde eine Zeile übersprungen)
-    ...(after ? { AND: [{ OR: [{ createdAt: { gt: after.createdAt } }, { createdAt: after.createdAt, id: { gt: after.id } }] }] } : {}),
+    AND: [
+      // Gesperrte/gebannte Konten erhalten nur noch Moderationsmails (Entscheid, Begründung, Einspruch)
+      { OR: [{ recipient: { status: "ACTIVE" } }, { type: "MODERATION", recipient: { status: { in: ["SUSPENDED", "BANNED"] } } }] },
+      // Fortsetzung hinter dem letzten Eintrag (kein Prisma-Cursor: der Cursor-Eintrag ist nach dem Versand
+      // bereits markiert und fiele aus dem Filter – dann würde eine Zeile übersprungen)
+      ...(after ? [{ OR: [{ createdAt: { gt: after.createdAt } }, { createdAt: after.createdAt, id: { gt: after.id } }] }] : []),
+    ],
     ...(mode === "instant"
       ? { OR: [{ type: { in: ALWAYS_INSTANT } }, { AND: [pref("INSTANT"), { recipient: { emailVerifiedAt: { not: null } } }] }] }
       : { type: { notIn: ALWAYS_INSTANT }, recipient: { status: "ACTIVE", emailVerifiedAt: { not: null } }, OR: digestUsers }),
@@ -49,7 +52,8 @@ async function skipUnmailable() {
     where: {
       emailedAt: null,
       OR: [
-        { recipient: { status: { not: "ACTIVE" } } },
+        { type: { not: "MODERATION" }, recipient: { status: { not: "ACTIVE" } } },
+        { type: "MODERATION", recipient: { status: "DELETED" } },
         { type: { notIn: ALWAYS_INSTANT }, recipient: { preference: { is: { emailDigest: "OFF" } } } },
         { type: { notIn: ALWAYS_INSTANT }, recipient: { emailVerifiedAt: null } },
       ],
