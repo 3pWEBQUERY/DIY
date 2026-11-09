@@ -11,6 +11,7 @@ import { audit } from "@/server/audit";
 import { relationsFor, canViewContent } from "@/server/visibility";
 import { hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { attachMedia, mediaCoverUrl } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listComments } from "@/server/social/interactions";
@@ -74,6 +75,7 @@ function asStepMedia(json: unknown): StepMedia[] {
 export async function saveTutorial(user: SessionUser, tutorialId: string | null, input: unknown, opts: { publish: boolean }) {
   const data = tutorialSaveSchema.parse(input);
   await assertCategoryAllowed(data.category, tutorialId ? (await db.tutorial.findUnique({ where: { id: tutorialId }, select: { category: true } }))?.category : null);
+  await requireAdult(user);
   if (!tutorialId || opts.publish) await limit("post", user.id);
 
   const existing = tutorialId

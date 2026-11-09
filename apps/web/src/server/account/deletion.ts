@@ -5,6 +5,7 @@ import { storage } from "@/server/storage";
 import { endProForDeletedAccount } from "@/server/pro/service";
 import { markPaymentFailed } from "@/server/commerce/payments";
 import { paymentsMode } from "@/server/commerce/stripe";
+import { revokeAppleTokensForUser } from "@/server/identity/apple-token";
 
 /**
  * Kontolöschung, Teil 2 (§23.1, DSG): Was `deleteAccount` nicht sofort in der Transaktion erledigt,
@@ -30,6 +31,9 @@ export async function assertAccountDeletable(userId: string) {
 export async function purgeDeletedAccount(userId: string) {
   const user = await db.user.findUnique({ where: { id: userId }, select: { status: true, shop: { select: { stripeAccountId: true } } } });
   if (!user || user.status !== "DELETED") return { skipped: true };
+
+  // 0. Sign in with Apple: gespeicherte Tokens bei Apple widerrufen (App Store 5.1.1(v)) – best effort
+  await revokeAppleTokensForUser(userId).catch((e) => console.warn(JSON.stringify({ level: "warn", msg: "apple_revoke_failed", err: e instanceof Error ? e.message : String(e) })));
 
   // 1. Laufendes Creator-Pro-Abo sofort beenden (sonst bucht Stripe weiter ab)
   await endProForDeletedAccount(userId);

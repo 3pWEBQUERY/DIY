@@ -8,6 +8,7 @@ import { getSetting } from "@/server/settings";
 import { feeResolver } from "./fees";
 import { humanCode, token } from "@/server/crypto";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { OutOfStockError, reserve } from "./inventory";
 import { cancelPendingOrderTx } from "./reservations";
 import { formatOrderNumber, groupByShop, grandTotal, unitPrice } from "./rules";
@@ -75,6 +76,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
   await requireFlag("marketplace", user.id);
   const mode = paymentsMode();
   if (mode === "disabled") throw fail.unavailable(PAYMENTS_DISABLED_MESSAGE);
+  await requireAdult(user);
   await limit("checkout", user.id);
   // Wer bestellt? Name und Adresse sind Pflicht (einmal angeben, danach gespeichert)
   const party = await resolveOrderParty(user.id, data);

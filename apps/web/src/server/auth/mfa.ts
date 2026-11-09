@@ -7,7 +7,10 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole, hasRoleIgnoringMfa } from "@/server/authz";
 import type { SessionUser } from "./session";
-import { getPendingMfaSession } from "./session";
+import { deviceLabel, getPendingMfaSession, isKnownDevice } from "./session";
+import { assertReauthenticated, type ReauthProof } from "./reauth";
+import { securityReset } from "./security";
+import { warnNewDevice } from "./new-device";
 import { decryptSecret, encryptSecret, generateRecoveryCodes, generateTotpSecret, hashRecoveryCode, otpauthUri, verifyTotp } from "./totp";
 
 /**
@@ -26,13 +29,18 @@ async function securityNotice(userId: string, message: string) {
 }
 
 export async function mfaStatus(userId: string) {
-  const u = await db.user.findUnique({ where: { id: userId }, select: { totpEnabledAt: true, _count: { select: { mfaRecoveryCodes: { where: { usedAt: null } } } } } });
-  return { enabled: !!u?.totpEnabledAt, enabledAt: u?.totpEnabledAt ?? null, recoveryCodesLeft: u?._count.mfaRecoveryCodes ?? 0 };
+  const u = await db.user.findUnique({ where: { id: userId }, select: { totpEnabledAt: true, passwordHash: true, _count: { select: { mfaRecoveryCodes: { where: { usedAt: null } } } } } });
+  return { enabled: !!u?.totpEnabledAt, enabledAt: u?.totpEnabledAt ?? null, recoveryCodesLeft: u?._count.mfaRecoveryCodes ?? 0, hasPassword: !!u?.passwordHash };
 }
 
-/** Schritt 1 der Einrichtung: Geheimnis erzeugen (noch nicht aktiv) und QR-Code liefern. */
-export async function startMfaSetup(user: U) {
+/**
+ * Schritt 1 der Einrichtung: Geheimnis erzeugen (noch nicht aktiv) und QR-Code liefern.
+ * Nur mit Passwort (bzw. ohne Passwort: frischer Anmeldung mit Apple) – sonst könnte eine gestohlene
+ * Sitzung eigene 2FA einrichten und die Inhaberin aussperren.
+ */
+export async function startMfaSetup(user: U, sessionId: string, proof: ReauthProof) {
   await limit("mfaManage", user.id);
+  await assertReauthenticated(user.id, sessionId, proof);
   const current = await db.user.findUnique({ where: { id: user.id }, select: { totpEnabledAt: true } });
   if (current?.totpEnabledAt) throw fail.conflict("Die Zwei-Faktor-Anmeldung ist bereits aktiv.");
   const secret = generateTotpSecret();
@@ -51,8 +59,12 @@ async function storeRecoveryCodes(userId: string) {
   return codes;
 }
 
-/** Schritt 2: ersten Code bestätigen → aktiv. Gibt die Wiederherstellungscodes einmalig zurück. */
-export async function confirmMfaSetup(user: U, code: string) {
+/**
+ * Schritt 2: ersten Code bestätigen → aktiv. Gibt die Wiederherstellungscodes einmalig zurück.
+ * Diese Sitzung gilt damit als bestätigt; alle anderen Sitzungen und offenen Reset-/E-Mail-Wechsel-Links
+ * werden beendet – sie haben den zweiten Faktor nie gesehen.
+ */
+export async function confirmMfaSetup(user: U, sessionId: string, code: string) {
   await reserveAttempt(user.id);
   const u = await db.user.findUnique({ where: { id: user.id }, select: { totpSecret: true, totpEnabledAt: true } });
   if (!u?.totpSecret) throw fail.invalid("Bitte starte die Einrichtung neu.");
@@ -64,9 +76,14 @@ export async function confirmMfaSetup(user: U, code: string) {
     const msg = "Der Code stimmt nicht. Prüfe die Uhrzeit deines Handys und nimm den aktuellen Code.";
     throw fail.invalid(msg, { code: msg });
   }
-  await db.user.update({ where: { id: user.id }, data: { totpEnabledAt: new Date(), totpLastStep: step } });
+  const now = new Date();
+  const revoked = await db.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: user.id }, data: { totpEnabledAt: now, totpLastStep: step } });
+    await tx.session.update({ where: { id: sessionId }, data: { mfaVerifiedAt: now } });
+    return securityReset(user.id, { keepSessionId: sessionId, tx });
+  });
   const codes = await storeRecoveryCodes(user.id);
-  await audit({ actorId: user.id, action: "auth.mfa_enabled", targetType: "USER", targetId: user.id });
+  await audit({ actorId: user.id, action: "auth.mfa_enabled", targetType: "USER", targetId: user.id, meta: { revokedSessions: revoked.revokedSessions } });
   await securityNotice(user.id, "Die Zwei-Faktor-Anmeldung wurde für dein Konto aktiviert.");
   return { recoveryCodes: codes };
 }
@@ -130,8 +147,13 @@ export async function verifyMfaLogin(code: string, kind: "totp" | "recovery" = "
     const msg = kind === "recovery" ? "Dieser Wiederherstellungscode ist ungültig oder wurde bereits verwendet." : "Der Code stimmt nicht. Nimm den aktuellen Code aus der App.";
     throw fail.invalid(msg, { code: msg });
   }
-  await db.session.update({ where: { id: s.id }, data: { mfaPending: false, lastUsedAt: new Date() } });
+  const now = new Date();
+  await db.session.update({ where: { id: s.id }, data: { mfaPending: false, mfaVerifiedAt: now, lastUsedAt: now } });
   await audit({ actorId: s.user.id, action: "auth.mfa_verified", targetType: "USER", targetId: s.user.id, meta: { kind } });
+  // Warnung „neues Gerät“ erst jetzt – bei 2FA-Konten wurde sie beim Passwort-Schritt zurückgehalten
+  if (!(await isKnownDevice(s.user.id, s.userAgent, s.ipHash ?? "", s.id))) {
+    await warnNewDevice(s.user.id, s.deviceLabel ?? deviceLabel(s.userAgent));
+  }
   if (ok === "recovery") {
     const left = await db.mfaRecoveryCode.count({ where: { userId: s.user.id, usedAt: null } });
     await securityNotice(s.user.id, `Du hast dich mit einem Wiederherstellungscode angemeldet. Noch ${left} Codes übrig – erzeuge bei Bedarf neue unter Sicherheit.`);
@@ -147,13 +169,30 @@ export async function regenerateRecoveryCodes(user: U, code: string) {
   return { recoveryCodes: codes };
 }
 
-/** Deaktivieren – für Moderation/Administration nicht erlaubt (Pflicht). */
-export async function disableMfa(user: U, code: string) {
+/** Deaktivieren – für Moderation/Administration nicht erlaubt (Pflicht). Braucht Passwort UND Code. */
+export async function disableMfa(user: U, sessionId: string, code: string, proof: ReauthProof) {
   if (mfaRequiredFor(user)) throw fail.forbidden("Für Moderations- und Admin-Konten ist die Zwei-Faktor-Anmeldung Pflicht.");
+  await assertReauthenticated(user.id, sessionId, proof);
   if (!(await checkSecondFactor(user.id, code, "totp"))) throw fail.invalid("Der Code stimmt nicht.", { code: "Der Code stimmt nicht. Nimm den aktuellen Code aus der App." });
   await clearMfa(user.id);
   await audit({ actorId: user.id, action: "auth.mfa_disabled", targetType: "USER", targetId: user.id });
   await securityNotice(user.id, "Die Zwei-Faktor-Anmeldung wurde für dein Konto deaktiviert.");
+}
+
+/**
+ * Step-up: Eine Sitzung, die vor dem Aktivieren von 2FA angemeldet wurde (bzw. vor dieser Prüfung je
+ * Sitzung), hat den zweiten Faktor nie bestätigt und bekommt keine Plattformrechte. Mit dem aktuellen
+ * Code aus der App wird sie nachträglich bestätigt.
+ */
+export async function verifySessionMfa(user: U, sessionId: string, code: string, kind: "totp" | "recovery" = "totp") {
+  const ok = await checkSecondFactor(user.id, code, kind);
+  if (!ok) {
+    await audit({ actorId: user.id, action: "auth.mfa_failed", targetType: "USER", targetId: user.id, meta: { kind, stepUp: true } });
+    const msg = kind === "recovery" ? "Dieser Wiederherstellungscode ist ungültig oder wurde bereits verwendet." : "Der Code stimmt nicht. Nimm den aktuellen Code aus der App.";
+    throw fail.invalid(msg, { code: msg });
+  }
+  await db.session.updateMany({ where: { id: sessionId, userId: user.id, revokedAt: null }, data: { mfaVerifiedAt: new Date() } });
+  await audit({ actorId: user.id, action: "auth.mfa_verified", targetType: "USER", targetId: user.id, meta: { kind, stepUp: true } });
 }
 
 async function clearMfa(userId: string) {

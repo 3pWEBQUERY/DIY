@@ -24,12 +24,17 @@ export const LIMITS = {
   signIn: [10, 600],
   // Unabhängig von der IP: schützt ein einzelnes Konto auch bei wechselnden Absenderadressen
   signInAccount: [30, 3600],
+  // Je Netzwerkadresse über alle Konten (gegen Credential Stuffing); zählt nur Fehlversuche
+  signInIp: [30, 900],
+  signInIpDay: [200, 86400],
   // Zweiter Faktor: wenige Versuche, damit 6-stellige Codes nicht durchprobiert werden können
   mfaFail: [10, 900],
   mfaFailDay: [30, 86400],
   mfaManage: [20, 3600],
   signUp: [5, 3600],
   passwordReset: [5, 3600],
+  // Je Netzwerkadresse über alle Adressen (gegen Mail-Fluten und Konto-Abfragen)
+  passwordResetIp: [20, 3600],
   post: [30, 3600],
   comment: [60, 3600],
   like: [300, 3600],
@@ -51,4 +56,9 @@ export async function isLimited(action: keyof typeof LIMITS, subject: string) {
   const [n] = LIMITS[action];
   const b = await db.rateLimitBucket.findUnique({ where: { key: `${action}:${subject}` }, select: { count: true, resetAt: true } });
   return !!b && b.resetAt > new Date() && b.count >= n;
+}
+
+/** Einen zuvor mit `limit()` gezählten Versuch wieder freigeben (z. B. nach erfolgreicher Anmeldung). */
+export async function releaseLimit(action: keyof typeof LIMITS, subject: string) {
+  await db.$executeRaw`UPDATE "RateLimitBucket" SET "count" = GREATEST("count" - 1, 0) WHERE "key" = ${`${action}:${subject}`}`;
 }

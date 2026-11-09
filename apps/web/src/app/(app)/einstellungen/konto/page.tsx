@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Download } from "lucide-react";
-import { requirePageUser } from "@/server/auth/session";
+import { getSession, requirePageUser } from "@/server/auth/session";
+import { isFreshLogin } from "@/server/auth/reauth";
 import { accountOverview } from "@/server/account/service";
 import { SettingsSection } from "@/components/settings/section";
 import { ChangeEmailButton, ChangePasswordForm, DeleteAccountButton, ResendVerificationButton } from "@/components/settings/account-forms";
@@ -14,7 +15,9 @@ export const metadata: Metadata = { title: "Konto & Daten" };
 
 export default async function AccountSettingsPage() {
   const user = await requirePageUser("/einstellungen/konto", { allowSuspended: true });
-  const [a, details] = await Promise.all([accountOverview(user.id), getCustomerDetails(user.id)]);
+  const [a, details, session] = await Promise.all([accountOverview(user.id), getCustomerDetails(user.id), getSession()]);
+  // Konten ohne Passwort: kritische Schritte nur kurz nach einer frischen Anmeldung mit Apple
+  const reauthFresh = !!session && isFreshLogin(session.sessionCreatedAt);
 
   return (
     <div>
@@ -32,7 +35,7 @@ export default async function AccountSettingsPage() {
       </SettingsSection>
 
       <SettingsSection n="02" title={a.hasPassword ? "Passwort ändern" : "Passwort festlegen"} description={a.hasPassword ? undefined : "Du meldest dich bisher nur mit Apple an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden."}>
-        <ChangePasswordForm hasPassword={a.hasPassword} />
+        <ChangePasswordForm hasPassword={a.hasPassword} reauthFresh={reauthFresh} />
       </SettingsSection>
 
       <SettingsSection
@@ -78,7 +81,7 @@ export default async function AccountSettingsPage() {
             Die Löschung kann nicht rückgängig gemacht werden. Dein Benutzername wird freigegeben. Lade vorher deinen Datenexport herunter, wenn du deine Projekte behalten möchtest.
           </Notice>
           <div className="sm:col-span-2">
-            <DeleteAccountButton hasPassword={a.hasPassword} />
+            <DeleteAccountButton hasPassword={a.hasPassword} reauthFresh={reauthFresh} />
           </div>
         </div>
       </SettingsSection>

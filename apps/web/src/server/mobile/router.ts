@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AppError, fail, httpStatus, toResult } from "@/server/errors";
 import { currentUser, getSession, requireUser } from "@/server/auth/session";
 import { requireFlag } from "@/server/flags";
+import { requireAdult } from "@/server/auth/adult";
 import { clampInt, optInt, parseJsonObject } from "./params";
 
 /**
@@ -43,6 +44,16 @@ export const DELETE = (path: string, h: Handler) => route("DELETE", path, h);
 export const me = () => requireUser();
 export const meAllowSuspended = () => requireUser({ allowSuspended: true });
 const MARKET_PREFIXES = new Set(["market", "cart", "checkout"]);
+/**
+ * Schreibende Endpunkte, die auch ohne bestätigtes Mindestalter (18+) erlaubt sind: Anmeldung,
+ * Onboarding (dort wird es bestätigt – inkl. Folgen/Beitreten aus den Vorschlägen), Konto &
+ * Einstellungen, Support, Einspruch, Melden/Blockieren/Stummschalten.
+ */
+const ADULT_FREE_PREFIXES = new Set(["auth", "onboarding", "settings", "me", "devices", "support", "appeals", "notifications", "reports", "track", "hide"]);
+const adultFree = (parts: string[]) =>
+  ADULT_FREE_PREFIXES.has(parts[0] ?? "") ||
+  (parts[0] === "users" && ["block", "mute", "follow"].includes(parts[2] ?? "")) ||
+  (parts[0] === "communities" && parts.length === 3 && ["join", "leave"].includes(parts[2] ?? ""));
 
 export const viewer = () => currentUser();
 export async function viewerId() {
@@ -160,6 +171,11 @@ export async function dispatch(routes: RouteDef[], req: NextRequest, parts: stri
     // Marktplatz per Feature-Flag pausiert → Kauf- und Shop-Endpunkte gesperrt (Bestellungen bleiben lesbar)
     if (MARKET_PREFIXES.has(parts[0] ?? "") || (parts[0] === "studio" && (parts[1] === "products" || parts[1] === "shop"))) {
       await requireFlag("marketplace", await viewerId());
+    }
+    // 18+ zentral für alle übrigen schreibenden Endpunkte (Konten über „Mit Apple anmelden“ bis zum Onboarding)
+    if (method !== "GET" && !adultFree(parts)) {
+      const u = await currentUser();
+      if (u) await requireAdult(u);
     }
     let cached: Record<string, unknown> | undefined;
     const json = async <T,>() => {

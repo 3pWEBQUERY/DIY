@@ -11,14 +11,26 @@ import { requireUser, type SessionUser } from "@/server/auth/session";
  */
 const RANK: Record<PlatformRole, number> = { MEMBER: 0, PLATFORM_MODERATOR: 1, ADMIN: 2, SUPERADMIN: 3 };
 
+type MfaFields = { totpEnabledAt?: Date | null; mfaVerified?: boolean };
+
+/**
+ * Zweiter Faktor erfüllt? Konto hat 2FA aktiv UND – bei Session-Objekten (mit `mfaVerified`) –
+ * diese Sitzung hat den Code bestätigt. Eine alte Sitzung wird durch das spätere Aktivieren von 2FA
+ * also nicht zur Moderationssitzung.
+ */
+export function mfaSatisfied(user: MfaFields) {
+  if (!user.totpEnabledAt) return false;
+  return !("mfaVerified" in user) || user.mfaVerified === true;
+}
+
 /**
  * Plattformrecht prüfen. Für die angemeldete Person (Objekt mit `totpEnabledAt`) gelten
- * Moderations-/Adminrechte nur mit aktiver Zwei-Faktor-Anmeldung. Objekte ohne dieses Feld
- * (z. B. Rang-Vergleich mit anderen Konten) werden rein nach Rolle bewertet.
+ * Moderations-/Adminrechte nur mit aktiver und in dieser Sitzung bestätigter Zwei-Faktor-Anmeldung.
+ * Objekte ohne diese Felder (z. B. Rang-Vergleich mit anderen Konten) werden rein nach Rolle bewertet.
  */
-export function hasRole(user: (Pick<SessionUser, "role"> & { totpEnabledAt?: Date | null }) | null | undefined, min: PlatformRole) {
+export function hasRole(user: (Pick<SessionUser, "role"> & MfaFields) | null | undefined, min: PlatformRole) {
   if (!user || RANK[user.role] < RANK[min]) return false;
-  if (RANK[min] >= RANK.PLATFORM_MODERATOR && "totpEnabledAt" in user && !user.totpEnabledAt) return false;
+  if (RANK[min] >= RANK.PLATFORM_MODERATOR && ("totpEnabledAt" in user || "mfaVerified" in user) && !mfaSatisfied(user)) return false;
   return true;
 }
 
@@ -29,11 +41,15 @@ export function hasRoleIgnoringMfa(user: Pick<SessionUser, "role"> | null | unde
 
 export async function requireRole(min: PlatformRole) {
   const u = await requireUser();
-  if (!hasRole(u, min)) throw fail.forbidden();
-  // Moderation/Administration nur mit Zwei-Faktor-Anmeldung (Session ist dann bereits bestätigt)
-  if (RANK[min] >= RANK.PLATFORM_MODERATOR && !u.totpEnabledAt) {
-    throw fail.forbidden("Für Moderation und Administration ist die Zwei-Faktor-Anmeldung erforderlich. Richte sie unter Einstellungen → Sicherheit ein.");
+  // Moderation/Administration nur mit Zwei-Faktor-Anmeldung, bestätigt in dieser Sitzung
+  if (RANK[min] >= RANK.PLATFORM_MODERATOR && hasRoleIgnoringMfa(u, min) && !mfaSatisfied(u)) {
+    throw fail.forbidden(
+      u.totpEnabledAt
+        ? "Bitte bestätige diese Sitzung mit dem Code aus deiner Authenticator-App (Einstellungen → Sicherheit)."
+        : "Für Moderation und Administration ist die Zwei-Faktor-Anmeldung erforderlich. Richte sie unter Einstellungen → Sicherheit ein.",
+    );
   }
+  if (!hasRole(u, min)) throw fail.forbidden();
   return u;
 }
 
@@ -63,7 +79,7 @@ export async function communityRole(communityId: string, userId: string | undefi
 export async function requireCommunityModerator(communityId: string) {
   const u = await requireUser();
   // Plattform-Rechte nur mit 2FA; sonst wie normales Mitglied prüfen
-  if (hasRole(u, "PLATFORM_MODERATOR") && u.totpEnabledAt) return u;
+  if (hasRole(u, "PLATFORM_MODERATOR")) return u;
   const m = await communityRole(communityId, u.id);
   if (!m || m.state !== "ACTIVE" || !["OWNER", "ADMIN", "MODERATOR"].includes(m.role)) throw fail.forbidden();
   return u;

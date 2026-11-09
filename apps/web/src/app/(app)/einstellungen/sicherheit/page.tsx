@@ -10,19 +10,23 @@ import { RevokeOthersButton, RevokeSessionButton, SignOutButton } from "@/compon
 import { Badge, Notice } from "@/components/ui/misc";
 import { formatDate, relativeTime } from "@/lib/utils";
 import { BrowserLogo } from "@/components/settings/browser-logo";
-import { TwoFactorSettings } from "@/components/settings/two-factor";
+import { ConfirmSessionMfa, TwoFactorSettings } from "@/components/settings/two-factor";
 import { mfaRequiredFor, mfaStatus } from "@/server/auth/mfa";
+import { isFreshLogin } from "@/server/auth/reauth";
+import { safeNext } from "@/lib/safe-next";
 
 export const metadata: Metadata = { title: "Sicherheit" };
 export const dynamic = "force-dynamic";
 
-export default async function SecuritySettingsPage({ searchParams }: { searchParams: Promise<{ zweifaktor?: string }> }) {
+export default async function SecuritySettingsPage({ searchParams }: { searchParams: Promise<{ zweifaktor?: string; weiter?: string }> }) {
   const sp = await searchParams;
   const s = await getSession();
   if (!s) redirect("/anmelden?weiter=/einstellungen/sicherheit");
   const [sessions, events, mfa] = await Promise.all([listSessions(s.user.id, s.sessionId), securityEvents(s.user.id), mfaStatus(s.user.id)]);
   const mfaRequired = mfaRequiredFor(s.user);
   const others = sessions.filter((x) => !x.current).length;
+  // 2FA aktiv, aber diese Sitzung hat den Code nie bestätigt (z. B. vor dem Aktivieren angemeldet)
+  const needsSessionConfirm = mfa.enabled && !s.user.mfaVerified && (mfaRequired || sp.zweifaktor === "bestaetigen");
 
   return (
     <div>
@@ -31,13 +35,27 @@ export default async function SecuritySettingsPage({ searchParams }: { searchPar
           Dein Konto hat Moderations- oder Admin-Rechte. Damit niemand mit einem erratenen oder gestohlenen Passwort darauf zugreifen kann, ist ein zweiter Faktor Pflicht. Bis er eingerichtet ist, sind Admin-Bereich und Moderationswerkzeuge gesperrt.
         </Notice>
       )}
+      {needsSessionConfirm && (
+        <Notice tone={sp.zweifaktor === "bestaetigen" ? "danger" : "warn"} title="Diese Sitzung bestätigen" className="mb-10">
+          <p>Du warst schon angemeldet, bevor die Zwei-Faktor-Anmeldung aktiv war. Admin-Bereich und Moderationswerkzeuge sind erst nach dem Code aus deiner Authenticator-App freigeschaltet.</p>
+          <ConfirmSessionMfa next={safeNext(sp.weiter)} />
+        </Notice>
+      )}
       <SettingsSection
         n="01"
         id="zwei-faktor"
         title="Zwei-Faktor-Anmeldung"
         description="Zusätzlich zum Passwort fragen wir bei der Anmeldung nach einem Code aus einer Authenticator-App. Selbst wer dein Passwort kennt, kommt so nicht in dein Konto."
       >
-        <TwoFactorSettings enabled={mfa.enabled} enabledAt={mfa.enabledAt?.toISOString() ?? null} recoveryCodesLeft={mfa.recoveryCodesLeft} required={mfaRequired} email={s.user.email} />
+        <TwoFactorSettings
+          enabled={mfa.enabled}
+          enabledAt={mfa.enabledAt?.toISOString() ?? null}
+          recoveryCodesLeft={mfa.recoveryCodesLeft}
+          required={mfaRequired}
+          email={s.user.email}
+          hasPassword={mfa.hasPassword}
+          reauthFresh={isFreshLogin(s.sessionCreatedAt)}
+        />
       </SettingsSection>
 
       <SettingsSection

@@ -362,6 +362,9 @@ model Session {
   revokedAt   DateTime?
   /// Passwort korrekt, zweiter Faktor steht noch aus – gilt bis dahin als nicht angemeldet
   mfaPending  Boolean  @default(false)
+  /// Diese Sitzung hat den zweiten Faktor bestätigt (Login-Schritt 2 oder Einrichtung). Nur dann gelten
+  /// Moderations-/Adminrechte – eine ältere Sitzung wird durch das Aktivieren von 2FA nicht aufgewertet.
+  mfaVerifiedAt DateTime?
   createdAt   DateTime @default(now())
 
   @@index([userId])
@@ -386,6 +389,10 @@ model AuthAccount {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider          String
   providerAccountId String
+  /// Apple: Refresh-Token (AES-GCM verschlüsselt wie TOTP-Geheimnisse) – für den Widerruf bei Kontolöschung
+  refreshToken      String?
+  /// Client-ID, für die das Refresh-Token ausgestellt wurde (Web-Services-ID bzw. Bundle-ID der App)
+  tokenClientId     String?
   createdAt         DateTime @default(now())
 
   @@unique([provider, providerAccountId])

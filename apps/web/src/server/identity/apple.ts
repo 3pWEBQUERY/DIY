@@ -4,13 +4,13 @@ import { env } from "@/server/env";
 import { db } from "@/server/db";
 import { slugify } from "@/lib/utils";
 import { isHandleAvailable } from "./service";
-import { createPublicKey, createVerify } from "node:crypto";
 import { fail } from "@/server/errors";
 import { audit } from "@/server/audit";
 import { createSession, clientIpHash } from "@/server/auth/session";
 import { rateLimit } from "@/server/ratelimit";
 import { requireFlag } from "@/server/flags";
-import { splitJwt } from "./jwt";
+import { warnNewDevice } from "@/server/auth/new-device";
+import { exchangeAppleCode, storeAppleRefreshToken, verifyAppleIdentityToken } from "./apple-token";
 
 export function appleClient() {
   const e = env();
@@ -31,7 +31,10 @@ export async function resolveAppleUser(code: string, rawUser: string | null) {
   } catch {
     /* Apple sendet den Namen nur beim ersten Login */
   }
-  return linkAppleClaims(claims, name);
+  const r = await linkAppleClaims(claims, name);
+  // Refresh-Token für den Widerruf bei Kontolöschung aufbewahren (verschlüsselt)
+  if (tokens.hasRefreshToken()) await storeAppleRefreshToken(claims.sub, tokens.refreshToken(), env().APPLE_CLIENT_ID!).catch(() => {});
+  return r;
 }
 
 export async function linkAppleClaims(claims: AppleClaims, displayName: string | null) {
@@ -93,46 +96,28 @@ export async function linkAppleClaims(claims: AppleClaims, displayName: string |
 
 // ───────────── Native Anmeldung mit Apple (iOS, AuthenticationServices) ─────────────
 
-type Jwk = JsonWebKey & { kid?: string };
-let jwksCache: { at: number; keys: Jwk[] } | null = null;
-
-async function appleKeys(force = false) {
-  if (!force && jwksCache && Date.now() - jwksCache.at < 6 * 3600_000) return jwksCache.keys;
-  const res = await fetch("https://appleid.apple.com/auth/keys", { cache: "no-store" });
-  if (!res.ok) throw fail.unavailable("Apple ist derzeit nicht erreichbar.");
-  const { keys } = (await res.json()) as { keys: Jwk[] };
-  jwksCache = { at: Date.now(), keys };
-  return keys;
-}
-
 /**
  * Prüft das identityToken der App (RS256, Aussteller Apple, Audience = Bundle-ID aus
  * APPLE_IOS_CLIENT_ID, nicht abgelaufen) und meldet an. Gibt ein Bearer-Token zurück.
+ * Optional (neuere App-Versionen):
+ * - `nonce`: Roh-Nonce; der `nonce`-Claim des Tokens muss deren SHA-256 (hex) sein (Replay-Schutz).
+ * - `authorizationCode`: wird gegen ein Refresh-Token getauscht und verschlüsselt gespeichert, damit wir
+ *   es bei der Kontolöschung bei Apple widerrufen können.
  */
-export async function signInWithAppleIdToken(idToken: string, displayName: string | null) {
+export async function signInWithAppleIdToken(idToken: string, displayName: string | null, opts: { nonce?: string | null; authorizationCode?: string | null } = {}) {
   const audience = process.env.APPLE_IOS_CLIENT_ID;
   if (!audience) throw fail.unavailable("Anmelden mit Apple ist in der App noch nicht aktiviert.");
   await rateLimit(`apple-native:${await clientIpHash()}`, 30, 600);
-  // Kaputte Struktur (kein JWT, kein Base64url, kein JSON-Objekt) → 400 statt 500
-  const jwt = splitJwt(idToken);
-  if (!jwt) throw fail.badRequest("Ungültiges Apple-Token.");
-  const { header } = jwt;
-  if (header.alg !== "RS256" || typeof header.kid !== "string") throw fail.badRequest("Ungültiges Apple-Token.");
-  let jwk = (await appleKeys()).find((k) => k.kid === header.kid);
-  if (!jwk) jwk = (await appleKeys(true)).find((k) => k.kid === header.kid);
-  if (!jwk) throw fail.invalid("Unbekannter Apple-Schlüssel.");
-  const key = createPublicKey({ key: jwk as never, format: "jwk" });
-  const ok = createVerify("RSA-SHA256").update(jwt.signingInput).verify(key, jwt.signature);
-  if (!ok) throw fail.invalid("Apple-Token konnte nicht verifiziert werden.");
-  const claims = jwt.claims as AppleClaims & { iss?: unknown; aud?: unknown; exp?: unknown };
-  if (claims.iss !== "https://appleid.apple.com" || claims.aud !== audience || typeof claims.exp !== "number" || claims.exp * 1000 < Date.now()) {
-    throw fail.invalid("Apple-Token ist abgelaufen oder nicht für diese App ausgestellt.");
-  }
-  if (typeof claims.sub !== "string" || !claims.sub || (claims.email != null && typeof claims.email !== "string")) throw fail.badRequest("Ungültiges Apple-Token.");
+  const claims = await verifyAppleIdentityToken(idToken, { audience, nonce: opts.nonce });
   const { userId, isNew } = await linkAppleClaims(claims, displayName);
   const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { status: true } });
   if (u.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");
   if (u.status === "DELETED") throw fail.forbidden("Dieses Konto wurde gelöscht.");
+  if (opts.authorizationCode) {
+    const rt = await exchangeAppleCode(opts.authorizationCode, audience, claims.sub);
+    if (rt) await storeAppleRefreshToken(claims.sub, rt, audience).catch(() => {});
+  }
   const s = await createSession(userId);
+  if (s.isNewDevice && !s.mfaRequired && !isNew) await warnNewDevice(userId, s.deviceLabel);
   return { userId, isNew, token: s.rawToken, mfaRequired: s.mfaRequired };
 }

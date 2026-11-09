@@ -10,7 +10,7 @@ async function adminPage(browser: Browser) {
   const admin = (await one<{ id: string; totp: Date | null }>(`SELECT id, "totpEnabledAt" totp FROM "User" WHERE role = 'SUPERADMIN' ORDER BY "createdAt" LIMIT 1`))!;
   if (!admin.totp) await sql(`UPDATE "User" SET "totpEnabledAt" = now() WHERE id = $1`, [admin.id]);
   const raw = randomBytes(32).toString("base64url");
-  await sql(`INSERT INTO "Session" (id, "userId", "expiresAt", "mfaPending", "createdAt", "lastUsedAt") VALUES ($1, $2, now() + interval '1 hour', false, now(), now())`, [createHash("sha256").update(raw).digest("hex"), admin.id]);
+  await sql(`INSERT INTO "Session" (id, "userId", "expiresAt", "mfaPending", "mfaVerifiedAt", "createdAt", "lastUsedAt") VALUES ($1, $2, now() + interval '1 hour', false, now(), now(), now())`, [createHash("sha256").update(raw).digest("hex"), admin.id]);
   const ctx = await browser.newContext();
   await ctx.addCookies([{ name: "wr_session", value: raw, url: process.env.E2E_BASE_URL ?? "http://localhost:3100" }]);
   return { page: await ctx.newPage(), restore: async () => !admin.totp && (await sql(`UPDATE "User" SET "totpEnabledAt" = NULL WHERE id = $1`, [admin.id])) };

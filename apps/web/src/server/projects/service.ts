@@ -11,6 +11,7 @@ import { audit } from "@/server/audit";
 import { relationsFor, visibleContentWhere, canViewContent } from "@/server/visibility";
 import { hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { attachMedia, mediaCoverUrl } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listComments } from "@/server/social/interactions";
@@ -127,6 +128,7 @@ async function notifyFollowers(projectId: string, actorId: string, data: Record<
 export async function createProject(user: SessionUser, input: unknown) {
   const data = projectUpsertSchema.parse(input);
   await assertCategoryAllowed(data.category);
+  await requireAdult(user);
   await limit("post", user.id);
 
   let original: { id: string; ownerId: string; title: string } | null = null;
@@ -299,6 +301,7 @@ export async function deleteProject(user: SessionUser, projectId: string) {
 
 export async function addProjectUpdate(user: SessionUser, projectId: string, input: unknown) {
   const data = projectUpdateEntrySchema.parse(input);
+  await requireAdult(user);
   await limit("post", user.id);
   const project = await db.project.findUnique({
     where: { id: projectId },
@@ -586,12 +589,12 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
 
   // Original (falls Nachbau)
   const remixRel = p.outgoing.find((r) => r.kind === "REMIX") ?? null;
-  let remixOf: { id: string; title: string; href: string; ownerName: string; coverUrl: string | null; category: string; deviations: string } | null = null;
+  let remixOf: { id: string; slug: string; title: string; href: string; ownerHandle: string | null; ownerName: string; coverUrl: string | null; category: string; deviations: string } | null = null;
   let remixOfUnavailable = false;
   if (remixRel) {
     const o = remixRel.to;
     if (await canViewContent(viewerId, { ownerId: o.ownerId, visibility: o.visibility, state: o.state })) {
-      remixOf = { id: o.id, title: o.title, href: ownerHref(o.owner.profile?.handle, o.slug), ownerName: o.owner.profile?.displayName ?? "", coverUrl: o.coverUrl, category: o.category, deviations: remixRel.deviations };
+      remixOf = { id: o.id, slug: o.slug, title: o.title, href: ownerHref(o.owner.profile?.handle, o.slug), ownerHandle: o.owner.profile?.handle ?? null, ownerName: o.owner.profile?.displayName ?? "", coverUrl: o.coverUrl, category: o.category, deviations: remixRel.deviations };
     } else remixOfUnavailable = true;
   }
 
