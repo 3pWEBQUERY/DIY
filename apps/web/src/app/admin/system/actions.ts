@@ -41,3 +41,19 @@ export async function setFlagRolloutAction(key: string, rollout: number) {
     return null;
   }, "Rollout gespeichert.");
 }
+
+/** Test-E-Mail an die eigene Adresse – zeigt sofort, ob der Versand über Resend klappt. */
+export async function sendTestMailAction() {
+  return act(async () => {
+    const u = await requireRole("ADMIN");
+    const { sendMail } = await import("@/server/mail");
+    const { audit } = await import("@/server/audit");
+    const r = await sendMail(u.email, "Test-E-Mail von Werkuno", `Hallo!\n\nDiese Test-E-Mail bestätigt, dass der Versand über Resend funktioniert.\n\nGesendet am ${new Date().toLocaleString("de-CH", { timeZone: "Europe/Zurich" })}.`);
+    await audit({ actorId: u.id, action: "admin.mail_test", meta: { delivered: r.delivered } });
+    if (!r.delivered) {
+      const { fail } = await import("@/server/errors");
+      throw fail.unavailable("reason" in r && r.reason ? `Versand fehlgeschlagen – ${r.reason}` : "Versand nicht möglich: RESEND_API_KEY fehlt.");
+    }
+    return { to: u.email };
+  });
+}

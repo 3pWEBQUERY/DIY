@@ -21,14 +21,66 @@ export async function sendMail(to: string, subject: string, text: string, opts: 
     });
     if (!res.ok) {
       // Kein Throw: Registrierung/Passwort-Reset dürfen nicht an einem Mail-Ausfall scheitern
-      // (sonst halbe Konten bzw. erkennbare E-Mail-Adressen). Fehler wird geloggt.
-      console.error(JSON.stringify({ level: "error", msg: "mail_failed", status: res.status, to: masked, subject }));
-      return { delivered: false, failed: true };
+      // (sonst halbe Konten bzw. erkennbare E-Mail-Adressen). Fehler wird geloggt und in der
+      // Fehlerüberwachung gesammelt – mit der Begründung von Resend (z.B. Domain nicht bestätigt).
+      const reason = await resendError(res);
+      console.error(JSON.stringify({ level: "error", msg: "mail_failed", status: res.status, reason, to: masked, subject }));
+      await reportMailFailure(`Resend ${res.status}: ${reason}`);
+      return { delivered: false, failed: true, status: res.status, reason };
     }
     return { delivered: true };
   } catch (err) {
     console.error(JSON.stringify({ level: "error", msg: "mail_failed", error: String(err).slice(0, 200), to: masked, subject }));
-    return { delivered: false, failed: true };
+    await reportMailFailure(String(err).slice(0, 200));
+    return { delivered: false, failed: true, reason: "Resend nicht erreichbar" };
+  }
+}
+
+/** Fehlermeldung von Resend lesbar machen (enthält keine Geheimnisse). */
+async function resendError(res: Response) {
+  try {
+    const j = (await res.json()) as { message?: string; name?: string };
+    return (j.message ?? j.name ?? res.statusText).slice(0, 300);
+  } catch {
+    return res.statusText || "Unbekannter Fehler";
+  }
+}
+
+async function reportMailFailure(message: string) {
+  try {
+    const { captureError } = await import("@/server/monitoring");
+    const e = new Error(message);
+    e.name = "MailDeliveryError";
+    await captureError(e, { source: "SERVER", path: "mail" });
+  } catch {
+    /* Überwachung darf den Versand nicht stören */
+  }
+}
+
+/** Zustand des Mailversands für die Administration: Schlüssel, Absender, Domain bei Resend. */
+export async function mailStatus() {
+  const e = env();
+  const from = e.MAIL_FROM;
+  const domain = /@([^>\s]+)>?\s*$/.exec(from)?.[1]?.toLowerCase() ?? null;
+  if (!features.email()) return { configured: false as const, from, domain, domainStatus: null as string | null, note: "RESEND_API_KEY fehlt – es werden keine E-Mails verschickt." };
+  try {
+    const res = await fetch("https://api.resend.com/domains", { headers: { Authorization: `Bearer ${e.RESEND_API_KEY}` } });
+    if (res.status === 401 || res.status === 403) {
+      // Schlüssel nur mit Senderecht: Domainliste nicht lesbar – Versand trotzdem möglich
+      return { configured: true as const, from, domain, domainStatus: null, note: "Der Schlüssel darf nur senden; den Domain-Status siehst du im Resend-Dashboard. Prüfe mit einer Test-E-Mail." };
+    }
+    if (!res.ok) return { configured: true as const, from, domain, domainStatus: null, note: `Resend antwortet mit ${res.status}: ${await resendError(res)}` };
+    const j = (await res.json()) as { data?: { name: string; status: string; region?: string }[] };
+    const d = j.data?.find((x) => x.name.toLowerCase() === domain);
+    return {
+      configured: true as const,
+      from,
+      domain,
+      domainStatus: d?.status ?? "missing",
+      note: !d ? `Die Domain ${domain} ist bei Resend nicht eingerichtet – E-Mails von ${from} werden abgelehnt.` : d.status === "verified" ? null : `Die Domain ${domain} ist bei Resend noch nicht bestätigt (Status: ${d.status}). DNS-Einträge (SPF/DKIM) bei deinem Domain-Anbieter setzen und in Resend prüfen.`,
+    };
+  } catch (err) {
+    return { configured: true as const, from, domain, domainStatus: null, note: `Resend nicht erreichbar: ${String(err).slice(0, 120)}` };
   }
 }
 

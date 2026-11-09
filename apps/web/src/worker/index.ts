@@ -163,8 +163,12 @@ async function sendEmails(mode: "instant" | "digest") {
     const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
     try {
       const r = await sendMail(to, subject, `Das ist in deiner Werkstatt passiert:\n\n${lines.join("\n\n")}`, { cta: { label: "Ansehen", url: `${appUrl}${target}` } });
-      // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut
-      if (!("failed" in r && r.failed)) await db.notification.updateMany({ where: { id: { in: list.map((n) => n.id) } }, data: { emailedAt: new Date() } });
+      // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut; nach 48 Std. aufgeben
+      // (sonst Endlosschleife, z.B. solange die Absender-Domain nicht bestätigt ist)
+      const failed = "failed" in r && r.failed;
+      const stale = list.filter((n) => n.createdAt.getTime() < Date.now() - 48 * 3600_000).map((n) => n.id);
+      const done = failed ? stale : list.map((n) => n.id);
+      if (done.length) await db.notification.updateMany({ where: { id: { in: done } }, data: { emailedAt: new Date() } });
     } catch (err) {
       warn("email_failed", { err: String(err) });
       await captureError(err, { source: "WORKER", path: "email" });

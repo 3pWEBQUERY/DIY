@@ -27,3 +27,22 @@ test("Mobil: Abmelden im Menü „Mehr“", async ({ browser }) => {
   await page.getByRole("button", { name: "Mehr", exact: true }).click();
   await expect(page.getByRole("button", { name: "Abmelden" })).toBeVisible();
 });
+
+test("Unbestätigte E-Mail-Adresse: Hinweis mit „Link erneut senden“", async ({ browser }) => {
+  const { sql, userId } = await import("./helpers");
+  const id = await userId("elias");
+  const [{ v }] = await sql<{ v: Date | null }>(`SELECT "emailVerifiedAt" AS v FROM "User" WHERE id = $1`, [id]);
+  await sql(`UPDATE "User" SET "emailVerifiedAt" = NULL WHERE id = $1`, [id]);
+  try {
+    const page = await loginAs(browser, "elias");
+    await page.goto("/entdecken");
+    await expect(page.getByText(/Bitte bestätige deine E-Mail-Adresse/)).toBeVisible();
+    await page.getByRole("button", { name: "Link erneut senden" }).click();
+    await expect(page.getByText(/neuen Link an/)).toBeVisible();
+    await page.getByRole("button", { name: "Hinweis ausblenden" }).click();
+    await page.goto("/projekte");
+    await expect(page.getByText(/Bitte bestätige deine E-Mail-Adresse/)).toBeHidden();
+  } finally {
+    await sql(`UPDATE "User" SET "emailVerifiedAt" = $2 WHERE id = $1`, [id, v ?? new Date()]);
+  }
+});

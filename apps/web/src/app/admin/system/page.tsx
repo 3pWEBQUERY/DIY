@@ -5,6 +5,8 @@ import { listFlags, listSettings } from "@/server/admin/system";
 import { AdminHeader, Table, Td, Th, Tr, EmptyRow } from "@/components/admin/ui";
 import { FlagRollout, FlagSwitch, SettingControl } from "@/components/admin/system-controls";
 import { Notice, SectionTitle } from "@/components/ui/misc";
+import { MailTestButton } from "@/components/admin/mail-test";
+import { mailStatus } from "@/server/mail";
 import { dateTime } from "@/components/admin/format";
 import { resetSettingAction, setFlagRolloutAction, toggleFlagAction, updateSettingAction } from "./actions";
 
@@ -13,7 +15,7 @@ export const metadata: Metadata = { title: "Systemkonfiguration" };
 export default async function SystemPage() {
   const user = await adminPage("ADMIN", "/admin/system");
   const isSuper = hasRole(user, "SUPERADMIN");
-  const [settings, flags] = await Promise.all([listSettings(), listFlags()]);
+  const [settings, flags, mail] = await Promise.all([listSettings(), listFlags(), mailStatus()]);
   const groups = [...new Set(settings.map((s) => s.meta.group))];
 
   return (
@@ -22,6 +24,31 @@ export default async function SystemPage() {
       <Notice tone="warn" className="mb-8" title="Mit Bedacht ändern">
         Änderungen an Provision und Checkout betreffen laufende Verkäufe sofort. Provisionsänderungen müssen Verkäufern vorab angekündigt werden (Marktplatz-Richtlinien) und sind der Superadministration vorbehalten.
       </Notice>
+
+      <section className="mb-10 rounded-2xl border border-line bg-card p-5 sm:p-6" aria-labelledby="mail">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 id="mail" className="text-[15px] font-bold tracking-tight">E-Mail-Versand</h2>
+            <dl className="mt-3 grid gap-x-8 gap-y-1.5 text-[13.5px] sm:grid-cols-[auto_1fr]">
+              <dt className="text-muted">Dienst</dt>
+              <dd>{mail.configured ? "Resend – Schlüssel gesetzt" : "Nicht eingerichtet"}</dd>
+              <dt className="text-muted">Absender</dt>
+              <dd className="font-mono text-[12.5px]">{mail.from}</dd>
+              <dt className="text-muted">Domain</dt>
+              <dd>
+                {mail.domain ?? "–"}
+                {mail.domainStatus && (
+                  <span className={`ml-2 rounded-full px-2 py-0.5 text-[11.5px] font-medium ${mail.domainStatus === "verified" ? "bg-moss-soft text-moss-ink" : "bg-warn-soft text-warn"}`}>
+                    {mail.domainStatus === "verified" ? "bestätigt" : mail.domainStatus === "missing" ? "nicht eingerichtet" : mail.domainStatus}
+                  </span>
+                )}
+              </dd>
+            </dl>
+          </div>
+          {mail.configured && <MailTestButton />}
+        </div>
+        {mail.note && <Notice tone={mail.domainStatus === "verified" ? "neutral" : "warn"} className="mt-4">{mail.note}</Notice>}
+      </section>
 
       {groups.map((g, gi) => (
         <section key={g} className="mb-10" aria-labelledby={`g${gi}`}>
