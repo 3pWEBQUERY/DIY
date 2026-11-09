@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { changePasswordAction, deleteAccountAction, requestEmailChangeAction, resendVerificationAction } from "@/app/(app)/einstellungen/actions";
+import { AppleReauthNotice } from "@/components/settings/apple-reauth";
 
 export function ResendVerificationButton() {
   const { run, pending } = useAction(resendVerificationAction, { refresh: false });
@@ -58,8 +59,10 @@ export function ChangeEmailButton({ hasPassword }: { hasPassword: boolean }) {
   );
 }
 
-export function ChangePasswordForm({ hasPassword }: { hasPassword: boolean }) {
+export function ChangePasswordForm({ hasPassword, reauthFresh = false }: { hasPassword: boolean; reauthFresh?: boolean }) {
   const { run, pending, fields } = useAction(changePasswordAction);
+  // Erstes Passwort nur nach frischer Anmeldung mit Apple (sonst könnte eine fremde Sitzung eines setzen)
+  if (!hasPassword && (!reauthFresh || fields.reauth)) return <AppleReauthNotice returnTo="/einstellungen/konto" action="ein Passwort festlegen kann" />;
   return (
     <form
       className="grid max-w-md gap-4"
@@ -92,7 +95,7 @@ export function ChangePasswordForm({ hasPassword }: { hasPassword: boolean }) {
   );
 }
 
-export function DeleteAccountButton({ hasPassword }: { hasPassword: boolean }) {
+export function DeleteAccountButton({ hasPassword, reauthFresh = false }: { hasPassword: boolean; reauthFresh?: boolean }) {
   const [open, setOpen] = useState(false);
   const { run, pending, fields } = useAction(deleteAccountAction);
   return (
@@ -101,6 +104,9 @@ export function DeleteAccountButton({ hasPassword }: { hasPassword: boolean }) {
         Konto endgültig löschen
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Konto löschen?" description="Dieser Schritt kann nicht rückgängig gemacht werden.">
+        {!hasPassword && (!reauthFresh || fields.reauth) ? (
+          <AppleReauthNotice returnTo="/einstellungen/konto#loeschen" action="dein Konto löschen kann" />
+        ) : (
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -126,6 +132,7 @@ export function DeleteAccountButton({ hasPassword }: { hasPassword: boolean }) {
             </Button>
           </div>
         </form>
+        )}
       </Dialog>
     </>
   );

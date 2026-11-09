@@ -16,6 +16,8 @@ export async function adminPage(min: PlatformRole = "PLATFORM_MODERATOR", path =
   if (user.status !== "ACTIVE") notFound();
   // Pflicht: Zwei-Faktor-Anmeldung für den Admin-Bereich
   if (!user.totpEnabledAt) redirect("/einstellungen/sicherheit?zweifaktor=pflicht");
+  // … und in dieser Sitzung bestätigt (ältere Sitzungen geben den Code einmal nachträglich ein)
+  if (!user.mfaVerified) redirect(`/einstellungen/sicherheit?zweifaktor=bestaetigen&weiter=${encodeURIComponent(path)}`);
   return user as typeof user & { profile: NonNullable<typeof user.profile> };
 }
 

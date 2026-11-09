@@ -80,10 +80,18 @@ export const identityRoutes: RouteDef[] = [
     await identity.requestPasswordReset(String(email ?? ""));
     return { message: "Falls ein Konto existiert, haben wir dir eine E-Mail geschickt." };
   }),
+  // Optional (neuere App-Versionen): `nonce` (Roh-Nonce, Token-Claim = SHA-256 hex) und `authorizationCode`
+  // (für den Widerruf bei Kontolöschung) – ältere Versionen senden nur das identityToken.
   POST("/auth/apple", async (c) => {
-    const b = await c.body({ identityToken: z.string().max(10_000).optional(), givenName: z.string().max(100).nullish(), familyName: z.string().max(100).nullish() });
+    const b = await c.body({
+      identityToken: z.string().max(10_000).optional(),
+      givenName: z.string().max(100).nullish(),
+      familyName: z.string().max(100).nullish(),
+      nonce: z.string().max(500).nullish(),
+      authorizationCode: z.string().max(2_000).nullish(),
+    });
     if (!b.identityToken) throw fail.invalid("identityToken fehlt.");
-    return signInWithAppleIdToken(b.identityToken, [b.givenName, b.familyName].filter(Boolean).join(" ") || null);
+    return signInWithAppleIdToken(b.identityToken, [b.givenName, b.familyName].filter(Boolean).join(" ") || null, { nonce: b.nonce, authorizationCode: b.authorizationCode });
   }),
   // E-Mail-Adresse ändern: { email, password } → Bestätigungslink an die neue Adresse
   POST("/me/email", async (c) => {
@@ -135,17 +143,20 @@ export const identityRoutes: RouteDef[] = [
     const u = await meAllowSuspended();
     return account.accountOverview(u.id);
   }),
+  // Erstes Passwort (Konto nur mit Apple): frisches `appleIdentityToken` derselben Apple-ID oder frische Sitzung
   POST("/settings/password", async (c) => {
     const s = await session();
-    const b = await c.body({ current: zStr, next: zStr, confirm: zStr });
+    const b = await c.body({ current: zStr, next: zStr, confirm: zStr, appleIdentityToken: z.string().max(10_000).nullish() });
     if (b.next !== b.confirm) throw fail.invalid("Die Passwörter stimmen nicht überein.", { confirm: "Stimmt nicht überein" });
-    return account.changePasswordEverywhere(s.user, s.sessionId, b.current ?? "", b.next ?? "");
+    return account.changePasswordEverywhere(s.user, s.sessionId, b.current ?? "", b.next ?? "", { appleIdentityToken: b.appleIdentityToken });
   }),
+  // Löschen: `password` bzw. (ohne Passwort) `appleIdentityToken` – sonst 403 mit fields.reauth = "apple"
   POST("/settings/delete-account", async (c) => {
     const u = await meAllowSuspended();
-    const b = await c.body({ password: zStr, confirm: zStr });
+    const s = await session();
+    const b = await c.body({ password: zStr, confirm: zStr, appleIdentityToken: z.string().max(10_000).nullish() });
     if ((b.confirm ?? "").trim().toUpperCase() !== "LÖSCHEN") throw fail.invalid("Bitte tippe LÖSCHEN zur Bestätigung.", { confirm: "Bitte LÖSCHEN eintippen" });
-    await identity.deleteAccount(u.id, b.password ?? null);
+    await identity.deleteAccount(u.id, s.sessionId, { password: b.password ?? null, appleIdentityToken: b.appleIdentityToken });
     return { ok: true };
   }),
 

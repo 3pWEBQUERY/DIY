@@ -18,6 +18,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { sendMail } from "@/server/mail";
 import { attachMedia } from "@/server/media/service";
 import { changePassword, isHandleAvailable, sendVerification } from "@/server/identity/service";
+import { securityReset } from "@/server/auth/security";
 import { env } from "@/server/env";
 import { BRAND } from "@/config/brand";
 import type { SessionUser } from "@/server/auth/session";
@@ -46,6 +47,31 @@ export async function checkHandle(raw: string, userId: string) {
   return r.ok ? { ok: true as const, handle: r.handle } : { ok: false as const, reason: r.reason };
 }
 
+/** Benutzername-Wechsel zählen: höchstens dreimal in 30 Tagen – in den Einstellungen wie im Onboarding. */
+export async function reserveHandleChange(userId: string) {
+  await rateLimit(`handle-change:${userId}`, 3, 30 * 86_400).catch(() => {
+    throw fail.invalid("Du kannst deinen Benutzernamen höchstens dreimal in 30 Tagen ändern.", { handle: "Limit erreicht" });
+  });
+}
+
+/**
+ * Profilbild aus einer Varianten-URL (Onboarding, iOS): nur eigene, fertig verarbeitete Bilder.
+ * Gibt die Media-ID zurück (zum Anhängen) oder wirft.
+ */
+export async function ownedImageByUrl(userId: string, url: string) {
+  const m = await db.media.findFirst({
+    where: {
+      ownerId: userId,
+      kind: "IMAGE",
+      state: "READY",
+      OR: ["thumb", "sm", "md", "lg"].map((v) => ({ variants: { path: [v], equals: url } })),
+    },
+    select: { id: true },
+  });
+  if (!m) throw fail.invalid("Ungültiges Profilbild. Bitte lade das Bild erneut hoch.", { avatarUrl: "Ungültiges Bild" });
+  return m.id;
+}
+
 async function readyImage(userId: string, mediaId: string, variant: "md" | "lg") {
   const m = await db.media.findUnique({ where: { id: mediaId }, select: { ownerId: true, kind: true, state: true, variants: true } });
   if (!m || m.ownerId !== userId) throw fail.forbidden("Ungültiges Bild.");
@@ -64,9 +90,7 @@ export async function updateProfile(user: U, input: unknown) {
   if (handleChanged) {
     const avail = await isHandleAvailable(d.handle, user.id);
     if (!avail.ok) throw fail.invalid(avail.reason, { handle: avail.reason });
-    await rateLimit(`handle-change:${user.id}`, 3, 30 * 86_400).catch(() => {
-      throw fail.invalid("Du kannst deinen Benutzernamen höchstens dreimal in 30 Tagen ändern.", { handle: "Limit erreicht" });
-    });
+    await reserveHandleChange(user.id);
   }
   const avatarUrl = d.avatarMediaId ? await readyImage(user.id, d.avatarMediaId, "md") : undefined;
   const coverUrl = d.coverMediaId ? await readyImage(user.id, d.coverMediaId, "lg") : undefined;
@@ -110,13 +134,17 @@ export async function resendVerification(user: Pick<SessionUser, "id" | "email" 
   await sendVerification(user.id, user.email);
 }
 
-/** Passwort ändern und alle anderen Sitzungen beenden (§25.5 Sessionwiderruf). */
-export async function changePasswordEverywhere(user: U, currentSessionId: string, current: string, next: string) {
+/**
+ * Passwort ändern (bzw. erstmals festlegen) und alle anderen Sitzungen sowie offene Reset- und
+ * E-Mail-Wechsel-Links beenden (§25.5 Sessionwiderruf).
+ */
+export async function changePasswordEverywhere(user: U, currentSessionId: string, current: string, next: string, opts: { appleIdentityToken?: string | null } = {}) {
   await rateLimit(`password-change:${user.id}`, 5, 3600);
-  await changePassword(user.id, current, next);
-  const r = await db.session.updateMany({ where: { userId: user.id, revokedAt: null, id: { not: currentSessionId } }, data: { revokedAt: new Date() } });
-  await notify({ recipientId: user.id, type: "SECURITY", bundle: false, data: { message: `Dein Passwort wurde geändert${r.count ? ` und ${r.count} andere Sitzung${r.count === 1 ? "" : "en"} beendet` : ""}.`, href: "/einstellungen/sicherheit" } });
-  return { revoked: r.count };
+  await changePassword(user.id, current, next, { sessionId: currentSessionId, appleIdentityToken: opts.appleIdentityToken });
+  const r = await securityReset(user.id, { keepSessionId: currentSessionId });
+  const count = r.revokedSessions;
+  await notify({ recipientId: user.id, type: "SECURITY", bundle: false, data: { message: `Dein Passwort wurde geändert${count ? ` und ${count} andere Sitzung${count === 1 ? "" : "en"} beendet` : ""}.`, href: "/einstellungen/sicherheit" } });
+  return { revoked: count };
 }
 
 export async function listSessions(userId: string, currentSessionId: string) {
@@ -146,10 +174,13 @@ export async function revokeSession(user: U, key: string, currentSessionId: stri
   await audit({ actorId: user.id, action: "auth.session_revoked", targetType: "USER", targetId: user.id, meta: { count: r.count } });
 }
 
+/** Alle anderen Sitzungen beenden – und offene Reset-/E-Mail-Wechsel-Links, die von dort stammen könnten. */
 export async function revokeOtherSessions(user: U, currentSessionId: string) {
-  const r = await db.session.updateMany({ where: { userId: user.id, revokedAt: null, id: { not: currentSessionId } }, data: { revokedAt: new Date() } });
-  if (r.count) await audit({ actorId: user.id, action: "auth.sessions_revoked_others", targetType: "USER", targetId: user.id, meta: { count: r.count } });
-  return { count: r.count };
+  const r = await securityReset(user.id, { keepSessionId: currentSessionId });
+  if (r.revokedSessions || r.removedTokens) {
+    await audit({ actorId: user.id, action: "auth.sessions_revoked_others", targetType: "USER", targetId: user.id, meta: { count: r.revokedSessions, tokens: r.removedTokens } });
+  }
+  return { count: r.revokedSessions };
 }
 
 export async function securityEvents(userId: string) {

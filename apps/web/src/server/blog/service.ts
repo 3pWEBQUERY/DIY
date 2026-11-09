@@ -104,13 +104,15 @@ async function loadActor(userId: string): Promise<SessionUser | null> {
       emailVerifiedAt: true,
       totpEnabledAt: true,
       onboardedAt: true,
+      adultConfirmedAt: true,
       createdAt: true,
       profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true } },
       shop: { select: { id: true, slug: true, status: true, name: true } },
     },
   });
   if (!u || u.status !== "ACTIVE" || !u.profile) return null;
-  return u;
+  // Ohne Sitzung (Worker): Plattformrechte wie bisher allein nach aktiver 2FA
+  return { ...u, mfaVerified: !!u.totpEnabledAt };
 }
 
 // ───────────────────────── Normalisierung ─────────────────────────

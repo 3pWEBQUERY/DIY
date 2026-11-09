@@ -5,10 +5,13 @@ import { db } from "@/server/db";
 import { hashPassword, verifyPassword, sha256, token } from "@/server/crypto";
 import { fail } from "@/server/errors";
 import { createSession, clientIpHash } from "@/server/auth/session";
-import { isLimited, limit, rateLimit } from "@/server/ratelimit";
+import { isLimited, limit, rateLimit, releaseLimit } from "@/server/ratelimit";
+import { securityReset } from "@/server/auth/security";
+import { assertReauthenticated, type ReauthProof } from "@/server/auth/reauth";
+import { warnNewDevice } from "@/server/auth/new-device";
+import { APPLE_REVOKE_PROVIDER } from "@/server/identity/apple-token";
 import { headers } from "next/headers";
 import { sendMail } from "@/server/mail";
-import { notify } from "@/server/notifications";
 import { audit } from "@/server/audit";
 import { env } from "@/server/env";
 import { requireFlag } from "@/server/flags";
@@ -76,10 +79,31 @@ export async function signUp(input: unknown) {
   return { userId: user.id, token: s.rawToken };
 }
 
+/**
+ * Fehlversuche je Netzwerkadresse über ALLE Konten (gegen Credential Stuffing). Jeder Versuch wird vorab
+ * atomar gezählt (parallele Anfragen können die Sperre nicht umgehen) und bei Erfolg wieder freigegeben –
+ * viele erfolgreiche Anmeldungen hinter derselben Adresse (Büro, Schule) sperren also niemanden aus.
+ */
+async function reserveIpAttempt(ipHash: string) {
+  await limit("signInIpDay", ipHash);
+  try {
+    await limit("signInIp", ipHash);
+  } catch (e) {
+    await releaseLimit("signInIpDay", ipHash);
+    throw e;
+  }
+}
+
+async function releaseIpAttempt(ipHash: string) {
+  await releaseLimit("signInIp", ipHash);
+  await releaseLimit("signInIpDay", ipHash);
+}
+
 export async function signIn(input: unknown) {
   const data = signInSchema.parse(input);
   const ipHash = await clientIpHash();
   await limit("signIn", `${ipHash}:${data.email}`);
+  await reserveIpAttempt(ipHash);
   const user = await db.user.findUnique({
     where: { email: data.email },
     select: { id: true, email: true, passwordHash: true, status: true, suspendedUntil: true },
@@ -95,19 +119,13 @@ export async function signIn(input: unknown) {
     if (!knownDevice) await limit("signInAccount", data.email).catch(() => {});
     throw fail.invalid("E-Mail oder Passwort ist nicht korrekt.");
   }
+  // Passwort korrekt → zählt nicht als Fehlversuch dieser Adresse
+  await releaseIpAttempt(ipHash);
   if (user.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");
   if (user.status === "DELETED") throw fail.invalid("E-Mail oder Passwort ist nicht korrekt.");
   const s = await createSession(user.id);
-  if (s.isNewDevice && !s.mfaRequired) {
-    // Sicherheitswarnung bei Anmeldung von neuem Gerät (§8.1)
-    await notify({ recipientId: user.id, type: "SECURITY", data: { device: s.deviceLabel }, bundle: false });
-    await sendMail(
-      user.email,
-      "Neue Anmeldung bei deinem Konto",
-      `Wir haben eine Anmeldung von einem neuen Gerät festgestellt: ${s.deviceLabel}.\n\nWarst du das nicht? Ändere sofort dein Passwort und melde alle Sitzungen ab.`,
-      { eyebrow: "Konto & Sicherheit", cta: { label: "Sitzungen prüfen", url: `${env().APP_URL}/einstellungen/sicherheit` } },
-    ).catch(() => {});
-  }
+  // Sicherheitswarnung bei Anmeldung von neuem Gerät (§8.1) – mit 2FA erst nach dem Code (verifyMfaLogin)
+  if (s.isNewDevice && !s.mfaRequired) await warnNewDevice(user.id, s.deviceLabel);
   // mfaRequired: Passwort korrekt, Session wartet auf den zweiten Faktor
   return { userId: user.id, token: s.rawToken, mfaRequired: s.mfaRequired };
 }
@@ -125,7 +143,10 @@ export async function verifyEmail(raw: string) {
 /** Antwortet immer gleich – keine User-Enumeration. */
 export async function requestPasswordReset(email: string) {
   const normalized = email.trim().toLowerCase();
-  await limit("passwordReset", `${await clientIpHash()}:${normalized}`);
+  const ipHash = await clientIpHash();
+  await limit("passwordReset", `${ipHash}:${normalized}`);
+  // Je Netzwerkadresse über alle E-Mail-Adressen
+  await limit("passwordResetIp", ipHash);
   // Zusätzlich je Adresse (unabhängig von der IP): schützt Postfächer vor Reset-Mail-Fluten.
   // Still abbrechen statt Fehler – die Antwort bleibt für alle Adressen gleich.
   try {
@@ -145,27 +166,37 @@ export async function requestPasswordReset(email: string) {
 export async function resetPassword(raw: string, password: string) {
   const pw = passwordSchema.parse(password);
   const t = await db.verificationToken.findUnique({ where: { id: sha256(raw) } });
-  if (!t || t.purpose !== "PASSWORD_RESET" || t.usedAt || t.expiresAt < new Date()) {
-    throw fail.invalid("Der Link ist abgelaufen oder ungültig. Fordere bitte einen neuen an.");
-  }
+  const invalid = () => fail.invalid("Der Link ist abgelaufen oder ungültig. Fordere bitte einen neuen an.");
+  if (!t || t.purpose !== "PASSWORD_RESET" || t.usedAt || t.expiresAt < new Date()) throw invalid();
   const passwordHash = await hashPassword(pw);
-  await db.$transaction([
-    db.verificationToken.update({ where: { id: t.id }, data: { usedAt: new Date() } }),
-    db.user.update({ where: { id: t.userId }, data: { passwordHash } }),
-    // Sessionwiderruf: alle bestehenden Sitzungen beenden (§25.5)
-    db.session.updateMany({ where: { userId: t.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
-  ]);
+  await db.$transaction(async (tx) => {
+    // Einmal-Link: nur wer ihn zuerst einlöst, setzt das Passwort
+    const claimed = await tx.verificationToken.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date() } });
+    if (!claimed.count) throw invalid();
+    await tx.user.update({ where: { id: t.userId }, data: { passwordHash } });
+    // Sessionwiderruf (§25.5): alle Sitzungen beenden, weitere Reset- und E-Mail-Wechsel-Links entwerten
+    await securityReset(t.userId, { exceptTokenId: t.id, tx });
+  });
   await audit({ actorId: t.userId, action: "auth.password_reset", targetType: "USER", targetId: t.userId });
   const s = await createSession(t.userId);
   return { mfaRequired: s.mfaRequired };
 }
 
-export async function changePassword(userId: string, current: string, next: string) {
+/**
+ * Passwort ändern bzw. – bei Konten nur mit Apple – erstmals festlegen. Ein erstes Passwort braucht eine
+ * erneute Anmeldung mit Apple (sonst könnte eine gestohlene Sitzung ein Passwort setzen und damit auch
+ * die E-Mail-Adresse ändern). Andere Sitzungen und offene Links beendet `changePasswordEverywhere`.
+ */
+export async function changePassword(userId: string, current: string, next: string, ctx: { sessionId: string; appleIdentityToken?: string | null }) {
   const pw = passwordSchema.parse(next);
   const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
-  if (u.passwordHash && !(await verifyPassword(current, u.passwordHash))) throw fail.invalid("Das aktuelle Passwort ist falsch.", { current: "Falsches Passwort" });
+  if (u.passwordHash) {
+    if (!(await verifyPassword(current, u.passwordHash))) throw fail.invalid("Das aktuelle Passwort ist falsch.", { current: "Falsches Passwort" });
+  } else {
+    await assertReauthenticated(userId, ctx.sessionId, { appleIdentityToken: ctx.appleIdentityToken });
+  }
   await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(pw) } });
-  await audit({ actorId: userId, action: "auth.password_changed", targetType: "USER", targetId: userId });
+  await audit({ actorId: userId, action: u.passwordHash ? "auth.password_changed" : "auth.password_set", targetType: "USER", targetId: userId });
 }
 
 /**
@@ -173,9 +204,9 @@ export async function changePassword(userId: string, current: string, next: stri
  * Sitzungen widerrufen. Bestellungen bleiben aus Aufbewahrungspflichten erhalten
  * (Restrict-FK), werden aber vom Profil entkoppelt.
  */
-export async function deleteAccount(userId: string, password: string | null) {
-  const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true, email: true } });
-  if (u.passwordHash && !(await verifyPassword(password ?? "", u.passwordHash))) throw fail.invalid("Passwort ist falsch.", { password: "Falsches Passwort" });
+export async function deleteAccount(userId: string, sessionId: string, proof: ReauthProof) {
+  // Passwort bzw. (ohne Passwort) frische Anmeldung mit Apple – eine gestohlene Sitzung reicht nicht
+  await assertReauthenticated(userId, sessionId, proof);
   await assertAccountDeletable(userId);
   const tomb = `geloescht-${userId.slice(-8)}`;
   await db.$transaction(async (tx) => {
@@ -188,7 +219,10 @@ export async function deleteAccount(userId: string, password: string | null) {
     await tx.shop.updateMany({ where: { ownerId: userId }, data: { status: "SUSPENDED" } });
     await tx.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followeeId: userId }] } });
     await tx.session.updateMany({ where: { userId }, data: { revokedAt: new Date() } });
-    await tx.authAccount.deleteMany({ where: { userId } });
+    // Apple-Verknüpfungen mit Refresh-Token lösen, aber für den Widerruf bei Apple im Aufräumjob behalten
+    // (purgeDeletedAccount); die Apple-ID kann sofort wieder für ein neues Konto genutzt werden.
+    await tx.$executeRaw`UPDATE "AuthAccount" SET "provider" = ${APPLE_REVOKE_PROVIDER}, "providerAccountId" = "providerAccountId" || ':' || "id" WHERE "userId" = ${userId} AND "provider" = 'apple' AND "refreshToken" IS NOT NULL`;
+    await tx.authAccount.deleteMany({ where: { userId, provider: { not: APPLE_REVOKE_PROVIDER } } });
     await tx.userProfile.update({
       where: { userId },
       data: { handle: tomb, displayName: "Gelöschtes Konto", bio: "", avatarUrl: null, coverUrl: null, links: [], website: null, region: null },

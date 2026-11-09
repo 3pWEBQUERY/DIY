@@ -9,6 +9,7 @@ import { notify } from "@/server/notifications";
 import { relationsFor, isBlockedBetween } from "@/server/visibility";
 import { attachMedia } from "@/server/media/service";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { publish } from "@/server/realtime/bus";
 import { requireFlag } from "@/server/flags";
 import { detectSuspiciousPayment } from "./suspicious";
@@ -341,6 +342,7 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
     const sent = await db.message.count({ where: { conversationId, senderId: user.id } });
     if (sent >= MAX_UNANSWERED_REQUEST_MESSAGES) throw fail.invalid("Warte, bis deine Kontaktanfrage angenommen wurde, bevor du weitere Nachrichten schickst.");
   }
+  await requireAdult(user);
   await limit("message", user.id);
   const flags = flagsFor(data.body);
   const message = await db.$transaction(async (tx) => {
@@ -486,6 +488,7 @@ export async function startConversation(user: SessionUser, input: unknown) {
       await requireFlag("messages.new", user.id);
       break;
   }
+  await requireAdult(user);
   await limit("newConversation", user.id);
   const conv = await db.$transaction(async (tx) => {
     let productId = prep.context?.productId ?? null;

@@ -5,6 +5,7 @@ import { requireUser } from "@/server/auth/session";
 import { completeOnboarding, skipOnboarding } from "@/server/identity/onboarding";
 import { suggestedCreators, suggestedCommunities } from "@/server/discovery/suggestions";
 import { db } from "@/server/db";
+import { joinCommunity } from "@/server/communities/service";
 
 export async function finishOnboardingAction(input: unknown) {
   return act(async () => {
@@ -26,19 +27,14 @@ export async function suggestionsAction(interests: string[]) {
   return { creators, communities };
 }
 
+/** Schnell beitreten (nur öffentliche Communities) – über joinCommunity: Rate Limit, Zustand, Blockierungen. */
 export async function joinCommunityQuickAction(communityId: string) {
   return act(async () => {
     const u = await requireUser();
     const c = await db.community.findUnique({ where: { id: communityId }, select: { visibility: true } });
     if (!c || c.visibility !== "PUBLIC") return { joined: false };
-    const existing = await db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId: u.id } } });
-    if (!existing) {
-      await db.$transaction([
-        db.communityMember.create({ data: { communityId, userId: u.id } }),
-        db.community.update({ where: { id: communityId }, data: { memberCount: { increment: 1 } } }),
-      ]);
-    }
-    return { joined: true };
+    const r = await joinCommunity(u, communityId);
+    return { joined: r.state === "ACTIVE" };
   });
 }
 

@@ -60,8 +60,10 @@ export async function changePasswordAction(input: { current: string; next: strin
 export async function deleteAccountAction(input: { password: string; confirm: string }) {
   return act(async () => {
     const u = await requireUser({ allowSuspended: true });
+    const s = (await getSession())!;
     if ((input.confirm ?? "").trim().toUpperCase() !== "LÖSCHEN") throw fail.invalid("Bitte tippe LÖSCHEN zur Bestätigung.", { confirm: "Bitte LÖSCHEN eintippen" });
-    await deleteAccount(u.id, input.password ?? null);
+    // Passwort bzw. ohne Passwort: frische Anmeldung mit Apple (siehe assertReauthenticated)
+    await deleteAccount(u.id, s.sessionId, { password: input.password ?? null });
     await destroySession();
     redirect("/?konto=geloescht");
   });
@@ -158,38 +160,54 @@ export async function createTicketAction(input: unknown) {
 
 /* ───────── Zwei-Faktor-Anmeldung ───────── */
 
-async function mfaUser() {
+async function mfaSession() {
   const s = await getSession();
   if (!s) throw fail.auth();
-  return s.user;
+  return s;
 }
 
-export async function startMfaSetupAction() {
-  return act(async () => mfa.startMfaSetup(await mfaUser()));
+/** Einrichtung starten – mit aktuellem Passwort (ohne Passwort: nach frischer Anmeldung mit Apple). */
+export async function startMfaSetupAction(input: { password?: string } = {}) {
+  return act(async () => {
+    const s = await mfaSession();
+    return mfa.startMfaSetup(s.user, s.sessionId, { password: input.password ?? null });
+  });
 }
 
 export async function confirmMfaSetupAction(code: string) {
   return act(async () => {
-    const r = await mfa.confirmMfaSetup(await mfaUser(), code);
+    const s = await mfaSession();
+    const r = await mfa.confirmMfaSetup(s.user, s.sessionId, code);
     revalidatePath("/einstellungen/sicherheit");
     return r;
-  }, "Zwei-Faktor-Anmeldung aktiviert.");
+  }, "Zwei-Faktor-Anmeldung aktiviert. Alle anderen Sitzungen wurden abgemeldet.");
 }
 
 export async function regenerateRecoveryCodesAction(code: string) {
   return act(async () => {
-    const r = await mfa.regenerateRecoveryCodes(await mfaUser(), code);
+    const r = await mfa.regenerateRecoveryCodes((await mfaSession()).user, code);
     revalidatePath("/einstellungen/sicherheit");
     return r;
   }, "Neue Wiederherstellungscodes erstellt. Die alten sind ungültig.");
 }
 
-export async function disableMfaAction(code: string) {
+export async function disableMfaAction(code: string, password?: string) {
   return act(async () => {
-    await mfa.disableMfa(await mfaUser(), code);
+    const s = await mfaSession();
+    await mfa.disableMfa(s.user, s.sessionId, code, { password: password ?? null });
     revalidatePath("/einstellungen/sicherheit");
     return null;
   }, "Zwei-Faktor-Anmeldung deaktiviert.");
+}
+
+/** Ältere Sitzung nachträglich mit dem zweiten Faktor bestätigen (Voraussetzung für Admin/Moderation). */
+export async function verifySessionMfaAction(input: { code: string; kind?: "totp" | "recovery" }) {
+  return act(async () => {
+    const s = await mfaSession();
+    await mfa.verifySessionMfa(s.user, s.sessionId, String(input.code ?? ""), input.kind === "recovery" ? "recovery" : "totp");
+    revalidatePath("/einstellungen/sicherheit");
+    return null;
+  }, "Sitzung bestätigt.");
 }
 
 /* ───────── Persönliche Angaben für Bestellungen ───────── */

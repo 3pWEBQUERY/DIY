@@ -8,7 +8,9 @@ import { Badge, Notice } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { useAction } from "@/lib/use-action";
 import { formatDate } from "@/lib/utils";
-import { confirmMfaSetupAction, disableMfaAction, regenerateRecoveryCodesAction, startMfaSetupAction } from "@/app/(app)/einstellungen/actions";
+import { useRouter } from "next/navigation";
+import { confirmMfaSetupAction, disableMfaAction, regenerateRecoveryCodesAction, startMfaSetupAction, verifySessionMfaAction } from "@/app/(app)/einstellungen/actions";
+import { AppleReauthNotice } from "@/components/settings/apple-reauth";
 
 type Setup = { qrSvg: string; secret: string; uri: string };
 
@@ -94,19 +96,33 @@ export function TwoFactorSettings({
   recoveryCodesLeft,
   required,
   email,
+  hasPassword,
+  reauthFresh,
 }: {
   enabled: boolean;
   enabledAt: string | null;
   recoveryCodesLeft: number;
   required: boolean;
   email: string;
+  /** Ein- und Ausschalten braucht das Passwort bzw. (ohne Passwort) eine frische Anmeldung mit Apple */
+  hasPassword: boolean;
+  reauthFresh: boolean;
 }) {
   const [setup, setSetup] = useState<Setup | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [manage, setManage] = useState<"regen" | "disable" | null>(null);
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [askPassword, setAskPassword] = useState(false);
 
-  const start = useAction(startMfaSetupAction, { refresh: false, onSuccess: (d) => setSetup(d) });
+  const start = useAction(startMfaSetupAction, {
+    refresh: false,
+    onSuccess: (d) => {
+      setSetup(d);
+      setPassword("");
+      setAskPassword(false);
+    },
+  });
   const confirm = useAction(confirmMfaSetupAction, {
     onSuccess: (d) => {
       setSetup(null);
@@ -125,8 +141,16 @@ export function TwoFactorSettings({
     onSuccess: () => {
       setManage(null);
       setCode("");
+      setPassword("");
     },
   });
+  const appleReauthNeeded = !hasPassword && (!reauthFresh || !!start.fields.reauth || !!disable.fields.reauth);
+  const passwordField = (error?: string) =>
+    hasPassword ? (
+      <Field label="Aktuelles Passwort" hint="Zur Sicherheit bestätigst du diesen Schritt mit deinem Passwort." error={error}>
+        {(p) => <Input {...p} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className="max-w-sm" />}
+      </Field>
+    ) : null;
 
   if (codes) return <RecoveryCodes codes={codes} email={email} onDone={() => setCodes(null)} />;
 
@@ -170,7 +194,8 @@ export function TwoFactorSettings({
             className="mt-5 border-t border-line pt-5"
             onSubmit={(e) => {
               e.preventDefault();
-              (manage === "regen" ? regen : disable).run(code);
+              if (manage === "regen") regen.run(code);
+              else disable.run(code, password);
             }}
           >
             <p className="mb-4 text-sm text-muted">
@@ -178,9 +203,15 @@ export function TwoFactorSettings({
                 ? "Bestätige mit dem aktuellen Code aus deiner App. Deine bisherigen Wiederherstellungscodes werden dabei ungültig."
                 : "Bestätige mit dem aktuellen Code aus deiner App. Danach reicht wieder dein Passwort zum Anmelden."}
             </p>
+            {manage === "disable" && appleReauthNeeded && (
+              <div className="mb-4">
+                <AppleReauthNotice returnTo="/einstellungen/sicherheit#zwei-faktor" action="die Zwei-Faktor-Anmeldung ausschalten kann" />
+              </div>
+            )}
             <CodeInput value={code} onChange={setCode} error={(manage === "regen" ? regen : disable).fields.code} />
+            {manage === "disable" && <div className="mt-4">{passwordField(disable.fields.password)}</div>}
             <div className="mt-4 flex gap-2">
-              <Button type="submit" size="sm" variant={manage === "disable" ? "danger" : "primary"} disabled={busy || code.length !== 6}>
+              <Button type="submit" size="sm" variant={manage === "disable" ? "danger" : "primary"} disabled={busy || code.length !== 6 || (manage === "disable" && ((hasPassword && !password) || appleReauthNeeded))}>
                 {manage === "regen" ? "Codes neu erstellen" : "Zwei-Faktor deaktivieren"}
               </Button>
               <Button
@@ -190,6 +221,7 @@ export function TwoFactorSettings({
                 onClick={() => {
                   setManage(null);
                   setCode("");
+                  setPassword("");
                 }}
               >
                 Abbrechen
@@ -253,19 +285,81 @@ export function TwoFactorSettings({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-card p-5">
-      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sunken text-ink-2">
-        <Smartphone size={20} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          Authenticator-App {required ? <Badge tone="danger">Erforderlich</Badge> : <Badge>Aus</Badge>}
-        </p>
-        <p className="text-xs text-muted">Bei jeder Anmeldung zusätzlich ein Code von deinem Handy.</p>
+    <div className="rounded-2xl border border-line bg-card p-5">
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sunken text-ink-2">
+          <Smartphone size={20} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            Authenticator-App {required ? <Badge tone="danger">Erforderlich</Badge> : <Badge>Aus</Badge>}
+          </p>
+          <p className="text-xs text-muted">Bei jeder Anmeldung zusätzlich ein Code von deinem Handy.</p>
+        </div>
+        {!askPassword && !appleReauthNeeded && (
+          <Button onClick={() => (hasPassword ? setAskPassword(true) : start.run({}))} disabled={start.pending}>
+            {start.pending ? "Wird vorbereitet …" : "Einrichten"}
+          </Button>
+        )}
       </div>
-      <Button onClick={() => start.run()} disabled={start.pending}>
-        {start.pending ? "Wird vorbereitet …" : "Einrichten"}
-      </Button>
+      {appleReauthNeeded && (
+        <div className="mt-4">
+          <AppleReauthNotice returnTo="/einstellungen/sicherheit#zwei-faktor" action="die Zwei-Faktor-Anmeldung einrichten kann" />
+        </div>
+      )}
+      {askPassword && (
+        <form
+          className="mt-5 border-t border-line pt-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            start.run({ password });
+          }}
+        >
+          {passwordField(start.fields.password)}
+          <div className="mt-4 flex gap-2">
+            <Button type="submit" size="sm" disabled={start.pending || !password}>
+              {start.pending ? "Wird vorbereitet …" : "Weiter"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setAskPassword(false);
+                setPassword("");
+              }}
+            >
+              Abbrechen
+            </Button>
+          </div>
+        </form>
+      )}
     </div>
+  );
+}
+
+/** Ältere Sitzung nachträglich mit dem zweiten Faktor bestätigen (Voraussetzung für Admin/Moderation). */
+export function ConfirmSessionMfa({ next }: { next: string | null }) {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const confirm = useAction(verifySessionMfaAction, {
+    onSuccess: () => {
+      setCode("");
+      if (next) router.push(next);
+    },
+  });
+  return (
+    <form
+      className="mt-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        confirm.run({ code });
+      }}
+    >
+      <CodeInput value={code} onChange={setCode} error={confirm.fields.code} />
+      <Button type="submit" size="sm" className="mt-3" disabled={confirm.pending || code.length !== 6}>
+        {confirm.pending ? "Wird geprüft …" : "Sitzung bestätigen"}
+      </Button>
+    </form>
   );
 }

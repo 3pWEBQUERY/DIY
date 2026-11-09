@@ -22,6 +22,7 @@ vi.mock("@/server/notifications", () => ({ notify: m.notify }));
 vi.mock("@/server/events", () => ({ emit: vi.fn() }));
 vi.mock("@/server/visibility", () => ({ canViewContent: m.canViewContent, isBlockedBetween: vi.fn(async () => false) }));
 vi.mock("@/server/authz", () => ({ assertOwnerOrMod: vi.fn() }));
+vi.mock("@/server/auth/adult", () => ({ requireAdult: vi.fn() }));
 vi.mock("@/server/moderation/cases", () => ({ openOrAttachCase: vi.fn() }));
 vi.mock("../posts", () => ({ canViewCommunityContentOf: vi.fn(async () => true), assertNotSilencedInCommunity: vi.fn() }));
 

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/server/auth/session", () => ({ currentUser: async () => null, getSession: async () => null, requireUser: async () => null }));
+// Angemeldete Person je Test umstellbar (null = Gast)
+let viewer: { id: string; adultConfirmedAt: Date | null } | null = null;
+vi.mock("@/server/auth/session", () => ({ currentUser: async () => viewer, getSession: async () => null, requireUser: async () => null }));
 vi.mock("@/server/flags", () => ({ requireFlag: async () => undefined }));
 
 const { DELETE, GET, POST, dispatch, zBool } = await import("../router");
@@ -17,6 +19,8 @@ const routes = [
     const { a } = await c.json<{ a?: string }>();
     return { a: a ?? null };
   }),
+  POST("/onboarding/complete", async () => ({ ok: true })),
+  POST("/users/:id/follow", async () => ({ ok: true })),
   GET("/gone", async () => {
     throw Object.assign(new Error("No record was found"), { name: "PrismaClientKnownRequestError", code: "P2025" });
   }),
@@ -59,5 +63,29 @@ describe("Mobile-Dispatcher", () => {
   it("ungültige Origin ohne Bearer → 403 statt 500", async () => {
     const req = new NextRequest("http://localhost/api/v1/app/raw", { method: "POST", body: "{}", headers: { origin: "null", host: "localhost" } });
     expect((await dispatch(routes, req, ["raw"])).status).toBe(403);
+  });
+  describe("18+ für schreibende Endpunkte", () => {
+    it("ohne bestätigtes Alter → 403 mit fields.adult, Lesen bleibt erlaubt", async () => {
+      viewer = { id: "u1", adultConfirmedAt: null };
+      try {
+        const r = await call("POST", "/things/1/flag", JSON.stringify({ on: true }));
+        expect(r.status).toBe(403);
+        expect((await r.json()).error.fields).toHaveProperty("adult");
+        expect((await call("GET", "/things/1")).status).toBe(200);
+        expect((await call("POST", "/onboarding/complete", "{}")).status).toBe(200);
+        expect((await call("POST", "/users/u2/follow", "{}")).status).toBe(200);
+      } finally {
+        viewer = null;
+      }
+    });
+    it("mit bestätigtem Alter oder als Gast unverändert", async () => {
+      viewer = { id: "u1", adultConfirmedAt: new Date() };
+      try {
+        expect((await call("POST", "/things/1/flag", JSON.stringify({ on: true }))).status).toBe(200);
+      } finally {
+        viewer = null;
+      }
+      expect((await call("POST", "/things/1/flag", JSON.stringify({ on: true }))).status).toBe(200);
+    });
   });
 });

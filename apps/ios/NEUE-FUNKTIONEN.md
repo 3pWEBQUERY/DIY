@@ -151,3 +151,36 @@ Web: `/einstellungen/konto` → „Adresse ändern“.
 - `take`/`limit` werden auf 1…50 (bzw. die jeweilige Obergrenze) begrenzt, `page` auf 1…500.
 - Profile gebannter/gelöschter Konten → 404; bei Blockierung leere Listen.
 - Gesperrte Verkäufer:innen können `/studio/orders/*` weiterhin nutzen (bestehende Bestellungen abwickeln).
+
+## 11. Sign in with Apple: Nonce, authorizationCode, erneute Bestätigung — Bereich `Auth` / `Me`
+
+Server-Seite fertig (`apps/web/src/server/identity/apple-token.ts`, Route `POST /auth/apple` in
+`server/mobile/routes/identity.ts`). Alle neuen Felder sind **optional** – ältere App-Versionen funktionieren weiter.
+
+| Methode | Pfad | Body | Antwort |
+|---|---|---|---|
+| POST | `/auth/apple` | `{ identityToken, givenName?, familyName?, nonce?, authorizationCode? }` | `{ userId, isNew, token, mfaRequired }` |
+| POST | `/settings/password` | `{ current?, next, confirm, appleIdentityToken? }` | `{ revoked }` |
+| POST | `/settings/delete-account` | `{ confirm: "LÖSCHEN", password?, appleIdentityToken? }` | `{ ok }` |
+
+**`nonce` (Replay-Schutz):**
+- Vor jeder Anmeldung eine zufällige Nonce erzeugen (z. B. 32 Zeichen), Apple `request.nonce = sha256(nonce)` als **Hex-String in Kleinbuchstaben** mitgeben und dem Server die **Roh-Nonce** schicken.
+- Der Server prüft `token.nonce == sha256(roh)`; passt es nicht → **422** („Apple-Token passt nicht zu dieser Anmeldung (Nonce)“). Ohne `nonce` im Body wird nicht geprüft.
+
+**`authorizationCode` (Widerruf bei Kontolöschung, App Store Guideline 5.1.1(v)):**
+- `ASAuthorizationAppleIDCredential.authorizationCode` als UTF-8-String mitschicken (nur bei der Anmeldung; er ist 5 Minuten gültig und nur einmal verwendbar).
+- Der Server tauscht ihn gegen ein Refresh-Token (Client-ID = Bundle-ID aus `APPLE_IOS_CLIENT_ID`), speichert es verschlüsselt und widerruft es beim Löschen des Kontos bei Apple. Fehlschläge beim Tausch brechen die Anmeldung **nicht** ab.
+- Server-Voraussetzung: `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` (Sign-in-with-Apple-Schlüssel, .p8) sind auch beim **worker**-Service gesetzt (dort läuft der Widerruf).
+
+**Erneute Bestätigung für Konten ohne Passwort (nur Apple):**
+- Erstes Passwort festlegen und Konto löschen verlangen eine frische Anmeldung mit Apple. Die App holt dafür direkt vor dem Absenden ein neues Apple-Credential (`ASAuthorizationAppleIDProvider`, ohne Scopes) und schickt dessen `identityToken` als `appleIdentityToken` mit (höchstens 10 Minuten alt, dieselbe Apple-ID).
+- Alternativ gilt eine Sitzung, die vor höchstens 10 Minuten neu angemeldet wurde (`POST /auth/apple` → neues Token verwenden).
+- Fehlt der Nachweis → **403** mit `fields.reauth == "apple"` und einer Meldung. Dann den Apple-Dialog zeigen und die Anfrage mit `appleIdentityToken` wiederholen.
+- Konten mit Passwort schicken wie bisher `password` (bzw. `current`); falsch → **422** mit `fields.password` bzw. `fields.current`.
+
+## 12. Mindestalter 18+ für schreibende Aktionen
+
+- Konten über „Mit Apple anmelden“ haben das Alter erst nach dem Onboarding bestätigt (`bootstrap.me.adultConfirmed`).
+- Bis dahin antworten alle schreibenden Endpunkte (Beiträge, Kommentare, Likes, Nachrichten, Warenkorb/Kauf, Studio …) mit **403** und `fields.adult == "Erforderlich"`. Ausgenommen sind `auth/*`, `onboarding/*`, `settings/*`, `me/*`, `devices/*`, `support/*`, `appeals/*`, `notifications/*`, `reports`, `track`, `hide`, `users/:id/follow|block|mute` und `communities/:id/join|leave` (Vorschläge im Onboarding funktionieren also schon vor `/onboarding/complete`).
+- Bei `fields.adult` das Onboarding (Schritt 1, Altersbestätigung) öffnen. Lesen bleibt ohne Bestätigung möglich.
+- `POST /onboarding/complete`: `avatarUrl` muss eine Variante eines **eigenen, fertig verarbeiteten** Bildes sein (oder unverändert); ein neuer Benutzername zählt wie in den Einstellungen gegen das Limit (3 Wechsel in 30 Tagen, sonst 422 mit `fields.handle`).

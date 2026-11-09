@@ -9,6 +9,7 @@ import { canMessage } from "@/server/authz";
 import { publish } from "@/server/realtime/bus";
 import { requireFlag } from "@/server/flags";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { sendMessage } from "./service";
 
 /**
@@ -102,6 +103,7 @@ export async function createGroup(user: SessionUser, input: unknown) {
   const invitees = await resolveInvitees(user, data.handles, new Set());
   if (invitees.length < 2) throw fail.invalid("Wähle mindestens zwei Personen.", { handles: "Mindestens zwei Personen" });
   if (invitees.length + 1 > GROUP_MAX_MEMBERS) throw fail.invalid(`Höchstens ${GROUP_MAX_MEMBERS} Personen pro Gruppe.`);
+  await requireAdult(user);
   await limit("newConversation", user.id);
   const conv = await db.conversation.create({
     data: {
@@ -129,6 +131,7 @@ export async function addGroupMembers(user: SessionUser, conversationId: string,
   const invitees = await resolveInvitees(user, data.handles, new Set(current.map((c) => c.userId)));
   if (!invitees.length) throw fail.invalid("Diese Personen sind schon in der Gruppe.");
   if (current.length + invitees.length > GROUP_MAX_MEMBERS) throw fail.invalid(`Höchstens ${GROUP_MAX_MEMBERS} Personen pro Gruppe.`);
+  await requireAdult(user);
   await limit("message", user.id);
   await db.conversationMember.createMany({ data: invitees.map((i) => ({ conversationId, userId: i.id, isRequest: i.asRequest })), skipDuplicates: true });
   const direct = invitees.filter((i) => !i.asRequest).map((i) => i.displayName);

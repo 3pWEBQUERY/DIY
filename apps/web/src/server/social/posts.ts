@@ -8,6 +8,7 @@ import { notify } from "@/server/notifications";
 import { relationsFor, visibleContentWhere, canViewContent } from "@/server/visibility";
 import { assertOwnerOrMod, hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { attachMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
 import { rankFeed, type Candidate } from "./ranking";
@@ -285,6 +286,7 @@ export async function notifyMentions(body: string, actorId: string, postId: stri
 export async function createPost(user: SessionUser, input: unknown, extra: { communityId?: string; tutorialId?: string; articleId?: string; productId?: string; projectUpdateId?: string } = {}) {
   const data = postCreateSchema.parse(input);
   await assertCategoryAllowed(data.category);
+  await requireAdult(user);
   await limit("post", user.id);
   if (data.projectId) {
     const pr = await db.project.findUnique({ where: { id: data.projectId }, select: { ownerId: true } });
@@ -493,6 +495,7 @@ export async function getPostForViewer(postId: string, viewerId: string | null) 
 
 /** Stimme abgeben (einmalig, nicht änderbar). Bei Mehrfachauswahl mehrere Antworten auf einmal. */
 export async function votePoll(user: SessionUser, postId: string, optionIds: string[]) {
+  await requireAdult(user);
   await limit("like", user.id);
   const post = await db.post.findUnique({ where: { id: postId }, select: { id: true, authorId: true, visibility: true, state: true, communityId: true, poll: { select: { id: true, endsAt: true, multiple: true, options: { select: { id: true } } } } } });
   if (!post?.poll || !(await canViewContent(user.id, { ownerId: post.authorId, visibility: post.visibility, state: post.state }))) throw fail.notFound("Umfrage nicht gefunden.");
@@ -577,6 +580,7 @@ async function ownDraft(user: SessionUser, postId: string) {
 export async function publishDraft(user: SessionUser, postId: string) {
   const p = await ownDraft(user, postId);
   if (!p.body.trim() && !p._count.media) throw fail.invalid("Ein Beitrag braucht Text oder Medien.");
+  await requireAdult(user);
   await limit("post", user.id);
   await publishDraftNow(postId);
   return { id: postId };

@@ -23,6 +23,31 @@ export async function clientIpHash() {
   return sha256(`${process.env.SESSION_SECRET}:${ip}`).slice(0, 32);
 }
 
+/** Wie lange ein Gerät nach der letzten Anmeldung als „bekannt“ gilt. */
+const KNOWN_DEVICE_DAYS = 90;
+
+/**
+ * Bekanntes Gerät = eine frühere, vollständig angemeldete Sitzung (zweiter Faktor ggf. bestätigt) mit
+ * exakt demselben Browser (User-Agent) UND derselben Netzwerkadresse. Die grobe Gerätebezeichnung
+ * („Chrome auf Windows“) allein reicht nicht – die teilen sich Millionen Geräte.
+ */
+export async function isKnownDevice(userId: string, ua: string | null | undefined, ipHash: string, exceptSessionId?: string) {
+  const userAgent = ua?.slice(0, 300);
+  if (!userAgent) return false;
+  const known = await db.session.findFirst({
+    where: {
+      userId,
+      userAgent,
+      ipHash,
+      mfaPending: false,
+      createdAt: { gt: new Date(Date.now() - KNOWN_DEVICE_DAYS * 86400_000) },
+      ...(exceptSessionId ? { id: { not: exceptSessionId } } : {}),
+    },
+    select: { id: true },
+  });
+  return !!known;
+}
+
 /**
  * Legt eine Session an und setzt das httpOnly-Cookie. Gibt `isNewDevice` für Sicherheitswarnungen zurück.
  * Hat das Konto die Zwei-Faktor-Anmeldung aktiv, ist die Session zunächst „ausstehend“
@@ -36,7 +61,7 @@ export async function createSession(userId: string) {
   const ua = h.get("user-agent");
   const label = deviceLabel(ua);
   const ipHash = await clientIpHash();
-  const known = await db.session.findFirst({ where: { userId, OR: [{ deviceLabel: label }, { ipHash }] }, select: { id: true } });
+  const known = await isKnownDevice(userId, ua, ipHash);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
   await db.session.create({
     data: { id: sha256(raw), userId, userAgent: ua?.slice(0, 300), ipHash, deviceLabel: label, expiresAt, mfaPending },
@@ -80,6 +105,7 @@ const userSelect = {
   emailVerifiedAt: true,
   totpEnabledAt: true,
   onboardedAt: true,
+  adultConfirmedAt: true,
   createdAt: true,
   profile: {
     select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true },
@@ -92,7 +118,7 @@ export const getSession = cache(async () => {
   if (!raw) return null;
   const session = await db.session.findUnique({
     where: { id: sha256(raw) },
-    select: { id: true, expiresAt: true, revokedAt: true, lastUsedAt: true, mfaPending: true, user: { select: userSelect } },
+    select: { id: true, expiresAt: true, revokedAt: true, lastUsedAt: true, mfaPending: true, mfaVerifiedAt: true, createdAt: true, user: { select: userSelect } },
   });
   if (!session || session.revokedAt || session.expiresAt < new Date()) return null;
   // Zweiter Faktor noch offen → wie nicht angemeldet behandeln
@@ -108,7 +134,9 @@ export const getSession = cache(async () => {
     await db.session.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
     await db.user.update({ where: { id: u.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
-  return { sessionId: session.id, user: u };
+  // Zweiter Faktor in DIESER Sitzung bestätigt? (Plattformrechte gelten nur dann, siehe hasRole)
+  const user = Object.assign(u, { mfaVerified: !!u.totpEnabledAt && !!session.mfaVerifiedAt });
+  return { sessionId: session.id, sessionCreatedAt: session.createdAt, user };
 });
 
 export type SessionUser = NonNullable<Awaited<ReturnType<typeof getSession>>>["user"];
@@ -154,7 +182,16 @@ export async function getPendingMfaSession() {
   if (!raw) return null;
   const s = await db.session.findUnique({
     where: { id: sha256(raw) },
-    select: { id: true, mfaPending: true, revokedAt: true, expiresAt: true, user: { select: { id: true, email: true, status: true, totpSecret: true, totpEnabledAt: true, totpLastStep: true } } },
+    select: {
+      id: true,
+      mfaPending: true,
+      revokedAt: true,
+      expiresAt: true,
+      userAgent: true,
+      ipHash: true,
+      deviceLabel: true,
+      user: { select: { id: true, email: true, status: true, totpSecret: true, totpEnabledAt: true, totpLastStep: true } },
+    },
   });
   if (!s || !s.mfaPending || s.revokedAt || s.expiresAt < new Date()) return null;
   if (s.user.status === "BANNED" || s.user.status === "DELETED" || !s.user.totpEnabledAt) return null;

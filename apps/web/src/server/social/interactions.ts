@@ -8,6 +8,7 @@ import { emit } from "@/server/events";
 import { canViewContent, isBlockedBetween } from "@/server/visibility";
 import { assertOwnerOrMod } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { bumpCounter, targetMeta } from "./targets";
 import { openOrAttachCase } from "@/server/moderation/cases";
 
@@ -55,6 +56,7 @@ const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestErr
  */
 export async function setLike(user: SessionUser, type: TargetType, id: string, liked: boolean) {
   assertTarget(LIKE_TARGETS, type);
+  if (liked) await requireAdult(user);
   await limit("like", user.id);
   const meta = await assertViewable(user, type, id);
   const key = { userId_targetType_targetId_kind: { userId: user.id, targetType: type, targetId: id, kind: "LIKE" as const } };
@@ -112,6 +114,7 @@ export async function setBookmark(user: SessionUser, type: TargetType, id: strin
 export async function createComment(user: SessionUser, type: TargetType, id: string, input: unknown) {
   assertTarget(COMMENT_TARGETS, type);
   const data = commentCreateSchema.parse(input);
+  await requireAdult(user);
   await limit("comment", user.id);
   const meta = await assertViewable(user, type, id);
   // Serverseitige Durchsetzung von Kommentar-Einstellungen und Community-Stummschaltungen

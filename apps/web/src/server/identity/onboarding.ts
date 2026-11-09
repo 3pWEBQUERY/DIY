@@ -4,6 +4,9 @@ import { CATEGORY_SLUGS, handleSchema } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import type { SessionUser } from "@/server/auth/session";
+import { audit } from "@/server/audit";
+import { attachMedia } from "@/server/media/service";
+import { ownedImageByUrl, reserveHandleChange } from "@/server/account/service";
 import { isHandleAvailable } from "./service";
 
 const schema = z.object({
@@ -16,26 +19,39 @@ const schema = z.object({
   region: z.string().trim().max(80).optional(),
 });
 
-/** Speichert das Onboarding (§8.2). Jeder Schritt ist überspringbar – nur Name/Handle sind Pflicht. */
+/**
+ * Speichert das Onboarding (§8.2). Jeder Schritt ist überspringbar – nur Name/Handle sind Pflicht.
+ * Darf mehrfach aufgerufen werden (Zwischenspeichern, „Überspringen“ später im Ablauf); ein neuer
+ * Benutzername zählt aber wie in den Profileinstellungen gegen das Limit (3 Wechsel in 30 Tagen), und
+ * als Profilbild sind nur eigene, fertig verarbeitete Bilder erlaubt.
+ */
 export async function completeOnboarding(user: SessionUser, input: unknown) {
   const d = schema.parse(input);
-  const full = await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { adultConfirmedAt: true, profile: { select: { handle: true } } } });
+  const full = await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { adultConfirmedAt: true, onboardedAt: true, profile: { select: { handle: true, avatarUrl: true } } } });
   if (!full.adultConfirmedAt && !d.adult) throw fail.invalid("Bitte bestätige, dass du mindestens 18 Jahre alt bist.", { adult: "Erforderlich" });
-  if (d.handle !== full.profile?.handle) {
+  const handleChanged = !!full.profile && d.handle !== full.profile.handle;
+  if (handleChanged) {
     const avail = await isHandleAvailable(d.handle, user.id);
     if (!avail.ok) throw fail.invalid(avail.reason, { handle: avail.reason });
   }
-  if (d.avatarUrl && !d.avatarUrl.startsWith("/media/")) throw fail.invalid("Ungültiges Profilbild.");
+  // Profilbild: unverändert lassen, entfernen oder ein eigenes, fertiges Bild (keine fremden/entfernten Medien)
+  const avatarChanged = d.avatarUrl !== undefined && d.avatarUrl !== (full.profile?.avatarUrl ?? null);
+  const avatarMediaId = avatarChanged && d.avatarUrl ? await ownedImageByUrl(user.id, d.avatarUrl) : null;
+  if (handleChanged) await reserveHandleChange(user.id);
   await db.$transaction(async (tx) => {
-    if (full.profile && d.handle !== full.profile.handle) {
+    if (avatarMediaId) await attachMedia(tx, user.id, [avatarMediaId]);
+    if (full.profile && handleChanged) {
+      // Eigener alter Handle darf zurückgeholt werden → Weiterleitung entfernen (wie updateProfile)
+      await tx.handleRedirect.deleteMany({ where: { oldHandle: d.handle, userId: user.id } });
       await tx.handleRedirect.upsert({ where: { oldHandle: full.profile.handle }, create: { oldHandle: full.profile.handle, userId: user.id }, update: { userId: user.id } });
+      await audit({ actorId: user.id, action: "account.handle_changed", targetType: "USER", targetId: user.id, meta: { from: full.profile.handle, to: d.handle, via: "onboarding" } }, tx);
     }
     await tx.userProfile.update({
       where: { userId: user.id },
-      data: { displayName: d.displayName, handle: d.handle, bio: d.bio, categories: d.interests, region: d.region || null, ...(d.avatarUrl !== undefined ? { avatarUrl: d.avatarUrl } : {}) },
+      data: { displayName: d.displayName, handle: d.handle, bio: d.bio, categories: d.interests, region: d.region || null, ...(avatarChanged ? { avatarUrl: d.avatarUrl ?? null } : {}) },
     });
     await tx.userPreference.upsert({ where: { userId: user.id }, create: { userId: user.id, interests: d.interests }, update: { interests: d.interests } });
-    await tx.user.update({ where: { id: user.id }, data: { onboardedAt: new Date(), ...(full.adultConfirmedAt ? {} : { adultConfirmedAt: new Date() }) } });
+    await tx.user.update({ where: { id: user.id }, data: { ...(full.onboardedAt ? {} : { onboardedAt: new Date() }), ...(full.adultConfirmedAt ? {} : { adultConfirmedAt: new Date() }) } });
   });
 }
 
