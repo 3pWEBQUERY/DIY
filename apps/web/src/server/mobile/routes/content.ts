@@ -216,7 +216,7 @@ export const contentRoutes: RouteDef[] = [
     const v = await viewerId();
     const m = need(await lists.getMaterialPage(c.p.slug!, v), "Material nicht gefunden.");
     const [offers, projectCards] = await Promise.all([listOffers(m.id, m.unit), projects.getProjectCards(m.projectIds, v).then((p) => p.slice(0, 8))]);
-    const { projectIds: _ids, _count: _c, ...material } = m;
+    const { projectIds: _ids, ...material } = m;
     return { material, offers, projects: projectCards };
   }),
   // „Habe ich schon“: { have: boolean }

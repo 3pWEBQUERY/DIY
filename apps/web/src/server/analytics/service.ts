@@ -1,11 +1,13 @@
 import "server-only";
 import { clientIp } from "@/server/client-ip";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { db, type Tx } from "@/server/db";
 import { sha256 } from "@/server/crypto";
-import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
 import { targetMeta } from "@/server/social/targets";
+import { canViewContent } from "@/server/visibility";
+import { canViewCommunityContentOf } from "@/server/social/posts";
 
 /**
  * Produktanalyse (PRD §30) – pseudonym, ohne Klartext-PII (§26.3).
@@ -108,39 +110,62 @@ export function isQualifiedComment(body: string) {
   return text.length >= 40 && letters.length >= 25 && words.length >= 6;
 }
 
-/** Pseudonymer Betrachterschlüssel: Konto-ID oder tagesaktueller Hash aus IP + Gerät. */
-async function viewerKey(userId: string | null) {
-  if (userId) return `u:${userId}`;
+/** Anfragedaten, die eine Aufrufzählung braucht (in `after()` von Server-Komponenten nicht mehr lesbar). */
+export type ViewRequest = { ua: string; ip: string };
+
+export async function viewRequest(): Promise<ViewRequest> {
   const h = await headers();
-  const ip = clientIp(h);
-  const ua = h.get("user-agent") ?? "";
+  return { ua: h.get("user-agent") ?? "", ip: clientIp(h) };
+}
+
+/** Pseudonymer Betrachterschlüssel: Konto-ID oder tagesaktueller Hash aus IP + Gerät. */
+function viewerKey(userId: string | null, req: ViewRequest) {
+  if (userId) return `u:${userId}`;
   const day = new Date().toISOString().slice(0, 10);
-  return `a:${sha256(`${process.env.SESSION_SECRET}:${ip}:${ua}:${day}`).slice(0, 24)}`;
+  return `a:${sha256(`${process.env.SESSION_SECRET}:${req.ip}:${req.ua}:${day}`).slice(0, 24)}`;
 }
 
 const VIEW_DEDUPE_SECONDS = 30 * 60;
+const BOT_UA = /bot|crawler|spider|preview|headless|slurp|facebookexternalhit|curl|wget|python-requests|httpclient/i;
+
+export function isBotUserAgent(ua: string) {
+  return !ua || BOT_UA.test(ua);
+}
+
+/** Darf der Betrachter das Ziel sehen? Gleiche Regeln wie die Detailseiten (Sichtbarkeit, Blockierung, private Communities). */
+async function viewableMeta(viewerId: string | null, targetType: string, targetId: string) {
+  const meta = await targetMeta(targetType as Parameters<typeof targetMeta>[0], targetId).catch(() => null);
+  if (!meta || meta.state !== "PUBLISHED") return null;
+  if (!(await canViewContent(viewerId, meta))) return null;
+  if (targetType === "POST") {
+    const p = await db.post.findUnique({ where: { id: targetId }, select: { communityId: true } });
+    if (p?.communityId && !(await canViewCommunityContentOf(p.communityId, viewerId))) return null;
+  }
+  return meta;
+}
 
 /**
  * Aufruf zählen (§20.4: „Aufrufe“ = nicht eindeutige Besucher, aber ohne
  * Mehrfachzählung desselben Betrachters innerhalb von 30 Minuten).
- * Eigene Aufrufe zählen nicht. Bots ohne User-Agent werden ignoriert.
+ * Eigene Aufrufe zählen nicht. Bots ohne/mit Bot-User-Agent werden ignoriert.
+ * Nicht vorhandene oder für den Betrachter unsichtbare Ziele ergeben dieselbe Antwort
+ * wie ein Duplikat – der Endpunkt verrät so nicht, ob es einen Inhalt gibt.
  */
-export async function recordView(input: { viewerId: string | null; targetType: string; targetId: string; ref?: string }) {
-  const h = await headers();
-  const ua = h.get("user-agent") ?? "";
-  if (!ua || /bot|crawler|spider|preview|headless/i.test(ua)) return { counted: false as const, reason: "bot" };
-  const vk = await viewerKey(input.viewerId);
+export async function recordView(input: { viewerId: string | null; targetType: string; targetId: string; ref?: string; request?: ViewRequest }) {
+  const req = input.request ?? (await viewRequest());
+  if (isBotUserAgent(req.ua)) return { counted: false as const, reason: "bot" };
+  const vk = viewerKey(input.viewerId, req);
   // grobe Missbrauchsbremse je Betrachter
   await rateLimit(`track:${vk}`, 600, 3600);
 
-  const meta = await targetMeta(input.targetType as Parameters<typeof targetMeta>[0], input.targetId);
-  if (!meta || meta.state !== "PUBLISHED") throw fail.notFound();
+  const meta = await viewableMeta(input.viewerId, input.targetType, input.targetId);
+  if (!meta) return { counted: false as const, reason: "unavailable" };
   if (input.viewerId && input.viewerId === meta.ownerId) return { counted: false as const, reason: "own" };
 
   try {
     await rateLimit(`view:${vk}:${input.targetType}:${input.targetId}`, 1, VIEW_DEDUPE_SECONDS);
     // Anonym: zusätzlich je echter IP (ohne Gerätekennung), damit wechselnde User-Agents nicht hochzählen
-    if (!input.viewerId) await rateLimit(`view-ip:${sha256(`${process.env.SESSION_SECRET}:${clientIp(h)}`).slice(0, 24)}:${input.targetType}:${input.targetId}`, 3, VIEW_DEDUPE_SECONDS);
+    if (!input.viewerId) await rateLimit(`view-ip:${sha256(`${process.env.SESSION_SECRET}:${req.ip}`).slice(0, 24)}:${input.targetType}:${input.targetId}`, 3, VIEW_DEDUPE_SECONDS);
   } catch {
     return { counted: false as const, reason: "duplicate" };
   }
@@ -154,6 +179,15 @@ export async function recordView(input: { viewerId: string | null; targetType: s
   });
   await bumpViewCount(input.targetType, input.targetId);
   return { counted: true as const };
+}
+
+/**
+ * Aufruf einer serverseitig gerenderten Detailseite zählen – mit derselben Dedupe-/Bot-Logik
+ * wie `/api/v1/track`. Liest die Anfragedaten sofort und zählt erst nach der Antwort.
+ */
+export async function recordViewAfter(input: { viewerId: string | null; targetType: "PROJECT" | "TUTORIAL" | "ARTICLE" | "PRODUCT"; targetId: string; ref?: string }) {
+  const request = await viewRequest();
+  after(() => recordView({ ...input, request }).then(() => undefined, () => undefined));
 }
 
 async function bumpViewCount(type: string, id: string) {

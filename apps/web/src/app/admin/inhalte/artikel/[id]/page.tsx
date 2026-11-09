@@ -43,7 +43,7 @@ export default async function AdminArticlePage({ params }: { params: Promise<{ i
           <>
             <Badge tone={stateTone(a.state)}>{STATE_LABEL[a.state]}</Badge>
             {a.isFeatured && <Badge tone="clay">Hervorgehoben</Badge>}
-            {!a.commentsEnabled && <Badge tone="outline">Kommentare gesperrt</Badge>}
+            {a.commentsLockedAt ? <Badge tone="outline">Kommentare gesperrt</Badge> : !a.commentsEnabled && <Badge tone="outline">Kommentare aus</Badge>}
           </>
         }
         actions={
@@ -54,7 +54,7 @@ export default async function AdminArticlePage({ params }: { params: Promise<{ i
               values={{ title: a.title, summary: a.dek, categoryId: a.categoryId }}
               categories={categories.map((c) => ({ value: c.id, label: c.name }))}
             />
-            {a.commentsEnabled ? (
+            {!a.commentsLockedAt ? (
               <ReasonButton
                 action={setCommentsLockedAction.bind(null, a.id, true)}
                 label="Kommentare sperren"
@@ -139,7 +139,7 @@ export default async function AdminArticlePage({ params }: { params: Promise<{ i
             n="03"
             ctx={ctx}
             isAdmin={isAdmin}
-            note={!a.commentsEnabled && <p className="mt-1 text-[13px] text-clay-ink">Neue Kommentare sind für diesen Artikel gesperrt.</p>}
+            note={(a.commentsLockedAt || !a.commentsEnabled) && <p className="mt-1 text-[13px] text-clay-ink">{a.commentsLockedAt ? "Neue Kommentare sind für diesen Artikel gesperrt." : "Die Autorin/der Autor hat Kommentare für diesen Artikel ausgeschaltet."}</p>}
           />
           <CasesSection n="04" ctx={ctx} />
           <AuditSection n="05" ctx={ctx} />
@@ -154,7 +154,7 @@ export default async function AdminArticlePage({ params }: { params: Promise<{ i
                 ["Slug", <Mono key="slug">{a.slug}</Mono>],
                 ["Autor:in", <Link key="a" href={`/admin/nutzer/${a.author.id}`} className="hover:underline">{a.author.profile?.displayName ?? "–"} · <Mono>{a.author.id}</Mono></Link>],
                 ["Rubrik", a.category?.name ?? "–"],
-                ["Kommentare", a.commentsEnabled ? "offen" : "gesperrt"],
+                ["Kommentare", a.commentsLockedAt ? `gesperrt seit ${dateTime(a.commentsLockedAt)}` : a.commentsEnabled ? "offen" : "von der Autorin/dem Autor ausgeschaltet"],
                 ["Erstellt", dateTime(a.createdAt)],
                 ["Veröffentlicht", a.state === "SCHEDULED" ? `geplant für ${dateTime(a.publishedAt)}` : dateTime(a.publishedAt)],
                 ["Aktualisiert", dateTime(a.updatedAt)],

@@ -231,6 +231,8 @@ export async function deleteTutorial(user: SessionUser, tutorialId: string) {
     });
     return;
   }
+  // Ausgeblendete Anleitungen bleiben als Nachweis für Einspruch und Fallakte erhalten
+  if (t.state === "HIDDEN") throw fail.forbidden("Diese Anleitung wurde von der Moderation ausgeblendet und kann nicht gelöscht werden.");
   await db.$transaction(async (tx) => {
     await tx.bookmark.deleteMany({ where: { targetType: "TUTORIAL", targetId: tutorialId } });
     await tx.reaction.deleteMany({ where: { targetType: "TUTORIAL", targetId: tutorialId } });
@@ -300,11 +302,6 @@ export async function markTutorialVersionSeen(user: SessionUser, tutorialId: str
   const t = await viewableTutorial(user, tutorialId);
   await db.tutorialProgress.updateMany({ where: { userId: user.id, tutorialId }, data: { versionSeen: t.version } });
   return { versionSeen: t.version };
-}
-
-export async function recordTutorialView(tutorialId: string) {
-  const r = await db.tutorial.update({ where: { id: tutorialId }, data: { viewCount: { increment: 1 } }, select: { authorId: true } }).catch(() => null);
-  if (r) await track("view", { targetType: "TUTORIAL", targetId: tutorialId, ownerId: r.authorId });
 }
 
 // ───────────────────────── Karten & Listen ─────────────────────────

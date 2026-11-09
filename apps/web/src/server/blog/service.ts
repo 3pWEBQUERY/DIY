@@ -1,9 +1,9 @@
 import "server-only";
-import { track } from "@/server/analytics/service";
 import { cache } from "react";
 import { articlePublishSchema, articleUpsertSchema, type ArticleBlock } from "@werkraum/shared";
 import { db, Prisma, type ArticleState } from "@/server/db";
 import { fail } from "@/server/errors";
+import { limit } from "@/server/ratelimit";
 import { emit } from "@/server/events";
 import { relationsFor } from "@/server/visibility";
 import { attachMedia } from "@/server/media/service";
@@ -230,6 +230,8 @@ async function ownArticle(user: Pick<SessionUser, "id">, id: string) {
 export async function saveArticle(user: SessionUser, id: string | null, input: unknown) {
   const data = articleUpsertSchema.parse(input);
   const existing = id ? await ownArticle(user, id) : null;
+  // Wie Projekte/Anleitungen: neue Artikel zählen gegen das Beitragslimit (Speichern bestehender nicht – Autosave)
+  if (!existing) await limit("post", user.id);
   if (existing?.state === "REMOVED") throw fail.forbidden("Dieser Artikel wurde von der Moderation entfernt und kann nicht mehr bearbeitet werden.");
   if (existing?.state === "HIDDEN") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet und kann nicht bearbeitet werden.");
   const { blocks, mediaIds } = await normalizeBlocks(user.id, data.blocks);
@@ -348,6 +350,7 @@ export async function publishArticle(user: SessionUser, id: string, input: unkno
   const opts = articlePublishSchema.parse(input ?? {});
   const a = await ownArticle(user, id);
   if (a.state === "HIDDEN" || a.state === "REMOVED") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet.");
+  await limit("post", user.id);
   if (!hasContent(parseBlocks(a.blocks))) throw fail.invalid("Dein Artikel braucht noch Inhalt, bevor du ihn veröffentlichst.");
   const now = new Date();
   const at = opts.publishAt ? new Date(opts.publishAt) : null;
@@ -381,8 +384,13 @@ export async function unpublishArticle(user: SessionUser, id: string) {
   return { state: "DRAFT" as ArticleState };
 }
 
+/** Von der Moderation ausgeblendete/entfernte Artikel bleiben als Nachweis erhalten (Einspruch, Fallakte). */
+function assertNotModerated(a: { state: ArticleState }) {
+  if (a.state === "HIDDEN" || a.state === "REMOVED") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet und kann nicht verändert oder gelöscht werden.");
+}
+
 export async function deleteArticle(user: SessionUser, id: string) {
-  await ownArticle(user, id);
+  assertNotModerated(await ownArticle(user, id));
   await db.$transaction([
     db.post.deleteMany({ where: { articleId: id, authorId: user.id, state: "DRAFT" } }),
     db.blogArticle.delete({ where: { id } }),
@@ -402,6 +410,7 @@ export async function listRevisions(user: SessionUser, articleId: string) {
 /** Stellt eine Revision wieder her (Titel + Blöcke) und legt den Stand selbst als neue Revision ab. */
 export async function restoreRevision(user: SessionUser, articleId: string, revisionId: string) {
   const a = await ownArticle(user, articleId);
+  assertNotModerated(a);
   const rev = await db.articleRevision.findUnique({ where: { id: revisionId } });
   if (!rev || rev.articleId !== articleId) throw fail.notFound("Revision nicht gefunden.");
   const blocks = parseBlocks(rev.blocks);
@@ -621,7 +630,8 @@ export async function getArticleForReader(handle: string, slug: string, viewerId
     kind: "ok" as const,
     isAuthor,
     isLive,
-    article: { ...article, blocks: parseBlocks(article.blocks) },
+    // Effektiv: offen nur, wenn die Autorin/der Autor sie erlaubt und die Moderation sie nicht gesperrt hat
+    article: { ...article, commentsEnabled: article.commentsEnabled && !article.commentsLockedAt, blocks: parseBlocks(article.blocks) },
     author,
     viewer: { liked: !!liked, saved: !!saved, following: !!following },
     commentCount,
@@ -698,11 +708,6 @@ export async function resolveEmbeds(blocks: ArticleBlock[], viewerId: string | n
 }
 export type ResolvedEmbeds = Awaited<ReturnType<typeof resolveEmbeds>>;
 
-export async function recordArticleView(articleId: string) {
-  const r = await db.blogArticle.update({ where: { id: articleId }, data: { viewCount: { increment: 1 } }, select: { authorId: true } }).catch(() => null);
-  if (r) await track("view", { targetType: "ARTICLE", targetId: articleId, ownerId: r.authorId });
-}
-
 // ───────────────────────── Studio ─────────────────────────
 
 export async function listMyArticles(userId: string, state?: ArticleState) {
@@ -734,6 +739,7 @@ export async function getArticleForEdit(user: SessionUser, id: string) {
     seoTitle: a.seoTitle ?? "",
     seoDescription: a.seoDescription ?? "",
     commentsEnabled: a.commentsEnabled,
+    commentsLocked: !!a.commentsLockedAt,
     projectIds: a.projects.map((p) => p.projectId),
     state: a.state,
     publishedAt: a.publishedAt?.toISOString() ?? null,

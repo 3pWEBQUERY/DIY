@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { after } from "next/server";
 import { ArrowUpRight } from "lucide-react";
 import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, formatMoney } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
-import { getTutorialPage, recordTutorialView, type TutorialPageView } from "@/server/tutorials/service";
+import { getTutorialPage, type TutorialPageView } from "@/server/tutorials/service";
+import { recordViewAfter } from "@/server/analytics/service";
 import { Page } from "@/components/shell/page";
 import { Avatar, Difficulty, Notice, SectionTitle } from "@/components/ui/misc";
 import { Cover } from "@/components/ui/media";
@@ -78,7 +78,7 @@ export default async function TutorialPage({ params }: Params) {
   const user = await currentUser();
   const t = await getTutorialPage(slug, user?.id ?? null);
   if (!t) notFound();
-  if (!t.viewer.isOwner && !t.preview) after(() => recordTutorialView(t.id));
+  if (!t.viewer.isOwner && !t.preview) await recordViewAfter({ viewerId: user?.id ?? null, targetType: "TUTORIAL", targetId: t.id });
 
   const cat = categoryBySlug(t.category);
   const viewer = user?.profile ? { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl } : null;

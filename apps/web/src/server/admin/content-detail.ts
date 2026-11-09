@@ -98,6 +98,7 @@ export async function listArticles(actor: Actor, opts: { q?: string | null; stat
         state: true,
         isFeatured: true,
         commentsEnabled: true,
+        commentsLockedAt: true,
         viewCount: true,
         likeCount: true,
         readingMinutes: true,
@@ -322,6 +323,7 @@ export async function getArticleDetail(actor: Actor, id: string) {
       seoDescription: true,
       state: true,
       commentsEnabled: true,
+      commentsLockedAt: true,
       viewCount: true,
       likeCount: true,
       isFeatured: true,
@@ -633,15 +635,16 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
 
 /* ───────────────────────────── Kommentare ───────────────────────────── */
 
-/** Kommentarfunktion eines Artikels sperren/freigeben (nur Artikel haben `commentsEnabled`). */
+/** Kommentarfunktion eines Artikels sperren/freigeben (nur Artikel haben eine Kommentarsperre). */
 export async function setCommentsLocked(actor: Actor, articleId: string, locked: boolean, reason: string) {
   mod(actor);
   const r = reasonSchema.parse(reason);
   await db.$transaction(async (tx) => {
-    const a = await tx.blogArticle.findUnique({ where: { id: articleId }, select: { commentsEnabled: true } });
+    const a = await tx.blogArticle.findUnique({ where: { id: articleId }, select: { commentsLockedAt: true } });
     if (!a) throw fail.notFound();
-    if (a.commentsEnabled === !locked) throw fail.conflict(locked ? "Kommentare sind bereits gesperrt." : "Kommentare sind bereits offen.");
-    await tx.blogArticle.update({ where: { id: articleId }, data: { commentsEnabled: !locked } });
+    if (!!a.commentsLockedAt === locked) throw fail.conflict(locked ? "Kommentare sind bereits gesperrt." : "Kommentare sind nicht gesperrt.");
+    // Eigene Spalte statt `commentsEnabled`: Speichert die Autorin/der Autor den Artikel, bleibt die Sperre bestehen.
+    await tx.blogArticle.update({ where: { id: articleId }, data: { commentsLockedAt: locked ? new Date() : null } });
     await audit({ actorId: actor.id, action: locked ? "admin.comments_locked" : "admin.comments_unlocked", targetType: "ARTICLE", targetId: articleId, meta: { reason: r } }, tx);
   });
 }

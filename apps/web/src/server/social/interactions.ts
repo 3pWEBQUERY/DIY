@@ -90,8 +90,8 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
   const meta = await assertViewable(user, type, id);
   // Serverseitige Durchsetzung von Kommentar-Einstellungen und Community-Stummschaltungen
   if (type === "ARTICLE") {
-    const a = await db.blogArticle.findUnique({ where: { id }, select: { commentsEnabled: true } });
-    if (!a?.commentsEnabled) throw fail.forbidden("Kommentare sind für diesen Artikel deaktiviert.");
+    const a = await db.blogArticle.findUnique({ where: { id }, select: { commentsEnabled: true, commentsLockedAt: true } });
+    if (!a?.commentsEnabled || a.commentsLockedAt) throw fail.forbidden("Kommentare sind für diesen Artikel deaktiviert.");
   }
   if (type === "POST") {
     const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });

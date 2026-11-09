@@ -268,7 +268,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
                 </TitleCell>
                 <Td className="whitespace-nowrap">{a.category?.name ?? <span className="text-muted">–</span>}</Td>
                 <Td><Badge tone={stateTone(a.state)}>{STATE_LABEL[a.state]}</Badge></Td>
-                <Td className="whitespace-nowrap">{a.commentsEnabled ? <span className="text-muted">offen</span> : <Badge tone="outline">Gesperrt</Badge>}</Td>
+                <Td className="whitespace-nowrap">{a.commentsLockedAt ? <Badge tone="outline">Gesperrt</Badge> : a.commentsEnabled ? <span className="text-muted">offen</span> : <span className="text-muted">aus</span>}</Td>
                 <Td align="right">{num(a.viewCount)}</Td>
                 <Td align="right">{num(a.likeCount)}</Td>
                 <Td align="right">{a.readingMinutes} Min.</Td>

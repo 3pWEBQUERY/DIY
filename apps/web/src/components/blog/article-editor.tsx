@@ -37,6 +37,8 @@ type Initial = {
   seoTitle: string;
   seoDescription: string;
   commentsEnabled: boolean;
+  /** Von der Moderation gesperrt – der Schalter kann das nicht aufheben. */
+  commentsLocked?: boolean;
   projectIds: string[];
   state: "DRAFT" | "PUBLISHED" | "SCHEDULED" | "HIDDEN" | "REMOVED";
   publishedAt: string | null;
@@ -444,6 +446,7 @@ export function ArticleEditor({
           <section aria-labelledby="m-opt">
             <h2 id="m-opt" className="mb-3 flex items-baseline gap-3 border-b border-rule pb-2 text-[14px] font-bold"><span className="spec text-ink">{projects.length ? "05" : "04"}</span>Optionen</h2>
             <Checkbox label="Kommentare erlauben" checked={commentsEnabled} onChange={(e) => touch(setCommentsEnabled)(e.target.checked)} />
+            {initial?.commentsLocked && <p className="mt-2 text-xs text-clay-ink">Die Moderation hat Kommentare für diesen Artikel gesperrt. Die Sperre bleibt bestehen, bis sie aufgehoben wird.</p>}
           </section>
 
           {id && (
