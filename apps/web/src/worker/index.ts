@@ -9,6 +9,8 @@
  * - Bereinigung (verwaiste Medien, abgelaufene Sessions/Tokens)
  */
 import "dotenv/config";
+import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 import { PgBoss } from "pg-boss";
 import { db, Prisma } from "@/server/db";
 import { sendEmails } from "@/server/notifications-mail";
@@ -19,6 +21,8 @@ import { track, isQualifiedComment } from "@/server/analytics/service";
 import { deliverPendingPushes } from "@/server/push/service";
 import { captureError } from "@/server/monitoring";
 import { backoffDelay } from "@/lib/backoff";
+import { stableUuid } from "@/lib/stable-uuid";
+import { env } from "@/server/env";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { liftExpiredSuspensions } from "@/server/moderation/expiry";
 import { sendEventReminders } from "@/server/communities/events";
@@ -60,44 +64,102 @@ const Q = {
   stripeSync: "stripe.sync",
   proSync: "pro.sync",
   competitions: "competition.phases",
+  accountPurge: "account.purge",
 } as const;
+
+/**
+ * Kontolöschung (DSG): bis zu 1 Std. Laufzeit (Medien im Bucket, Stripe), danach mit Backoff
+ * 1 Min. … 6 Std. wiederholen (~2 Tage). purgeDeletedAccount ist idempotent.
+ */
+const PURGE_JOB = { retryLimit: 12, retryDelay: 60, retryBackoff: true, retryDelayMax: 6 * 3600, expireInSeconds: 3600 } as const;
+
+/** Wie lange das Herunterfahren auf laufende Arbeit wartet – unter RAILWAY_DEPLOYMENT_DRAINING_SECONDS (45 s). */
+const SHUTDOWN_TIMEOUT_MS = 30_000;
 
 /** ~20 Versuche mit Backoff bis 6 Std. ≈ 3–4 Tage, bevor ein Ereignis aufgegeben (und gemeldet) wird. */
 const OUTBOX_MAX_ATTEMPTS = 20;
+/**
+ * Claim-Dauer: So lange gehört ein Ereignis exklusiv diesem Prozess. Stürzt er ab, übernimmt danach ein
+ * anderer. Die Verarbeitung je Ereignis ist kurz (nur Einreihen bzw. Statistik), 5 Min. reichen weit.
+ */
+const OUTBOX_LEASE_MS = 5 * 60_000;
+/** Eindeutig je Prozess – beim Deploy laufen kurz alter und neuer Worker parallel. */
+const WORKER_ID = `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
+
+/** Laufende Arbeit ausserhalb von pg-boss (Takte), auf die das Herunterfahren wartet. */
+const inflight = new Set<Promise<unknown>>();
+let stopping = false;
+function inFlight<T>(p: Promise<T>): Promise<T> {
+  inflight.add(p);
+  p.finally(() => inflight.delete(p)).catch(() => {});
+  return p;
+}
 
 let dispatching = false;
 
-/** Cron-Job und 3-Sekunden-Takt teilen sich diese Funktion – nie zwei Läufe gleichzeitig (sonst doppelte Fan-outs). */
-async function dispatchOutbox(boss: PgBoss) {
-  if (dispatching) return;
+/**
+ * Cron-Job und 3-Sekunden-Takt teilen sich diese Funktion. `dispatching` verhindert parallele Läufe
+ * im selben Prozess, der Claim in der Datenbank (claimedAt/claimedBy) verhindert, dass zwei Worker-
+ * Prozesse dasselbe Ereignis verarbeiten (doppelte Fan-outs, Medienjobs, Löschläufe).
+ */
+function dispatchOutbox(boss: PgBoss) {
+  if (dispatching || stopping) return Promise.resolve();
   dispatching = true;
-  try {
-    await dispatchOutboxOnce(boss);
-  } finally {
-    dispatching = false;
-  }
+  return inFlight(
+    dispatchOutboxOnce(boss).finally(() => {
+      dispatching = false;
+    }),
+  );
+}
+
+/** Fällige Ereignisse bedingt beanspruchen: nur Zeilen, die kein anderer Prozess (gültig) hält. */
+async function claimOutboxEvents(limit = 100) {
+  const now = new Date();
+  const leaseCutoff = new Date(now.getTime() - OUTBOX_LEASE_MS);
+  const candidates = await db.outboxEvent.findMany({
+    where: {
+      publishedAt: null,
+      attempts: { lt: OUTBOX_MAX_ATTEMPTS },
+      AND: [{ OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] }, { OR: [{ claimedAt: null }, { claimedAt: { lt: leaseCutoff } }] }],
+    },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+  if (!candidates.length) return [];
+  // Ein UPDATE mit Bedingung ist atomar: Bei gleichzeitigen Claims gewinnt genau ein Prozess je Zeile
+  const claimed = await db.$queryRaw<{ id: string }[]>`
+    UPDATE "OutboxEvent" SET "claimedAt" = ${now}, "claimedBy" = ${WORKER_ID}
+    WHERE id = ANY(${candidates.map((c) => c.id)}) AND "publishedAt" IS NULL
+      AND ("claimedAt" IS NULL OR "claimedAt" < ${leaseCutoff})
+    RETURNING id`;
+  if (!claimed.length) return [];
+  return db.outboxEvent.findMany({ where: { id: { in: claimed.map((c) => c.id) } }, orderBy: { createdAt: "asc" } });
 }
 
 async function dispatchOutboxOnce(boss: PgBoss) {
-  const now = new Date();
-  const events = await db.outboxEvent.findMany({
-    where: { publishedAt: null, attempts: { lt: OUTBOX_MAX_ATTEMPTS }, OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] },
-    orderBy: { createdAt: "asc" },
-    take: 100,
-  });
-  for (const e of events) {
+  const events = await claimOutboxEvents();
+  for (const [i, e] of events.entries()) {
+    // Beim Herunterfahren nicht mehr anfangen – restliche Claims sofort freigeben (der neue Worker übernimmt)
+    if (stopping) {
+      await db.outboxEvent.updateMany({ where: { id: { in: events.slice(i).map((x) => x.id) }, claimedBy: WORKER_ID, publishedAt: null }, data: { claimedAt: null, claimedBy: null } });
+      return;
+    }
     try {
       const p = e.payload as Record<string, string>;
+      // Feste Job-ID je Ereignis: pg-boss legt sie nur einmal an. Schlägt nach dem Einreihen das
+      // Markieren als erledigt fehl, reiht die Wiederholung den Job nicht ein zweites Mal ein.
       switch (e.type) {
         case "MediaUploaded":
-          await boss.send(Q.media, { mediaId: p.mediaId }, { retryLimit: 3, retryDelay: 30 });
+          await boss.send(Q.media, { mediaId: p.mediaId }, { id: stableUuid(e.id, Q.media), retryLimit: 3, retryDelay: 30 });
           break;
-        // Konto gelöscht: Abo beenden, persönliche Daten und Medien entfernen (§23.1)
+        // Konto gelöscht: Abo beenden, persönliche Daten und Medien entfernen (§23.1). Kann Minuten dauern →
+        // eigene Queue mit Wiederholungen, damit Medien und Beiträge in der Outbox nicht warten müssen
         case "UserDeleted":
-          await purgeDeletedAccount(p.userId!);
+          await boss.send(Q.accountPurge, { userId: p.userId }, { id: stableUuid(e.id, Q.accountPurge), ...PURGE_JOB });
           break;
         case "PostPublished":
-          await boss.send(Q.fanout, { postId: p.postId, authorId: p.authorId });
+          await boss.send(Q.fanout, { postId: p.postId, authorId: p.authorId }, { id: stableUuid(e.id, Q.fanout) });
           break;
         // North Star (§30.1): nur sinnvolle kreative Interaktionen zählen
         case "ProjectUpdated":
@@ -123,7 +185,7 @@ async function dispatchOutboxOnce(boss: PgBoss) {
         default:
           break;
       }
-      await db.outboxEvent.update({ where: { id: e.id }, data: { publishedAt: new Date(), attempts: { increment: 1 } } });
+      await db.outboxEvent.update({ where: { id: e.id }, data: { publishedAt: new Date(), attempts: { increment: 1 }, claimedAt: null, claimedBy: null } });
     } catch (err) {
       const attempts = e.attempts + 1;
       warn("outbox_failed", { id: e.id, type: e.type, attempts, err: String(err) });
@@ -132,7 +194,7 @@ async function dispatchOutboxOnce(boss: PgBoss) {
       // über einige Minuten darf ein Ereignis wie UserDeleted (DSG-Löschung) nicht endgültig verwerfen
       await db.outboxEvent.update({
         where: { id: e.id },
-        data: { attempts, lastError: String(err).slice(0, 500), nextAttemptAt: new Date(Date.now() + backoffDelay(attempts - 1, { base: 10_000, max: 6 * 3600_000 })) },
+        data: { attempts, lastError: String(err).slice(0, 500), nextAttemptAt: new Date(Date.now() + backoffDelay(attempts - 1, { base: 10_000, max: 6 * 3600_000 })), claimedAt: null, claimedBy: null },
       });
       if (attempts >= OUTBOX_MAX_ATTEMPTS) {
         await captureError(new Error(`Outbox-Ereignis ${e.type} nach ${attempts} Versuchen aufgegeben – bitte manuell klären`), { source: "WORKER", path: "outbox:abandoned", meta: { eventId: e.id, type: e.type } });
@@ -208,8 +270,12 @@ async function cleanup() {
 async function optional<T>(path: string, fn: string): Promise<(() => Promise<T>) | null> {
   try {
     const mod = (await import(path)) as Record<string, () => Promise<T>>;
+    if (!mod[fn]) warn("optional_job_missing", { path, fn });
     return mod[fn] ?? null;
-  } catch {
+  } catch (e) {
+    // Nicht still schlucken: ein Import-/Initialisierungsfehler legt sonst einen Job unbemerkt still
+    warn("optional_job_failed", { path, fn, err: String(e) });
+    await captureError(e, { source: "WORKER", path: `optional:${path}#${fn}` });
     return null;
   }
 }
@@ -241,11 +307,14 @@ async function waitForMigrations() {
 }
 
 async function main() {
+  // Konfiguration sofort prüfen: fehlende/ungültige Pflichtvariablen beenden den Start (sichtbar im Deploy-Log),
+  // Warnungen (z. B. fehlender RESEND_API_KEY) werden einmal geloggt
+  env();
   await waitForMigrations();
   const boss = new PgBoss({ connectionString: process.env.DATABASE_URL!, schema: "pgboss", max: 3 });
   boss.on("error", (e) => warn("pgboss_error", { err: String(e) }));
   await boss.start();
-  for (const q of Object.values(Q)) await boss.createQueue(q).catch(() => {});
+  for (const q of Object.values(Q)) await boss.createQueue(q, q === Q.accountPurge ? PURGE_JOB : undefined).catch(() => {});
 
   await boss.work<{ mediaId: string }>(Q.media, { batchSize: 2 }, guarded(Q.media, async (jobs) => {
     for (const j of jobs) await processMedia(j.data.mediaId);
@@ -254,6 +323,9 @@ async function main() {
     for (const j of jobs) await fanoutPost(j.data.postId, j.data.authorId);
   }));
   await boss.work(Q.outbox, guarded(Q.outbox, async () => dispatchOutbox(boss)));
+  await boss.work<{ userId: string }>(Q.accountPurge, guarded(Q.accountPurge, async (jobs) => {
+    for (const j of jobs) await purgeDeletedAccount(j.data.userId);
+  }));
   await boss.work(Q.emailInstant, guarded(Q.emailInstant, async () => sendEmails("instant")));
   await boss.work(Q.emailDigest, guarded(Q.emailDigest, async () => sendEmails("digest")));
   await boss.work(Q.cleanup, guarded(Q.cleanup, async () => cleanup()));
@@ -295,21 +367,39 @@ async function main() {
   await boss.schedule(Q.stripeSync, "*/10 * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
-  const tick = setInterval(() => dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);
+  const tick = setInterval(() => void dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);
   // iOS-Push zeitnah zustellen (Cron ist nur die Rückfallebene)
-  const pushTick = setInterval(() => deliverPendingPushes().catch((e) => captureError(e, { source: "WORKER", path: "push_tick" })), 10_000);
-  log("worker_started", { queues: Object.values(Q) });
+  const pushTick = setInterval(() => {
+    if (!stopping) void inFlight(deliverPendingPushes()).catch((e) => captureError(e, { source: "WORKER", path: "push_tick" }));
+  }, 10_000);
+  log("worker_started", { queues: Object.values(Q), workerId: WORKER_ID });
 
-  const stop = async () => {
+  /**
+   * Sauber herunterfahren (Deploy/Neustart): keine neue Arbeit annehmen, laufende Takte (Outbox, Push)
+   * und pg-boss-Jobs abschliessen lassen – erst danach die DB-Verbindung schliessen. Alles innerhalb von
+   * SHUTDOWN_TIMEOUT_MS, damit Railway nicht mitten in einem Schreibvorgang per SIGKILL beendet.
+   */
+  const stop = async (signal: string) => {
+    if (stopping) return;
+    stopping = true;
+    const deadline = Date.now() + SHUTDOWN_TIMEOUT_MS;
+    log("worker_stopping", { signal, inflight: inflight.size });
     clearInterval(tick);
     clearInterval(pushTick);
-    await boss.stop({ graceful: true, timeout: 20_000 });
-    await db.$disconnect();
+    const left = () => Math.max(1000, deadline - Date.now());
+    // Zuerst die eigenen Takte (sie reihen über boss.send ein, pg-boss muss dafür noch offen sein)
+    const drained = await Promise.race([Promise.allSettled([...inflight]).then(() => true), sleep(left()).then(() => false)]);
+    await boss.stop({ graceful: true, timeout: left() }).catch((e) => warn("pgboss_stop_failed", { err: String(e) }));
+    if (!drained) warn("worker_stop_timeout", { inflight: inflight.size });
+    await db.$disconnect().catch(() => {});
+    log("worker_stopped", { signal });
     process.exit(0);
   };
-  process.on("SIGTERM", stop);
-  process.on("SIGINT", stop);
+  process.on("SIGTERM", () => void stop("SIGTERM"));
+  process.on("SIGINT", () => void stop("SIGINT"));
 }
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 main().catch((e) => {
   console.error(JSON.stringify({ level: "error", svc: "worker", msg: "fatal", err: String(e) }));

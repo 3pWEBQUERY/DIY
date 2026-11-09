@@ -3,6 +3,16 @@ import type { Instrumentation } from "next";
 /** Wird einmal beim Serverstart ausgeführt (Next.js Instrumentation). */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // Konfiguration beim Start prüfen (Next ruft register() während `next build` nicht auf): ungültige
+  // Pflichtvariablen lassen den Start scheitern – der Healthcheck schlägt fehl und die alte Version bleibt
+  // aktiv, statt dass erst einzelne Anfragen scheitern. Warnungen (configWarnings) loggt env() einmalig.
+  const { env } = await import("@/server/env");
+  try {
+    env();
+  } catch (e) {
+    console.error(JSON.stringify({ level: "error", svc: "web", msg: "invalid_config", err: e instanceof Error ? e.message : String(e) }));
+    throw e;
+  }
   // Fehlerüberwachung: unerwartete Fehler aus Server Actions und API-Routen erfassen
   const [{ setUnhandledReporter }, { captureError, requestContext }] = await Promise.all([import("@/server/errors"), import("@/server/monitoring")]);
   setUnhandledReporter((e, req) => void requestContext().then((ctx) => captureError(e, { ...ctx, ...req, source: "SERVER" })));

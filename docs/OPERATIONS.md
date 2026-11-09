@@ -4,7 +4,7 @@
 
 ```
                     ┌──────────────────────────┐
-  Browser / iOS ──▶ │ web  (Next.js, pnpm start)│──┐
+  Browser / iOS ──▶ │ web  (Next.js, next start)│──┐
                     └──────────────────────────┘  │
                     ┌──────────────────────────┐  │   ┌───────────────┐
                     │ worker (pnpm worker)      │──┼──▶│ Postgres      │  Daten, Outbox, pg-boss-Queues,
@@ -18,8 +18,24 @@ Beide App-Services nutzen dasselbe `Dockerfile`. Unterschied ist nur der Start-B
 
 | Service | Config | Start | Pre-Deploy |
 |---|---|---|---|
-| `web` | `.railway/railway.ts` | `pnpm start` | `pnpm predeploy` (Migration + Seed) |
+| `web` | `.railway/railway.ts` | `sh -c 'cd apps/web && exec ./node_modules/.bin/next start -p ${PORT:-3000}'` (lokal: `pnpm start`) | `pnpm predeploy` (Migration + Seed) |
 | `worker` | `.railway/railway.ts` | `sh -c 'cd apps/web && exec node --conditions=react-server --import tsx src/worker/index.ts'` (lokal: `pnpm worker`) | – |
+
+Beide Start-Befehle laufen per `exec` ohne pnpm dazwischen, damit SIGTERM den Prozess direkt erreicht.
+
+### Deploy & Herunterfahren
+- Beim Deploy laufen alte und neue Version kurz **parallel**. Der Worker schützt sich davor in der Datenbank:
+  Outbox-Ereignisse werden per Claim (`OutboxEvent.claimedAt/claimedBy`, 5 Min. Lease) genau einem Prozess
+  zugeteilt, Push-Benachrichtigungen per bedingtem Update auf `pushedAt IS NULL`, Folgejobs (Medien, Fan-out,
+  Kontolöschung) haben eine feste Job-ID je Ereignis (pg-boss legt sie nur einmal an).
+- SIGTERM: Der Worker nimmt keine neue Arbeit an, gibt nicht begonnene Outbox-Claims frei und wartet bis zu 30 s
+  auf laufende Takte und pg-boss-Jobs, erst dann schliesst er die DB. `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`
+  (worker 45 s, web 30 s) gibt ihm dafür Zeit vor dem SIGKILL. Länger laufende Jobs (Video, Kontolöschung)
+  werden nach Ablauf von pg-boss wiederholt.
+- Kontolöschungen laufen als eigener Job `account.purge` (bis 1 Std., 12 Wiederholungen mit Backoff) – die
+  Outbox reiht nur ein und blockiert so keine Medien- oder Beitragsereignisse.
+- Konfiguration wird beim Start geprüft (`env()` in `src/instrumentation.ts` bzw. beim Worker-Start): ungültige
+  Pflichtvariablen brechen den Start ab, Warnungen erscheinen als `config_warning` im Log und unter Admin → System.
 
 ## Umgebungsvariablen
 
@@ -36,7 +52,19 @@ S3_SECRET_ACCESS_KEY=${{media.SECRET_ACCESS_KEY}}
 SESSION_SECRET=<zufällig, 48+ Zeichen>
 ```
 
-Optional: `STRIPE_*` (Marktplatz), `RESEND_API_KEY` (E-Mail), `APPLE_*` (Anmelden mit Apple).
+Optional: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET` (Marktplatz),
+`RESEND_API_KEY`, `MAIL_FROM` (E-Mail – in web **und** worker), `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`,
+`APPLE_PRIVATE_KEY` (Anmelden mit Apple, web), `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (web, zufällig 32 Byte base64,
+z. B. `openssl rand -base64 32` – hält Server-Action-IDs über Deploys stabil; wird als Build-Argument gebraucht).
+In `.railway/railway.ts` stehen sie als `preserve()`: Werte im Dashboard setzen, IaC überschreibt sie nicht.
+VAPID-Schlüssel (Browser-Push) erzeugt die App selbst und speichert sie in der Datenbank; `VAPID_PUBLIC_KEY`/
+`VAPID_PRIVATE_KEY` nur setzen, wenn nötig – dann in web **und** worker identisch.
+
+> ⚠ **`SESSION_SECRET` nicht rotieren, ohne die Folgen zu kennen.** Daraus wird der Schlüssel abgeleitet, mit dem
+> die TOTP-Geheimnisse der Zwei-Faktor-Anmeldung verschlüsselt sind (`src/server/auth/totp.ts`). Nach einer
+> Änderung lässt sich kein 2FA-Code mehr prüfen – **alle Konten mit 2FA sind ausgesperrt** (nur noch über
+> Wiederherstellungscodes bzw. manuelles Zurücksetzen von 2FA). Ausserdem werden signierte Links ungültig
+> (Abmeldelinks in E-Mails, Einspruchslinks, signierte Medien-URLs). web und worker brauchen denselben Wert.
 
 ### iOS-App (`apps/ios`)
 | Variable | Service | Zweck |
@@ -65,7 +93,8 @@ Ohne diese Variablen laufen die betroffenen Funktionen in einem klar gekennzeich
 
 - Healthcheck: `GET /api/health` (DB-Latenz, Storage-Modus, Version). Railway nutzt ihn beim Deploy.
 - Logs sind strukturiertes JSON ohne personenbezogene Daten (`level`, `msg`, `svc`).
-- Worker loggt `worker_started`, `cleanup`, `outbox_failed`, `email_failed`.
+- Worker loggt `worker_started`, `worker_stopping`/`worker_stopped`, `cleanup`, `outbox_failed`, `email_failed`,
+  `optional_job_failed` (ein Job-Modul liess sich nicht laden – auch unter Admin → Fehler).
 - Kennzahlen: Admin → Dashboard (PRD §30).
 
 ## Backup & Restore (PRD §31.4 Nr. 13)

@@ -43,7 +43,12 @@ export function env() {
       throw new Error("Ungültige Umgebungsvariablen: " + parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "));
     }
     cached = parsed.data;
-    for (const w of configWarnings(cached)) console.error(JSON.stringify({ level: "error", msg: "config_warning", warning: w }));
+    // Einmal je Prozess loggen (Next lädt das Modul in Instrumentation und Routen getrennt)
+    const g = globalThis as { __werkunoConfigWarned?: boolean };
+    if (!g.__werkunoConfigWarned) {
+      g.__werkunoConfigWarned = true;
+      for (const w of configWarnings(cached)) console.error(JSON.stringify({ level: "error", msg: "config_warning", warning: w }));
+    }
   }
   return cached;
 }

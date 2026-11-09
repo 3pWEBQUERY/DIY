@@ -1,11 +1,17 @@
 // WERKRAUM – Fachliches Datenmodell (PRD §26)
 // Konventionen (§26.3): cuid-IDs, createdAt/updatedAt, explizite FKs, Indizes auf Filterfelder.
 // Geldbeträge: Integer in Minor Units (Rappen/Cent).
+// Migrationen: Alle Indizes (auch GIN/Trigramm/Teilindizes aus Roh-SQL) sind hier abgebildet; CI prüft mit
+// `db:drift`, dass Schema und Migrationen übereinstimmen. Nicht abbildbar und nur per Hand-Migration zu ändern:
+// Ausdrücke der generierten `search`-Spalten, Funktionen wr_unaccent/wr_join, Extensions, Trigger
+// AuditEvent_immutable (siehe docs/ENGINEERING.md → Datenbank-Migrationen).
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "esm"
+  // Teilindizes (`where: raw(...)`) im Schema abbilden, damit `migrate dev` sie nicht löscht
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -341,6 +347,8 @@ model UserProfile {
   handleHistory HandleRedirect[]
 
   @@index([displayName])
+  @@index([handle(ops: raw("gin_trgm_ops"))], type: Gin, map: "UserProfile_handle_trgm_idx")
+  @@index([displayName(ops: raw("gin_trgm_ops"))], type: Gin, map: "UserProfile_displayName_trgm_idx")
 }
 
 model HandleRedirect {
@@ -366,6 +374,8 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+  /// Bereinigung widerrufener Sitzungen (Worker: revokedAt < …)
+  @@index([revokedAt], where: raw("\"revokedAt\" IS NOT NULL"))
 }
 
 /// Einmal verwendbare Wiederherstellungscodes für die Zwei-Faktor-Anmeldung (nur als Hash gespeichert)
@@ -403,6 +413,7 @@ model VerificationToken {
   createdAt DateTime     @default(now())
 
   @@index([userId, purpose])
+  @@index([expiresAt])
 }
 
 model UserPreference {
@@ -512,7 +523,9 @@ model Post {
   poll          Poll?
   coauthors     PostCoauthor[]
 
-  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
+  /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
+  search         Unsupported("tsvector")? @default(dbgenerated())
   @@index([authorId, publishedAt])
   @@index([state, visibility, publishedAt])
   @@index([category, publishedAt])
@@ -520,6 +533,7 @@ model Post {
   @@index([projectId])
   @@index([state, scheduledAt])
   @@index([repostOfId])
+  @@index([search], type: Gin)
 }
 
 model PostMedia {
@@ -647,6 +661,10 @@ model Notification {
   @@index([pushedAt, updatedAt])
   @@index([actorId])
   @@index([recipientId, updatedAt])
+  /// E-Mail-Warteschlange: Teilindex nur über offene Einträge
+  @@index([createdAt, id], map: "Notification_mail_pending_idx", where: raw("\"emailedAt\" IS NULL"))
+  /// Bereinigung gelesener Benachrichtigungen (Worker: readAt < …)
+  @@index([readAt], where: raw("\"readAt\" IS NOT NULL"))
 }
 
 /// Gerät für iOS-Push (APNs), an die Sitzung gebunden: Abmelden/Widerruf beendet den Versand (PRD §19.2).
@@ -768,12 +786,16 @@ model Project {
   followers        ProjectFollow[]
   communityProjects CommunityProject[]
 
-  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
+  /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
+  search         Unsupported("tsvector")? @default(dbgenerated())
   @@unique([ownerId, slug])
   @@index([state, visibility, publishedAt])
   @@index([category, status])
   @@index([isFeatured])
   challengeEntries ChallengeEntry[] @relation("challengeEntries")
+  @@index([search], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "Project_title_trgm_idx")
 }
 
 model ProjectMedia {
@@ -902,11 +924,15 @@ model Tutorial {
   posts           Post[]
   products        Product[]
 
-  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
+  /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
+  search         Unsupported("tsvector")? @default(dbgenerated())
   @@index([state, publishedAt])
   @@index([category, difficulty])
   @@index([projectId])
   @@index([authorId])
+  @@index([search], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "Tutorial_title_trgm_idx")
 }
 
 model TutorialVersion {
@@ -1017,9 +1043,12 @@ model BlogArticle {
   posts          Post[]
   slugHistory    ArticleSlugRedirect[]
 
-  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
+  /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
+  search         Unsupported("tsvector")? @default(dbgenerated())
   @@unique([authorId, slug])
   @@index([state, publishedAt])
+  @@index([search], type: Gin)
 }
 
 model ArticleSlugRedirect {
@@ -1093,9 +1122,12 @@ model Community {
   projects    CommunityProject[]
   challenges  CommunityChallenge[]
 
-  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
+  /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
+  search         Unsupported("tsvector")? @default(dbgenerated())
   @@index([category])
   events      CommunityEvent[]
+  @@index([search], type: Gin)
 }
 
 model CommunityMember {
@@ -1367,11 +1399,15 @@ model Product {
   posts          Post[]
   entitlements   DigitalEntitlement[]
 
-  search         Unsupported("tsvector")? // generiert, siehe Migration init
+  /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
+  /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
+  search         Unsupported("tsvector")? @default(dbgenerated())
   @@unique([shopId, slug])
   @@index([status, category, publishedAt])
   @@index([priceMinor])
   @@index([projectId])
+  @@index([search], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "Product_title_trgm_idx")
 }
 
 model ProductVariant {
@@ -1620,6 +1656,9 @@ model WebhookEvent {
   error       String?
   attempts    Int       @default(0)
   createdAt   DateTime  @default(now())
+
+  /// Bereinigung verarbeiteter Webhooks (Worker: createdAt < …)
+  @@index([createdAt])
 }
 
 model IdempotencyKey {
@@ -1887,6 +1926,10 @@ model OutboxEvent {
   nextAttemptAt DateTime?
   /// Letzte Fehlermeldung (gekürzt) – für die Fehlerüberwachung und manuelle Klärung
   lastError   String?
+  /// Von einem Worker-Prozess beansprucht (Lease): verhindert doppelte Verarbeitung, wenn beim
+  /// Deploy kurz zwei Worker laufen. Ein abgelaufener Claim (Absturz) wird neu vergeben.
+  claimedAt   DateTime?
+  claimedBy   String?
   createdAt   DateTime  @default(now())
 
   @@index([publishedAt, createdAt])

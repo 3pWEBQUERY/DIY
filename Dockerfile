@@ -1,7 +1,8 @@
 # WERKRAUM – ein Image für `web` und `worker` (PRD §25.8 Containerisierung)
-# Railway baut dieses Dockerfile automatisch. Start-Befehl je Service:
-#   web:    pnpm start          (Pre-Deploy: pnpm predeploy)
-#   worker: pnpm worker
+# Railway baut dieses Dockerfile automatisch. Start-Befehl je Service (siehe .railway/railway.ts):
+#   web:    next start per exec  (Pre-Deploy: pnpm predeploy)
+#   worker: node src/worker/index.ts per exec
+# Immer per exec ohne pnpm dazwischen, damit SIGTERM den Prozess erreicht (sauberes Herunterfahren).
 
 # ffmpeg: Video-Transkodierung im Worker (H.264/AAC, Vorschaubilder)
 FROM node:22-bookworm-slim AS base
@@ -35,4 +36,4 @@ COPY --from=build /app /app
 RUN mkdir -p /app/apps/web/.data && chown -R node:node /app/apps/web/.data /app/apps/web/.next
 USER node
 EXPOSE 3000
-CMD ["pnpm", "start"]
+CMD ["sh", "-c", "cd apps/web && exec ./node_modules/.bin/next start -p ${PORT:-3000}"]
