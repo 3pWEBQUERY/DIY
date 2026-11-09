@@ -220,7 +220,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKey}
         className={cn(
-          "group relative flex h-11 w-full items-center gap-2 rounded-xl border border-line-strong bg-card pl-3.5 pr-10 text-left text-[15px] text-ink transition-colors hover:border-rule-strong focus:outline-none focus-visible:border-moss focus-visible:ring-4 focus-visible:ring-moss/12 aria-[invalid=true]:border-danger disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted",
+          "group relative flex h-11 w-full items-center gap-2 rounded-xl border border-field bg-card pl-3.5 pr-10 text-left text-[15px] text-ink transition-colors hover:border-muted focus:outline-none focus-visible:border-moss focus-visible:ring-4 focus-visible:ring-moss/12 aria-[invalid=true]:border-danger disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted",
           open && "border-moss ring-4 ring-moss/12",
           className,
         )}

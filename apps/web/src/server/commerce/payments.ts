@@ -9,7 +9,7 @@ import { token } from "@/server/crypto";
 import { commitSale, lockOrder, OutOfStockError, refreshSoldOut } from "./inventory";
 import { cancelPendingOrderTx } from "./reservations";
 import { paymentStatusAfterRefund, refundableAmount } from "./rules";
-import { createRefund, expireCheckoutSession, listRefunds, reverseTransferForDispute, type Stripe, accountStatus, retrieveConnectStatus } from "./stripe";
+import { createRefund, expireCheckoutSession, isStripeError, listRefunds, reverseTransferForDispute, type Stripe, accountStatus, retrieveConnectStatus } from "./stripe";
 import { applyAccountStatus } from "./shops";
 import { captureError } from "@/server/monitoring";
 
@@ -196,10 +196,14 @@ export async function markPaymentProcessing(orderId: string, providerRef?: strin
  * Zahlung fehlgeschlagen oder Checkout abgelaufen → Reservierung freigeben, Bestellung storniert.
  * Bei Fehlschlag wird die Stripe-Session beendet, damit keine verspätete Zahlung mehr möglich ist.
  */
-export async function markPaymentFailed(orderId: string, opts: { kind: "failed" | "expired" | "abandoned"; reason?: string | null; actorId?: string | null }) {
+/**
+ * `async_failed`: Stripe meldet, dass eine verzögerte Zahlung (z. B. Lastschrift) nach Abschluss der
+ * Session gescheitert ist. Die Session ist dann „complete“ – sie zu beenden ist weder möglich noch nötig.
+ */
+export async function markPaymentFailed(orderId: string, opts: { kind: "failed" | "async_failed" | "expired" | "abandoned"; reason?: string | null; actorId?: string | null }) {
   const order = await db.order.findUnique({ where: { id: orderId }, select: { status: true, checkoutSessionId: true, payments: { select: { provider: true }, take: 1 } } });
   if (!order || order.status !== "PENDING_PAYMENT") return false;
-  if (opts.kind !== "expired" && order.checkoutSessionId && order.payments[0]?.provider !== "simulated") {
+  if (opts.kind !== "expired" && opts.kind !== "async_failed" && order.checkoutSessionId && order.payments[0]?.provider !== "simulated") {
     const sess = await expireCheckoutSession(order.checkoutSessionId);
     // Bereits bezahlt (Webhook noch unterwegs) oder Stripe gerade nicht erreichbar → NICHT stornieren:
     // sonst wäre eine bezahlte Bestellung storniert und der Bestand für eine Doppelbestellung frei
@@ -207,10 +211,10 @@ export async function markPaymentFailed(orderId: string, opts: { kind: "failed" 
   }
   return db.$transaction((tx) =>
     cancelPendingOrderTx(tx, orderId, {
-      paymentStatus: opts.kind === "failed" ? "FAILED" : "CANCELLED",
+      paymentStatus: opts.kind === "failed" || opts.kind === "async_failed" ? "FAILED" : "CANCELLED",
       failureReason: opts.reason ?? null,
       actorId: opts.actorId ?? null,
-      note: opts.kind === "failed" ? "Zahlung fehlgeschlagen – Reservierung freigegeben" : opts.kind === "expired" ? "Checkout abgelaufen – Reservierung freigegeben" : "Bestellung vor der Zahlung verworfen",
+      note: opts.kind === "failed" || opts.kind === "async_failed" ? "Zahlung fehlgeschlagen – Reservierung freigegeben" : opts.kind === "expired" ? "Checkout abgelaufen – Reservierung freigegeben" : "Bestellung vor der Zahlung verworfen",
     }),
   );
 }
@@ -247,6 +251,15 @@ export async function initiateRefund(orderId: string, input: { amountMinor: numb
     const r = await createRefund({ paymentIntentId: prepared.payment.providerRef!, amountMinor: prepared.refund.amountMinor, refundId: prepared.refund.id, orderId, reason: input.reason });
     await db.refund.update({ where: { id: prepared.refund.id }, data: { providerRef: r.id, ...(r.status === "failed" || r.status === "canceled" ? { status: "FAILED" } : {}) } });
   } catch (e) {
+    if (!isDefinitiveStripeRejection(e)) {
+      // Zeitüberschreitung/Netz/5xx: Stripe hat die Erstattung womöglich ausgeführt. Zeile bleibt PENDING
+      // (zählt gegen den erstattbaren Betrag → kein Doppelklick-Doppelerstatten); der Abgleich im Worker
+      // wiederholt sie mit demselben Idempotenz-Schlüssel und übernimmt das Ergebnis.
+      const o = await db.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+      await db.orderEvent.create({ data: { orderId, actorId: input.actorId, from: o.status, to: o.status, note: "Erstattung beim Zahlungsanbieter noch unbestätigt – wird automatisch abgeglichen" } });
+      log("warn", "stripe_refund_uncertain", { orderId, err: e instanceof Error ? e.message : String(e) });
+      throw fail.unavailable("Der Zahlungsanbieter hat nicht rechtzeitig geantwortet. Die Erstattung wird automatisch abgeglichen – bitte nicht erneut auslösen.");
+    }
     await db.$transaction(async (tx) => {
       await tx.refund.update({ where: { id: prepared.refund.id }, data: { status: "FAILED" } });
       const o = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
@@ -417,7 +430,40 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
  * die beim Anbieter fehlgeschlagen sind (Ausfall, Netzwerk). Höchstens 5 Versuche je Bestellung,
  * danach meldet die Fehlerüberwachung den Fall zur manuellen Klärung.
  */
+/** Stripe hat die Anfrage eindeutig abgelehnt (4xx, Validierung) – im Gegensatz zu Timeout/Netz/5xx. */
+function isDefinitiveStripeRejection(e: unknown) {
+  if (!isStripeError(e)) return false;
+  const status = (e as { statusCode?: number }).statusCode;
+  return ["StripeInvalidRequestError", "StripeCardError", "StripePermissionError", "StripeAuthenticationError", "StripeIdempotencyError"].includes(e.type) || (!!status && status >= 400 && status < 500);
+}
+
+/**
+ * Unbestätigte Erstattungen (Zeitüberschreitung beim Auslösen) mit DEMSELBEN Idempotenz-Schlüssel erneut
+ * senden: Hat Stripe sie schon ausgeführt, kommt dieselbe Erstattung zurück – sonst wird sie jetzt ausgelöst.
+ */
+async function reconcileUncertainRefunds() {
+  const rows = await db.refund.findMany({
+    where: { status: "PENDING", providerRef: null, amountMinor: { gt: 0 }, createdAt: { lt: new Date(Date.now() - 5 * 60_000), gt: new Date(Date.now() - 7 * 86400_000) } },
+    select: { id: true, orderId: true, amountMinor: true, reason: true, order: { select: { payments: { orderBy: { createdAt: "desc" }, take: 1, select: { providerRef: true, provider: true } } } } },
+    orderBy: { createdAt: "asc" },
+    take: 50,
+  });
+  for (const r of rows) {
+    const p = r.order.payments[0];
+    if (!p?.providerRef || p.provider === "simulated") continue;
+    try {
+      const res = await createRefund({ paymentIntentId: p.providerRef, amountMinor: r.amountMinor, refundId: r.id, orderId: r.orderId, reason: r.reason ?? undefined });
+      await db.refund.update({ where: { id: r.id }, data: { providerRef: res.id, ...(res.status === "failed" || res.status === "canceled" ? { status: "FAILED" } : {}) } });
+      await syncStripeRefunds(p.providerRef);
+    } catch (e) {
+      if (isDefinitiveStripeRejection(e)) await db.refund.update({ where: { id: r.id }, data: { status: "FAILED" } });
+      log("warn", "refund_reconcile_failed", { orderId: r.orderId, err: e instanceof Error ? e.message : String(e) });
+    }
+  }
+}
+
 export async function retryCancelledRefunds() {
+  await reconcileUncertainRefunds().catch((e) => log("error", "refund_reconcile_error", { err: e instanceof Error ? e.message : String(e) }));
   const orders = await db.order.findMany({
     where: { status: "CANCELLED", updatedAt: { gt: new Date(Date.now() - 30 * 86400_000) }, payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, provider: { not: "simulated" } } } },
     select: { id: true, payments: { orderBy: { createdAt: "desc" }, take: 1, select: { amountMinor: true, status: true } }, refunds: { select: { amountMinor: true, status: true, createdAt: true } } },
@@ -488,7 +534,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
     case "checkout.session.async_payment_failed": {
       const s = event.data.object;
       const orderId = await orderExists(s.metadata?.orderId ?? s.client_reference_id);
-      if (orderId) await markPaymentFailed(orderId, { kind: "failed", reason: "Zahlung fehlgeschlagen" });
+      if (orderId) await markPaymentFailed(orderId, { kind: "async_failed", reason: "Zahlung fehlgeschlagen" });
       return;
     }
     case "checkout.session.expired": {

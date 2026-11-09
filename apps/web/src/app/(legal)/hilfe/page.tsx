@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { BRAND } from "@/config/brand";
+import { FeePercent } from "@/components/legal/fee-percent";
 
 export const metadata: Metadata = {
   title: "Hilfe",
@@ -58,7 +59,7 @@ const GROUPS: { id: string; title: string; items: Q[] }[] = [
     id: "verkaufen",
     title: "Verkaufen",
     items: [
-      { q: "Was kostet das Verkaufen?", a: <>Shop und Angebote sind kostenlos. Bei einem Verkauf fällt eine transparente Provision von derzeit 6 % auf den Warenwert an (ohne Versand), dazu die Gebühren des Zahlungsdienstleisters. Details und Rechenbeispiel in den <Link href="/richtlinien/marktplatz#gebuehren">Marktplatz-Richtlinien</Link>.</> },
+      { q: "Was kostet das Verkaufen?", a: <>Shop und Angebote sind kostenlos. Bei einem Verkauf fällt eine transparente Provision von derzeit <FeePercent /> auf den Warenwert an (ohne Versand), dazu die Gebühren des Zahlungsdienstleisters. Details und Rechenbeispiel in den <Link href="/richtlinien/marktplatz#gebuehren">Marktplatz-Richtlinien</Link>.</> },
       { q: "Muss ich ein Gewerbe haben?", a: <>Nein. Du kannst privat oder gewerblich verkaufen und gibst das bei der Shop-Eröffnung an. Wer regelmässig mit Gewinnabsicht verkauft, gilt in der Regel als gewerblich – kläre im Zweifel deine Pflichten (z. B. MWST) mit einer Fachperson.</> },
       { q: "Wann erhalte ich mein Geld?", a: <>Nach erfolgreicher Verifizierung zahlt der Zahlungsdienstleister gemäss Auszahlungsplan auf dein Konto aus. Den Stand siehst du im Studio unter Einnahmen & Auszahlungen.</> },
       { q: "Warum wurde mein Shop noch nicht freigegeben?", a: <>Neue Shops prüfen wir manuell, damit der Marktplatz für echtes Handgemachtes bleibt. Das dauert in der Regel ein bis zwei Werktage.</> },
@@ -74,6 +75,10 @@ const GROUPS: { id: string; title: string; items: Q[] }[] = [
     ],
   },
 ];
+
+
+// Provision aus den Systemeinstellungen: regelmässig neu rendern statt beim Build einfrieren
+export const revalidate = 300;
 
 export default function HelpPage() {
   return (

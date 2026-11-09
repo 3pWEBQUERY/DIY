@@ -127,6 +127,15 @@ export async function syncStripeSubscription(sub: Stripe.Subscription) {
     (await db.subscription.findFirst({ where: { customerId } }));
   const userId = existing?.userId ?? metaUser;
   if (!userId) return null;
+  // Zweites Abo derselben Person (z. B. zwei Checkout-Tabs bezahlt): ein beendetes zweites Abo darf das
+  // laufende nicht überschreiben; zwei laufende Abos → zur manuellen Erstattung melden
+  if (existing?.subscriptionId && existing.subscriptionId !== sub.id && existing.provider === "stripe" && isActiveSubscription(existing)) {
+    const incomingActive = ["active", "trialing", "past_due"].includes(sub.status);
+    if (!incomingActive) return existing;
+    const { captureError } = await import("@/server/monitoring");
+    await captureError(new Error(`Zweites laufendes ${PRO_NAME}-Abo für dieselbe Person – bitte eines kündigen und erstatten`), { source: "SERVER", path: "pro.duplicate_subscription", userId, meta: { kept: existing.subscriptionId, duplicate: sub.id } });
+    return existing;
+  }
   const item = sub.items?.data?.[0];
   const interval = item?.price?.recurring?.interval === "year" ? "year" : "month";
   const before = existing ? isActiveSubscription(existing) : false;
@@ -185,6 +194,19 @@ export async function startProCheckout(user: Pick<SessionUser, "id" | "email">, 
       if (current) await db.subscription.update({ where: { userId: user.id }, data: { customerId } });
       else await db.subscription.create({ data: { userId: user.id, interval, status: "incomplete", provider: "stripe", customerId, priceMinor: amount } });
     }
+    // Kein zweites Abo: läuft bei Stripe bereits eines (Webhook evtl. noch unterwegs), übernehmen statt
+    // neu abschliessen; offene Checkout-Sessions (anderer Tab) beenden, damit nur eine bezahlt werden kann
+    const subs = await stripe().subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+    const running = subs.data.find((x) => ["active", "trialing", "past_due", "incomplete"].includes(x.status));
+    if (running) {
+      if (running.status !== "incomplete") {
+        await syncStripeSubscription(running);
+        throw fail.conflict(`Du hast ${PRO_NAME} bereits.`);
+      }
+      throw fail.conflict("Dein Abo wird gerade abgeschlossen. Bitte warte einen Moment und lade die Seite neu.");
+    }
+    const open = await stripe().checkout.sessions.list({ customer: customerId, status: "open", limit: 10 });
+    for (const o of open.data) if (o.mode === "subscription") await stripe().checkout.sessions.expire(o.id).catch(() => {});
     const session = await stripe().checkout.sessions.create({
       mode: "subscription",
       customer: customerId,

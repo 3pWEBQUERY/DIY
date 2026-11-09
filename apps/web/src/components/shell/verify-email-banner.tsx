@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Mail, X } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { callAction } from "@/lib/use-action";
 import { resendVerificationAction } from "@/app/(app)/einstellungen/actions";
 
 const KEY = "wr_verify_hidden";
@@ -42,7 +43,7 @@ export function VerifyEmailBanner({ email }: { email: string }) {
           disabled={pending}
           onClick={() =>
             start(async () => {
-              const r = await resendVerificationAction();
+              const r = await callAction(() => resendVerificationAction());
               if (r.ok) setSent(true);
               else toast(r.error, "error");
             })

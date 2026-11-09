@@ -2,7 +2,7 @@ import { forwardRef, useId, type ComponentProps, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full bg-card border border-line-strong rounded-xl px-3 text-[15px] text-ink placeholder:text-muted transition-colors hover:border-rule-strong focus:border-moss focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1 aria-[invalid=true]:border-danger disabled:bg-sunken disabled:text-muted";
+  "w-full bg-card border border-field rounded-xl px-3 text-[15px] text-ink placeholder:text-muted transition-colors hover:border-muted focus:border-moss focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1 aria-[invalid=true]:border-danger disabled:bg-sunken disabled:text-muted";
 
 export const Input = forwardRef<HTMLInputElement, ComponentProps<"input">>(function Input({ className, ...p }, ref) {
   return <input ref={ref} className={cn(control, "h-11", className)} {...p} />;
@@ -69,7 +69,7 @@ export function Checkbox({ label, className, ...p }: ComponentProps<"input"> & {
     <label className={cn("flex items-start gap-3 text-sm leading-snug cursor-pointer", className)}>
       <input
         type="checkbox"
-        className="mt-0.5 size-[18px] shrink-0 appearance-none border border-line-strong bg-card rounded-xs checked:bg-moss checked:border-moss grid place-content-center before:content-[''] before:size-2.5 before:scale-0 checked:before:scale-100 before:transition-transform before:bg-paper before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)]"
+        className="mt-0.5 size-[18px] shrink-0 appearance-none border border-field bg-card rounded-xs checked:bg-moss checked:border-moss grid place-content-center before:content-[''] before:size-2.5 before:scale-0 checked:before:scale-100 before:transition-transform before:bg-paper before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)]"
         {...p}
       />
       <span>{label}</span>

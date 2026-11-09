@@ -1,7 +1,7 @@
 import "server-only";
 import { db, type Tx } from "@/server/db";
 import { emit } from "@/server/events";
-import { expireCheckoutSession, paymentsMode, retrieveCheckoutSession } from "./stripe";
+import { expireCheckoutSession, isCompletedSessionPaymentFailed, paymentsMode, retrieveCheckoutSession } from "./stripe";
 import { lockOrder, release } from "./inventory";
 
 /**
@@ -49,8 +49,20 @@ export async function releaseExpiredReservations(opts: { limit?: number; now?: D
       if (stripeMode && o.checkoutSessionId) {
         const s = await retrieveCheckoutSession(o.checkoutSessionId).catch(() => null);
         // Stripe nicht erreichbar: lieber später erneut prüfen als eine evtl. bezahlte Bestellung stornieren
-        if (!s || s.status === "complete") {
+        if (!s) {
           skipped++;
+          continue;
+        }
+        if (s.status === "complete") {
+          // Abgeschlossen, aber verzögerte Zahlung gescheitert (Webhook verpasst) → freigeben statt den
+          // Bestand für immer zu blockieren. Noch in Bearbeitung oder bezahlt → weiter warten bzw. Webhook.
+          const failed = await isCompletedSessionPaymentFailed(o.checkoutSessionId).catch(() => false);
+          if (!failed) {
+            skipped++;
+            continue;
+          }
+          const done = await db.$transaction((tx) => cancelPendingOrderTx(tx, o.id, { paymentStatus: "FAILED", note: "Zahlung fehlgeschlagen – Reservierung freigegeben" }));
+          if (done) released++;
           continue;
         }
         if (s?.status === "open") await expireCheckoutSession(o.checkoutSessionId);

@@ -3,8 +3,13 @@ import type { Metadata } from "next";
 import { LegalDoc } from "@/components/legal/legal-doc";
 import { BRAND } from "@/config/brand";
 import { LEGAL_BRAND, LEGAL_ROBOTS, legalValue } from "@/config/legal";
+import { FeePercent } from "@/components/legal/fee-percent";
 
 export const metadata: Metadata = { title: "Nutzungsbedingungen", alternates: { canonical: "/rechtliches/agb" }, robots: LEGAL_ROBOTS };
+
+
+// Provision aus den Systemeinstellungen: regelmässig neu rendern statt beim Build einfrieren
+export const revalidate = 300;
 
 export default function TermsPage() {
   return (
@@ -100,7 +105,7 @@ export default function TermsPage() {
           body: (
             <ul>
               <li>Das Mitmachen in der Community ist kostenlos.</li>
-              <li>Für Verkäufe erheben wir eine Provision von derzeit <strong>6 % auf den Warenwert</strong> (ohne Versand), die vor dem Kauf transparent ausgewiesen wird. Gebühren des Zahlungsdienstleisters werden separat abgerechnet.</li>
+              <li>Für Verkäufe erheben wir eine Provision von derzeit <strong><FeePercent /> auf den Warenwert</strong> (ohne Versand), die vor dem Kauf transparent ausgewiesen wird. Gebühren des Zahlungsdienstleisters werden separat abgerechnet.</li>
               <li>Änderungen der Provision kündigen wir mindestens 30 Tage im Voraus an.</li>
               <li>Zahlungen und Auszahlungen laufen über einen Zahlungsdienstleister; dessen Bedingungen gelten ergänzend.</li>
             </ul>

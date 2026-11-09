@@ -1,10 +1,32 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { unstable_rethrow, useRouter } from "next/navigation";
 import type { ActionResult } from "@/server/errors";
 import { toast } from "@/components/ui/toast";
 import { isStaleDeployError, promptReload } from "./stale-deploy";
+import { reportClientError } from "./report-error";
+
+export const OFFLINE_MESSAGE = "Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und versuche es erneut – deine Eingaben bleiben erhalten.";
+
+/**
+ * Server Action aufrufen, ohne dass Netz- oder Serverfehler (offline, 502, Zeitüberschreitung) die ganze
+ * Seite in die Fehlerseite reissen – Eingaben gingen sonst verloren. Navigation (redirect/notFound) wird
+ * weitergereicht; nach einem Deploy wird zum Neuladen aufgefordert.
+ */
+export async function callAction<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+  try {
+    return await fn();
+  } catch (e) {
+    unstable_rethrow(e);
+    if (isStaleDeployError(e)) {
+      promptReload();
+      return { ok: false, code: "UNAVAILABLE", error: "Werkuno wurde aktualisiert – bitte lade die Seite neu." };
+    }
+    reportClientError(e);
+    return { ok: false, code: "UNAVAILABLE", error: OFFLINE_MESSAGE };
+  }
+}
 
 /**
  * Client-Helfer für Server Actions mit einheitlicher Fehlerstruktur.
@@ -23,18 +45,8 @@ export function useAction<A extends unknown[], T>(
     return new Promise<ActionResult<T>>((resolve) => {
       start(async () => {
         setError(null);
-        let res: ActionResult<T>;
-        try {
-          res = await action(...args);
-        } catch (e) {
-          // Nach einem Deploy: Seite neu laden statt Fehlerseite – Eingaben bleiben bis dahin stehen
-          if (!isStaleDeployError(e)) throw e;
-          promptReload();
-          const stale = { ok: false as const, code: "UNAVAILABLE" as const, error: "Werkuno wurde aktualisiert – bitte lade die Seite neu." };
-          setError(stale.error);
-          resolve(stale);
-          return;
-        }
+        // Netzfehler/Deploy → Fehlermeldung statt Fehlerseite (Eingaben bleiben stehen)
+        const res = await callAction(() => action(...args));
         if (res.ok) {
           setFields({});
           const msg = typeof opts.success === "function" ? opts.success(res.data) : (opts.success ?? res.message);

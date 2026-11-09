@@ -31,6 +31,7 @@
   --color-clay-soft: #f6e5e0;
   --color-line: #e7e2de;       /* Trennlinien */
   --color-line-strong: #d8d0cb;
+  --color-field: #8f8580;       /* Rahmen von Eingabefeldern: ≥ 3:1 auf Karte, Papier und Sunken (WCAG 1.4.11) */
   --color-rule: #ddd3cd;        /* sanfte Linie statt Schwarz */
   --color-rule-strong: #c9bcb4; /* Hover / Betonung */
   --color-danger: #9b2335;

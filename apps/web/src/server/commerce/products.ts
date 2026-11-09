@@ -332,7 +332,9 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
       kind: data.kind,
       category: data.category,
       priceMinor: data.priceMinor,
-      currency: data.currency,
+      // Preise immer in der Shopwährung: Warenkorb-, Kassen- und Einnahmensummen addieren je Shop,
+      // gemischte Währungen ergäben falsche Beträge (und Stripe rechnet je Session in einer Währung ab)
+      currency: shop.currency,
       // Neue Clients senden eine Liste; ältere nur Freitext → beide Felder konsistent halten
       materialList: data.materialList ?? (data.materials ? [data.materials] : []),
       materials: data.materialList ? data.materialList.join(", ") : data.materials,

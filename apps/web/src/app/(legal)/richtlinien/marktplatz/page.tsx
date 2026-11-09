@@ -7,6 +7,10 @@ import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Marktplatz-Richtlinien", alternates: { canonical: "/richtlinien/marktplatz" } };
 
+
+// Provision aus den Systemeinstellungen: regelmässig neu rendern statt beim Build einfrieren
+export const revalidate = 300;
+
 export default async function MarketplaceGuidelinesPage() {
   const feeBps = await getSetting("commerce.feeBps");
   const pct = (feeBps / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });

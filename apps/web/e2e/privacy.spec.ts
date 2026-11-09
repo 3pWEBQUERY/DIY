@@ -34,7 +34,8 @@ test("Koautor:innen: Blockieren löst die Nennung, Community-Beiträge erlauben 
 });
 
 test("Sitemap enthält Materialseiten und Wettbewerbe", async ({ request }) => {
-  const xml = await (await request.get("/sitemap.xml")).text();
+  // Aufgeteilte Sitemaps (je Bereich) – Materialien und statische Seiten stehen im Teil „basis“
+  const xml = await (await request.get("/sitemap/basis.xml")).text();
   expect(xml).toContain("/materialien/merinowolle");
   expect(xml).toContain("/wettbewerbe</loc>");
 });

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { confirmDialog } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
+import { callAction } from "@/lib/use-action";
 import { proPaymentMethodAction, setFeaturedProjectsAction, setMediaKitPublicAction, setProCancelAction, startProCheckoutAction } from "@/app/studio/pro/actions";
 
 /* ───────────── Abschliessen ───────────── */
@@ -20,7 +21,7 @@ export function PricingCard({ prices, enabled }: { prices: { month: number; year
   const perMonth = interval === "year" ? Math.round(prices.year / 12) : prices.month;
   const go = () =>
     start(async () => {
-      const r = await startProCheckoutAction(interval);
+      const r = await callAction(() => startProCheckoutAction(interval));
       if (r.ok) location.assign(r.data.url);
       else toast(r.error, "error");
     });
@@ -78,7 +79,7 @@ export function ManageSubscription({ provider, cancelAtPeriodEnd, periodEndLabel
       if (!ok) return;
     }
     start(async () => {
-      const r = await setProCancelAction(!cancelAtPeriodEnd);
+      const r = await callAction(() => setProCancelAction(!cancelAtPeriodEnd));
       if (r.ok) {
         toast(r.message ?? "Gespeichert.");
         router.refresh();
@@ -87,7 +88,7 @@ export function ManageSubscription({ provider, cancelAtPeriodEnd, periodEndLabel
   };
   const payment = () =>
     start(async () => {
-      const r = await proPaymentMethodAction();
+      const r = await callAction(() => proPaymentMethodAction());
       if (r.ok) location.assign(r.data.url);
       else toast(r.error, "error");
     });
@@ -149,7 +150,7 @@ export function FeaturedPicker({ projects, initial, max }: { projects: { id: str
           disabled={!dirty || pending}
           onClick={() =>
             start(async () => {
-              const r = await setFeaturedProjectsAction(sel);
+              const r = await callAction(() => setFeaturedProjectsAction(sel));
               if (r.ok) {
                 toast(r.message ?? "Gespeichert.");
                 router.refresh();
@@ -175,7 +176,7 @@ export function MediaKitToggle({ initial, href }: { initial: boolean; href: stri
   const [pending, start] = useTransition();
   const flip = () =>
     start(async () => {
-      const r = await setMediaKitPublicAction(!on);
+      const r = await callAction(() => setMediaKitPublicAction(!on));
       if (r.ok) {
         setOn(!on);
         toast(r.message ?? "Gespeichert.");
@@ -184,7 +185,7 @@ export function MediaKitToggle({ initial, href }: { initial: boolean; href: stri
     });
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" role="switch" aria-checked={on} onClick={flip} disabled={pending} className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50", on ? "bg-moss" : "bg-line-strong")} aria-label="Medienkit öffentlich">
+      <button type="button" role="switch" aria-checked={on} onClick={flip} disabled={pending} className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50", on ? "bg-moss" : "bg-field")} aria-label="Medienkit öffentlich">
         <span className={cn("absolute top-1 size-5 rounded-full bg-card shadow transition-[left]", on ? "left-6" : "left-1")} />
       </button>
       <span className="text-[14px]">{on ? "Öffentlich – jede Person mit dem Link kann es sehen" : "Privat – nur du siehst es"}</span>

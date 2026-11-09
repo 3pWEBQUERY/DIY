@@ -265,6 +265,18 @@ export async function retrieveCheckoutSession(id: string) {
   return stripe().checkout.sessions.retrieve(id);
 }
 
+/**
+ * Abgeschlossene Session, deren (verzögerte) Zahlung endgültig gescheitert ist – z. B. SEPA-Lastschrift
+ * zurückgewiesen. Die Session bleibt dann „complete“, die Zahlung „unpaid“, der PaymentIntent verlangt
+ * eine neue Zahlungsmethode oder ist abgebrochen.
+ */
+export async function isCompletedSessionPaymentFailed(id: string) {
+  const s = await stripe().checkout.sessions.retrieve(id, { expand: ["payment_intent"] });
+  if (s.status !== "complete" || s.payment_status === "paid") return false;
+  const pi = typeof s.payment_intent === "object" ? s.payment_intent : null;
+  return !!pi && (pi.status === "requires_payment_method" || pi.status === "canceled");
+}
+
 /** Offene Session beenden, damit nach Freigabe der Reservierung nicht mehr bezahlt werden kann. */
 export async function expireCheckoutSession(id: string) {
   try {
