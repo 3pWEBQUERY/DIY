@@ -6,6 +6,7 @@ import { assertNotOwn } from "@/server/admin/own";
 import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
+import { syncProjectCount } from "@/server/social/counters";
 import type { SessionUser } from "@/server/auth/session";
 
 /**
@@ -125,39 +126,66 @@ export async function setFeatured(actor: Actor, kind: ContentKind, id: string, f
   });
 }
 
-/** Ausblenden bzw. wieder sichtbar machen (ohne Fall). Entfernen nur über einen Moderationsfall. */
+/**
+ * Zustand vor dem letzten Ausblenden durch die Administration (aus dem Audit), sonst null. Nur wenn das
+ * jüngste Ausblenden/Wiederanzeigen ein Ausblenden war – ältere Einträge gelten nicht mehr.
+ */
+export async function stateBeforeHide(tx: Prisma.TransactionClient, targetType: string, id: string): Promise<string | null> {
+  const ev = await tx.auditEvent.findFirst({
+    where: { targetType, targetId: id, action: { in: ["admin.content_hidden", "admin.content_restored"] } },
+    orderBy: { seq: "desc" },
+    select: { action: true, meta: true },
+  });
+  if (ev?.action !== "admin.content_hidden") return null;
+  const from = (ev.meta as { from?: unknown } | null)?.from;
+  return typeof from === "string" ? from : null;
+}
+
+/**
+ * Ausblenden bzw. wieder sichtbar machen (ohne Fall). Entfernen nur über einen Moderationsfall.
+ * Ausblenden geht nur bei veröffentlichten Inhalten (Entwürfe sind ohnehin nicht öffentlich). Beim
+ * Wiederanzeigen kehrt der Inhalt in den Zustand vor dem Ausblenden zurück – nie veröffentlicht wird,
+ * was noch nie veröffentlicht war (Projekt ohne `publishedAt`, Anleitung ohne veröffentlichte Version).
+ */
 export async function setContentHidden(actor: Actor, kind: ContentKind, id: string, hidden: boolean, reason: string) {
   mod(actor);
   const r = z.string().trim().min(5, "Bitte begründe den Eingriff").max(500).parse(reason);
-  const state = hidden ? "HIDDEN" : "PUBLISHED";
   const owner = await db.$transaction(async (tx) => {
     let ownerId: string;
     let title: string;
+    let from: string;
+    let to: "HIDDEN" | "PUBLISHED" | "DRAFT" = "HIDDEN";
+    const check = (state: string) => {
+      if (hidden && state !== "PUBLISHED") throw fail.conflict("Nur veröffentlichte Inhalte können ausgeblendet werden.");
+      if (!hidden && state !== "HIDDEN") throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
+    };
+    const before = hidden ? null : await stateBeforeHide(tx, kind, id);
     if (kind === "PROJECT") {
-      const p = await tx.project.findUnique({ where: { id }, select: { state: true, ownerId: true, title: true } });
+      const p = await tx.project.findUnique({ where: { id }, select: { state: true, ownerId: true, title: true, publishedAt: true } });
       if (!p) throw fail.notFound();
-      if (p.state === "REMOVED" || (!hidden && p.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
-      await tx.project.update({ where: { id }, data: { state, ...(hidden ? { isFeatured: false } : {}) } });
-      ownerId = p.ownerId;
-      title = p.title;
+      check(p.state);
+      if (!hidden) to = before === "DRAFT" || !p.publishedAt ? "DRAFT" : "PUBLISHED";
+      await tx.project.update({ where: { id }, data: { state: to, ...(hidden ? { isFeatured: false } : {}) } });
+      await syncProjectCount(tx, p.ownerId);
+      ({ ownerId, title, from } = { ownerId: p.ownerId, title: p.title, from: p.state });
     } else if (kind === "TUTORIAL") {
-      const t = await tx.tutorial.findUnique({ where: { id }, select: { state: true, authorId: true, title: true } });
+      const t = await tx.tutorial.findUnique({ where: { id }, select: { state: true, authorId: true, title: true, currentVersionId: true } });
       if (!t) throw fail.notFound();
-      if (t.state === "REMOVED" || (!hidden && t.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
-      await tx.tutorial.update({ where: { id }, data: { state, ...(hidden ? { isFeatured: false } : {}) } });
-      ownerId = t.authorId;
-      title = t.title;
+      check(t.state);
+      if (!hidden) to = before === "DRAFT" || !t.currentVersionId ? "DRAFT" : "PUBLISHED";
+      await tx.tutorial.update({ where: { id }, data: { state: to, ...(hidden ? { isFeatured: false } : {}) } });
+      ({ ownerId, title, from } = { ownerId: t.authorId, title: t.title, from: t.state });
     } else {
       const c = await tx.community.findUnique({ where: { id }, select: { state: true, ownerId: true, name: true } });
       if (!c) throw fail.notFound();
-      if (c.state === "REMOVED" || (!hidden && c.state !== "HIDDEN")) throw fail.conflict("Dieser Zustand lässt sich hier nicht ändern.");
-      await tx.community.update({ where: { id }, data: { state, ...(hidden ? { isFeatured: false } : {}) } });
-      ownerId = c.ownerId;
-      title = c.name;
+      check(c.state);
+      if (!hidden) to = before === "DRAFT" ? "DRAFT" : "PUBLISHED";
+      await tx.community.update({ where: { id }, data: { state: to, ...(hidden ? { isFeatured: false } : {}) } });
+      ({ ownerId, title, from } = { ownerId: c.ownerId, title: c.name, from: c.state });
     }
-    await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: kind, targetId: id, meta: { reason: r } }, tx);
+    await audit({ actorId: actor.id, action: hidden ? "admin.content_hidden" : "admin.content_restored", targetType: kind, targetId: id, meta: { reason: r, from, to } }, tx);
     assertNotOwn(actor, ownerId);
-    return { ownerId, title };
+    return { ownerId, title, to };
   });
   await notify({
     recipientId: owner.ownerId,
@@ -166,7 +194,11 @@ export async function setContentHidden(actor: Actor, kind: ContentKind, id: stri
     data: {
       kind: "ACCOUNT",
       title: owner.title,
-      message: hidden ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.` : `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`,
+      message: hidden
+        ? `Dein Inhalt „${owner.title}“ wurde vorübergehend ausgeblendet.`
+        : owner.to === "PUBLISHED"
+          ? `Dein Inhalt „${owner.title}“ ist wieder sichtbar.`
+          : `Dein Inhalt „${owner.title}“ ist nicht mehr ausgeblendet und wieder ein Entwurf.`,
       publicNote: hidden ? r : "",
       href: "/einstellungen/hilfe-support",
     },

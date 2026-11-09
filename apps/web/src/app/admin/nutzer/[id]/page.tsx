@@ -40,7 +40,8 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   const pro = await getProStatus(u.id);
   const outranked = RANK[u.role] >= RANK[actor.role] && !isSuper;
   const canSanction = !self && !outranked && u.status !== "DELETED";
-  const roleChoices = ROLES.filter((r) => r !== u.role && (isSuper || (RANK[r] < RANK.ADMIN && RANK[u.role] < RANK.ADMIN))).map((r) => ({ value: r, label: ROLE_LABEL[r] }));
+  // Gesperrte Konten nur herabstufen, nie befördern (wie serverseitig in `changeRole`)
+  const roleChoices = ROLES.filter((r) => r !== u.role && (u.status === "ACTIVE" || RANK[r] < RANK[u.role]) && (isSuper || (RANK[r] < RANK.ADMIN && RANK[u.role] < RANK.ADMIN))).map((r) => ({ value: r, label: ROLE_LABEL[r] }));
   const links = (Array.isArray(u.profile?.links) ? u.profile.links : []) as { label?: string; url?: string }[];
   const suspendedActive = u.status === "SUSPENDED" && (!u.suspendedUntil || u.suspendedUntil > new Date());
 
@@ -104,6 +105,8 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             pro.active ? (
               <ActionButton action={revokeProAction.bind(null, u.id)} label="Pro entziehen" confirm="Geschenkten Creator-Pro-Zugang entziehen?" />
             ) : (
+              u.status === "ACTIVE" &&
+              !self && (
               <ReasonButton
                 action={grantProAction.bind(null, u.id)}
                 label="Pro schenken"
@@ -115,9 +118,10 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 reasonLabel="Interne Notiz"
                 confirmLabel="Schenken"
               />
+              )
             )
           )}
-          {isAdmin && !u.emailVerifiedAt && u.status !== "DELETED" && <ActionButton action={verifyEmailAction.bind(null, u.id)} label="E-Mail bestätigen" confirm="E-Mail-Adresse manuell als bestätigt markieren?" />}
+          {isSuper && !self && !u.emailVerifiedAt && u.status !== "DELETED" && <ActionButton action={verifyEmailAction.bind(null, u.id)} label="E-Mail bestätigen" confirm="E-Mail-Adresse manuell als bestätigt markieren?" />}
           {isAdmin && !self && u.status !== "DELETED" && !outranked && <ChangeEmailButton current={u.email} action={changeEmailAction.bind(null, u.id)} canMarkVerified={isSuper} />}
           {isAdmin && !self && roleChoices.length > 0 && u.status !== "DELETED" && (
             <ReasonButton

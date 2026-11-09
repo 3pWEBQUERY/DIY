@@ -48,6 +48,19 @@ async function loadCommunity(id: string, c: Tx | typeof db = db) {
   return community;
 }
 
+/**
+ * Vier-Augen-Prinzip für Communities: Eigene Mitgliedschaft, Rolle, Sperre oder Leitung ändert eine
+ * andere Person aus dem Team – sonst könnte man sich über die Plattformrechte selbst begünstigen.
+ */
+function assertNotSelf(actor: Actor, ...userIds: (string | null | undefined)[]) {
+  if (userIds.includes(actor.id)) throw fail.forbidden("Deine eigene Mitgliedschaft und Communities, die du leitest, bearbeitet eine andere Person aus dem Team.");
+}
+
+/** Plattformrang: Mitglieder mit gleicher oder höherer Rolle verwaltet nur die Superadministration. */
+function assertOutranks(actor: Actor, role: PlatformRole | null | undefined) {
+  if (role && RANK[role] >= RANK[actor.role] && actor.role !== "SUPERADMIN") throw fail.forbidden("Dafür ist eine höhere Rolle nötig.");
+}
+
 /** Eintrag im Moderationsprotokoll der Community (sichtbar für deren Leitung). */
 async function communityLog(tx: Tx, a: { communityId: string; moderatorId: string; targetType: "USER" | "COMMUNITY"; targetId: string; action: string; reason?: string }) {
   await tx.communityModerationAction.create({ data: { ...a, reason: (a.reason ?? "").slice(0, 500) } });
@@ -315,6 +328,10 @@ export async function transferCommunityOwnership(actor: Actor, id: string, userI
     const c = await loadCommunity(id, tx);
     if (c.state === "REMOVED") throw fail.conflict("Archivierte Communities bitte zuerst wiederherstellen.");
     if (c.ownerId === userId) throw fail.conflict("Diese Person leitet die Community bereits.");
+    // Nie an sich selbst und nie die eigene Community; die bisherige Leitung muss niedriger eingestuft sein
+    assertNotSelf(actor, userId, c.ownerId);
+    const owner = await tx.user.findUnique({ where: { id: c.ownerId }, select: { role: true } });
+    assertOutranks(actor, owner?.role);
     const m = await tx.communityMember.findUnique({
       where: { communityId_userId: { communityId: id, userId } },
       select: { state: true, user: { select: { status: true, profile: { select: { handle: true } } } } },
@@ -357,7 +374,8 @@ async function loadMember(tx: Tx, communityId: string, userId: string) {
 
 function assertCanSanctionMember(actor: Actor, userId: string, m: { role: CommunityRoleKind; user: { role: PlatformRole } }) {
   if (m.role === "OWNER") throw fail.forbidden("Die Leitung kann nicht entfernt werden. Übertrage sie zuerst an ein anderes Mitglied.");
-  if (actor.id !== userId && RANK[m.user.role] >= RANK[actor.role] && actor.role !== "SUPERADMIN") throw fail.forbidden("Dafür ist eine höhere Rolle nötig.");
+  assertNotSelf(actor, userId);
+  assertOutranks(actor, m.user.role);
 }
 
 export async function setCommunityMemberRole(actor: Actor, id: string, userId: string, role: string, reason: string) {
@@ -370,6 +388,8 @@ export async function setCommunityMemberRole(actor: Actor, id: string, userId: s
     const m = await loadMember(tx, id, userId);
     if (m.state !== "ACTIVE") throw fail.invalid("Nur aktive Mitglieder können eine Rolle erhalten.");
     if (m.role === "OWNER") throw fail.forbidden("Nutze „Leitung übertragen“, um die Leitung zu ändern.");
+    assertNotSelf(actor, userId, c.ownerId);
+    assertOutranks(actor, m.user.role);
     if (m.role === next) return;
     await tx.communityMember.update({ where: { communityId_userId: { communityId: id, userId } }, data: { role: next } });
     await communityLog(tx, { communityId: id, moderatorId: actor.id, targetType: "USER", targetId: userId, action: `SET_ROLE:${next}`, reason: "Plattform-Administration" });
@@ -419,6 +439,8 @@ export async function unbanCommunityMember(actor: Actor, id: string, userId: str
   const r = reasonSchema.parse(reason);
   await db.$transaction(async (tx) => {
     await loadCommunity(id, tx);
+    // Die eigene Sperre hebt eine andere Person aus dem Team auf
+    assertNotSelf(actor, userId);
     const res = await tx.communityMember.deleteMany({ where: { communityId: id, userId, state: "BANNED" } });
     if (!res.count) throw fail.conflict("Diese Person ist nicht gesperrt.");
     await communityLog(tx, { communityId: id, moderatorId: actor.id, targetType: "USER", targetId: userId, action: "UNBAN_MEMBER", reason: "Plattform-Moderation" });
@@ -436,8 +458,10 @@ export async function approveCommunityRequests(actor: Actor, id: string, userIds
   const approved = await db.$transaction(async (tx) => {
     const c = await loadCommunity(id, tx);
     if (c.state === "REMOVED") throw fail.conflict("Archivierte Communities nehmen keine Mitglieder auf.");
+    // Die eigene Beitrittsanfrage nimmt eine andere Person an – auch bei „alle annehmen“ bleibt sie offen
+    if (userIds !== "ALL") assertNotSelf(actor, ...userIds);
     const pending = await tx.communityMember.findMany({
-      where: { communityId: id, state: "PENDING", ...(userIds === "ALL" ? {} : { userId: { in: userIds } }), user: { status: "ACTIVE" } },
+      where: { communityId: id, state: "PENDING", ...(userIds === "ALL" ? { userId: { not: actor.id } } : { userId: { in: userIds } }), user: { status: "ACTIVE" } },
       select: { userId: true },
     });
     if (!pending.length) throw fail.conflict("Keine offenen Anfragen.");

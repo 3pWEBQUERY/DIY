@@ -8,7 +8,10 @@ import { fail } from "@/server/errors";
  * Feature-Flags: feste Liste von Schaltern, die im Code tatsächlich abgefragt werden.
  * Umschalten unter Admin → System wirkt beim nächsten Request (ohne Deploy).
  * `rollout` < 100 % schaltet ein Flag nur für einen festen Anteil angemeldeter Konten frei
- * (stabil pro Konto); Gäste sehen es dann nicht.
+ * (stabil pro Konto). Gäste (ohne Konto) haben keinen Bucket – für sie entscheidet `guests` fest:
+ * `false` (Standard) = während eines Teil-Rollouts aus, `true` = an, solange der Rollout über 0 % liegt.
+ * `true` gilt für Flags, die gerade Gäste betreffen (Registrierung): sonst wäre jeder Teil-Rollout
+ * gleichbedeutend mit „aus“, weil eine neue Person beim Registrieren nie angemeldet ist.
  */
 export const FLAGS = {
   marketplace: {
@@ -20,6 +23,7 @@ export const FLAGS = {
     label: "Registrierung",
     description: "Neue Konten anlegen (E-Mail, Apple, App). Aus: Nur bestehende Konten können sich anmelden.",
     default: true,
+    guests: true,
   },
   "communities.create": {
     label: "Communities gründen",
@@ -46,7 +50,7 @@ export const FLAGS = {
     description: "Badges, Benachrichtigungen und Chats in Echtzeit. Aus: Aktualisierung alle paar Sekunden statt sofort (entlastet den Server).",
     default: true,
   },
-} as const satisfies Record<string, { label: string; description: string; default: boolean }>;
+} as const satisfies Record<string, { label: string; description: string; default: boolean; guests?: boolean }>;
 
 export type FlagKey = keyof typeof FLAGS;
 export const FLAG_KEYS = Object.keys(FLAGS) as FlagKey[];
@@ -71,13 +75,18 @@ export function rolloutBucket(key: string, userId: string) {
   return createHash("sha256").update(`${key}:${userId}`).digest().readUInt16BE(0) % 100;
 }
 
-export async function flagEnabled(key: FlagKey, userId?: string | null) {
-  const row = (await allFlags()).get(key);
+/** Entscheidung für einen Flag-Zustand (rein, für Tests); `row` fehlt = Standardwert. */
+export function decideFlag(key: FlagKey, row: { enabled: boolean; rollout: number } | undefined, userId?: string | null) {
   if (!row) return FLAGS[key].default;
   if (!row.enabled) return false;
   if (row.rollout >= 100) return true;
-  if (!userId || row.rollout <= 0) return false;
+  if (row.rollout <= 0) return false;
+  if (!userId) return "guests" in FLAGS[key] && FLAGS[key].guests === true;
   return rolloutBucket(key, userId) < row.rollout;
+}
+
+export async function flagEnabled(key: FlagKey, userId?: string | null) {
+  return decideFlag(key, (await allFlags()).get(key), userId);
 }
 
 /** Alle Flags für eine Person (z. B. für Navigation und Client-Komponenten). */
