@@ -13,7 +13,8 @@ import { Table, Td, Th, Tr, EmptyRow, RiskMeter } from "@/components/admin/ui";
 import { dateTime, num, shortDate } from "@/components/admin/format";
 import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
-import { changeRoleAction, grantProAction, resetMfaAction, revokeProAction, revokeSessionsAction, suspendUserAction, unsuspendUserAction, verifyEmailAction } from "../actions";
+import { changeEmailAction, changeRoleAction, grantProAction, resetMfaAction, revokeProAction, revokeSessionsAction, suspendUserAction, unsuspendUserAction, verifyEmailAction } from "../actions";
+import { ChangeEmailButton } from "@/components/admin/change-email";
 import { getProStatus } from "@/server/pro/service";
 import { ProMark } from "@/components/pro/pro-mark";
 
@@ -117,6 +118,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
             )
           )}
           {isAdmin && !u.emailVerifiedAt && u.status !== "DELETED" && <ActionButton action={verifyEmailAction.bind(null, u.id)} label="E-Mail bestätigen" confirm="E-Mail-Adresse manuell als bestätigt markieren?" />}
+          {isAdmin && !self && u.status !== "DELETED" && !outranked && <ChangeEmailButton current={u.email} action={changeEmailAction.bind(null, u.id)} />}
           {isAdmin && !self && roleChoices.length > 0 && u.status !== "DELETED" && (
             <ReasonButton
               action={changeRoleAction.bind(null, u.id)}

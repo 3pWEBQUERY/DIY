@@ -201,3 +201,69 @@ export async function revokeUserSessions(actor: Actor, userId: string) {
   if (res.count) await notify({ recipientId: userId, type: "SECURITY", bundle: false, data: { message: "Aus Sicherheitsgründen wurden alle Sitzungen deines Kontos beendet. Bitte melde dich erneut an.", href: "/einstellungen/sicherheit" } });
   return { count: res.count };
 }
+
+const changeEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Bitte gib eine gültige E-Mail-Adresse ein.").max(254),
+  reason: z.string().trim().min(10, "Bitte begründe die Änderung (mind. 10 Zeichen), z. B. Ticketnummer und Art der Identitätsprüfung.").max(1000),
+  markVerified: z.boolean().default(false),
+});
+
+/**
+ * E-Mail-Adresse eines Kontos ändern (Support, z. B. Tippfehler bei der Registrierung oder verlorene Adresse).
+ * Nur Administration; Konten mit gleicher oder höherer Rolle nur durch die Superadministration; nie das eigene.
+ * Offene Bestätigungs- und Passwort-Links verfallen. Alte und neue Adresse werden informiert; ohne
+ * „bestätigt“ geht ein Bestätigungslink an die neue Adresse.
+ */
+export async function changeUserEmail(actor: Actor, userId: string, input: unknown) {
+  if (!hasRole(actor, "ADMIN")) throw fail.forbidden("E-Mail-Adressen ändert nur die Administration.");
+  if (actor.id === userId) throw fail.forbidden("Deine eigene Adresse änderst du in den Einstellungen.");
+  const data = changeEmailSchema.parse(input);
+  const t = await db.user.findUnique({ where: { id: userId }, select: { email: true, role: true, status: true, subscription: { select: { customerId: true, provider: true } } } });
+  if (!t) throw fail.notFound();
+  if (t.status === "DELETED") throw fail.conflict("Gelöschte Konten können nicht geändert werden.");
+  if (RANK[t.role] >= RANK[actor.role] && actor.role !== "SUPERADMIN") throw fail.forbidden("Die Adresse von Teammitgliedern mit gleicher oder höherer Rolle ändert nur die Superadministration.");
+  if (t.email === data.email) throw fail.invalid("Das ist bereits die aktuelle Adresse.", { email: "Unverändert" });
+  const taken = await db.user.findUnique({ where: { email: data.email }, select: { id: true } });
+  if (taken) throw fail.invalid("Diese Adresse wird bereits von einem anderen Konto verwendet.", { email: "Bereits vergeben" });
+
+  const oldEmail = t.email;
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { email: data.email, emailVerifiedAt: data.markVerified ? new Date() : null } });
+      // Links, die an die alte Adresse gingen, dürfen nicht mehr funktionieren
+      await tx.verificationToken.deleteMany({ where: { userId, usedAt: null } });
+      // Keine Adressen im Audit (Datensparsamkeit) – nur Grund und Art der Änderung
+      await audit({ actorId: actor.id, action: "admin.email_changed", targetType: "USER", targetId: userId, meta: { reason: data.reason, markVerified: data.markVerified } }, tx);
+      await notify(
+        { recipientId: userId, type: "SECURITY", bundle: false, data: { kind: "email_changed", message: "Deine E-Mail-Adresse wurde vom Werkuno-Support geändert.", href: "/einstellungen/konto" } },
+        tx,
+      );
+    });
+  } catch (e) {
+    // Gleichzeitig vergeben (Unique-Index)
+    if ((e as { code?: string }).code === "P2002") throw fail.invalid("Diese Adresse wird bereits von einem anderen Konto verwendet.", { email: "Bereits vergeben" });
+    throw e;
+  }
+
+  // Mails nach dem Speichern – ein Versandfehler macht die Änderung nicht rückgängig
+  const { sendMail } = await import("@/server/mail");
+  const { env } = await import("@/server/env");
+  const { sendVerification } = await import("@/server/identity/service");
+  await sendMail(
+    oldEmail,
+    "Deine E-Mail-Adresse bei Werkuno wurde geändert",
+    `Der Werkuno-Support hat die E-Mail-Adresse deines Kontos auf ${data.email.replace(/(.{2}).*@/, "$1…@")} geändert.\n\nWarst du das nicht oder hast du das nicht angefragt? Antworte bitte sofort auf diese E-Mail oder schreib uns über die Hilfe-Seite.`,
+    { cta: { label: "Hilfe & Support", url: `${env().APP_URL}/hilfe` } },
+  ).catch(() => {});
+  if (data.markVerified) {
+    await sendMail(data.email, "Deine E-Mail-Adresse bei Werkuno", "Diese Adresse ist jetzt mit deinem Werkuno-Konto verknüpft. Du meldest dich ab sofort damit an.", { cta: { label: "Zu Werkuno", url: `${env().APP_URL}/anmelden` } }).catch(() => {});
+  } else {
+    await sendVerification(userId, data.email).catch(() => {});
+  }
+  // Stripe-Kundenkonto (Creator Pro) mitführen, damit Rechnungen an die neue Adresse gehen
+  if (t.subscription?.provider === "stripe" && t.subscription.customerId) {
+    const { stripe, paymentsMode } = await import("@/server/commerce/stripe");
+    if (paymentsMode() === "stripe") await stripe().customers.update(t.subscription.customerId, { email: data.email }).catch(() => {});
+  }
+  return { email: data.email, verified: data.markVerified };
+}

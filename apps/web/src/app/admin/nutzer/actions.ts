@@ -5,7 +5,7 @@ import type { PlatformRole } from "@/server/db";
 import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
 import { adminResetMfa } from "@/server/auth/mfa";
-import { changeRole, revokeUserSessions, suspendUser, unsuspendUser, verifyEmailManually } from "@/server/admin/users";
+import { changeRole, changeUserEmail, revokeUserSessions, suspendUser, unsuspendUser, verifyEmailManually } from "@/server/admin/users";
 
 type ReasonInput = { reason: string; publicNote?: string; days?: number | null; choice?: string };
 
@@ -87,4 +87,16 @@ export async function revokeProAction(userId: string) {
     refresh(userId);
     return r;
   }, "Geschenkter Zugang entzogen.");
+}
+
+export async function changeEmailAction(userId: string, input: { email: string; reason: string; markVerified: boolean }) {
+  return act(
+    async () => {
+      const u = await requireRole("ADMIN");
+      const r = await changeUserEmail(u, userId, input);
+      refresh(userId);
+      return r;
+    },
+    (r) => (r.verified ? "E-Mail-Adresse geändert und bestätigt. Alte und neue Adresse wurden informiert." : "E-Mail-Adresse geändert. Ein Bestätigungslink ging an die neue Adresse, die alte wurde informiert."),
+  );
 }

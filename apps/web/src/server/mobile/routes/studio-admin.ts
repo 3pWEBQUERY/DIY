@@ -124,6 +124,8 @@ export const studioAdminRoutes: RouteDef[] = [
     return users.changeRole(await moderator(), c.p.id!, role as never, reason ?? "");
   }),
   POST("/admin/users/:id/verify-email", async (c) => users.verifyEmailManually(await moderator(), c.p.id!)),
+  // { email, reason, markVerified }
+  PUT("/admin/users/:id/email", async (c) => users.changeUserEmail(await moderator(), c.p.id!, await c.json<unknown>())),
   POST("/admin/users/:id/revoke-sessions", async (c) => users.revokeUserSessions(await moderator(), c.p.id!)),
 
   // ── Inhalte (Hervorheben/Ausblenden) ──
