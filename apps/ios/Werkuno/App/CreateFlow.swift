@@ -82,7 +82,7 @@ struct CreateMenuSheet: View {
             Item(id: "article", title: "Blogartikel", subtitle: "Erfahrungen ausführlich erzählen", symbol: "text.book.closed", tint: .plum, sheet: .articleEditor()),
             Item(id: "community", title: "Community", subtitle: "Eine Gruppe gründen", symbol: "person.3", tint: .ochre, sheet: .communityEditor()),
         ]
-        if app.hasActiveShop {
+        if app.hasActiveShop && app.marketplaceEnabled {
             list.insert(Item(id: "product", title: "Produkt", subtitle: "Handgemachtes verkaufen", symbol: "tag", tint: .clay, sheet: .productEditor()), at: 3)
         }
         return list
@@ -121,7 +121,7 @@ struct CreateMenuSheet: View {
                             }
                         }
                     }
-                    if !app.hasActiveShop {
+                    if !app.hasActiveShop && app.marketplaceEnabled {
                         Button { dismiss(); Task { try? await Task.sleep(for: .milliseconds(380)); router.present(.shopWizard) } } label: {
                             HStack {
                                 Image(systemName: "storefront").foregroundStyle(Color.clay)

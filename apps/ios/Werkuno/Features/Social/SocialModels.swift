@@ -135,6 +135,8 @@ struct SocialMessageMedia: Codable, Hashable, Identifiable, Sendable {
 
 struct SocialMessage: Codable, Hashable, Identifiable, Sendable {
     var id: String
+    /// Gruppenereignis („X hat Y hinzugefügt“) statt einer echten Nachricht
+    var system: Bool?
     var body: String
     var media: [SocialMessageMedia]
     var flags: [String]?
@@ -144,7 +146,8 @@ struct SocialMessage: Codable, Hashable, Identifiable, Sendable {
     var mine: Bool
 
     var isRemoved: Bool { removed == true }
-    var isSuspicious: Bool { !mine && (flags ?? []).contains("SUSPICIOUS_PAYMENT_LINK") }
+    var isSystem: Bool { system == true }
+    var isSuspicious: Bool { !mine && !isSystem && (flags ?? []).contains("SUSPICIOUS_PAYMENT_LINK") }
 }
 
 /// Bestell- bzw. Produktkontext einer Unterhaltung (`type: "order" | "product"`)
@@ -182,8 +185,35 @@ struct SocialThread: Decodable, Sendable {
         var pendingRequest: Bool?
         var declined: Bool?
     }
+    /// Gruppenunterhaltung: Titel und aktuelle Mitglieder (inkl. mir) für Namen über den Nachrichten
+    struct GroupInfo: Decodable, Sendable {
+        struct Member: Decodable, Sendable {
+            var id: String
+            var handle: String?
+            var displayName: String?
+            var avatarUrl: String?
+            var role: String?
+            var pending: Bool?
+            var me: Bool?
+        }
+        var title: String?
+        var isAdmin: Bool?
+        var members: [Member]?
+
+        private enum CodingKeys: String, CodingKey { case title, isAdmin, members }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? nil
+            isAdmin = (try? c.decodeIfPresent(Bool.self, forKey: .isAdmin)) ?? nil
+            members = (try? c.decodeIfPresent([Member].self, forKey: .members)) ?? nil
+        }
+
+        var displayTitle: String { title?.nilIfEmpty ?? "Gruppe" }
+        func member(_ id: String) -> Member? { members?.first { $0.id == id } }
+    }
     var id: String
     var kind: String?
+    var group: GroupInfo?
     var messages: [SocialMessage]
     var hasMore: Bool
     var me: Me

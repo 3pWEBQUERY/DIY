@@ -9,7 +9,7 @@ cd apps/ios
 xcodegen generate
 open Werkuno.xcodeproj
 ```
-Server umschalten: App → Ich → Einstellungen → „Server & Entwicklung“ (Produktion/Lokal).
+Server umschalten (nur Debug-Builds): App → Ich → Einstellungen → „Server & Entwicklung“ (Produktion/Lokal). Release-Builds verwenden immer Produktion.
 Im Simulator lokal: `xcrun simctl spawn booted defaults write ch.werkuno.app werkuno.server local`.
 
 ## Aufbau

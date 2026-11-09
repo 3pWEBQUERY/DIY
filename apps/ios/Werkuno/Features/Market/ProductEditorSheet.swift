@@ -31,6 +31,11 @@ struct ProductEditorSheet: View {
     @State private var announce = false
     @State private var announceText = ""
     @State private var reserved = 0
+    /// Bestand beim Öffnen des Editors – der Server wendet nur die Änderung dagegen an, damit Verkäufe
+    /// in der Zwischenzeit nicht überschrieben werden (`stockBase`, wie der Web-Editor)
+    @State private var stockBase: Int?
+    /// Dasselbe je Variante (Schlüssel: Bezeichnung klein geschrieben, wie der Server sie zuordnet)
+    @State private var variantStockBase: [String: Int] = [:]
 
     @State private var fields: [String: String] = [:]
     @State private var formError: String?
@@ -108,6 +113,12 @@ struct ProductEditorSheet: View {
         variants = (p.variants ?? []).map { VariantDraft(name: $0.name, delta: $0.priceDeltaMinor == 0 ? "" : Fmt.moneyInput($0.priceDeltaMinor), stock: String($0.inventory?.onHand ?? 0)) }
         let base = (p.inventory ?? []).first { $0.variantId == nil }
         stock = String(base?.onHand ?? 0)
+        stockBase = base?.onHand
+        var vb: [String: Int] = [:]
+        for v in p.variants ?? [] {
+            if let n = v.inventory?.onHand { vb[v.name.trimmed.lowercased()] = n }
+        }
+        variantStockBase = vb
         reserved = (p.inventory ?? []).reduce(0) { $0 + $1.reserved }
     }
 
@@ -156,7 +167,7 @@ struct ProductEditorSheet: View {
                     Text("CHF").foregroundStyle(Color.muted)
                     TextField("0.00", text: $price).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(maxWidth: 110)
                 }
-                MarketFieldError(text: fields["priceMinor"] ?? ((priceMinor ?? 100) < 100 && !price.isEmpty ? "Mindestpreis CHF 1.00" : nil))
+                MarketFieldError(text: fields["priceMinor"] ?? (!price.trimmed.isEmpty && priceMinor == nil ? "Bitte gib einen gültigen Preis an, z. B. 48.00" : ((priceMinor ?? 100) < 100 && !price.isEmpty ? "Mindestpreis CHF 1.00" : nil)))
                 if !isDigital && variants.isEmpty {
                     HStack {
                         Text(kind == "MADE_TO_ORDER" ? "Kapazität (Stück)" : "Bestand (Stück)")
@@ -326,11 +337,15 @@ struct ProductEditorSheet: View {
             "safetyInfo": .string(safetyInfo.trimmed),
             "returnPolicy": .string(returnPolicy.trimmed),
             "media": media.refsJSON,
-            "variants": .array(isDigital ? [] : variants.map { v in
-                ["name": .string(v.name.trimmed), "priceDeltaMinor": .number(Double(parseDelta(v.delta))), "stock": .number(Double(Int(v.stock.trimmed) ?? 0))]
+            "variants": .array(isDigital ? [] : variants.map { v -> JSONValue in
+                var o: [String: JSONValue] = ["name": .string(v.name.trimmed), "priceDeltaMinor": .number(Double(parseDelta(v.delta))), "stock": .number(Double(Int(v.stock.trimmed) ?? 0))]
+                // Nur mitsenden, wenn die Variante beim Öffnen schon existierte (optional, nicht nullable)
+                if let b = variantStockBase[v.name.trimmed.lowercased()] { o["stockBase"] = .number(Double(b)) }
+                return .object(o)
             }),
             "status": .string(status),
         ]
+        if let stockBase { input["stockBase"] = .number(Double(stockBase)) }
         if !projectId.isEmpty { input["projectId"] = .string(projectId) }
         if !tutorialId.isEmpty { input["tutorialId"] = .string(tutorialId) }
         var extra: [String: JSONValue] = ["announce": .bool(announce && status == "ACTIVE"), "announceText": .string(announceText.trimmed)]

@@ -6,13 +6,15 @@ final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
     private let memory = NSCache<NSURL, UIImage>()
     private let session: URLSession
+    private let urlCache: URLCache
     private var inflight: [URL: Task<UIImage?, Never>] = [:]
     private let lock = NSLock()
 
     init() {
         memory.totalCostLimit = 120 * 1024 * 1024
         let cfg = URLSessionConfiguration.default
-        cfg.urlCache = URLCache(memoryCapacity: 20 * 1024 * 1024, diskCapacity: 300 * 1024 * 1024)
+        urlCache = URLCache(memoryCapacity: 20 * 1024 * 1024, diskCapacity: 300 * 1024 * 1024)
+        cfg.urlCache = urlCache
         cfg.requestCachePolicy = .returnCacheDataElseLoad
         cfg.httpCookieStorage = nil
         session = URLSession(configuration: cfg)
@@ -36,7 +38,11 @@ final class ImageCache: @unchecked Sendable {
         return img
     }
 
-    func clear() { memory.removeAllObjects() }
+    /// Speicher- und Disk-Cache leeren (Abmelden: auch private, mit Token geladene Bilder entfernen)
+    func clear() {
+        memory.removeAllObjects()
+        urlCache.removeAllCachedResponses()
+    }
 }
 
 /// Entferntes Bild mit sanftem Einblenden; zeigt sonst den Platzhalter.

@@ -74,7 +74,7 @@ private struct DiscoverPageContent: View {
                 .accessibilityLabel("Suchen")
             }
         }
-        .refreshable { await load() }
+        .refreshable { await app.retryBootstrapIfNeeded(); await load() }
         .task(id: active) {
             if !didInit { didInit = true; active = initialSlug; if initialSlug != nil { return } }
             if page != nil && loadedKey == (active ?? "*") { return }

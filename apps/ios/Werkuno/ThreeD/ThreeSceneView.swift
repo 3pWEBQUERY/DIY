@@ -53,7 +53,9 @@ struct ThreeSceneView: UIViewRepresentable {
         wv.scrollView.bounces = false
         wv.scrollView.contentInsetAdjustmentBehavior = .never
         wv.isUserInteractionEnabled = scene.interactive
+        #if DEBUG
         wv.isInspectable = true
+        #endif
         wv.accessibilityElementsHidden = true
         context.coordinator.webView = wv
         context.coordinator.onEvent = onEvent

@@ -1,5 +1,7 @@
 import SwiftUI
 import AuthenticationServices
+import CryptoKit
+import Security
 
 /// Willkommen: Die Faden-Story in vier Kapiteln (Three.js) – danach Anmelden oder Registrieren.
 struct AuthFlowView: View {
@@ -7,6 +9,9 @@ struct AuthFlowView: View {
     @State private var chapter = 0
     @State private var sheet: AuthSheet?
     @State private var autoplay = true
+    /// Roh-Nonce der laufenden Apple-Anmeldung: Apple bekommt den SHA-256-Hash, der Server den Rohwert
+    /// und prüft, dass das Identity-Token genau zu dieser Anfrage gehört (Schutz vor Token-Replay).
+    @State private var appleNonce: String?
 
     enum AuthSheet: String, Identifiable { case signIn, signUp, reset, mfa; var id: String { rawValue } }
 
@@ -57,6 +62,9 @@ struct AuthFlowView: View {
                     if app.appleNative {
                         SignInWithAppleButton(.continue) { req in
                             req.requestedScopes = [.fullName, .email]
+                            let raw = AppleNonce.random()
+                            appleNonce = raw
+                            req.nonce = AppleNonce.sha256(raw)
                         } onCompletion: { result in
                             Task { await handleApple(result) }
                         }
@@ -142,13 +150,32 @@ struct AuthFlowView: View {
         switch result {
         case .success(let auth):
             guard let cred = auth.credential as? ASAuthorizationAppleIDCredential, let data = cred.identityToken, let token = String(data: data, encoding: .utf8) else { return }
+            let code = cred.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+            let nonce = appleNonce
+            appleNonce = nil
             do {
-                let done = try await app.signInWithApple(identityToken: token, givenName: cred.fullName?.givenName, familyName: cred.fullName?.familyName)
+                let done = try await app.signInWithApple(identityToken: token, givenName: cred.fullName?.givenName, familyName: cred.fullName?.familyName, authorizationCode: code, nonce: nonce)
                 if !done && app.needsMfa { sheet = .mfa }
             } catch { app.show(error: error) }
         case .failure(let e):
             if (e as? ASAuthorizationError)?.code != .canceled { app.show(error: e) }
         }
+    }
+}
+
+/// Nonce für „Mit Apple anmelden“: zufälliger Rohwert (an den Server) und dessen SHA-256 als Hex (an Apple).
+enum AppleNonce {
+    static func random(length: Int = 32) -> String {
+        var bytes = [UInt8](repeating: 0, count: length)
+        if SecRandomCopyBytes(kSecRandomDefault, length, &bytes) != errSecSuccess {
+            // Sehr unwahrscheinlich – dann auf den System-Zufallsgenerator ausweichen
+            bytes = (0..<length).map { _ in UInt8.random(in: 0...255) }
+        }
+        return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
 

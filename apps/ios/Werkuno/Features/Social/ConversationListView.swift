@@ -159,7 +159,7 @@ private struct ConversationRow: View {
         let unread = item.unread == true
         Button(action: action) {
             HStack(alignment: .top, spacing: 12) {
-                AvatarView(url: item.other?.avatarUrl, name: item.other?.displayName ?? "?", size: 48)
+                avatar
                     .overlay(alignment: .topTrailing) {
                         if unread {
                             Circle().fill(Color.clay).frame(width: 12, height: 12)
@@ -169,7 +169,7 @@ private struct ConversationRow: View {
                     }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(item.other?.displayName ?? "Unterhaltung")
+                        Text(item.displayTitle)
                             .font(.wr(.subheadline).weight(unread ? .bold : .semibold))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
@@ -206,7 +206,37 @@ private struct ConversationRow: View {
         .accessibilityLabel(accessibility)
     }
 
+    /// Einzelgespräch: Avatar des Gegenübers; Gruppe: bis zu zwei überlappende Mitglieder-Avatare
+    @ViewBuilder private var avatar: some View {
+        if item.isGroup {
+            let avatars = item.group?.avatars ?? []
+            ZStack(alignment: .topLeading) {
+                if avatars.isEmpty {
+                    ZStack {
+                        Circle().fill(Color.mossSoft)
+                        Image(systemName: "person.3.fill").font(.wr(.subheadline)).foregroundStyle(Color.moss)
+                    }
+                    .frame(width: 48, height: 48)
+                } else {
+                    ForEach(Array(avatars.prefix(2).enumerated()), id: \.offset) { i, a in
+                        AvatarView(url: a.avatarUrl, name: a.name?.nilIfEmpty ?? "?", size: avatars.count > 1 ? 34 : 48)
+                            .overlay(Circle().strokeBorder(Color.paper, lineWidth: i == 1 ? 2 : 0))
+                            .offset(x: i == 1 ? 14 : 0, y: i == 1 ? 14 : 0)
+                    }
+                }
+            }
+            .frame(width: 48, height: 48, alignment: .topLeading)
+            .accessibilityHidden(true)
+        } else {
+            AvatarView(url: item.other?.avatarUrl, name: item.other?.displayName ?? "?", size: 48)
+        }
+    }
+
     private var contextLabel: (String, String)? {
+        if item.isGroup {
+            let n = item.group?.memberCount
+            return (n.map { "Gruppe · \(Fmt.plural($0, "Mitglied", "Mitglieder"))" } ?? "Gruppe", "person.3")
+        }
         if let n = item.orderNumber { return ("Bestellung \(n)", "shippingbox") }
         if item.isProductInquiry == true { return ("Produktanfrage", "tag") }
         return nil
@@ -218,7 +248,7 @@ private struct ConversationRow: View {
     }
 
     private var accessibility: String {
-        var s = item.other?.displayName ?? "Unterhaltung"
+        var s = item.displayTitle
         if item.unread == true { s += ", ungelesen" }
         if let c = contextLabel { s += ", \(c.0)" }
         s += ": \(previewText), \(Fmt.relative(item.lastMessageAt))"

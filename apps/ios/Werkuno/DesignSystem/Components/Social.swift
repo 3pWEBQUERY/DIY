@@ -224,7 +224,9 @@ struct ReportSheet: View {
                         AsyncButton("Senden") {
                             do {
                                 let r: JSONValue = try await APIClient.shared.post("/reports", ["targetType": JSONValue.string(targetType), "targetId": .string(targetId), "reason": .string(reason), "details": .string(details)])
-                                withAnimation { caseNumber = r["caseNumber"]?.string ?? r["number"]?.string ?? r["caseId"]?.string ?? "erfasst" }
+                                // Fallnummer kommt als Zahl (`caseNumber: 1234`), ältere Server ggf. als Text
+                                let number = r["caseNumber"]?.int.map(String.init) ?? r["caseNumber"]?.string ?? r["number"]?.int.map(String.init) ?? r["number"]?.string
+                                withAnimation { caseNumber = number ?? "erfasst" }
                                 Haptics.success()
                             } catch { app.show(error: error) }
                         }
@@ -257,6 +259,7 @@ struct PostCardView: View {
                     .textSelection(.enabled)
             }
             if !post.media.isEmpty { MediaStrip(media: post.media) }
+            if let poll = post.poll, poll.isUsable { PostPollView(postId: post.id, poll: poll) }
             if let r = post.repostOf { repost(r) }
             linked
             footer
