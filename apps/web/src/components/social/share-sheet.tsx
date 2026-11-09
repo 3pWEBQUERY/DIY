@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Copy, Link2, Mail, MessageCircle, MoreHorizontal, X }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
+import { useBackdropDismiss } from "@/components/ui/dialog";
 import { PeoplePicker, type Candidate } from "@/components/messages/people-picker";
 import { groupCandidatesAction, startConversationAction } from "@/app/(app)/nachrichten/actions";
 import { cn } from "@/lib/utils";
@@ -97,6 +98,7 @@ function Tile({ t, onClick, href }: { t: Target; onClick?: () => void; href?: st
 
 export function ShareSheet({ open, onClose, url, title, text, image }: { open: boolean; onClose: () => void; url: string; title: string; text?: string; image?: string | null }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdrop = useBackdropDismiss(onClose);
   const [view, setView] = useState<"main" | "people" | "instagram">("main");
   const [copied, setCopied] = useState(false);
   const [env, setEnv] = useState<Env>({ apple: false, mobile: false });
@@ -152,7 +154,7 @@ export function ShareSheet({ open, onClose, url, title, text, image }: { open: b
     <dialog
       ref={ref}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && onClose()}
+      {...backdrop}
       aria-labelledby="share-title"
       className={cn(
         "mx-0 mb-0 mt-auto max-h-[92dvh] w-full max-w-full overflow-y-auto rounded-t-3xl border border-line bg-card p-0 text-ink open:animate-rise",

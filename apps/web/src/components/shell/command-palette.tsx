@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, CornerDownLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBackdropDismiss } from "@/components/ui/dialog";
 
 type Hit = { type: string; id: string; title: string; subtitle?: string; href: string };
 
@@ -39,6 +40,7 @@ export function CommandPalette() {
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const backdrop = useBackdropDismiss(() => setOpen(false));
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -114,11 +116,11 @@ export function CommandPalette() {
     <dialog
       ref={dialog}
       onClose={() => setOpen(false)}
-      onClick={(e) => e.target === dialog.current && setOpen(false)}
+      {...backdrop}
       aria-label="Befehlspalette"
       className="mt-[12vh] mx-auto w-[min(100vw-1.5rem,40rem)] border border-rule bg-card p-0 text-ink open:animate-rise rounded-2xl"
     >
-      <div className="flex items-center gap-3 border-b border-line px-4">
+      <div className="flex items-center gap-3 border-b border-line px-4 transition-colors focus-within:border-moss">
         <Search size={18} className="text-muted" />
         <input
           aria-label="Suchen oder Befehl eingeben"

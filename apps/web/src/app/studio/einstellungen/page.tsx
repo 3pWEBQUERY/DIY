@@ -23,7 +23,7 @@ export default async function StudioSettingsPage() {
 
       <section aria-labelledby="se1" className="mb-12">
         <SectionTitle n="01" title={<span id="se1">Profil & Konto</span>} />
-        <p className="mt-3 text-sm leading-relaxed text-muted">Name, Handle, Bild, Bio, Links und kreative Schwerpunkte verwaltest du zentral in den Kontoeinstellungen – sie gelten für Community und Studio gleichermassen.</p>
+        <p className="mt-3 text-sm leading-relaxed text-muted">Name, Benutzername, Bild, Bio, Links und kreative Schwerpunkte verwaltest du zentral in den Kontoeinstellungen – sie gelten für Community und Studio gleichermassen.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <LinkButton href="/einstellungen/profil" variant="outline">Profil bearbeiten</LinkButton>
           <LinkButton href="/einstellungen/benachrichtigungen" variant="ghost">Benachrichtigungen</LinkButton>

@@ -73,7 +73,7 @@ export function FilterField({ label, children, className }: { label: string; chi
 
 export const filterInput = "h-9 min-w-0 border border-line-strong bg-card px-2.5 text-[13.5px] text-ink focus:border-moss focus:outline-none rounded-2xl";
 
-/** Segmentierte Status-Links (z.B. Offen · In Prüfung · Entschieden) mit Zählern. */
+/** Segmentierte Status-Links (z. B. Offen · In Prüfung · Entschieden) mit Zählern. */
 export function Segments({ items, active, className }: { items: { key: string; label: string; href: string; count?: number }[]; active: string; className?: string }) {
   return (
     <nav aria-label="Filter" className={cn("mb-5 flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-full border border-line-strong bg-card p-0.5 scrollbar-none", className)}>

@@ -135,7 +135,7 @@ export function ProductEditor({
   function submit(status: "DRAFT" | "ACTIVE" | "PAUSED") {
     const errs: Record<string, string> = {};
     const price = parseMoneyInput(v.price);
-    if (price == null) errs.priceMinor = "Bitte gib einen gültigen Preis an (z.B. 48.00)";
+    if (price == null) errs.priceMinor = "Bitte gib einen gültigen Preis an (z. B. 48.00)";
     const ship = isDigital ? 0 : parseMoneyInput(v.shipping);
     if (ship == null) errs.shippingMinor = "Bitte gib gültige Versandkosten an";
     const variants = v.variants.map((x) => ({
@@ -230,7 +230,7 @@ export function ProductEditor({
 
         <section className="space-y-5">
           <SectionTitle n="01" title="Was verkaufst du?" />
-          <Field label="Titel" error={fields.title} hint="Konkret und ehrlich, z.B. „Gehäkelter Korb aus Baumwollkordel, natur“.">
+          <Field label="Titel" error={fields.title} hint="Konkret und ehrlich, z. B. „Gehäkelter Korb aus Baumwollkordel, natur“.">
             {(p) => <Input {...p} value={v.title} onChange={(e) => set("title", e.target.value)} maxLength={140} required />}
           </Field>
           <fieldset>
@@ -296,7 +296,7 @@ export function ProductEditor({
           {!isDigital && (
             <div className="border border-line bg-card rounded-2xl">
               <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-                <p className="text-[13px] font-semibold">Varianten <span className="font-normal text-muted">optional – z.B. Farbe oder Grösse</span></p>
+                <p className="text-[13px] font-semibold">Varianten <span className="font-normal text-muted">optional – z. B. Farbe oder Grösse</span></p>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -319,7 +319,7 @@ export function ProductEditor({
                       <Input
                         aria-label={`Variante ${i + 1}: Bezeichnung`}
                         value={x.name}
-                        placeholder="z.B. Salbeigrün"
+                        placeholder="z. B. Salbeigrün"
                         maxLength={60}
                         className="col-span-2 sm:col-span-1"
                         onChange={(e) => set("variants", v.variants.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))}

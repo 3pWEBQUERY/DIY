@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, Bookmark, Share2, MoreHorizontal, Flag, EyeOff, VolumeX, Ban, Check, UserPlus } from "lucide-react";
 import { REPORT_REASONS, REPORT_REASON_LABEL } from "@werkraum/shared";
@@ -203,39 +203,111 @@ export function ReportDialog({ open, onClose, targetType, targetId }: { open: bo
 
 export type MenuItem = { label: string; icon?: React.ReactNode; onSelect: () => void; danger?: boolean };
 
-/** Kontextmenü (Disclosure-Pattern, per Tastatur bedienbar). */
+/**
+ * Kontextmenü (WAI-ARIA Menu Button): Enter/Leertaste/Pfeiltasten öffnen, Pfeiltasten/Pos1/Ende
+ * bewegen den Fokus, Esc schliesst und gibt den Fokus an den Auslöser zurück, Tab verlässt das Menü.
+ */
 export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline" }: { items: MenuItem[]; label?: string; variant?: "inline" | "button" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLUListElement>(null);
+  const startAt = useRef<"first" | "last">("first");
+  const triggerId = useId();
+  const menuId = useId();
+
+  const entries = () => Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+    // Fokus ins Menü
+    const els = entries();
+    (startAt.current === "last" ? els.at(-1) : els[0])?.focus();
+    const outside = (e: Event) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("focusin", outside);
     return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("focusin", outside);
     };
   }, [open]);
+
+  const show = (at: "first" | "last") => {
+    startAt.current = at;
+    setOpen(true);
+  };
+
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    const els = entries();
+    const i = els.indexOf(document.activeElement as HTMLButtonElement);
+    const focus = (n: number) => els[(n + els.length) % els.length]?.focus();
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        focus(i + 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        focus(i - 1);
+        break;
+      case "Home":
+        e.preventDefault();
+        focus(0);
+        break;
+      case "End":
+        e.preventDefault();
+        focus(els.length - 1);
+        break;
+      case "Escape":
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(false);
+        trigger.current?.focus();
+        break;
+      case "Tab":
+        setOpen(false);
+        break;
+    }
+  };
+
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-label={label} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((o) => !o)} className={variant === "button" ? cn(buttonClass("outline", "md"), "size-11 px-0") : "grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink"}>
-        <MoreHorizontal size={18} />
+      <button
+        ref={trigger}
+        id={triggerId}
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        onClick={() => (open ? setOpen(false) : show("first"))}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            show(e.key === "ArrowUp" ? "last" : "first");
+          }
+        }}
+        className={variant === "button" ? cn(buttonClass("outline", "md"), "size-11 px-0") : "grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink"}
+      >
+        <MoreHorizontal size={18} aria-hidden />
       </button>
       {open && (
-        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise">
+        <ul ref={menu} id={menuId} role="menu" aria-labelledby={triggerId} onKeyDown={onMenuKey} className="absolute right-0 top-full z-30 mt-1 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise">
           {items.map((it) => (
             <li key={it.label} role="none">
               <button
                 role="menuitem"
                 type="button"
+                tabIndex={-1}
                 onClick={() => {
+                  // Fokus zuerst zurück auf den Auslöser – Dialoge geben ihn beim Schliessen dorthin zurück
+                  trigger.current?.focus();
                   setOpen(false);
                   it.onSelect();
                 }}
-                className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-sunken", it.danger && "text-danger")}
+                className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-offset-0", it.danger && "text-danger")}
               >
                 {it.icon}
                 {it.label}

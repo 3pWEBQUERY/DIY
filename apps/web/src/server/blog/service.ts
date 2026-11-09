@@ -325,7 +325,7 @@ async function onFirstPublish(actor: SessionUser, article: { id: string; title: 
   try {
     await createPost(actor, { body: (article.dek || article.title).slice(0, 5000), media: [] }, { articleId: article.id });
   } catch (e) {
-    // Veröffentlichung des Artikels darf nicht an der Feed-Ankündigung scheitern (z.B. Rate Limit).
+    // Veröffentlichung des Artikels darf nicht an der Feed-Ankündigung scheitern (z. B. Rate Limit).
     console.error(JSON.stringify({ level: "warn", msg: "article_announce_failed", articleId: article.id, err: e instanceof Error ? e.message : String(e) }));
   }
 }

@@ -59,7 +59,7 @@ export function CatalogDialogButton({
           {entity === "material" && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Typ" hint="z.B. Garn, Stoff, Holz" error={fields.type}>
+                <Field label="Typ" hint="z. B. Garn, Stoff, Holz" error={fields.type}>
                   {(p) => <Input name="type" defaultValue={v.type} required maxLength={60} {...p} />}
                 </Field>
                 <Field label="Einheit" error={fields.unit}>

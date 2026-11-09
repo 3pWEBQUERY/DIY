@@ -220,7 +220,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
                 )}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-muted">Keine Person zugeordnet (z.B. gelöschtes Konto).</p>
+              <p className="mt-4 text-sm text-muted">Keine Person zugeordnet (z. B. gelöschtes Konto).</p>
             )}
           </section>
         </aside>

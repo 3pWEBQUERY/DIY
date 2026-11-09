@@ -57,7 +57,7 @@ export default async function MarketplaceGuidelinesPage() {
               <p>Du gibst bei der Shop-Eröffnung an, ob du privat oder gewerblich verkaufst. Diese Angabe ist für Käufer:innen sichtbar, weil sich daraus unterschiedliche Rechte ergeben.</p>
               <ul>
                 <li><strong>Privat</strong> – gelegentliche Verkäufe von Hobbyarbeiten. Gesetzliche Gewährleistung kann eingeschränkt sein; das Widerrufsrecht für Verbraucher gilt in der Regel nicht.</li>
-                <li><strong>Gewerblich</strong> – regelmässige Verkäufe mit Gewinnabsicht. Du gibst deine Anbieterangaben (Firma, Adresse, ggf. UID/MWST) an und erfüllst die Pflichten gegenüber Verbraucher:innen, z.B. Widerrufsrecht bei Käufen aus der EU.</li>
+                <li><strong>Gewerblich</strong> – regelmässige Verkäufe mit Gewinnabsicht. Du gibst deine Anbieterangaben (Firma, Adresse, ggf. UID/MWST) an und erfüllst die Pflichten gegenüber Verbraucher:innen, z. B. Widerrufsrecht bei Käufen aus der EU.</li>
               </ul>
               <p>Alle Verkäufer werden über unseren Zahlungsdienstleister verifiziert, bevor Auszahlungen möglich sind. Wir prüfen neue Shops zusätzlich manuell.</p>
             </>
@@ -92,7 +92,7 @@ export default async function MarketplaceGuidelinesPage() {
             <ul>
               <li>Eigene, aktuelle Fotos des tatsächlichen Produkts – keine Stockbilder.</li>
               <li>Ehrliche Angaben zu Material, Massen, Herstellungszeit, Versandkosten und Rückgabe.</li>
-              <li>Sicherheitshinweise, wo nötig (z.B. Kerzen, Kinderprodukte, Kosmetik, Elektronik). Für Kinderspielzeug gelten besondere Anforderungen an Kleinteile, Materialien und Kennzeichnung.</li>
+              <li>Sicherheitshinweise, wo nötig (z. B. Kerzen, Kinderprodukte, Kosmetik, Elektronik). Für Kinderspielzeug gelten besondere Anforderungen an Kleinteile, Materialien und Kennzeichnung.</li>
               <li>Preise inklusive aller Pflichtabgaben, in der Shopwährung.</li>
               <li>Verbinde Produkte mit dem zugehörigen Projekt – Käufer:innen sehen so, wie es entstanden ist.</li>
             </ul>

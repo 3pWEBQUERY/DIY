@@ -54,7 +54,8 @@ function collect(children: ReactNode, out: Opt[] = []) {
  * funktioniert in Formularen (verstecktes Input), per Tastatur bedienbar (WAI-ARIA Listbox).
  */
 export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
-  { children, value, defaultValue, onChange, name, disabled, className, id, placeholder, required, form, ...rest },
+  // autoComplete wird bewusst verworfen: ein eigenes Auswahlfeld (button + verstecktes Input) kann nicht automatisch ausgefüllt werden
+  { children, value, defaultValue, onChange, name, disabled, className, id, placeholder, required, form, autoComplete: _autoComplete, ...rest },
   ref,
 ) {
   const options = useMemo(() => collect(children), [children]);
@@ -70,7 +71,10 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
   const hidden = useRef<HTMLInputElement>(null);
   const typed = useRef({ q: "", t: 0 });
   const autoId = useId();
-  const listId = `${id ?? autoId}-list`;
+  const buttonId = id ?? autoId;
+  const listId = `${buttonId}-list`;
+  // Zugänglicher Name der Liste: das Feld-Label (<label for>), sonst aria-label des Feldes
+  const [listName, setListName] = useState<{ labelledBy?: string; label?: string }>({});
 
   useImperativeHandle(ref, () => hidden.current!, []);
 
@@ -123,8 +127,17 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
     }
   }
 
+  function nameList() {
+    const labels = Array.from(button.current?.labels ?? []);
+    const ids = labels.map((l) => l.id).filter(Boolean);
+    if (ids.length) return setListName({ labelledBy: ids.join(" ") });
+    const text = rest["aria-label"] ?? labels.map((l) => l.textContent?.trim()).filter(Boolean).join(" ");
+    setListName(text ? { label: text } : { labelledBy: buttonId });
+  }
+
   function openList() {
     if (disabled) return;
+    nameList();
     const i = Math.max(0, options.findIndex((o) => o.value === current));
     setActive(i);
     setOpen(true);
@@ -192,7 +205,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
     <>
       <button
         ref={button}
-        id={id}
+        id={buttonId}
         type="button"
         role="combobox"
         aria-haspopup="listbox"
@@ -232,7 +245,8 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(function Select(
             popover="manual"
             id={listId}
             role="listbox"
-            aria-labelledby={id}
+            aria-labelledby={listName.labelledBy}
+            aria-label={listName.label}
             tabIndex={-1}
             style={{ position: "fixed", inset: "auto", margin: 0, left: pos.left, width: pos.width, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}
             className="z-[120] max-h-[300px] overflow-y-auto rounded-2xl border border-line bg-card p-1.5 shadow-float animate-pop"

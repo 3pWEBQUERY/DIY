@@ -11,7 +11,7 @@ function go(router: ReturnType<typeof useRouter>, url: string) {
   else router.push(url);
 }
 
-/** „Jetzt bezahlen“ für eine offene Bestellung (z.B. die zweite von mehreren Shops). */
+/** „Jetzt bezahlen“ für eine offene Bestellung (z. B. die zweite von mehreren Shops). */
 export function ResumePaymentButton({ orderId, label = "Jetzt bezahlen", variant = "primary" }: { orderId: string; label?: string; variant?: "primary" | "outline" }) {
   const router = useRouter();
   const [pending, start] = useTransition();

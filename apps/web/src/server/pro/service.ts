@@ -21,7 +21,7 @@ import type { SessionUser } from "@/server/auth/session";
  *
  * Abrechnung über Stripe Billing (Checkout im Abo-Modus). Status kommt per Webhook
  * (customer.subscription.*) und zusätzlich beim Zurückkehren aus dem Checkout sowie täglich
- * im Worker. Die Administration kann Pro auch schenken (z.B. für Partner:innen).
+ * im Worker. Die Administration kann Pro auch schenken (z. B. für Partner:innen).
  */
 
 export const PRO_NAME = "Creator Pro";
@@ -76,7 +76,7 @@ export async function isPro(userId: string | null | undefined) {
   return (await getProStatus(userId)).active;
 }
 
-/** Pro-Status mehrerer Personen auf einmal (z.B. Shop-Inhaber:innen im Warenkorb). */
+/** Pro-Status mehrerer Personen auf einmal (z. B. Shop-Inhaber:innen im Warenkorb). */
 export async function proUserIds(userIds: string[]) {
   if (!userIds.length) return new Set<string>();
   const rows = await db.subscription.findMany({ where: { userId: { in: [...new Set(userIds)] } } });
@@ -88,7 +88,7 @@ export async function proPrices() {
   return { month, year, currency: "CHF" as const, yearSavingMinor: Math.max(0, month * 12 - year) };
 }
 
-/** Profil-Kennzeichen (isCreatorPro, z.B. für die App) mit dem Abo-Status abgleichen. */
+/** Profil-Kennzeichen (isCreatorPro, z. B. für die App) mit dem Abo-Status abgleichen. */
 async function syncProFlag(userId: string) {
   const s = await db.subscription.findUnique({ where: { userId } });
   await db.userProfile.updateMany({ where: { userId }, data: { isCreatorPro: isActiveSubscription(s) } });

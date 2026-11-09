@@ -116,7 +116,7 @@ export function CommunityEditButton({
             </Field>
           </div>
           <Field label="Region" optional error={fields.region}>
-            {(p) => <Input name="region" defaultValue={initial.region ?? ""} maxLength={80} placeholder="z.B. Zürich" {...p} />}
+            {(p) => <Input name="region" defaultValue={initial.region ?? ""} maxLength={80} placeholder="z. B. Zürich" {...p} />}
           </Field>
 
           <fieldset className="space-y-3">

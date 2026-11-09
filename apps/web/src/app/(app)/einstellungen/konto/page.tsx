@@ -60,7 +60,7 @@ export default async function AccountSettingsPage() {
               <li>Beiträge, Projekte, Anleitungen und Kommentare (nicht mehr sichtbar)</li>
               <li>Blogartikel (verborgen)</li>
               <li>Follower- und Folgebeziehungen</li>
-              <li>Alle Sitzungen und verknüpften Anmeldungen (z.B. Apple)</li>
+              <li>Alle Sitzungen und verknüpften Anmeldungen (z. B. Apple)</li>
               {a.hasShop && <li>Dein Shop wird gesperrt, Produkte werden deaktiviert</li>}
             </ul>
           </div>
@@ -75,7 +75,7 @@ export default async function AccountSettingsPage() {
             </ul>
           </div>
           <Notice tone="danger" className="sm:col-span-2" title="Endgültig">
-            Die Löschung kann nicht rückgängig gemacht werden. Dein Handle wird freigegeben. Lade vorher deinen Datenexport herunter, wenn du deine Projekte behalten möchtest.
+            Die Löschung kann nicht rückgängig gemacht werden. Dein Benutzername wird freigegeben. Lade vorher deinen Datenexport herunter, wenn du deine Projekte behalten möchtest.
           </Notice>
           <div className="sm:col-span-2">
             <DeleteAccountButton hasPassword={a.hasPassword} />

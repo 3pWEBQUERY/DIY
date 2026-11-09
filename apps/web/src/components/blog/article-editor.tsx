@@ -326,7 +326,7 @@ export function ArticleEditor({
               placeholder="Titel deines Artikels"
               aria-invalid={!!fieldErrors.title || undefined}
               aria-describedby={fieldErrors.title ? "title-err" : undefined}
-              className="display block w-full resize-none bg-transparent text-[2.5rem] text-ink outline-none placeholder:text-muted/40 field-sizing-content sm:text-[3.25rem]"
+              className="display block w-full resize-none bg-transparent text-[2.5rem] text-ink outline-none placeholder:text-muted field-sizing-content sm:text-[3.25rem]"
             />
             {fieldErrors.title && <p id="title-err" role="alert" className="mt-1 text-sm text-danger">{fieldErrors.title}</p>}
             <label htmlFor="article-dek" className="sr-only">Vorspann</label>
@@ -337,7 +337,7 @@ export function ArticleEditor({
               maxLength={400}
               onChange={(e) => touch(setDek)(e.target.value)}
               placeholder="Vorspann – zwei Sätze, die Lust aufs Weiterlesen machen."
-              className="mt-4 block w-full resize-none bg-transparent text-xl font-medium leading-snug text-ink-2 outline-none placeholder:text-muted/50 field-sizing-content"
+              className="mt-4 block w-full resize-none bg-transparent text-xl font-medium leading-snug text-ink-2 outline-none placeholder:text-muted field-sizing-content"
             />
             <div className="mt-1 flex justify-end"><Counter n={dek.length} max={400} warnAt={300} /></div>
             <div className="mt-6 border-t border-rule pt-8">

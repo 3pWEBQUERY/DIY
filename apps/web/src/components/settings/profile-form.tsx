@@ -140,13 +140,13 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <p className="mt-2 text-xs text-muted">Standortdaten (EXIF) werden beim Hochladen automatisch entfernt.</p>
       </SettingsSection>
 
-      <SettingsSection n="02" title="Name & Handle">
+      <SettingsSection n="02" title="Name & Benutzername">
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Anzeigename" error={fields.displayName}>
             {(p) => <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required maxLength={60} autoComplete="name" {...p} />}
           </Field>
           <Field
-            label="Handle"
+            label="Benutzername"
             error={fields.handle ?? (handleState.status === "error" ? handleState.reason : undefined)}
             hint={handleState.status === "ok" ? "Verfügbar. Dein alter Profillink leitet automatisch weiter." : "Kleinbuchstaben, Ziffern, Punkt und Unterstrich."}
           >
@@ -163,7 +163,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             )}
           </Field>
           <Field label="Pronomen" optional error={fields.pronouns}>
-            {(p) => <Input name="pronouns" defaultValue={profile.pronouns ?? ""} maxLength={30} placeholder="z.B. sie/ihr" {...p} />}
+            {(p) => <Input name="pronouns" defaultValue={profile.pronouns ?? ""} maxLength={30} placeholder="z. B. sie/ihr" {...p} />}
           </Field>
         </div>
       </SettingsSection>
@@ -174,7 +174,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             {(p) => <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} maxLength={500} {...p} />}
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Region" optional hint="z.B. Basel, Zürcher Oberland" error={fields.region}>
+            <Field label="Region" optional hint="z. B. Basel, Zürcher Oberland" error={fields.region}>
               {(p) => <Input name="region" defaultValue={profile.region ?? ""} maxLength={80} autoComplete="address-level2" {...p} />}
             </Field>
             <Field label="Land" error={fields.country}>

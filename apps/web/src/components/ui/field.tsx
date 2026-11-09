@@ -2,7 +2,7 @@ import { forwardRef, useId, type ComponentProps, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full bg-card border border-line-strong rounded-xl px-3 text-[15px] text-ink placeholder:text-muted/80 transition-colors hover:border-rule-strong focus:border-moss focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1 aria-[invalid=true]:border-danger disabled:bg-sunken disabled:text-muted";
+  "w-full bg-card border border-line-strong rounded-xl px-3 text-[15px] text-ink placeholder:text-muted transition-colors hover:border-rule-strong focus:border-moss focus:outline-none focus-visible:outline-2 focus-visible:outline-moss focus-visible:outline-offset-1 aria-[invalid=true]:border-danger disabled:bg-sunken disabled:text-muted";
 
 export const Input = forwardRef<HTMLInputElement, ComponentProps<"input">>(function Input({ className, ...p }, ref) {
   return <input ref={ref} className={cn(control, "h-11", className)} {...p} />;
@@ -53,7 +53,7 @@ export function Field({
   const errId = error ? `${id}-err` : undefined;
   return (
     <div className={className}>
-      <Label htmlFor={id}>
+      <Label htmlFor={id} id={`${id}-label`}>
         {label}
         {optional && <span className="ml-1.5 font-normal text-muted">optional</span>}
       </Label>

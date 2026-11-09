@@ -65,7 +65,7 @@ export async function updateProfile(user: U, input: unknown) {
     const avail = await isHandleAvailable(d.handle, user.id);
     if (!avail.ok) throw fail.invalid(avail.reason, { handle: avail.reason });
     await rateLimit(`handle-change:${user.id}`, 3, 30 * 86_400).catch(() => {
-      throw fail.invalid("Du kannst deinen Handle höchstens dreimal in 30 Tagen ändern.", { handle: "Limit erreicht" });
+      throw fail.invalid("Du kannst deinen Benutzernamen höchstens dreimal in 30 Tagen ändern.", { handle: "Limit erreicht" });
     });
   }
   const avatarUrl = d.avatarMediaId ? await readyImage(user.id, d.avatarMediaId, "md") : undefined;
@@ -254,7 +254,7 @@ export async function createSupportTicket(user: Pick<SessionUser, "id" | "email"
   await sendMail(
     user.email,
     `Wir haben deine Anfrage erhalten (#${ref})`,
-    `Hallo ${user.profile.displayName}\n\nDanke für deine Nachricht zum Thema „${SUPPORT_TOPIC_LABEL[d.topic]}“. Wir melden uns in der Regel innerhalb von zwei Werktagen per E-Mail.\n\nBetreff: ${d.subject}\nReferenz: #${ref}\n\nBei dringenden Sicherheitsproblemen (z.B. Betrugsversuch, Konto übernommen) ändere bitte sofort dein Passwort und beende alle Sitzungen in den Einstellungen.\n\nDein ${BRAND.name}-Team`,
+    `Hallo ${user.profile.displayName}\n\nDanke für deine Nachricht zum Thema „${SUPPORT_TOPIC_LABEL[d.topic]}“. Wir melden uns in der Regel innerhalb von zwei Werktagen per E-Mail.\n\nBetreff: ${d.subject}\nReferenz: #${ref}\n\nBei dringenden Sicherheitsproblemen (z. B. Betrugsversuch, Konto übernommen) ändere bitte sofort dein Passwort und beende alle Sitzungen in den Einstellungen.\n\nDein ${BRAND.name}-Team`,
     { eyebrow: "Support", heading: "Wir haben deine Anfrage erhalten", cta: { label: "Zur Hilfe", url: `${env().APP_URL}/hilfe` } },
   ).catch((e) => console.warn(JSON.stringify({ level: "warn", msg: "support_mail_failed", err: String(e) })));
   return { id: t.id, ref };

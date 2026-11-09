@@ -49,7 +49,7 @@ export function CustomerDetailsForm({ initial }: { initial: Details | null }) {
       </div>
       <Field label="Land" error={fields.country}>
         {(p) => (
-          <Select {...p} autoComplete="country" value={d.country} onChange={set("country")}>
+          <Select {...p} value={d.country} onChange={set("country")}>
             {SHIP_COUNTRIES.map((c) => (
               <option key={c} value={c}>
                 {COUNTRY_LABEL[c]}

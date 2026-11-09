@@ -19,9 +19,9 @@ const GROUPS: { id: string; title: string; items: Q[] }[] = [
     items: [
       { q: "Ab welchem Alter kann ich mitmachen?", a: <>Ab 18 Jahren. Die Plattform enthält Marktplatz und Direktnachrichten und ist deshalb für Erwachsene konzipiert.</> },
       { q: "Ich habe mein Passwort vergessen.", a: <>Unter <Link href="/passwort-vergessen">Passwort vergessen</Link> erhältst du einen Link, der 60 Minuten gültig ist. Danach werden aus Sicherheitsgründen alle Geräte abgemeldet.</> },
-      { q: "Kann ich meinen Handle ändern?", a: <>Ja, unter <Link href="/einstellungen/profil">Einstellungen → Profil</Link>, höchstens dreimal in 30 Tagen. Alte Profillinks leiten automatisch auf den neuen Handle weiter.</> },
+      { q: "Kann ich meinen Benutzernamen ändern?", a: <>Ja, unter <Link href="/einstellungen/profil">Einstellungen → Profil</Link>, höchstens dreimal in 30 Tagen. Alte Profillinks leiten automatisch auf den neuen Benutzernamen weiter.</> },
       { q: "Wie sehe ich, wo ich angemeldet bin?", a: <>Unter <Link href="/einstellungen/sicherheit">Einstellungen → Sicherheit</Link> siehst du alle aktiven Geräte und kannst einzelne oder alle anderen abmelden.</> },
-      { q: "Wie lösche ich mein Konto?", a: <>Unter <Link href="/einstellungen/konto">Einstellungen → Konto & Daten</Link>. Dort siehst du genau, was gelöscht wird und was aus gesetzlichen Gründen erhalten bleibt (z.B. Bestellbelege). Lade vorher deinen Datenexport herunter.</> },
+      { q: "Wie lösche ich mein Konto?", a: <>Unter <Link href="/einstellungen/konto">Einstellungen → Konto & Daten</Link>. Dort siehst du genau, was gelöscht wird und was aus gesetzlichen Gründen erhalten bleibt (z. B. Bestellbelege). Lade vorher deinen Datenexport herunter.</> },
     ],
   },
   {
@@ -59,7 +59,7 @@ const GROUPS: { id: string; title: string; items: Q[] }[] = [
     title: "Verkaufen",
     items: [
       { q: "Was kostet das Verkaufen?", a: <>Shop und Angebote sind kostenlos. Bei einem Verkauf fällt eine transparente Provision von derzeit 6 % auf den Warenwert an (ohne Versand), dazu die Gebühren des Zahlungsdienstleisters. Details und Rechenbeispiel in den <Link href="/richtlinien/marktplatz#gebuehren">Marktplatz-Richtlinien</Link>.</> },
-      { q: "Muss ich ein Gewerbe haben?", a: <>Nein. Du kannst privat oder gewerblich verkaufen und gibst das bei der Shop-Eröffnung an. Wer regelmässig mit Gewinnabsicht verkauft, gilt in der Regel als gewerblich – kläre im Zweifel deine Pflichten (z.B. MWST) mit einer Fachperson.</> },
+      { q: "Muss ich ein Gewerbe haben?", a: <>Nein. Du kannst privat oder gewerblich verkaufen und gibst das bei der Shop-Eröffnung an. Wer regelmässig mit Gewinnabsicht verkauft, gilt in der Regel als gewerblich – kläre im Zweifel deine Pflichten (z. B. MWST) mit einer Fachperson.</> },
       { q: "Wann erhalte ich mein Geld?", a: <>Nach erfolgreicher Verifizierung zahlt der Zahlungsdienstleister gemäss Auszahlungsplan auf dein Konto aus. Den Stand siehst du im Studio unter Einnahmen & Auszahlungen.</> },
       { q: "Warum wurde mein Shop noch nicht freigegeben?", a: <>Neue Shops prüfen wir manuell, damit der Marktplatz für echtes Handgemachtes bleibt. Das dauert in der Regel ein bis zwei Werktage.</> },
     ],

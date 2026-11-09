@@ -18,7 +18,7 @@ export function prefFor(prefs: Prefs | null | undefined, type: NotificationType)
 
 /**
  * Erzeugt oder bündelt eine Benachrichtigung. Gleiche ungelesene Ereignisse eines Ziels
- * (z.B. 12 Likes auf einem Projekt) werden zu einem Eintrag zusammengefasst.
+ * (z. B. 12 Likes auf einem Projekt) werden zu einem Eintrag zusammengefasst.
  */
 /** Zähler der Person live aktualisieren – kurz verzögert, damit eine laufende Transaktion zuerst committet. */
 function live(userId: string) {

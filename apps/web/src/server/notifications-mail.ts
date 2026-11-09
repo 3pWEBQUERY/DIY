@@ -116,7 +116,7 @@ async function mailBatch(pending: PendingMail[]) {
         unsubscribeUrl: optional ? unsubscribeUrl(list[0]!.recipientId) : undefined,
       });
       // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut; nach 48 Std. aufgeben
-      // (sonst Endlosschleife, z.B. solange die Absender-Domain nicht bestätigt ist)
+      // (sonst Endlosschleife, z. B. solange die Absender-Domain nicht bestätigt ist)
       const failed = "failed" in r && r.failed;
       const stale = list.filter((n) => n.createdAt.getTime() < Date.now() - 48 * 3600_000).map((n) => n.id);
       const done = failed ? stale : list.map((n) => n.id);

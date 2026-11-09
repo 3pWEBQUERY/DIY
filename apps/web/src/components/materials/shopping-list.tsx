@@ -2,7 +2,7 @@
 
 import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Combine, PackagePlus, Pencil, Printer, Trash2, X, Share2 } from "lucide-react";
 import type { ShoppingListView } from "@/server/materials/service";
@@ -49,6 +49,24 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
   const done = items.filter((i) => i.purchased || i.haveIt);
   const pct = items.length ? Math.round((done.length / items.length) * 100) : 0;
   const sharePath = token ? `/liste/${token}` : null;
+  const linkField = useRef<HTMLInputElement>(null);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(location.origin), []);
+
+  /** Link kopieren; klappt das nicht (keine Berechtigung, unsicherer Kontext), wird er zum manuellen Kopieren markiert. */
+  const copyLink = async (url: string, success: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast(success);
+    } catch {
+      // Kurz warten: Nach dem Aktivieren der Freigabe wird das Linkfeld erst gerendert
+      setTimeout(() => {
+        linkField.current?.focus();
+        linkField.current?.select();
+      }, 50);
+      toast("Kopieren nicht möglich – Link markiert. Kopiere ihn manuell.", "error");
+    }
+  };
 
   const patch = (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => {
     const prev = items;
@@ -94,9 +112,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
       if (r.ok) {
         setToken(r.data.shareToken);
         if (on && r.data.shareToken) {
-          const url = `${location.origin}/liste/${r.data.shareToken}`;
-          await navigator.clipboard?.writeText(url).catch(() => {});
-          toast("Freigabelink kopiert. Wer ihn hat, kann die Liste lesen – nicht bearbeiten.");
+          await copyLink(`${location.origin}/liste/${r.data.shareToken}`, "Freigabelink kopiert. Wer ihn hat, kann die Liste lesen – nicht bearbeiten.");
         } else toast(r.message ?? "Freigabe beendet.");
       } else toast(r.error, "error");
     });
@@ -169,8 +185,15 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
         {token && sharePath && (
           <div className="mt-4 flex flex-wrap items-center gap-3 border border-line bg-sunken px-3 py-2 text-[13px] print:hidden rounded-2xl">
             <span className="spec">Nur lesen</span>
-            <code className="min-w-0 flex-1 truncate font-mono text-[12px]">{sharePath}</code>
-            <button type="button" className="font-semibold underline underline-offset-2" onClick={() => navigator.clipboard?.writeText(`${location.origin}${sharePath}`).then(() => toast("Link kopiert."))}>Kopieren</button>
+            <input
+              ref={linkField}
+              readOnly
+              value={`${origin}${sharePath}`}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label="Freigabelink"
+              className="min-w-0 flex-1 truncate rounded-lg bg-transparent font-mono text-[12px] text-ink focus:outline-none focus-visible:outline-2 focus-visible:outline-moss"
+            />
+            <button type="button" className="font-semibold underline underline-offset-2" onClick={() => copyLink(`${location.origin}${sharePath}`, "Link kopiert.")}>Kopieren</button>
             <button type="button" className="text-muted hover:text-danger" onClick={() => share(false)}>Freigabe beenden</button>
           </div>
         )}

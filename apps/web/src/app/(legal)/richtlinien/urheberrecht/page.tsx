@@ -69,7 +69,7 @@ export default function CopyrightPage() {
         {
           id: "gegendarstellung",
           title: "Gegendarstellung",
-          body: <p>Wurde dein Inhalt entfernt und bist du überzeugt, dass du berechtigt bist (z.B. mit Lizenz oder als Urheber:in), nutze den Einspruchslink in der Benachrichtigung. Lege deine Belege bei. Bei widersprüchlichen Angaben können wir die Parteien auf den Rechtsweg verweisen.</p>,
+          body: <p>Wurde dein Inhalt entfernt und bist du überzeugt, dass du berechtigt bist (z. B. mit Lizenz oder als Urheber:in), nutze den Einspruchslink in der Benachrichtigung. Lege deine Belege bei. Bei widersprüchlichen Angaben können wir die Parteien auf den Rechtsweg verweisen.</p>,
         },
         {
           id: "missbrauch",

@@ -10,7 +10,7 @@ import { Field, Input, Textarea, Select } from "@/components/ui/field";
 
 type Variant = "primary" | "ink" | "outline" | "ghost" | "clay" | "danger";
 
-/** Direkte Aktion mit optionaler Bestätigung (z.B. Hervorheben, Freigeben). */
+/** Direkte Aktion mit optionaler Bestätigung (z. B. Hervorheben, Freigeben). */
 export function ActionButton({
   action,
   label,
@@ -89,7 +89,7 @@ export function ReasonButton({
 }) {
   const [open, setOpen] = useState(false);
   const { run, pending, fields } = useAction(action, { success, onSuccess: () => setOpen(false) });
-  // Feldfehler ohne eigenes Eingabefeld (z.B. „note“) nicht verschlucken
+  // Feldfehler ohne eigenes Eingabefeld (z. B. „note“) nicht verschlucken
   const known = ["reason", "publicNote", "days", "choice", "role", "_"];
   const other = Object.entries(fields).find(([k]) => !known.includes(k))?.[1];
   return (

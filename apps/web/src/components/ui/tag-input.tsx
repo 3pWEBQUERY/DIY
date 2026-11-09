@@ -107,7 +107,7 @@ export function TagInput({
             aria-invalid={invalid || undefined}
             enterKeyHint="enter"
             autoComplete="off"
-            className="h-7 w-full bg-transparent pl-1 pr-16 text-[14px] text-ink placeholder:text-muted/80 outline-none disabled:cursor-not-allowed"
+            className="h-7 w-full bg-transparent pl-1 pr-16 text-[14px] text-ink placeholder:text-muted outline-none disabled:cursor-not-allowed"
           />
           {draft.trim() && (
             <button

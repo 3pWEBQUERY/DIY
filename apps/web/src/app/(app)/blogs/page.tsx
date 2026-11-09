@@ -40,10 +40,10 @@ function CategoryNav({ categories, active }: { categories: { slug: string; name:
 
 function SearchBox({ q, rubrik }: { q?: string; rubrik?: string }) {
   return (
-    <Form role="search" action="/blogs" className="flex w-full max-w-sm items-center border-b border-rule">
+    <Form role="search" action="/blogs" className="flex w-full max-w-sm items-center border-b border-rule transition-colors focus-within:border-moss">
       <label htmlFor="blog-q" className="sr-only">Artikel durchsuchen</label>
       <Search size={16} className="text-muted" aria-hidden />
-      <input id="blog-q" name="q" type="search" defaultValue={q} placeholder="Artikel durchsuchen …" className="h-11 flex-1 bg-transparent px-3 text-[15px] outline-none" />
+      <input id="blog-q" name="q" type="search" defaultValue={q} placeholder="Artikel durchsuchen …" className="h-11 flex-1 rounded-lg bg-transparent px-3 text-[15px] focus:outline-none focus-visible:outline-2 focus-visible:outline-moss" />
       {rubrik && <input type="hidden" name="rubrik" value={rubrik} />}
       <button type="submit" className="text-sm font-semibold">Suchen</button>
     </Form>

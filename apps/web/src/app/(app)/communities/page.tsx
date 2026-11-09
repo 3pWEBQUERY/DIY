@@ -43,10 +43,10 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
         </>
       }
     >
-      <Form role="search" action="/communities" className="mt-8 flex max-w-xl items-center border-b border-rule">
+      <Form role="search" action="/communities" className="mt-8 flex max-w-xl items-center border-b border-rule transition-colors focus-within:border-moss">
         <label htmlFor="c-q" className="sr-only">Communities durchsuchen</label>
         <Search size={16} className="text-muted" aria-hidden />
-        <input id="c-q" name="q" type="search" defaultValue={sp.q} placeholder="Nach Thema, Ort oder Name suchen …" className="h-12 flex-1 bg-transparent px-3 text-[15px] outline-none" />
+        <input id="c-q" name="q" type="search" defaultValue={sp.q} placeholder="Nach Thema, Ort oder Name suchen …" className="h-12 flex-1 rounded-lg bg-transparent px-3 text-[15px] focus:outline-none focus-visible:outline-2 focus-visible:outline-moss" />
         {sp.kategorie && <input type="hidden" name="kategorie" value={sp.kategorie} />}
         <button type="submit" className="text-sm font-semibold">Suchen</button>
       </Form>

@@ -65,7 +65,7 @@ export default function CommunityGuidelinesPage() {
           title: "Gefährliche Inhalte",
           body: (
             <p>
-              Anleitungen mit erheblichem Verletzungsrisiko – etwa Arbeiten an Netzspannung, mit Chemikalien oder Hitze – brauchen klare Sicherheitshinweise. Anleitungen, die bewusst zu Gefährdungen anleiten (z.B. Waffen,
+              Anleitungen mit erheblichem Verletzungsrisiko – etwa Arbeiten an Netzspannung, mit Chemikalien oder Hitze – brauchen klare Sicherheitshinweise. Anleitungen, die bewusst zu Gefährdungen anleiten (z. B. Waffen,
               Sprengstoffe, Umgehung von Sicherheitseinrichtungen), sind verboten. Details: <Link href="/richtlinien/sicherheit">Sicherheit beim Selbermachen</Link>.
             </p>
           ),

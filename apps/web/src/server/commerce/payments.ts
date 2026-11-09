@@ -108,7 +108,7 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
           await tx.digitalEntitlement.upsert({
             where: { userId_productId: { userId: order.buyerId, productId: it.productId } },
             create: { userId: order.buyerId, productId: it.productId, orderItemId: it.id },
-            // Wiederkauf (z.B. nach Erstattung): Lizenz an die neue Bestellung binden und Downloads neu zählen,
+            // Wiederkauf (z. B. nach Erstattung): Lizenz an die neue Bestellung binden und Downloads neu zählen,
             // sonst fehlt der Download in der neuen Bestellung und eine spätere Erstattung widerriefe nichts
             update: { revokedAt: null, orderItemId: it.id, downloadCount: 0 },
           });
@@ -557,5 +557,5 @@ export async function processStripeWebhook(event: Stripe.Event): Promise<{ statu
   }
 }
 
-/** Transaktions-Helfer für andere Module (z.B. Bestellverwaltung). */
+/** Transaktions-Helfer für andere Module (z. B. Bestellverwaltung). */
 export type { Tx };

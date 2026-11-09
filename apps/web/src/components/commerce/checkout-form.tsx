@@ -92,7 +92,7 @@ export function CheckoutForm({
   const countrySelect = (value: string, onChange: (e: { target: { value: string } }) => void, error?: string, hint?: string) => (
     <Field label="Land" error={error} hint={hint}>
       {(p) => (
-        <Select {...p} autoComplete="country" value={value} onChange={onChange}>
+        <Select {...p} value={value} onChange={onChange}>
           {SHIP_COUNTRIES.map((c) => (
             <option key={c} value={c}>
               {COUNTRY_LABEL[c]}
@@ -203,7 +203,7 @@ export function CheckoutForm({
         </fieldset>
       )}
 
-      <Field label="Nachricht an den Shop" optional hint="Z.B. Wunschfarbe oder Liefertermin. Der Shop sieht sie mit deiner Bestellung.">
+      <Field label="Nachricht an den Shop" optional hint="Z. B. Wunschfarbe oder Liefertermin. Der Shop sieht sie mit deiner Bestellung.">
         {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={3} />}
       </Field>
 

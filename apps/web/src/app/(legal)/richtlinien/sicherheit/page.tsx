@@ -62,7 +62,7 @@ export default function SafetyGuidelinesPage() {
           body: (
             <ul>
               <li>Sicherheitsdatenblätter und Gefahrensymbole (GHS) beachten – bei Harzen, Lacken, Lösungsmitteln, Beizen, Färbemitteln, Seifenlauge.</li>
-              <li>Nur gut belüftet arbeiten, bei Bedarf mit Atemschutz (z.B. FFP2/FFP3 bei Schleifstaub, A2-Filter bei Lösemitteldämpfen).</li>
+              <li>Nur gut belüftet arbeiten, bei Bedarf mit Atemschutz (z. B. FFP2/FFP3 bei Schleifstaub, A2-Filter bei Lösemitteldämpfen).</li>
               <li>Nie unbekannte Stoffe mischen. Reste fachgerecht entsorgen, nicht in den Abfluss.</li>
               <li>Holzstaub (v.a. Hartholz) kann gesundheitsschädlich sein – Absaugung nutzen.</li>
             </ul>

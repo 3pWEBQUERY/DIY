@@ -56,9 +56,13 @@ function RecoveryCodes({ codes, email, onDone }: { codes: string[]; email: strin
           variant="outline"
           size="sm"
           onClick={async () => {
-            await navigator.clipboard.writeText(codes.join("\n"));
-            setCopied(true);
-            toast("Codes kopiert.");
+            try {
+              await navigator.clipboard.writeText(codes.join("\n"));
+              setCopied(true);
+              toast("Codes kopiert.");
+            } catch {
+              toast("Kopieren nicht möglich – lade die Codes herunter oder schreib sie ab.", "error");
+            }
           }}
         >
           {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />} Kopieren

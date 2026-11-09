@@ -383,7 +383,7 @@ const SHOP_FIELD_LABEL: Record<string, string> = {
   processingDays: "Bearbeitungszeit",
 };
 
-/** Stammdaten eines Shops korrigieren (z.B. irreführende Angaben). Slug bleibt stabil. */
+/** Stammdaten eines Shops korrigieren (z. B. irreführende Angaben). Slug bleibt stabil. */
 export async function updateShopAdmin(actor: Actor, shopId: string, input: unknown) {
   mod(actor);
   const data = shopEditSchema.parse(input);
@@ -482,7 +482,7 @@ export async function updateProductAdmin(actor: Actor, productId: string, input:
   let priceMinor = p.priceMinor;
   if (price) {
     const parsed = parseMoneyInput(price);
-    if (parsed == null) throw fail.invalid("Bitte einen gültigen Betrag angeben (z.B. 24.50).", { price: "Ungültiger Betrag" });
+    if (parsed == null) throw fail.invalid("Bitte einen gültigen Betrag angeben (z. B. 24.50).", { price: "Ungültiger Betrag" });
     if (parsed !== p.priceMinor) {
       if (!hasRole(actor, "ADMIN")) throw fail.forbidden("Preise ändert nur die Administration.");
       if (parsed < 100 || parsed > 5_000_000) throw fail.invalid("Der Preis muss zwischen 1.00 und 50'000.00 liegen.", { price: "Ausserhalb des erlaubten Bereichs" });
