@@ -48,7 +48,9 @@ export default defineRailway((ctx) => {
 
   const worker = service("worker", {
     source,
-    start: "pnpm worker",
+    // Direkt mit node (exec, ohne pnpm dazwischen): SIGTERM beim Neustart erreicht den Worker,
+    // der sauber herunterfährt – sonst meldet pnpm bei jedem Deploy „ELIFECYCLE Command failed“
+    start: "sh -c 'cd apps/web && exec node --conditions=react-server --import tsx src/worker/index.ts'",
     env: {
       NODE_ENV: "production",
       DATABASE_URL: db.env.DATABASE_URL,

@@ -72,8 +72,13 @@ export async function recordPayout(accountId: string, p: ProviderPayout) {
 }
 
 async function savePayout(shop: { id: string; ownerId: string }, p: ProviderPayout) {
-  const prev = await db.payoutRecord.findUnique({ where: { providerRef: p.id }, select: { notified: true, automatic: true } });
+  const prev = await db.payoutRecord.findUnique({ where: { providerRef: p.id }, select: { notified: true, automatic: true, status: true } });
   const automatic = prev?.automatic ?? p.automatic ?? true;
+  // Webhooks kommen nicht zwingend in Reihenfolge: ein Endzustand (gutgeschrieben, fehlgeschlagen,
+  // storniert) wird nie durch ein verspätetes „unterwegs“ überschrieben
+  const FINAL = ["paid", "failed", "canceled"];
+  const stale = !!prev && FINAL.includes(prev.status) && !FINAL.includes(p.status);
+  if (stale) return db.payoutRecord.findUniqueOrThrow({ where: { providerRef: p.id } });
   const data = {
     amountMinor: p.amount,
     currency: p.currency.toUpperCase(),
@@ -86,7 +91,10 @@ async function savePayout(shop: { id: string; ownerId: string }, p: ProviderPayo
   const notified = new Set(prev?.notified ?? []);
   const key = p.status === "pending" ? "in_transit" : p.status;
   const worth = key === "paid" || key === "failed" || key === "canceled" || (key === "in_transit" && automatic && !notified.has("paid"));
-  if (worth && !notified.has(key)) {
+  // Meldung „beanspruchen“, bevor sie rausgeht: laufen Webhook und Abgleich gleichzeitig,
+  // gewinnt nur einer (bedingtes Update) – keine doppelte Benachrichtigung
+  const claimed = worth && !notified.has(key) ? (await db.payoutRecord.updateMany({ where: { id: rec.id, NOT: { notified: { has: key } } }, data: { notified: { push: key } } })).count === 1 : false;
+  if (claimed) {
     const amount = formatMoney(p.amount, data.currency as Currency);
     await notify({
       recipientId: shop.ownerId,
@@ -102,7 +110,6 @@ async function savePayout(shop: { id: string; ownerId: string }, p: ProviderPayo
         href: "/studio/einnahmen#auszahlungen",
       },
     }).catch(() => {});
-    await db.payoutRecord.update({ where: { id: rec.id }, data: { notified: { push: key } } });
   }
   return rec;
 }

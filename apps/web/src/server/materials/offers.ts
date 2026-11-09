@@ -73,12 +73,28 @@ export async function listOffers(materialId: string, unit: string) {
 }
 export type MaterialOfferView = Awaited<ReturnType<typeof listOffers>>[number];
 
-/** Günstigstes Angebot je Material (für Listenansichten). */
+export type CheapestOffer = { priceMinor: number; currency: string; retailer: string; perUnit: { minor: number; label: string } | null };
+
+/**
+ * Günstigstes Angebot je Material (für Listenansichten) – nach derselben Regel wie die
+ * Materialseite: Preis je Einheit zuerst (nur innerhalb einer Währung vergleichbar, CHF bevorzugt),
+ * ohne Packungsgrösse nach Gesamtpreis.
+ */
 export async function cheapestOffers(materialIds: string[]) {
-  if (!materialIds.length) return new Map<string, { priceMinor: number; currency: string; retailer: string }>();
-  const rows = await db.materialOffer.findMany({ where: { materialId: { in: materialIds }, active: true }, orderBy: { priceMinor: "asc" }, select: { materialId: true, priceMinor: true, currency: true, retailer: true } });
-  const map = new Map<string, { priceMinor: number; currency: string; retailer: string }>();
-  for (const r of rows) if (!map.has(r.materialId)) map.set(r.materialId, r);
+  const map = new Map<string, CheapestOffer>();
+  if (!materialIds.length) return map;
+  const rows = await db.materialOffer.findMany({ where: { materialId: { in: materialIds }, active: true }, select: { materialId: true, priceMinor: true, currency: true, retailer: true, packAmount: true, material: { select: { unit: true } } } });
+  const better = (a: CheapestOffer, b: CheapestOffer) => {
+    if (a.currency !== b.currency) return a.currency === "CHF";
+    if (a.perUnit && b.perUnit) return a.perUnit.minor < b.perUnit.minor;
+    if (a.perUnit || b.perUnit) return !!a.perUnit;
+    return a.priceMinor < b.priceMinor;
+  };
+  for (const r of rows) {
+    const o: CheapestOffer = { priceMinor: r.priceMinor, currency: r.currency, retailer: r.retailer, perUnit: unitPrice(r.priceMinor, r.packAmount, r.material.unit) };
+    const cur = map.get(r.materialId);
+    if (!cur || better(o, cur)) map.set(r.materialId, o);
+  }
   return map;
 }
 

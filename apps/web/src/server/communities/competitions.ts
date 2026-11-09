@@ -183,6 +183,9 @@ export async function voteEntry(user: SessionUser, entryId: string, on: boolean)
   if (entry.userId === user.id) throw fail.invalid("Für die eigene Einreichung kannst du nicht stimmen.");
   await rateLimit(`challenge-vote:${user.id}`, 120, 3600);
   return db.$transaction(async (tx) => {
+    // Gleichzeitige Stimmen derselben Person in diesem Wettbewerb nacheinander abarbeiten,
+    // sonst sähen parallele Anfragen alle „noch Stimmen frei“ (Limit umgangen)
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`challenge-vote:${ch.id}:${user.id}`}))`;
     const has = await tx.challengeVote.findUnique({ where: { entryId_userId: { entryId, userId: user.id } } });
     if (on && !has) {
       const used = await tx.challengeVote.count({ where: { challengeId: ch.id, userId: user.id } });
@@ -212,11 +215,15 @@ export async function removeEntry(user: SessionUser, entryId: string) {
   if (!e) throw fail.notFound();
   const ch = await requireCompetitionMod(user, e.challengeId);
   if (competitionPhase(ch) === "ended") throw fail.invalid("Nach dem Ergebnis können keine Einreichungen mehr entfernt werden.");
-  await db.$transaction([
-    db.challengeVote.deleteMany({ where: { entryId } }),
-    db.challengeEntry.update({ where: { id: entryId }, data: { state: "REMOVED", voteCount: 0, place: null } }),
-    db.communityChallenge.update({ where: { id: e.challengeId }, data: { entryCount: { decrement: 1 } } }),
-  ]);
+  // Bedingt umstellen: ein zweiter (gleichzeitiger) Aufruf zählt nicht erneut herunter und meldet nichts
+  const changed = await db.$transaction(async (tx) => {
+    const r = await tx.challengeEntry.updateMany({ where: { id: entryId, state: "ACTIVE" }, data: { state: "REMOVED", voteCount: 0, place: null } });
+    if (!r.count) return false;
+    await tx.challengeVote.deleteMany({ where: { entryId } });
+    await tx.communityChallenge.update({ where: { id: e.challengeId }, data: { entryCount: { decrement: 1 } } });
+    return true;
+  });
+  if (!changed) return { removed: true };
   await notify({ recipientId: e.userId, type: "PROJECT_ACTIVITY", bundle: false, data: { kind: "COMPETITION", message: `Deine Einreichung beim Wettbewerb „${ch.title}“ wurde von der Moderation entfernt.`, href: `/c/${ch.community.slug}/wettbewerbe/${ch.id}` } }).catch(() => {});
   return { removed: true };
 }
@@ -260,7 +267,8 @@ async function announceResults(challengeId: string) {
 
 /** Abstimmung auswerten: Platz 1–3 nach Stimmen (Gleichstand: frühere Einreichung zuerst). */
 export async function finalizeVotes(challengeId: string) {
-  const top = await db.challengeEntry.findMany({ where: { challengeId, state: "ACTIVE", voteCount: { gt: 0 } }, orderBy: [{ voteCount: "desc" }, { createdAt: "asc" }], take: 3, select: { id: true } });
+  // Nur Einreichungen, deren Projekt noch veröffentlicht und öffentlich ist (sonst leerer Siegerplatz)
+  const top = await db.challengeEntry.findMany({ where: { challengeId, state: "ACTIVE", voteCount: { gt: 0 }, project: { state: "PUBLISHED", visibility: "PUBLIC" } }, orderBy: [{ voteCount: "desc" }, { createdAt: "asc" }], take: 3, select: { id: true } });
   await db.$transaction([
     db.challengeEntry.updateMany({ where: { challengeId }, data: { place: null } }),
     ...top.map((e, i) => db.challengeEntry.update({ where: { id: e.id }, data: { place: i + 1 } })),
@@ -303,8 +311,18 @@ async function announceStart(now: Date) {
 export async function runCompetitionPhases(now = new Date()) {
   await announceStart(now);
   const due = await db.communityChallenge.findMany({
-    where: { endsAt: { lte: now }, OR: [{ resultsAt: null }, { NOT: { notified: { has: "results" } } }] },
+    // Nur mit offener Arbeit: Jury-Wettbewerbe ohne Ergebnis, die schon gemeldet sind, warten auf die
+    // Jury und dürfen die Liste nicht füllen (sonst würden neue Abstimmungen nie ausgewertet)
+    where: {
+      endsAt: { lte: now },
+      OR: [
+        { resultsAt: null, judging: "VOTES" },
+        { resultsAt: null, judging: "JURY", NOT: { notified: { has: "jury" } } },
+        { resultsAt: { not: null }, NOT: { notified: { has: "results" } } },
+      ],
+    },
     include: { community: { select: { slug: true, id: true } } },
+    orderBy: { endsAt: "asc" },
     take: 100,
   });
   for (const ch of due) {

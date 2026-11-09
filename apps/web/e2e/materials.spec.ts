@@ -91,10 +91,12 @@ test.describe.serial("Materialien", () => {
     }
   });
 
-  test("Materialliste verlinkt Detailseite, zeigt Preis „ab“", async ({ page }) => {
+  test("Materialliste verlinkt Detailseite, zeigt Preis „ab“ je Einheit", async ({ page }) => {
     await page.goto("/materialien?q=merino");
     const row = page.locator("tr", { has: page.getByRole("link", { name: "Merinowolle" }) });
-    await expect(row).toContainText(/4[.,]90/);
+    // Wie auf der Materialseite: günstigster Preis je Einheit (12.90 je 100 g), nicht der kleinste Packungspreis (4.90 für 25 g)
+    await expect(row).toContainText(/12[.,]90/);
+    await expect(row).toContainText("je 100 g");
     await row.getByRole("link", { name: "Merinowolle" }).click();
     await expect(page).toHaveURL(/\/materialien\/merinowolle$/);
   });

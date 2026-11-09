@@ -19,7 +19,7 @@ Beide App-Services nutzen dasselbe `Dockerfile`. Unterschied ist nur der Start-B
 | Service | Config | Start | Pre-Deploy |
 |---|---|---|---|
 | `web` | `.railway/railway.ts` | `pnpm start` | `pnpm predeploy` (Migration + Seed) |
-| `worker` | `.railway/railway.ts` | `pnpm worker` | – |
+| `worker` | `.railway/railway.ts` | `sh -c 'cd apps/web && exec node --conditions=react-server --import tsx src/worker/index.ts'` (lokal: `pnpm worker`) | – |
 
 ## Umgebungsvariablen
 

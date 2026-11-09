@@ -122,7 +122,22 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
                       </td>
                       <td className="py-3 pr-4 font-mono text-[12px]">{m.unit}</td>
                       <td className="whitespace-nowrap py-3 pr-4 text-right num">
-                        {prices.get(m.id) ? <Link href={`/materialien/${m.slug}#h-kaufen`} className="hover:underline" title={`günstigster Preis: ${prices.get(m.id)!.retailer}`}>{formatMoney(prices.get(m.id)!.priceMinor, prices.get(m.id)!.currency as Currency)}</Link> : <span className="text-muted">–</span>}
+                        {(() => {
+                          const o = prices.get(m.id);
+                          if (!o) return <span className="text-muted">–</span>;
+                          return (
+                            <Link href={`/materialien/${m.slug}#h-kaufen`} className="hover:underline" title={`günstigstes Angebot: ${o.retailer}`}>
+                              {o.perUnit ? (
+                                <>
+                                  {formatMoney(o.perUnit.minor, o.currency as Currency)}
+                                  <span className="block text-[11px] text-muted">je {o.perUnit.label}</span>
+                                </>
+                              ) : (
+                                formatMoney(o.priceMinor, o.currency as Currency)
+                              )}
+                            </Link>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 pr-4 text-right num">
                         {m.usedIn > 0 ? <Link href={`/materialien/${m.slug}#h-projekte`} className="hover:underline">{m.usedIn}</Link> : <span className="text-muted">0</span>}
