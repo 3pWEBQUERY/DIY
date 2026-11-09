@@ -156,7 +156,7 @@ export async function suspendUser(actor: Actor, userId: string, input: { days: n
         bundle: false,
         data: {
           kind: "ACCOUNT",
-          message: until ? `Dein Konto ist bis ${until.toLocaleDateString("de-CH")} gesperrt.` : "Dein Konto ist bis auf Weiteres gesperrt.",
+          message: until ? `Dein Konto ist bis ${until.toLocaleDateString("de-CH", { timeZone: "Europe/Zurich" })} gesperrt.` : "Dein Konto ist bis auf Weiteres gesperrt.",
           publicNote: data.publicNote,
           href: "/einstellungen/hilfe-support",
         },

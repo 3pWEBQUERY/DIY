@@ -3,6 +3,7 @@ import { PenSquare, ShieldAlert, UsersRound } from "lucide-react";
 import type { ConversationListItem, InboxBox } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
+import { zurichDayKey } from "@/lib/tz";
 import { InboxLive } from "./inbox-live";
 
 export const BOX_PARAM: Record<InboxBox, string | null> = { inbox: null, requests: "anfragen", archived: "archiv" };
@@ -13,12 +14,12 @@ export function boxFromParam(p?: string): InboxBox {
 function stamp(iso: string) {
   const d = new Date(iso);
   const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+  const sameDay = zurichDayKey(d) === zurichDayKey(now);
+  if (sameDay) return d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" });
   const diff = (now.getTime() - d.getTime()) / 86400_000;
-  if (diff < 2 && new Date(now.getTime() - 86400_000).toDateString() === d.toDateString()) return "Gestern";
-  if (diff < 7) return d.toLocaleDateString("de-CH", { weekday: "short" });
-  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: diff > 300 ? "2-digit" : undefined });
+  if (diff < 2 && zurichDayKey(new Date(now.getTime() - 86400_000)) === zurichDayKey(d)) return "Gestern";
+  if (diff < 7) return d.toLocaleDateString("de-CH", { weekday: "short", timeZone: "Europe/Zurich" });
+  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: diff > 300 ? "2-digit" : undefined, timeZone: "Europe/Zurich" });
 }
 
 /** Zwei überlappende Profilbilder als Gruppenbild. */

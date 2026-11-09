@@ -16,9 +16,20 @@ export class AppError extends Error {
     public code: ErrorCode,
     message: string,
     public fields?: Record<string, string>,
+    /** Abweichender HTTP-Status (z. B. 400 für unlesbare Anfragen statt 422) */
+    public status?: number,
   ) {
     super(message);
   }
+}
+
+/** HTTP-Status eines Fehlers für Route-Handler (berücksichtigt AppError.status). */
+export function httpStatus(e: unknown, code: ErrorCode) {
+  return e instanceof AppError && e.status ? e.status : STATUS[code];
+}
+
+function isPrismaNotFound(e: unknown) {
+  return !!e && typeof e === "object" && (e as { name?: unknown }).name === "PrismaClientKnownRequestError" && (e as { code?: unknown }).code === "P2025";
 }
 
 export type ActionResult<T = undefined> =
@@ -68,6 +79,8 @@ export function toResult(e: unknown, ctx?: { path?: string; method?: string }): 
     const fields = zodFields(e);
     return { ok: false, code: "VALIDATION", error: Object.values(fields)[0] ?? "Ungültige Eingabe", fields };
   }
+  // Datensatz existiert (nicht mehr): z. B. findUniqueOrThrow/update mit unbekannter ID → 404 statt 500
+  if (isPrismaNotFound(e)) return { ok: false, code: "NOT_FOUND", error: "Nicht gefunden." };
   // Postgres lehnt Nullbytes/ungültige Kodierung ab – das ist eine fehlerhafte Eingabe, kein Serverfehler
   if (e instanceof Error && /invalid byte sequence for encoding|22021|22P05/.test(e.message)) {
     return { ok: false, code: "VALIDATION", error: "Die Anfrage enthält ungültige Zeichen." };
@@ -102,6 +115,8 @@ export const fail = {
   notFound: (m = "Nicht gefunden.") => new AppError("NOT_FOUND", m),
   conflict: (m: string) => new AppError("CONFLICT", m),
   invalid: (m: string, fields?: Record<string, string>) => new AppError("VALIDATION", m, fields),
+  /** Unlesbare Anfrage (kaputtes JSON, manipulierter Cursor/Token) → HTTP 400 */
+  badRequest: (m: string) => new AppError("VALIDATION", m, undefined, 400),
   rate: () => new AppError("RATE_LIMITED", "Zu viele Anfragen. Bitte warte einen Moment."),
   unavailable: (m: string) => new AppError("UNAVAILABLE", m),
 };

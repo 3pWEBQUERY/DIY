@@ -14,7 +14,8 @@ import { shopSlugSchema } from "@werkraum/shared";
 import { browseCategories, categoryOptions } from "@/server/categories/settings";
 import { getSetting } from "@/server/settings";
 import { getCustomerDetails, saveCustomerDetails } from "@/server/account/customer";
-import { DELETE, GET, PATCH, POST, PUT, int, me, need, str, viewer, viewerId, type RouteDef } from "../router";
+import { z } from "zod";
+import { DELETE, GET, PATCH, POST, PUT, me, need, str, takeParam, viewer, viewerId, zBool, zStr, type RouteDef } from "../router";
 
 /** Marktplatz, Warenkorb, Kasse, Bestellungen, Shop & Verkauf (PRD §13, §20.3). */
 
@@ -59,7 +60,7 @@ export const commerceRoutes: RouteDef[] = [
     if (str(c.q, "projectId")) Object.assign(filters, { projectId: str(c.q, "projectId") });
     if (str(c.q, "tutorialId")) Object.assign(filters, { tutorialId: str(c.q, "tutorialId") });
     const u = await viewer();
-    return products.listProducts(filters, str(c.q, "cursor") ?? null, { viewerId: u?.id, take: int(c.q, "take") ?? 24 });
+    return products.listProducts(filters, str(c.q, "cursor") ?? null, { viewerId: u?.id, take: takeParam(c.q, "take", 24) });
   }),
   GET("/market/home", async () => {
     const vid = await viewerId();
@@ -70,7 +71,7 @@ export const commerceRoutes: RouteDef[] = [
     ]);
     return { products: latest.items, nextCursor: latest.nextCursor, shops: shopList, categories, payments: { mode: paymentsMode(), feeBps: await getSetting("commerce.feeBps") } };
   }),
-  GET("/market/shops", async (c) => shops.listShops({ take: int(c.q, "take") ?? 24, viewerId: await viewerId(), category: str(c.q, "category") })),
+  GET("/market/shops", async (c) => shops.listShops({ take: takeParam(c.q, "take", 24), viewerId: await viewerId(), category: str(c.q, "category") })),
   GET("/market/shops/:slug", async (c) => {
     const vid = await viewerId();
     const s = need(await shops.getPublicShop(c.p.slug!, vid), "Shop nicht gefunden.");
@@ -100,7 +101,7 @@ export const commerceRoutes: RouteDef[] = [
   }),
   POST("/cart/items", async (c) => cart.addToCart(await me(), await c.json())),
   PATCH("/cart/items/:id", async (c) => {
-    const { quantity } = await c.json<{ quantity?: number }>();
+    const { quantity } = await c.body({ quantity: z.unknown() });
     return cart.updateCartItem(await me(), { itemId: c.p.id!, quantity });
   }),
   DELETE("/cart/items/:id", async (c) => {
@@ -126,20 +127,20 @@ export const commerceRoutes: RouteDef[] = [
     return { ok: true };
   }),
   POST("/orders/:id/simulate", async (c) => {
-    const { outcome } = await c.json<{ outcome?: "success" | "failure" }>();
+    const { outcome } = await c.body({ outcome: z.enum(["success", "failure"]).optional() });
     return checkout.simulatePayment(await me(), c.p.id!, outcome === "failure" ? "failure" : "success");
   }),
 
   // ── Bestellungen (Käufer) ──
-  GET("/orders", async (c) => orders.listBuyerOrders((await me()).id, str(c.q, "cursor") ?? null, int(c.q, "take") ?? 20)),
+  GET("/orders", async (c) => orders.listBuyerOrders((await me()).id, str(c.q, "cursor") ?? null, takeParam(c.q, "take", 20))),
   GET("/orders/:id", async (c) => {
     const u = await me();
     const [order, payable] = await Promise.all([orders.getBuyerOrder(u.id, c.p.id!), checkout.payableOrders(u.id)]);
     return { order: need(order, "Bestellung nicht gefunden."), canPay: payable.some((o) => o.id === c.p.id) };
   }),
-  GET("/orders/:id/receipt", async (c) => orders.getReceipt(await me(), c.p.id!)),
+  GET("/orders/:id/receipt", async (c) => need(await orders.getReceipt(await me(), c.p.id!), "Beleg nicht gefunden.")),
   POST("/orders/:id/problem", async (c) => {
-    const { note } = await c.json<{ note?: string }>();
+    const { note } = await c.body({ note: zStr });
     await orders.reportProblem(await me(), c.p.id!, { note });
     return { message: "Danke. Der Shop wurde informiert – ihr findet gemeinsam eine Lösung." };
   }),
@@ -159,12 +160,12 @@ export const commerceRoutes: RouteDef[] = [
     return { shop, feeBps, payments: paymentsMode(), emailVerified: !!u.emailVerifiedAt };
   }),
   PUT("/studio/shop", async (c) => {
-    const { input, submit } = await c.json<{ input: unknown; submit?: boolean }>();
+    const { input, submit } = await c.body({ input: z.unknown(), submit: zBool });
     const s = await shops.saveShop(await me(), input, { submit: !!submit });
     return { status: s.status, slug: s.slug };
   }),
   POST("/studio/shop/slug-check", async (c) => {
-    const { slug } = await c.json<{ slug?: string }>();
+    const { slug } = await c.body({ slug: z.string().max(200).optional() });
     const parsed = shopSlugSchema.safeParse(slug ?? "");
     if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Ungültig" };
     const mine = await shops.getMyShop((await me()).id);
@@ -187,7 +188,7 @@ export const commerceRoutes: RouteDef[] = [
     return { message: "Testmodus: Shop verifiziert und aktiv." };
   }),
   POST("/studio/shop/paused", async (c) => {
-    const { paused } = await c.json<{ paused?: boolean }>();
+    const { paused } = await c.body({ paused: zBool });
     await shops.setShopPaused(await me(), !!paused);
     return { ok: true };
   }),
@@ -217,19 +218,20 @@ export const commerceRoutes: RouteDef[] = [
       id ? products.getProductForEdit(u, id) : Promise.resolve(null),
     ]);
     if (!shop) throw fail.forbidden("Eröffne zuerst deinen Shop im Werkuno Studio.");
+    if (id && !product) throw fail.notFound("Produkt nicht gefunden.");
     return { shop: { id: shop.id, slug: shop.slug, status: shop.status, name: shop.name }, links, feeBps, digitalEnabled, categories, product };
   }),
   POST("/studio/products", async (c) => {
-    const { input, extra } = await c.json<{ input: unknown; extra?: unknown }>();
+    const { input, extra } = await c.body({ input: z.unknown(), extra: z.unknown() });
     return products.upsertProduct(await me(), null, input, extra ?? {});
   }),
   PUT("/studio/products/:id", async (c) => {
-    const { input, extra } = await c.json<{ input: unknown; extra?: unknown }>();
+    const { input, extra } = await c.body({ input: z.unknown(), extra: z.unknown() });
     return products.upsertProduct(await me(), c.p.id!, input, extra ?? {});
   }),
   POST("/studio/products/:id/status", async (c) => {
-    const { status } = await c.json<{ status?: "ACTIVE" | "PAUSED" | "DRAFT" }>();
-    if (!status || !["ACTIVE", "PAUSED", "DRAFT"].includes(status)) throw fail.invalid("Ungültiger Status.");
+    const { status } = await c.body({ status: z.string().optional() });
+    if (status !== "ACTIVE" && status !== "PAUSED" && status !== "DRAFT") throw fail.invalid("Ungültiger Status.");
     const p = await products.setProductStatus(await me(), c.p.id!, status);
     return { status: p.status };
   }),
@@ -242,12 +244,12 @@ export const commerceRoutes: RouteDef[] = [
   GET("/studio/orders", async (c) => {
     const u = await me();
     const shop = need(await shops.getMyShop(u.id), "Kein Shop vorhanden.");
-    const [list, counts] = await Promise.all([orders.listShopOrders(u, str(c.q, "tab"), str(c.q, "cursor") ?? null, int(c.q, "take") ?? 30), orders.sellerOrderCounts(shop.id)]);
+    const [list, counts] = await Promise.all([orders.listShopOrders(u, str(c.q, "tab"), str(c.q, "cursor") ?? null, takeParam(c.q, "take", 30)), orders.sellerOrderCounts(shop.id)]);
     return { ...(list as object), counts };
   }),
   GET("/studio/orders/:id", async (c) => need(await orders.getSellerOrder(await me(), c.p.id!), "Bestellung nicht gefunden.")),
   POST("/studio/orders/:id/transition", async (c) => {
-    const { to, note } = await c.json<{ to?: string; note?: string }>();
+    const { to, note } = await c.body({ to: z.string().max(40).optional(), note: zStr });
     if (!to) throw fail.invalid("Zielstatus fehlt.");
     await orders.transitionOrder(await me(), c.p.id!, to as never, note ?? "");
     return { message: "Status aktualisiert. Die Käuferin bzw. der Käufer wurde informiert." };
@@ -261,7 +263,7 @@ export const commerceRoutes: RouteDef[] = [
     return { message: "Erstattung ausgelöst. Sie erscheint als bestätigt, sobald der Zahlungsanbieter sie verbucht hat." };
   }),
   POST("/studio/orders/:id/cancel", async (c) => {
-    const { reason } = await c.json<{ reason?: string }>();
+    const { reason } = await c.body({ reason: zStr });
     const r = await orders.cancelBySeller(await me(), c.p.id!, reason ?? "");
     return { ...r, message: r.refundDeferred ? "Bestellung storniert. Der Zahlungsanbieter ist gerade nicht erreichbar – die Erstattung wird automatisch erneut ausgelöst." : "Bestellung storniert. Der Betrag wird erstattet." };
   }),

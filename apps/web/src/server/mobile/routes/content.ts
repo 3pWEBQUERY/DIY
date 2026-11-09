@@ -13,7 +13,8 @@ import { browseCategories, categoryOptions, effectiveCategories, effectiveCatego
 import { baseFeedWhere, listPosts } from "@/server/social/posts";
 import { listComments } from "@/server/social/interactions";
 import { recordView } from "@/server/analytics/service";
-import { DELETE, GET, PATCH, POST, PUT, bool, int, me, need, str, viewer, viewerId, type RouteDef } from "../router";
+import { z } from "zod";
+import { DELETE, GET, PATCH, POST, PUT, bool, int, me, need, pageParam, str, takeParam, viewer, viewerId, zBool, zId, type RouteDef } from "../router";
 
 function season(d = new Date()) {
   const m = d.getMonth() + 1;
@@ -83,14 +84,14 @@ export const contentRoutes: RouteDef[] = [
         q,
         types,
         category: str(c.q, "category"),
-        difficulty: int(c.q, "difficulty"),
-        maxMinutes: int(c.q, "maxMinutes"),
-        priceMin: int(c.q, "priceMin"),
-        priceMax: int(c.q, "priceMax"),
+        difficulty: int(c.q, "difficulty", { max: 5 }),
+        maxMinutes: int(c.q, "maxMinutes", { max: 100_000 }),
+        priceMin: int(c.q, "priceMin", { max: 100_000_000 }),
+        priceMax: int(c.q, "priceMax", { max: 100_000_000 }),
         free: c.q.has("free") ? bool(c.q, "free") : undefined,
         country: str(c.q, "country"),
-        sinceDays: int(c.q, "sinceDays"),
-        limit: int(c.q, "limit") ?? 12,
+        sinceDays: int(c.q, "sinceDays", { max: 3650 }),
+        limit: takeParam(c.q, "limit", 12, 40),
       },
       vid,
     );
@@ -110,26 +111,25 @@ export const contentRoutes: RouteDef[] = [
         category: str(c.q, "category"),
         sort: (str(c.q, "sort") as projects.ProjectSort | undefined) ?? "new",
         q: str(c.q, "q"),
-        difficulty: int(c.q, "difficulty"),
+        difficulty: int(c.q, "difficulty", { max: 5 }),
         status: str(c.q, "status") as never,
         hasTutorial: c.q.has("hasTutorial") ? bool(c.q, "hasTutorial") : undefined,
         ownerId: str(c.q, "ownerId"),
       },
       vid,
-      { cursor: str(c.q, "cursor") ?? null, take: int(c.q, "take") ?? 24 },
+      { cursor: str(c.q, "cursor") ?? null, take: takeParam(c.q, "take", 24) },
     );
   }),
   GET("/projects/by/:handle/:slug", async (c) => {
     const vid = await viewerId();
-    const page = await projects.getProjectPage(c.p.handle!, c.p.slug!, vid);
-    return page;
+    return need(await projects.getProjectPage(c.p.handle!, c.p.slug!, vid), "Projekt nicht gefunden.");
   }),
   GET("/projects/by/:handle/:slug/edit", async (c) => {
     const u = await me();
     const [data, categories] = await Promise.all([projects.getProjectForEdit(u, c.p.handle!, c.p.slug!), categoryOptions()]);
-    return { ...((data as object) ?? {}), categories };
+    return { ...(need(data, "Projekt nicht gefunden.") as object), categories };
   }),
-  GET("/projects/remix-source/:id", async (c) => projects.getRemixSource((await me()).id, c.p.id!)),
+  GET("/projects/remix-source/:id", async (c) => need(await projects.getRemixSource((await me()).id, c.p.id!), "Projekt nicht gefunden.")),
   GET("/projects/:id/comments", async (c) => listComments("PROJECT", c.p.id!, await viewerId())),
   POST("/projects", async (c) => projects.createProject(await me(), await c.json())),
   PUT("/projects/:id", async (c) => projects.updateProject(await me(), c.p.id!, await c.json())),
@@ -151,7 +151,7 @@ export const contentRoutes: RouteDef[] = [
     return tutorials.listTutorials(
       {
         category: str(c.q, "category"),
-        difficulty: int(c.q, "difficulty"),
+        difficulty: int(c.q, "difficulty", { max: 5 }),
         duration: str(c.q, "duration") as never,
         q: str(c.q, "q"),
         sort: str(c.q, "sort") as never,
@@ -159,7 +159,7 @@ export const contentRoutes: RouteDef[] = [
         projectId: str(c.q, "projectId"),
       },
       vid,
-      { cursor: str(c.q, "cursor") ?? null, take: int(c.q, "take") ?? 24 },
+      { cursor: str(c.q, "cursor") ?? null, take: takeParam(c.q, "take", 24) },
     );
   }),
   GET("/tutorials/durations", async () => tutorials.DURATIONS),
@@ -172,19 +172,19 @@ export const contentRoutes: RouteDef[] = [
   GET("/tutorials/:id/edit", async (c) => {
     const u = await me();
     const [data, projectOptions, categories] = await Promise.all([tutorials.getTutorialForEdit(u, c.p.id!), projects.listOwnProjectOptions(u.id), categoryOptions()]);
-    return { ...((data as object) ?? {}), projectOptions, categories };
+    return { ...(need(data, "Anleitung nicht gefunden.") as object), projectOptions, categories };
   }),
-  GET("/tutorials/seed/:projectId", async (c) => tutorials.getTutorialSeedFromProject((await me()).id, c.p.projectId!)),
+  GET("/tutorials/seed/:projectId", async (c) => need(await tutorials.getTutorialSeedFromProject((await me()).id, c.p.projectId!), "Projekt nicht gefunden.")),
   POST("/tutorials", async (c) => {
-    const { input, publish } = await c.json<{ input: unknown; publish?: boolean }>();
+    const { input, publish } = await c.body({ input: z.unknown(), publish: zBool });
     return tutorials.saveTutorial(await me(), null, input, { publish: !!publish });
   }),
   PUT("/tutorials/:id", async (c) => {
-    const { input, publish } = await c.json<{ input: unknown; publish?: boolean }>();
+    const { input, publish } = await c.body({ input: z.unknown(), publish: zBool });
     return tutorials.saveTutorial(await me(), c.p.id!, input, { publish: !!publish });
   }),
   POST("/tutorials/:id/published", async (c) => {
-    const { published } = await c.json<{ published?: boolean }>();
+    const { published } = await c.body({ published: zBool });
     return tutorials.setTutorialPublished(await me(), c.p.id!, !!published);
   }),
   DELETE("/tutorials/:id", async (c) => {
@@ -192,7 +192,7 @@ export const contentRoutes: RouteDef[] = [
     return { ok: true };
   }),
   POST("/tutorials/:id/steps/:key", async (c) => {
-    const { done } = await c.json<{ done?: boolean }>();
+    const { done } = await c.body({ done: zBool });
     return tutorials.toggleTutorialStep(await me(), c.p.id!, c.p.key!, done !== false);
   }),
   POST("/tutorials/:id/complete", async (c) => tutorials.completeTutorial(await me(), c.p.id!)),
@@ -201,16 +201,16 @@ export const contentRoutes: RouteDef[] = [
 
   // ── Aufrufe (§20.4, ohne PII) ──
   POST("/track", async (c) => {
-    const b = await c.json<{ targetType?: string; targetId?: string; ref?: string }>();
+    const b = await c.body({ targetType: z.string().max(40).optional(), targetId: z.string().max(200).optional(), ref: z.string().max(200).optional() });
     if (!b.targetType || !b.targetId) throw fail.invalid("targetType und targetId erforderlich");
     const r = await recordView({ viewerId: await viewerId(), targetType: b.targetType, targetId: b.targetId, ref: b.ref ?? "ios" });
     return { counted: r.counted };
   }),
 
   // ── Materialien (§17) ──
-  GET("/materials", async (c) => lists.searchMaterials(str(c.q, "q") ?? "", int(c.q, "limit") ?? 10)),
+  GET("/materials", async (c) => lists.searchMaterials(str(c.q, "q") ?? "", takeParam(c.q, "limit", 10, 25))),
   GET("/materials/categories", async () => lists.listMaterialCategories()),
-  GET("/materials/browse", async (c) => lists.browseMaterials({ categorySlug: str(c.q, "category"), q: str(c.q, "q"), cursor: str(c.q, "cursor") ?? null, take: int(c.q, "take") ?? 40 })),
+  GET("/materials/browse", async (c) => lists.browseMaterials({ categorySlug: str(c.q, "category"), q: str(c.q, "q"), cursor: str(c.q, "cursor") ?? null, take: takeParam(c.q, "take", 40) })),
   // Materialseite: Stammdaten, Preisvergleich (offers, günstigster Preis je Einheit zuerst; href → /go/:id), eigener Bestand, Projekte
   GET("/materials/:slug", async (c) => {
     const v = await viewerId();
@@ -221,7 +221,7 @@ export const contentRoutes: RouteDef[] = [
   }),
   // „Habe ich schon“: { have: boolean }
   PUT("/materials/:id/stock", async (c) => {
-    const { have } = await c.json<{ have?: boolean }>();
+    const { have } = await c.body({ have: zBool });
     return stock.toggleStockMaterial((await me()).id, c.p.id!, have !== false);
   }),
 
@@ -255,12 +255,12 @@ export const contentRoutes: RouteDef[] = [
   POST("/shopping-lists/:id/items", async (c) => lists.addShoppingListItem(await me(), c.p.id!, await c.json())),
   POST("/shopping-lists/:id/clear-done", async (c) => lists.clearDoneItems(await me(), c.p.id!)),
   POST("/shopping-lists/:id/merge", async (c) => {
-    const { sourceId } = await c.json<{ sourceId?: string }>();
+    const { sourceId } = await c.body({ sourceId: zId.optional() });
     if (!sourceId) throw fail.invalid("sourceId fehlt.");
     return lists.mergeShoppingLists(await me(), c.p.id!, sourceId);
   }),
   POST("/shopping-lists/:id/share", async (c) => {
-    const { shared } = await c.json<{ shared?: boolean }>();
+    const { shared } = await c.body({ shared: zBool });
     return lists.setShoppingListShared(await me(), c.p.id!, !!shared);
   }),
   PATCH("/shopping-list-items/:id", async (c) => {
@@ -277,7 +277,7 @@ export const contentRoutes: RouteDef[] = [
     const u = await me();
     const type = (str(c.q, "type") ?? "PROJECT") as collections.SavedType;
     if (!collections.SAVED_TYPES.includes(type)) throw fail.invalid("Unbekannter Typ.");
-    return collections.listSaved(u, { type, collectionId: str(c.q, "collection") ?? null, page: int(c.q, "page") ?? 1 });
+    return collections.listSaved(u, { type, collectionId: str(c.q, "collection") ?? null, page: pageParam(c.q) });
   }),
   GET("/collections", async () => collections.listCollections((await me()).id)),
   POST("/collections", async (c) => collections.createCollection(await me(), await c.json())),

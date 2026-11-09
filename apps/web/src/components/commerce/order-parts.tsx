@@ -94,7 +94,7 @@ export function OrderTimeline({ events, className }: { events: TimelineEvent[]; 
             <span aria-hidden className={cn("absolute -left-[5px] top-1.5 size-[9px] border border-rule rounded-full", last ? "bg-ink" : changed ? "bg-paper" : "bg-line-strong border-line-strong")} />
             <p className="spec">
               {formatDate(e.createdAt, { day: "numeric", month: "short", year: "numeric" })} ·{" "}
-              {new Date(e.createdAt).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}
+              {new Date(e.createdAt).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })}
             </p>
             <p className={cn("mt-0.5 text-[14px]", last && "font-semibold")}>{changed ? ORDER_STATUS_LABEL[e.to] : "Vermerk"}</p>
             {e.note && <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink-2">{e.note}</p>}

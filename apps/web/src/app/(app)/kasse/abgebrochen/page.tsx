@@ -24,7 +24,7 @@ export default async function CheckoutCancelledPage({ searchParams }: { searchPa
       <p className="mt-4 text-[15px] leading-relaxed text-muted">
         Es wurde nichts belastet. Deine Artikel liegen weiterhin im Warenkorb.
         {open && order?.reservationExpiresAt
-          ? ` Wir halten sie noch bis ${order.reservationExpiresAt.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })} Uhr für dich reserviert.`
+          ? ` Wir halten sie noch bis ${order.reservationExpiresAt.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })} Uhr für dich reserviert.`
           : ""}
       </p>
       <div className="mt-10 flex flex-wrap gap-3">

@@ -140,7 +140,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     <Page aside={aside}>
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <p className="spec">{new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long" })}</p>
+          <p className="spec">{new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Zurich" })}</p>
           <h1 className="display mt-1 text-4xl">Grüezi, {user.profile?.displayName.split(" ")[0]}.</h1>
         </div>
       </div>

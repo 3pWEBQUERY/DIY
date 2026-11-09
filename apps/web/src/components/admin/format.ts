@@ -36,12 +36,12 @@ export function bytes(n: number) {
 
 export function shortDate(d: Date | string | null | undefined) {
   if (!d) return "–";
-  return new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Europe/Zurich" });
 }
 
 export function dateTime(d: Date | string | null | undefined) {
   if (!d) return "–";
-  return new Date(d).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(d).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" });
 }
 
 export function weekLabel(iso: string) {

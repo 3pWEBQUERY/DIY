@@ -42,7 +42,7 @@ export default async function CartPage() {
               <li key={o.id} className="flex flex-wrap items-center justify-between gap-3">
                 <span>
                   <span className="font-mono text-[12px]">{o.number}</span> · {o.shop.name} · <span className="num font-semibold">{formatMoney(o.totalMinor)}</span>
-                  <span className="text-muted"> – reserviert bis {o.reservationExpiresAt!.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })} Uhr</span>
+                  <span className="text-muted"> – reserviert bis {o.reservationExpiresAt!.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })} Uhr</span>
                 </span>
                 <ResumePaymentButton orderId={o.id} />
               </li>

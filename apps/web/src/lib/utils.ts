@@ -42,14 +42,15 @@ export function relativeTime(date: Date | string) {
   if (abs < 3600) return rtf.format(Math.round(diff / 60), "minute");
   if (abs < 86400) return rtf.format(Math.round(diff / 3600), "hour");
   if (abs < 86400 * 7) return rtf.format(Math.round(diff / 86400), "day");
-  return d.toLocaleDateString("de-CH", { day: "numeric", month: "short", year: abs > 86400 * 300 ? "numeric" : undefined });
+  return d.toLocaleDateString("de-CH", { day: "numeric", month: "short", year: abs > 86400 * 300 ? "numeric" : undefined, timeZone: "Europe/Zurich" });
 }
 
 export function formatDate(
   date: Date | string,
   opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" },
 ) {
-  return new Date(date).toLocaleDateString("de-CH", opts);
+  // Server (UTC) und Browser sollen denselben Kalendertag zeigen
+  return new Date(date).toLocaleDateString("de-CH", { timeZone: "Europe/Zurich", ...opts });
 }
 
 export function readingMinutes(text: string) {

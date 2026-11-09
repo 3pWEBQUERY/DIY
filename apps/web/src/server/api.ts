@@ -1,6 +1,6 @@
 import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
-import { AppError, STATUS, toResult } from "@/server/errors";
+import { AppError, httpStatus, toResult } from "@/server/errors";
 
 /**
  * Route-Handler-Wrapper für /api/v1 (Web + iOS):
@@ -13,7 +13,7 @@ export function api<C = unknown>(handler: (req: NextRequest, ctx: C) => Promise<
       if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && !req.headers.get("authorization")) {
         const origin = req.headers.get("origin");
         const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-        if (origin && host && new URL(origin).host !== host) throw new AppError("FORBIDDEN", "Ungültige Herkunft der Anfrage.");
+        if (origin && host && URL.parse(origin)?.host !== host) throw new AppError("FORBIDDEN", "Ungültige Herkunft der Anfrage.");
       }
       const data = await handler(req, ctx);
       if (data instanceof Response) return data;
@@ -21,7 +21,7 @@ export function api<C = unknown>(handler: (req: NextRequest, ctx: C) => Promise<
     } catch (e) {
       const r = toResult(e, { path: req.nextUrl.pathname, method: req.method });
       if (r.ok) return NextResponse.json({ data: null });
-      return NextResponse.json({ error: { code: r.code, message: r.error, fields: r.fields } }, { status: STATUS[r.code] });
+      return NextResponse.json({ error: { code: r.code, message: r.error, fields: r.fields } }, { status: httpStatus(e, r.code) });
     }
   };
 }

@@ -332,7 +332,7 @@ async function buildMedia(tx: Prisma.TransactionClient, userId: string, refs: { 
 
 export function assertCanMessage(user: SessionUser) {
   if (!canMessage(user)) {
-    const until = user.messagingRestrictedUntil?.toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" });
+    const until = user.messagingRestrictedUntil?.toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Zurich" });
     throw fail.forbidden(`Deine Nachrichtenfunktion ist${until ? ` bis ${until}` : ""} eingeschränkt.`);
   }
 }
