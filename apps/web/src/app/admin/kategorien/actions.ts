@@ -5,6 +5,7 @@ import { refreshCategoryRegistry } from "@/server/categories/settings";
 import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
 import { deleteCatalog, upsertCatalog, type CatalogEntity } from "@/server/admin/catalog";
+import * as offers from "@/server/materials/offers";
 import { mergeMaterial, mergeTool, resetCategory, setCategoryActive, updateCategorySetting } from "@/server/admin/catalog-settings";
 
 const ENTITIES: CatalogEntity[] = ["materialCategory", "material", "tool"];
@@ -99,4 +100,33 @@ export async function mergeToolAction(sourceId: string, input: ReasonInput) {
     revalidatePath(`/admin/kategorien/werkzeug/${r.targetId}`);
     return r;
   }, "Zusammengeführt.");
+}
+
+/* ───────────── Bezugsquellen / Preisvergleich ───────────── */
+
+export async function upsertOfferAction(materialId: string, offerId: string | null, input: Record<string, unknown>) {
+  return act(async () => {
+    const u = await requireRole("PLATFORM_MODERATOR");
+    const r = await offers.upsertOffer(u, materialId, offerId, input);
+    revalidatePath(`/admin/kategorien/material/${materialId}`);
+    return r;
+  }, offerId ? "Bezugsquelle gespeichert." : "Bezugsquelle angelegt.");
+}
+
+export async function confirmOfferAction(offerId: string) {
+  return act(async () => {
+    const u = await requireRole("PLATFORM_MODERATOR");
+    const o = await offers.confirmOfferPrice(u, offerId);
+    revalidatePath(`/admin/kategorien/material/${o.materialId}`);
+    return null;
+  }, "Preis als geprüft markiert.");
+}
+
+export async function deleteOfferAction(offerId: string) {
+  return act(async () => {
+    const u = await requireRole("PLATFORM_MODERATOR");
+    const o = await offers.deleteOffer(u, offerId);
+    revalidatePath(`/admin/kategorien/material/${o.materialId}`);
+    return null;
+  }, "Bezugsquelle gelöscht.");
 }

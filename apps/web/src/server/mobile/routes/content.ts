@@ -4,6 +4,8 @@ import { fail } from "@/server/errors";
 import * as projects from "@/server/projects/service";
 import * as tutorials from "@/server/tutorials/service";
 import * as lists from "@/server/materials/service";
+import * as stock from "@/server/materials/stock";
+import { listOffers } from "@/server/materials/offers";
 import * as collections from "@/server/collections/service";
 import { search, SEARCH_TYPES, type SearchType } from "@/server/discovery/search";
 import { suggestedCommunities, suggestedCreators } from "@/server/discovery/suggestions";
@@ -209,6 +211,32 @@ export const contentRoutes: RouteDef[] = [
   GET("/materials", async (c) => lists.searchMaterials(str(c.q, "q") ?? "", int(c.q, "limit") ?? 10)),
   GET("/materials/categories", async () => lists.listMaterialCategories()),
   GET("/materials/browse", async (c) => lists.browseMaterials({ categorySlug: str(c.q, "category"), q: str(c.q, "q"), cursor: str(c.q, "cursor") ?? null, take: int(c.q, "take") ?? 40 })),
+  // Materialseite: Stammdaten, Preisvergleich (offers, günstigster Preis je Einheit zuerst; href → /go/:id), eigener Bestand, Projekte
+  GET("/materials/:slug", async (c) => {
+    const v = await viewerId();
+    const m = need(await lists.getMaterialPage(c.p.slug!, v), "Material nicht gefunden.");
+    const [offers, projectCards] = await Promise.all([listOffers(m.id, m.unit), projects.getProjectCards(m.projectIds, v).then((p) => p.slice(0, 8))]);
+    const { projectIds: _ids, _count: _c, ...material } = m;
+    return { material, offers, projects: projectCards };
+  }),
+  // „Habe ich schon“: { have: boolean }
+  PUT("/materials/:id/stock", async (c) => {
+    const { have } = await c.json<{ have?: boolean }>();
+    return stock.toggleStockMaterial((await me()).id, c.p.id!, have !== false);
+  }),
+
+  // ── Eigener Bestand ──
+  GET("/me/material-stock", async () => stock.listStock((await me()).id)),
+  POST("/me/material-stock", async (c) => stock.addStock((await me()).id, await c.json())),
+  PATCH("/me/material-stock/:id", async (c) => {
+    await stock.updateStock((await me()).id, c.p.id!, await c.json());
+    return { ok: true };
+  }),
+  DELETE("/me/material-stock/:id", async (c) => {
+    await stock.removeStock((await me()).id, c.p.id!);
+    return { ok: true };
+  }),
+  POST("/shopping-list-items/:id/to-stock", async (c) => stock.stockFromShoppingItem((await me()).id, c.p.id!)),
 
   // ── Einkaufslisten (§17.4) ──
   GET("/shopping-lists", async () => lists.listMyShoppingLists((await me()).id)),

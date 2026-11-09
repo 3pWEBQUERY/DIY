@@ -4,7 +4,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Combine, Pencil, Printer, Trash2, X, Share2 } from "lucide-react";
+import { Check, Combine, PackagePlus, Pencil, Printer, Trash2, X, Share2 } from "lucide-react";
 import type { ShoppingListView } from "@/server/materials/service";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -21,6 +21,7 @@ import {
   removeShoppingListItemAction,
   renameShoppingListAction,
   setShoppingListSharedAction,
+  stockFromShoppingItemAction,
   updateShoppingListItemAction,
 } from "@/app/(app)/einkaufslisten/actions";
 import { MaterialInput } from "./line-editor";
@@ -79,7 +80,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
     start(async () => {
       const r = await addShoppingListItemAction(list.id, { name, quantity: qty, materialId });
       if (r.ok) {
-        setItems((xs) => [...xs, { id: r.data.id, name: name.trim(), quantity: qty.trim(), haveIt: false, purchased: false, sourceType: null, sourceTitle: null, category: null, materialSlug: null }]);
+        setItems((xs) => [...xs, { id: r.data.id, name: name.trim(), quantity: qty.trim(), haveIt: false, purchased: false, sourceType: null, sourceTitle: null, category: null, materialId: materialId ?? null, materialSlug: null }]);
         setName("");
         setQty("");
         setMaterialId(undefined);
@@ -244,7 +245,17 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
 }
 
 function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch: (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => void; onRemove: (id: string) => void; muted?: boolean }) {
+  const [stocked, setStocked] = useState<Set<string>>(new Set());
+  const [busy, start] = useTransition();
   if (!items.length) return null;
+  const toStock = (it: Item) =>
+    start(async () => {
+      const r = await stockFromShoppingItemAction(it.id);
+      if (r.ok) {
+        setStocked((s) => new Set(s).add(it.id));
+        toast(r.message ?? "Im Bestand.");
+      } else toast(r.error, "error");
+    });
   return (
     <ul className="divide-y divide-line">
       {items.map((it, i) => (
@@ -252,7 +263,7 @@ function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch
           <span className="font-mono text-[11px] text-muted num">{pad(i + 1)}</span>
           <div className="min-w-0">
             <p className={cn("text-[15px] font-semibold", muted && "text-muted line-through decoration-line-strong")}>
-              {it.materialSlug ? <Link href={`/materialien?q=${encodeURIComponent(it.name)}`} className="hover:underline">{it.name}</Link> : it.name}
+              {it.materialSlug ? <Link href={`/materialien/${it.materialSlug}`} className="hover:underline">{it.name}</Link> : it.name}
             </p>
             {(it.sourceTitle || it.category) && <p className="spec truncate">{[it.category, it.sourceTitle && `aus ${it.sourceTitle}`].filter(Boolean).join(" · ")}</p>}
           </div>
@@ -267,6 +278,18 @@ function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch
           <div className="col-start-3 row-start-1 flex items-center gap-1 sm:col-start-auto sm:row-start-auto print:hidden">
             <ToggleChip active={it.haveIt} onClick={() => onPatch(it.id, { haveIt: !it.haveIt })} label="Habe ich" />
             <ToggleChip active={it.purchased} onClick={() => onPatch(it.id, { purchased: !it.purchased })} label="Gekauft" />
+            {it.purchased && (
+              <button
+                type="button"
+                disabled={busy || stocked.has(it.id)}
+                onClick={() => toStock(it)}
+                aria-label={stocked.has(it.id) ? `${it.name} ist im Bestand` : `${it.name} in den Bestand übernehmen`}
+                title={stocked.has(it.id) ? "Im Bestand" : "In den Bestand übernehmen"}
+                className={cn("grid size-8 place-items-center rounded-xl", stocked.has(it.id) ? "text-moss" : "text-muted hover:bg-sunken hover:text-ink")}
+              >
+                {stocked.has(it.id) ? <Check size={15} /> : <PackagePlus size={15} />}
+              </button>
+            )}
             <button type="button" onClick={() => onRemove(it.id)} aria-label={`${it.name} entfernen`} className="grid size-8 place-items-center text-muted hover:text-danger">
               <X size={15} />
             </button>

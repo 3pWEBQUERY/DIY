@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 export default function robots(): MetadataRoute.Robots {
   const base = process.env.APP_URL ?? "http://localhost:3000";
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/api/", "/studio", "/admin", "/einstellungen", "/nachrichten", "/benachrichtigungen", "/warenkorb", "/kasse", "/bestellungen", "/willkommen", "/passwort-zuruecksetzen", "/verifizieren", "/liste", "/gespeichert", "/einkaufslisten", "/beleg"] }],
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/api/", "/studio", "/admin", "/einstellungen", "/nachrichten", "/benachrichtigungen", "/warenkorb", "/kasse", "/bestellungen", "/willkommen", "/passwort-zuruecksetzen", "/verifizieren", "/liste", "/gespeichert", "/einkaufslisten", "/beleg", "/go/", "/materialien/bestand"] }],
     sitemap: `${base}/sitemap.xml`,
     host: base,
   };

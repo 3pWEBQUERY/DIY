@@ -5,6 +5,7 @@ import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
 import { canViewContent } from "@/server/visibility";
 import { token } from "@/server/crypto";
+import { stockLookup } from "@/server/materials/stock";
 import type { SessionUser } from "@/server/auth/session";
 
 /**
@@ -169,7 +170,7 @@ function mergeQuantity(a: string, b: string) {
   return `${a} + ${b}`.slice(0, 40);
 }
 
-type IncomingItem = { name: string; quantity: string; materialId: string | null; sourceType?: string | null; sourceId?: string | null; sourceTitle?: string | null };
+type IncomingItem = { name: string; quantity: string; materialId: string | null; sourceType?: string | null; sourceId?: string | null; sourceTitle?: string | null; haveIt?: boolean };
 
 /** Positionen in eine Liste übernehmen; gleiche Materialien werden zusammengefasst. */
 async function mergeInto(listId: string, incoming: IncomingItem[]) {
@@ -192,7 +193,7 @@ async function mergeInto(listId: string, incoming: IncomingItem[]) {
         merged++;
       } else {
         const row = await tx.shoppingListItem.create({
-          data: { listId, name: it.name.slice(0, 120), quantity: it.quantity.slice(0, 40), materialId: it.materialId, sourceType: it.sourceType ?? null, sourceId: it.sourceId ?? null, sourceTitle: it.sourceTitle ?? null, position: position++ },
+          data: { listId, name: it.name.slice(0, 120), quantity: it.quantity.slice(0, 40), materialId: it.materialId, sourceType: it.sourceType ?? null, sourceId: it.sourceId ?? null, sourceTitle: it.sourceTitle ?? null, haveIt: !!it.haveIt, position: position++ },
         });
         byKey.set(key(row), row);
         added++;
@@ -241,6 +242,7 @@ function toListView(l: Prisma.ShoppingListGetPayload<{ include: typeof listInclu
       sourceType: i.sourceType,
       sourceTitle: i.sourceTitle,
       category: i.material?.category.name ?? null,
+      materialId: i.materialId,
       materialSlug: i.material?.slug ?? null,
     })),
   };
@@ -265,9 +267,14 @@ export async function getSharedShoppingList(shareToken: string) {
 
 // ───────────────────────── Übernehmen aus Projekt / Anleitung ─────────────────────────
 
-type SourceKind = "PROJECT" | "TUTORIAL";
+type SourceKind = "PROJECT" | "TUTORIAL" | "MATERIAL";
 
 async function sourceItems(viewerId: string, kind: SourceKind, id: string): Promise<{ title: string; items: IncomingItem[] }> {
+  if (kind === "MATERIAL") {
+    const m = await db.material.findUnique({ where: { id }, select: { id: true, name: true, unit: true } });
+    if (!m) throw fail.notFound("Material nicht gefunden.");
+    return { title: m.name, items: [{ name: m.name, quantity: "", materialId: m.id }] };
+  }
   if (kind === "PROJECT") {
     const p = await db.project.findUnique({
       where: { id },
@@ -300,13 +307,49 @@ async function sourceItems(viewerId: string, kind: SourceKind, id: string): Prom
  * „Materialliste übernehmen“: in bestehende Liste (listId) oder neue Liste (newTitle).
  */
 export async function addSourceToShoppingList(user: SessionUser, input: { kind: SourceKind; id: string; listId?: string | null; newTitle?: string | null }) {
-  if (input.kind !== "PROJECT" && input.kind !== "TUTORIAL") throw fail.invalid("Unbekannte Quelle.");
+  if (input.kind !== "PROJECT" && input.kind !== "TUTORIAL" && input.kind !== "MATERIAL") throw fail.invalid("Unbekannte Quelle.");
   await writeLimit(user.id);
   const src = await sourceItems(user.id, input.kind, input.id);
   if (!src.items.length) throw fail.invalid("Hier gibt es keine Materialliste zum Übernehmen.");
+  // Was schon im eigenen Bestand ist, gilt direkt als „Habe ich“
+  const stock = await stockLookup(user.id, src.items.map((i) => i.materialId).filter((x): x is string => !!x), src.items.filter((i) => !i.materialId).map((i) => i.name.trim()));
+  let alreadyHave = 0;
+  for (const it of src.items) {
+    it.haveIt = it.materialId ? stock.ids.has(it.materialId) : stock.names.has(it.name.trim().toLowerCase());
+    if (it.haveIt) alreadyHave++;
+  }
   let listId = input.listId ?? null;
   if (listId) await ownedList(user, listId);
   else listId = (await createShoppingList(user, { title: (input.newTitle?.trim() || `Für: ${src.title}`).slice(0, 80) })).id;
   const r = await mergeInto(listId, src.items);
-  return { listId, ...r };
+  return { listId, ...r, alreadyHave };
+}
+
+// ───────────────────────── Materialseite ─────────────────────────
+
+/** Detailseite eines Materials: Stammdaten, Bestand der betrachtenden Person, Projekte. */
+export async function getMaterialPage(slug: string, viewerId: string | null | undefined) {
+  if (!/^[a-z0-9-]{1,120}$/.test(slug)) return null;
+  const m = await db.material.findUnique({
+    where: { slug },
+    select: {
+      id: true, slug: true, name: true, type: true, unit: true, brand: true, productRef: true, notes: true, safetyInfo: true, properties: true,
+      category: { select: { slug: true, name: true } },
+      _count: { select: { projectMaterials: true } },
+    },
+  });
+  if (!m) return null;
+  const [uses, stock] = await Promise.all([
+    db.projectMaterial.findMany({ where: { materialId: m.id }, distinct: ["projectId"], orderBy: { project: { publishedAt: { sort: "desc", nulls: "last" } } }, take: 40, select: { projectId: true } }),
+    viewerId ? db.materialStock.findUnique({ where: { userId_materialId: { userId: viewerId, materialId: m.id } }, select: { id: true, quantity: true, note: true } }) : null,
+  ]);
+  const related = await db.material.findMany({ where: { category: { slug: m.category.slug }, id: { not: m.id } }, orderBy: { name: "asc" }, take: 8, select: { slug: true, name: true, type: true } });
+  return {
+    ...m,
+    properties: (m.properties ?? {}) as Record<string, unknown>,
+    usedIn: m._count.projectMaterials,
+    projectIds: uses.map((u) => u.projectId),
+    stock,
+    related,
+  };
 }

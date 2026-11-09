@@ -12,6 +12,8 @@ import { listProjects } from "@/server/projects/service";
 import { listTutorials } from "@/server/tutorials/service";
 import { listArticles, resolveHandle } from "@/server/blog/service";
 import { listPublicCollections } from "@/server/collections/service";
+import { profileAwards } from "@/server/communities/competitions";
+import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { DELETE, GET, PATCH, POST, int, me, need, str, viewer, viewerId, type RouteDef } from "../router";
 
 const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW"]);
@@ -154,7 +156,7 @@ export const socialRoutes: RouteDef[] = [
     const handle = c.p.handle!.toLowerCase();
     let profile = await db.userProfile.findUnique({
       where: { handle },
-      include: { user: { select: { id: true, status: true, createdAt: true, role: true, shop: { select: { slug: true, name: true, status: true, tagline: true } } } } },
+      include: { user: { select: { id: true, status: true, createdAt: true, role: true, shop: { select: { id: true, slug: true, name: true, status: true, tagline: true } } } } },
     });
     if (!profile) {
       const r = await db.handleRedirect.findUnique({ where: { oldHandle: handle }, include: { profile: { select: { handle: true } } } });
@@ -189,6 +191,8 @@ export const socialRoutes: RouteDef[] = [
         ]);
     const p = profile;
     profile = null as never;
+    const activeShop = p.user.shop?.status === "ACTIVE" ? p.user.shop : null;
+    const [reviewCounts, awards] = blocked ? [{ given: 0, received: 0 }, []] : await Promise.all([profileReviewCounts(userId, activeShop?.id ?? null, vid), profileAwards(userId, v)]);
     return {
       profile: {
         userId: p.userId,
@@ -226,7 +230,23 @@ export const socialRoutes: RouteDef[] = [
         itemCount: x._count.items,
       })),
       articleCount,
+      // Bewertungen: bei Shops immer (erhalten), sonst nur wenn selbst welche abgegeben → GET /users/:handle/reviews
+      reviews: { given: reviewCounts.given, received: reviewCounts.received, show: !!activeShop || reviewCounts.given > 0, defaultView: activeShop ? "received" : "given" },
+      // Gewinner-Abzeichen aus Wettbewerben
+      awards,
     };
+  }),
+  GET("/users/:handle/reviews", async (c) => {
+    const prof = need(await db.userProfile.findUnique({ where: { handle: c.p.handle!.toLowerCase() }, select: { userId: true, user: { select: { shop: { select: { id: true, status: true } } } } } }), "Profil nicht gefunden.");
+    const vid = await viewerId();
+    if (vid && vid !== prof.userId && (await isBlockedBetween(vid, prof.userId))) return { view: "given", items: [], distribution: null };
+    const shop = prof.user.shop?.status === "ACTIVE" ? prof.user.shop : null;
+    const view = str(c.q, "view") === "given" || !shop ? "given" : "received";
+    const [items, distribution] = await Promise.all([
+      view === "received" ? listReceivedReviews(shop!.id, vid) : listGivenReviews(prof.userId),
+      view === "received" ? shopRatingDistribution(shop!.id) : Promise.resolve(null),
+    ]);
+    return { view, items, distribution };
   }),
   GET("/users/:handle/posts", async (c) => {
     const prof = need(await db.userProfile.findUnique({ where: { handle: c.p.handle!.toLowerCase() }, select: { userId: true } }));

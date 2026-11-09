@@ -7,6 +7,8 @@ import { adminPage } from "@/server/admin/guard";
 import { getMaterialAdminDetail } from "@/server/admin/catalog-settings";
 import { effectiveCategories } from "@/server/categories/settings";
 import { CatalogDialogButton } from "@/components/admin/catalog-editor";
+import { OfferManager } from "@/components/admin/offer-manager";
+import { adminListOffers } from "@/server/materials/offers";
 import { DeleteEntryButton, MergeButton } from "@/components/admin/category-admin";
 import { EmptyRow, Table, Td, Th, Tr } from "@/components/admin/ui";
 import { dateTime, num, shortDate } from "@/components/admin/format";
@@ -29,6 +31,7 @@ export default async function MaterialDetailPage({ params }: { params: Promise<{
   const { material: m, usage } = d;
   const cats = new Map((await effectiveCategories()).map((c) => [c.slug, c.short]));
   const isAdmin = hasRole(actor, "ADMIN");
+  const offers = await adminListOffers(m.id);
   const refs = m._count.projectMaterials + m._count.listItems;
 
   return (
@@ -124,15 +127,22 @@ export default async function MaterialDetailPage({ params }: { params: Promise<{
             </Table>
           </section>
 
+          <section aria-labelledby="m-offers">
+            <SectionTitle n="03" title={<span id="m-offers">Bezugsquellen &amp; Preise</span>} action={<Link href={`/materialien/${m.slug}`} className="spec hover:text-ink">Öffentliche Seite</Link>} />
+            <div className="mt-3">
+              <OfferManager materialId={m.id} unit={m.unit} offers={offers} />
+            </div>
+          </section>
+
           <section aria-labelledby="m3">
-            <SectionTitle n="03" title={<span id="m3">Verlauf (Audit)</span>} />
+            <SectionTitle n="04" title={<span id="m3">Verlauf (Audit)</span>} />
             <AuditHistory rows={d.recentAudit} />
           </section>
         </div>
 
         <aside className="space-y-8" aria-label="Materialdaten">
           <section>
-            <SectionTitle n="04" title="Stammdaten" />
+            <SectionTitle n="05" title="Stammdaten" />
             <dl className="mt-3 space-y-3 text-[13px]">
               <div><dt className="spec">Typ</dt><dd>{m.type}</dd></div>
               <div><dt className="spec">Einheit</dt><dd className="font-mono text-[12px]">{m.unit}</dd></div>
@@ -142,7 +152,7 @@ export default async function MaterialDetailPage({ params }: { params: Promise<{
             </dl>
           </section>
           <section>
-            <SectionTitle n="05" title="Hinweise" />
+            <SectionTitle n="06" title="Hinweise" />
             <div className="mt-3 space-y-3 text-[13px]">
               <p className={m.notes ? "whitespace-pre-wrap text-ink-2" : "text-muted"}>{m.notes || "Keine Hinweise."}</p>
               {m.safetyInfo && (

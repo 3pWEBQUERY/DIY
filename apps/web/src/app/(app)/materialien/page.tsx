@@ -1,7 +1,12 @@
 import Form from "next/form";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Search } from "lucide-react";
+import { PackageCheck, Search } from "lucide-react";
+import { formatMoney, type Currency } from "@werkraum/shared";
+import { currentUser } from "@/server/auth/session";
+import { stockLookup } from "@/server/materials/stock";
+import { cheapestOffers } from "@/server/materials/offers";
+import { StockToggle } from "@/components/materials/stock";
 import { browseMaterials, listMaterialCategories } from "@/server/materials/service";
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { ChipLink, ChipRow } from "@/components/ui/chips";
@@ -24,6 +29,9 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const q = sp.q?.trim().slice(0, 60) || undefined;
   const [categories, result] = await Promise.all([listMaterialCategories(), browseMaterials({ categorySlug: sp.kategorie, q, cursor: sp.nach ?? null })]);
+  const user = await currentUser();
+  const ids = result.items.map((m) => m.id);
+  const [stock, prices] = await Promise.all([stockLookup(user?.id, ids), cheapestOffers(ids)]);
   const active = categories.find((c) => c.slug === sp.kategorie);
   const href = (patch: Partial<SP>) => {
     const next = { kategorie: active?.slug, q, ...patch };
@@ -33,7 +41,18 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
 
   return (
     <Page width="wide">
-      <PageHeader kicker="Materialkunde" title={active ? active.name : "Materialien"} description="Woraus entsteht es? Die Materialdatenbank verbindet Projekte, Anleitungen und Einkaufslisten – mit Einheiten, Eigenschaften und Sicherheitshinweisen." />
+      <PageHeader
+        kicker="Materialkunde"
+        title={active ? active.name : "Materialien"}
+        description="Woraus entsteht es? Die Materialdatenbank verbindet Projekte, Anleitungen und Einkaufslisten – mit Einheiten, Eigenschaften, Bezugsquellen und Sicherheitshinweisen."
+        actions={
+          user ? (
+            <Link href="/materialien/bestand" className="inline-flex h-10 items-center gap-2 rounded-xl border border-line-strong bg-card px-4 text-sm font-semibold hover:border-rule-strong">
+              <PackageCheck size={16} aria-hidden /> Mein Bestand
+            </Link>
+          ) : undefined
+        }
+      />
       <TabLinks
         active="materialien"
         tabs={[
@@ -62,7 +81,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
       {result.items.length ? (
         <>
           <div className="mt-8 overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-[14px]">
+            <table className="w-full min-w-[860px] border-collapse text-[14px]">
               <caption className="sr-only">Materialien</caption>
               <thead>
                 <tr className="border-b border-rule text-left">
@@ -70,7 +89,9 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
                   <th scope="col" className="spec py-2 pr-4 font-normal">Art</th>
                   <th scope="col" className="spec py-2 pr-4 font-normal">Eigenschaften</th>
                   <th scope="col" className="spec py-2 pr-4 font-normal">Einheit</th>
-                  <th scope="col" className="spec py-2 text-right font-normal">In Projekten</th>
+                  <th scope="col" className="spec py-2 pr-4 text-right font-normal">Ab</th>
+                  <th scope="col" className="spec py-2 pr-4 text-right font-normal">In Projekten</th>
+                  <th scope="col" className="py-2 text-right font-normal"><span className="sr-only">Bestand</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -79,7 +100,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
                   return (
                     <tr key={m.id} className="border-b border-line align-top">
                       <td className="py-3 pr-4">
-                        <span className="headline block text-[1.1rem]">{m.name}</span>
+                        <Link href={`/materialien/${m.slug}`} className="headline block text-[1.1rem] hover:underline">{m.name}</Link>
                         <span className="spec">{[m.category.name, m.brand].filter(Boolean).join(" · ")}</span>
                         {m.notes && <span className="mt-1 block max-w-[46ch] text-[13px] text-muted">{m.notes}</span>}
                         {m.safetyInfo && <span className="mt-1 block max-w-[46ch] text-[12px] text-warn">Sicherheit: {m.safetyInfo}</span>}
@@ -100,8 +121,14 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
                         )}
                       </td>
                       <td className="py-3 pr-4 font-mono text-[12px]">{m.unit}</td>
-                      <td className="py-3 text-right num">
-                        {m.usedIn > 0 ? <Link href={`/projekte?q=${encodeURIComponent(m.name)}`} className="hover:underline">{m.usedIn}</Link> : <span className="text-muted">0</span>}
+                      <td className="whitespace-nowrap py-3 pr-4 text-right num">
+                        {prices.get(m.id) ? <Link href={`/materialien/${m.slug}#h-kaufen`} className="hover:underline" title={`günstigster Preis: ${prices.get(m.id)!.retailer}`}>{formatMoney(prices.get(m.id)!.priceMinor, prices.get(m.id)!.currency as Currency)}</Link> : <span className="text-muted">–</span>}
+                      </td>
+                      <td className="py-3 pr-4 text-right num">
+                        {m.usedIn > 0 ? <Link href={`/materialien/${m.slug}#h-projekte`} className="hover:underline">{m.usedIn}</Link> : <span className="text-muted">0</span>}
+                      </td>
+                      <td className="py-3 text-right">
+                        <StockToggle materialId={m.id} name={m.name} initialHave={stock.ids.has(m.id)} signedIn={!!user} size="sm" />
                       </td>
                     </tr>
                   );

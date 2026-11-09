@@ -286,6 +286,7 @@ model User {
   coauthorships   PostCoauthor[] @relation("coauthor")
   challengeEntries ChallengeEntry[] @relation("challengeEntries")
   challengeVotes  ChallengeVote[] @relation("challengeVotes")
+  materialStock   MaterialStock[] @relation("materialStock")
   carts           Cart[]
   orders          Order[]       @relation("buyer")
   reviews         Review[]
@@ -1637,8 +1638,52 @@ model Material {
 
   projectMaterials ProjectMaterial[]
   listItems   ShoppingListItem[]
+  stock       MaterialStock[]
+  offers      MaterialOffer[]
 
   @@index([name])
+}
+
+/// Eigener Bestand („Habe ich schon“): Material aus der Datenbank oder frei benannt.
+model MaterialStock {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation("materialStock", fields: [userId], references: [id], onDelete: Cascade)
+  materialId String?
+  material   Material? @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  name       String
+  quantity   String    @default("")
+  note       String    @default("")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([userId, materialId])
+  @@index([userId])
+}
+
+/// Preisvergleich: von der Redaktion gepflegte Bezugsquellen, optional als Partnerlink (Affiliate).
+model MaterialOffer {
+  id          String   @id @default(cuid())
+  materialId  String
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  retailer    String
+  title       String   @default("")
+  url         String
+  priceMinor  Int
+  currency    String   @default("CHF")
+  /// Packungsgrösse als Zahl in der Einheit des Materials (z.B. 50 bei „g“) – für den Preis je Einheit
+  packAmount  Float?
+  packLabel   String   @default("")
+  isAffiliate Boolean  @default(false)
+  active      Boolean  @default(true)
+  checkedAt   DateTime @default(now())
+  clickCount  Int      @default(0)
+  lastClickAt DateTime?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([materialId, active])
 }
 
 model Tool {

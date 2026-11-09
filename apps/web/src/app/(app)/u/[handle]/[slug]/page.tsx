@@ -21,6 +21,8 @@ import { ProductMiniCard, ArticleMiniCard } from "@/components/projects/linked-c
 import { StatusLabel, StatusMark } from "@/components/projects/status";
 import { JsonLd, absUrl, isoDuration } from "@/components/projects/json-ld";
 import { AddToShoppingList } from "@/components/materials/add-to-list";
+import { StockToggle } from "@/components/materials/stock";
+import { stockLookup } from "@/server/materials/stock";
 import { cn, formatDate, formatMinutes, pad, relativeTime } from "@/lib/utils";
 
 type Params = { params: Promise<{ handle: string; slug: string }> };
@@ -70,6 +72,8 @@ export default async function ProjectPage({ params }: Params) {
   const cat = categoryBySlug(p.category);
   const viewer = user?.profile ? { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl } : null;
   const isOwner = p.viewer.isOwner;
+  const stock = await stockLookup(user?.id, p.materials.map((m) => m.materialId).filter((x): x is string => !!x), p.materials.filter((m) => !m.materialId).map((m) => m.name.trim()));
+  const haveSet = new Set(p.materials.filter((m) => (m.materialId ? stock.ids.has(m.materialId) : stock.names.has(m.name.trim().toLowerCase()))).map((m) => m.id));
   let sec = 0;
   const no = () => pad(++sec);
 
@@ -234,7 +238,7 @@ export default async function ProjectPage({ params }: Params) {
                 title={<span id="h-material">Material & Werkzeug</span>}
                 action={p.materials.length > 0 ? <AddToShoppingList kind="PROJECT" id={p.id} title={p.title} count={p.materials.length} signedIn={!!viewer} /> : undefined}
               />
-              <Materials p={p} />
+              <Materials p={p} have={user ? haveSet : null} />
             </section>
           )}
 
@@ -494,7 +498,7 @@ function Journal({ p }: { p: ProjectPageView }) {
   );
 }
 
-function Materials({ p }: { p: ProjectPageView }) {
+function Materials({ p, have }: { p: ProjectPageView; have: Set<string> | null }) {
   if (!p.materials.length && !p.tools.length) {
     return <p className="mt-6 text-sm text-muted">Noch keine Materialliste. Ergänze sie über «Bearbeiten», damit andere direkt einkaufen können.</p>;
   }
@@ -503,7 +507,14 @@ function Materials({ p }: { p: ProjectPageView }) {
       {p.materials.length > 0 && (
         <div className="min-w-0">
           <div className="overflow-x-auto"><table className="w-full border-collapse text-[14px]">
-            <caption className="spec mb-2 text-left">Material · {p.materials.length} Positionen</caption>
+            <caption className="spec mb-2 text-left">
+              Material · {p.materials.length} Positionen
+              {have && have.size > 0 && (
+                <span className="ml-2 normal-case tracking-normal text-moss-ink">
+                  · {have.size === p.materials.length ? "alles in deinem Bestand" : `${have.size} hast du schon, ${p.materials.length - have.size} fehlen`}
+                </span>
+              )}
+            </caption>
             <thead>
               <tr className="border-b border-rule text-left">
                 <th scope="col" className="spec w-10 py-2 font-normal">Pos.</th>
@@ -517,14 +528,22 @@ function Materials({ p }: { p: ProjectPageView }) {
                   <td className="py-2.5 font-mono text-[11px] text-muted num">{pad(i + 1)}</td>
                   <td className="py-2.5">
                     {m.materialSlug ? (
-                      <Link href={`/materialien?q=${encodeURIComponent(m.name)}`} className="font-semibold hover:underline">{m.name}</Link>
+                      <Link href={`/materialien/${m.materialSlug}`} className="font-semibold hover:underline">{m.name}</Link>
                     ) : (
                       <span className="font-semibold">{m.name}</span>
                     )}
                     {m.note && <span className="block text-[13px] text-muted">{m.note}</span>}
                     {m.safetyInfo && <span className="mt-1 block text-[12px] text-warn">Hinweis: {m.safetyInfo}</span>}
                   </td>
-                  <td className="py-2.5 pl-3 text-right num text-ink-2">{m.quantity || "–"}</td>
+                  <td className="py-2.5 pl-3 text-right num text-ink-2">
+                    {m.quantity || "–"}
+                    {have && m.materialId && (
+                      <span className="mt-1 block">
+                        <StockToggle materialId={m.materialId} name={m.name} initialHave={have.has(m.id)} signedIn size="sm" />
+                      </span>
+                    )}
+                    {have && !m.materialId && have.has(m.id) && <span className="mt-1 block text-[11.5px] font-semibold text-moss-ink">Im Bestand</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

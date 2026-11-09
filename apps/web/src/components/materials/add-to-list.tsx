@@ -16,13 +16,13 @@ import { addSourceToShoppingListAction, myShoppingListsAction } from "@/app/(app
  * „Materialliste übernehmen“: Materialien eines Projekts oder einer Anleitung in eine
  * neue oder bestehende Einkaufsliste übernehmen (PRD §17). Gleiche Materialien werden zusammengefasst.
  */
-export function AddToShoppingList({ kind, id, title, count, signedIn, variant = "outline", className }: { kind: "PROJECT" | "TUTORIAL"; id: string; title: string; count: number; signedIn: boolean; variant?: "outline" | "ink" | "primary"; className?: string }) {
+export function AddToShoppingList({ kind, id, title, count, signedIn, variant = "outline", className }: { kind: "PROJECT" | "TUTORIAL" | "MATERIAL"; id: string; title: string; count: number; signedIn: boolean; variant?: "outline" | "ink" | "primary"; className?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [lists, setLists] = useState<ShoppingListSummary[] | null>(null);
   const [target, setTarget] = useState<string>("new");
   const [newTitle, setNewTitle] = useState(`Für: ${title}`.slice(0, 80));
-  const [done, setDone] = useState<{ listId: string; added: number; merged: number } | null>(null);
+  const [done, setDone] = useState<{ listId: string; added: number; merged: number; alreadyHave: number } | null>(null);
   const [pending, start] = useTransition();
 
   const openDialog = () => {
@@ -52,7 +52,12 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
       <Button variant={variant} size="sm" onClick={openDialog} disabled={count === 0} className={className}>
         <ListPlus size={15} /> Auf Einkaufsliste
       </Button>
-      <Dialog open={open} onClose={() => setOpen(false)} title="Materialliste übernehmen" description={`${count} ${count === 1 ? "Position" : "Positionen"} aus «${title}». Gleiche Materialien werden zusammengefasst.`}>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={kind === "MATERIAL" ? "Auf die Einkaufsliste" : "Materialliste übernehmen"}
+        description={kind === "MATERIAL" ? `«${title}» auf eine Einkaufsliste setzen.` : `${count} ${count === 1 ? "Position" : "Positionen"} aus «${title}». Gleiche Materialien werden zusammengefasst, was du schon im Bestand hast, wird als „Habe ich“ markiert.`}
+      >
         {done ? (
           <div className="space-y-4">
             <p className="text-[15px]">
@@ -63,6 +68,11 @@ export function AddToShoppingList({ kind, id, title, count, signedIn, variant = 
                 </>
               )}
               .
+              {done.alreadyHave > 0 && (
+                <span className="mt-1 block text-[13.5px] text-muted">
+                  {done.alreadyHave === 1 ? "1 Position hast du schon" : `${done.alreadyHave} Positionen hast du schon`} im Bestand – sie sind als „Habe ich“ markiert.
+                </span>
+              )}
             </p>
             <div className="flex gap-2">
               <Link href={`/einkaufslisten/${done.listId}`} className="inline-flex h-10 flex-1 items-center justify-center bg-moss px-4 text-sm font-semibold text-paper hover:bg-moss-ink rounded-xl">

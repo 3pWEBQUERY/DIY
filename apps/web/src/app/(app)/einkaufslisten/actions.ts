@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { act } from "@/server/errors";
 import { requireUser } from "@/server/auth/session";
 import * as lists from "@/server/materials/service";
+import { stockFromShoppingItem } from "@/server/materials/stock";
 
 /** Server Actions für Einkaufslisten (PRD §17). Listen sind privat; Prüfung im Service. */
 
@@ -68,10 +69,19 @@ export async function setShoppingListSharedAction(listId: string, shared: boolea
   return act(async () => lists.setShoppingListShared(await requireUser(), listId, shared), shared ? "Freigabelink erstellt." : "Freigabe beendet.");
 }
 
-export async function addSourceToShoppingListAction(input: { kind: "PROJECT" | "TUTORIAL"; id: string; listId?: string | null; newTitle?: string | null }) {
+export async function addSourceToShoppingListAction(input: { kind: "PROJECT" | "TUTORIAL" | "MATERIAL"; id: string; listId?: string | null; newTitle?: string | null }) {
   return act(async () => {
     const r = await lists.addSourceToShoppingList(await requireUser(), input);
     revalidatePath("/einkaufslisten");
     return r;
   });
+}
+
+export async function stockFromShoppingItemAction(itemId: string) {
+  return act(async () => {
+    const u = await requireUser();
+    await stockFromShoppingItem(u.id, itemId);
+    revalidatePath("/materialien/bestand");
+    return null;
+  }, "In deinen Bestand übernommen.");
 }

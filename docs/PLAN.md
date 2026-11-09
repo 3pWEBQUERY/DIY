@@ -131,7 +131,9 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 ### WP11 – Materialien (MAT-001 … MAT-030)
 - [x] Materialdatenbank, Projekt-Materiallisten mit Mengen
 - [x] Einkaufslisten: übernehmen, zusammenführen, abhaken, teilen
-- ⏳ Bestand, Preisvergleich, Affiliate
+- ✅ Eigener Bestand („Habe ich schon“) – wirkt auf Projekt-Materiallisten und Einkaufslisten, gekaufte Positionen → Bestand
+- ✅ Materialseite `/materialien/[slug]` mit Preisvergleich (Preis je Einheit, Stand-Datum), Pflege im Admin-Katalog
+- ✅ Partnerlinks: gekennzeichnet („Partnerlink“, Werbehinweis), `rel=sponsored`, anonyme Klickzählung über `/go/[id]`, Ranking nur nach Preis
 
 ### WP12 – Suche & Entdecken (SEARCH-001 … SEARCH-025)
 - [x] Globale Suche (Mitglieder, Beiträge, Projekte, Tutorials, Produkte, Artikel, Communities)
@@ -173,7 +175,9 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Doku Backup/Restore (`docs/OPERATIONS.md`)
 
 ### WP19 – iOS (Schlussphase) 🍎
-- Expo Router, native Tabs, Kamera/Fotoauswahl, Push, Keychain-Sessions, StoreKit-Prüfung für digitale Käufe
+- 🟡 Native SwiftUI-App (`apps/ios`), Mobile-API `/api/v1/app/*`
+- ⏳ Oberflächen für die neueren Web-Funktionen – Übergabe mit allen Endpunkten: `apps/ios/NEUE-FUNKTIONEN.md`
+- ⏳ StoreKit-Prüfung für Creator Pro und digitale Käufe (App-Store-Regel 3.1.1), APNs-Schlüssel
 
 ---
 

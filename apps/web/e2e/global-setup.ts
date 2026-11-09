@@ -7,6 +7,7 @@ import { sql, userId } from "./helpers";
 export default async function globalSetup() {
   await sql(`DELETE FROM "RateLimitBucket"`);
   await sql(`DELETE FROM "PostCoauthor"`);
+  await sql(`DELETE FROM "ShoppingList" WHERE "ownerId" = $1 AND title LIKE 'Für: %'`, [await userId("mattia")]);
   await sql(`DELETE FROM "CommunityChallenge" WHERE title LIKE 'E2E%'`);
   await sql(`DELETE FROM "Notification" WHERE data->>'message' LIKE '%E2E %'`);
   await sql(`DELETE FROM "Post" WHERE body LIKE 'E2E Koautoren%'`);
