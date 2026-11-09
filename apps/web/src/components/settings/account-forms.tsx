@@ -5,7 +5,7 @@ import { useAction } from "@/lib/use-action";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
-import { changePasswordAction, deleteAccountAction, resendVerificationAction } from "@/app/(app)/einstellungen/actions";
+import { changePasswordAction, deleteAccountAction, requestEmailChangeAction, resendVerificationAction } from "@/app/(app)/einstellungen/actions";
 
 export function ResendVerificationButton() {
   const { run, pending } = useAction(resendVerificationAction, { refresh: false });
@@ -13,6 +13,48 @@ export function ResendVerificationButton() {
     <Button size="sm" variant="outline" onClick={() => run()} disabled={pending} aria-busy={pending}>
       {pending ? "Wird gesendet …" : "Bestätigungslink erneut senden"}
     </Button>
+  );
+}
+
+export function ChangeEmailButton({ hasPassword }: { hasPassword: boolean }) {
+  const [open, setOpen] = useState(false);
+  const { run, pending, fields } = useAction(requestEmailChangeAction, { refresh: false });
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        Adresse ändern
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)} title="E-Mail-Adresse ändern" description="Wir schicken einen Bestätigungslink an die neue Adresse. Erst nach dem Klick wird umgestellt – bis dahin gilt deine bisherige Adresse.">
+        {hasPassword ? (
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const r = await run({ email: String(fd.get("email") ?? ""), password: String(fd.get("password") ?? "") });
+              if (r.ok) setOpen(false);
+            }}
+          >
+            <Field label="Neue E-Mail-Adresse" error={fields.email}>
+              {(p) => <Input name="email" type="email" autoComplete="email" required maxLength={254} {...p} />}
+            </Field>
+            <Field label="Aktuelles Passwort" hint="Zur Sicherheit bestätigst du die Änderung mit deinem Passwort." error={fields._ ?? fields.password}>
+              {(p) => <Input name="password" type="password" autoComplete="current-password" required {...p} />}
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button type="submit" variant="ink" disabled={pending} aria-busy={pending}>
+                {pending ? "Wird gesendet …" : "Bestätigungslink senden"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <p className="text-sm text-ink-2">Du meldest dich bisher nur mit Apple an. Lege unten zuerst ein Passwort fest – damit bestätigst du die Änderung.</p>
+        )}
+      </Dialog>
+    </>
   );
 }
 

@@ -37,6 +37,17 @@ export async function resendVerificationAction() {
   }, "Wir haben dir einen neuen Bestätigungslink geschickt.");
 }
 
+export async function requestEmailChangeAction(input: { email: string; password: string }) {
+  return act(
+    async () => {
+      const u = await requireUser({ allowSuspended: true });
+      const { requestEmailChange } = await import("@/server/account/email-change");
+      return requestEmailChange(u.id, input);
+    },
+    (r) => `Fast geschafft: Wir haben einen Bestätigungslink an ${r.email} geschickt. Erst nach dem Klick wird die Adresse umgestellt.`,
+  );
+}
+
 export async function changePasswordAction(input: { current: string; next: string; confirm: string }) {
   return act(async () => {
     const s = await getSession();

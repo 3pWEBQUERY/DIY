@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { requirePageUser } from "@/server/auth/session";
 import { accountOverview } from "@/server/account/service";
 import { SettingsSection } from "@/components/settings/section";
-import { ChangePasswordForm, DeleteAccountButton, ResendVerificationButton } from "@/components/settings/account-forms";
+import { ChangeEmailButton, ChangePasswordForm, DeleteAccountButton, ResendVerificationButton } from "@/components/settings/account-forms";
 import { Badge, Notice } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
@@ -22,11 +22,10 @@ export default async function AccountSettingsPage() {
         <div className="flex flex-wrap items-center gap-3 border border-line bg-card px-4 py-3 rounded-2xl">
           <span className="font-mono text-[14px]">{a.email}</span>
           {a.emailVerifiedAt ? <Badge tone="moss">Bestätigt</Badge> : <Badge tone="warn">Nicht bestätigt</Badge>}
-          {!a.emailVerifiedAt && (
-            <span className="ml-auto">
-              <ResendVerificationButton />
-            </span>
-          )}
+          <span className="ml-auto flex flex-wrap gap-2">
+            {!a.emailVerifiedAt && <ResendVerificationButton />}
+            <ChangeEmailButton hasPassword={a.hasPassword} />
+          </span>
         </div>
         {a.providers.includes("apple") && <p className="mt-2 text-xs text-muted">Du meldest dich (auch) mit Apple an.</p>}
         <p className="mt-2 text-xs text-muted">Mitglied seit {formatDate(a.createdAt)}.</p>

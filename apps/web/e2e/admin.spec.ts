@@ -103,3 +103,40 @@ test("Vier-Augen-Prinzip: keine Freigabe, Hervorhebung oder Pro-Gutschrift für 
     await sql(`UPDATE "Post" SET state = 'PUBLISHED' WHERE id = $1`, [post]);
   }
 });
+
+test("E-Mail selbst ändern: Passwort, Link an die neue Adresse, erst dann umgestellt", async ({ browser }) => {
+  const { runServer, loginAs, USERS } = await import("./helpers");
+  const elias = await userId("elias");
+  const oldEmail = USERS.elias.email;
+  const newEmail = `elias-neu-${Date.now()}@demo.werkraum.local`;
+  try {
+    const page = await loginAs(browser, "elias");
+    await page.goto("/einstellungen/konto");
+    await page.getByRole("button", { name: "Adresse ändern" }).click();
+    const dlg = page.getByRole("dialog", { name: "E-Mail-Adresse ändern" });
+    await dlg.getByLabel("Neue E-Mail-Adresse").fill(newEmail);
+    await dlg.getByLabel("Aktuelles Passwort").fill("falsches-Passwort-1");
+    await dlg.getByRole("button", { name: "Bestätigungslink senden" }).click();
+    await expect(dlg).toContainText("Passwort nicht korrekt");
+    await dlg.getByLabel("Aktuelles Passwort").fill(PASSWORD);
+    await dlg.getByRole("button", { name: "Bestätigungslink senden" }).click();
+    await expect(page.getByText(/Bestätigungslink an .* geschickt/)).toBeVisible();
+    // Noch nicht umgestellt
+    expect((await one<{ email: string }>(`SELECT email FROM "User" WHERE id = $1`, [elias]))!.email).toBe(oldEmail);
+
+    // Link aus der (Entwicklungs-)Mail holen: neue Anfrage über die Serverfunktion
+    const out = runServer(`import("./src/server/account/email-change").then((m) => m.requestEmailChange("${elias}", { email: "${newEmail}", password: "${PASSWORD}" }))`);
+    const link = /"cta":"([^"]*\/e-mail-bestaetigen\/[^"]+)"/.exec(out)![1]!;
+    const path = new URL(link).pathname;
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Geändert." })).toBeVisible();
+    const row = (await one<{ email: string; verified: boolean }>(`SELECT email, "emailVerifiedAt" IS NOT NULL AS verified FROM "User" WHERE id = $1`, [elias]))!;
+    expect(row).toEqual({ email: newEmail, verified: true });
+    // Einmal-Link
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Link ungültig" })).toBeVisible();
+  } finally {
+    await sql(`UPDATE "User" SET email = $2 WHERE id = $1`, [elias, oldEmail]);
+    await sql(`DELETE FROM "VerificationToken" WHERE "userId" = $1 AND purpose = 'EMAIL_CHANGE'`, [elias]);
+  }
+});
