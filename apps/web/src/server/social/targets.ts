@@ -58,8 +58,8 @@ export async function targetMeta(type: TargetType, id: string): Promise<Meta | n
   }
 }
 
-/** Zähler atomar anpassen. */
-export async function bumpCounter(tx: Tx, type: TargetType, id: string, field: "like" | "save" | "comment", by: 1 | -1) {
+/** Zähler atomar anpassen (`by` meist ±1; beim Löschen eines Kommentars samt Antworten mehr). */
+export async function bumpCounter(tx: Tx, type: TargetType, id: string, field: "like" | "save" | "comment", by: number) {
   const inc = { increment: by };
   switch (type) {
     case "POST":
