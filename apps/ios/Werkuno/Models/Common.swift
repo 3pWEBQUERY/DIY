@@ -145,6 +145,18 @@ struct PostItem: Codable, Hashable, Identifiable, Sendable {
         var author: UserMini?
         var media: [MediaItem]?
         var publishedAt: Date?
+
+        private enum CodingKeys: String, CodingKey { case id, body, author, media, publishedAt }
+
+        // Unvollständige Angaben zum Original (z. B. Autor ohne id) dürfen nie den ganzen Feed scheitern lassen
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            body = try? c.decodeIfPresent(String.self, forKey: .body)
+            author = try? c.decodeIfPresent(UserMini.self, forKey: .author)
+            media = try? c.decodeIfPresent([MediaItem].self, forKey: .media)
+            publishedAt = try? c.decodeIfPresent(Date.self, forKey: .publishedAt)
+        }
     }
 
     var id: String
