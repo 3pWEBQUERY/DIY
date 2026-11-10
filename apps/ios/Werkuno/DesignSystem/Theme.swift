@@ -13,8 +13,8 @@ extension Color {
         })
     }
 
-    /// Hintergrund (Papier) – web --color-paper
-    static let paper = Color.dynamic(light: 0xFAF8F5, dark: 0x151312)
+    /// Hintergrund – im hellen Modus reines Weiss, im Dunkelmodus warmes Schwarz
+    static let paper = Color.dynamic(light: 0xFFFFFF, dark: 0x151312)
     /// Karten und Panels – web --color-card
     static let card = Color.dynamic(light: 0xFFFFFF, dark: 0x1F1C1B)
     /// Abgesetzte Flächen – web --color-sunken
@@ -30,6 +30,9 @@ extension Color {
     static let mossInk = Color.dynamic(light: 0x973B2C, dark: 0xF2AC9C)
     /// Akzentfläche – web --color-moss-soft
     static let mossSoft = Color.dynamic(light: 0xF6E5E0, dark: 0x3B2420)
+    /// Gefüllte Aktions-Buttons (ausgewählte Chips, Folgen, Umschalter …): im hellen Modus das
+    /// Werkuno-Orange der Website statt Schwarz, im Dunkelmodus hell. Schrift darauf: `Color.paper`.
+    static let action = Color.dynamic(light: 0xB64B3A, dark: 0xEEEAE6)
     /// Akzent = Primärfarbe (wie im Web)
     static let clay = moss
     static let clayInk = mossInk

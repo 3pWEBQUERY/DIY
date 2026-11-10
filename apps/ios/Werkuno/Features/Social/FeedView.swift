@@ -553,7 +553,7 @@ private struct FeedKindSwitch: View {
                         .foregroundStyle(on ? Color.paper : Color.ink)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(on ? Color.ink : .clear, in: Capsule())
+                        .background(on ? Color.action : .clear, in: Capsule())
                         .fixedSize()
                 }
                 .buttonStyle(.plain)

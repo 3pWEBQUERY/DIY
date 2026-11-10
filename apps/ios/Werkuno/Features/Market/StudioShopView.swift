@@ -203,13 +203,14 @@ struct StudioRevenueView: View {
     @State private var range = "30"
     @State private var data: MarketRevenue?
     @State private var error: String?
+    @State private var payoutReload = 0
 
     private let ranges: [(value: String, label: String)] = [("30", "30 Tage"), ("90", "90 Tage"), ("365", "12 Monate"), ("alle", "Gesamt")]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                PageTitle(kicker: "Werkuno Studio", title: "Einnahmen", subtitle: "Bezahlte Bestellungen deines Shops – ohne Schönfärberei.")
+                PageTitle(kicker: "Werkuno Studio", title: "Einnahmen & Auszahlungen", subtitle: "Bezahlte Bestellungen deines Shops – ohne Schönfärberei.")
                     .padding(.horizontal, Space.gutter)
                 if app.me?.shop == nil {
                     MarketNoShopCTA().padding(.horizontal, Space.gutter)
@@ -229,7 +230,7 @@ struct StudioRevenueView: View {
         .navigationTitle("Einnahmen")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: range) { if app.me?.shop != nil { await load() } }
-        .refreshable { await load() }
+        .refreshable { payoutReload += 1; await load() }
     }
 
     private func load() async {
@@ -246,10 +247,13 @@ struct StudioRevenueView: View {
     @ViewBuilder private func content(_ r: MarketRevenue) -> some View {
         let cur = r.currency
         if r.payments == "simulated" {
-            NoticeView(tone: .warn, title: "Testmodus", message: "Zahlungen sind simuliert. Es fliesst kein echtes Geld, und es gibt keine Auszahlungen.")
+            NoticeView(tone: .warn, title: "Testmodus", message: "Zahlungen in dieser Umgebung sind simuliert. Es fliesst kein echtes Geld.")
         } else if r.connected == false {
             NoticeView(tone: .info, title: "Kein Auszahlungskonto", message: "Verbinde dein Auszahlungskonto über die Shop-Verifizierung, damit Erlöse ausgezahlt werden.")
         }
+
+        // Guthaben, Auszahlungsplan, Bankkonto und Verlauf (Benachrichtigungen „payout“ führen hierher)
+        StudioPayoutPanel(reloadKey: payoutReload) { await load() }
 
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
@@ -310,23 +314,6 @@ struct StudioRevenueView: View {
                 }
                 .buttonStyle(.plain)
                 .hairline()
-            }
-        }
-
-        if let payouts = r.payouts, !payouts.isEmpty {
-            MarketSection("Auszahlungen", number: "02") {
-                ForEach(payouts) { p in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(p.status == "paid" ? "Ausgezahlt" : p.status == "pending" || p.status == "in_transit" ? "Unterwegs" : p.status == "failed" ? "Fehlgeschlagen" : p.status).font(.wr(.subheadline))
-                            Text(Fmt.date(p.arrivalAt ?? p.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
-                        }
-                        Spacer()
-                        Text(Fmt.money(p.amountMinor, currency: p.currency ?? cur)).font(.wr(.subheadline, .medium)).monospacedDigit()
-                    }
-                    .padding(.vertical, 8)
-                    .hairline()
-                }
             }
         }
     }

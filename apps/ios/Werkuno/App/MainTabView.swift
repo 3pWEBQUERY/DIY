@@ -87,6 +87,7 @@ struct RouteView: View {
             case .materials: MaterialsView()
             case .studio: StudioView()
             case .studioSection(let s): StudioSectionView(section: s)
+            case .creatorPro: StudioProView()
             case .sellerOrder(let id): SellerOrderDetailView(id: id)
             case .settings: SettingsView()
             case .settingsSection(let s): SettingsSectionView(section: s)
@@ -97,6 +98,13 @@ struct RouteView: View {
             case .search(let q): SearchView(initialQuery: q)
             case .category(let s): CategoryDiscoverView(slug: s)
             case .web(let p): WebPageView(url: AppConfig.webURL(p))
+            case .postDrafts: SocialDraftsView()
+            case .competitions(let c): CompetitionListView(communitySlug: c)
+            case .competition(let id): CompetitionDetailView(id: id)
+            case .events: EventListView()
+            case .event(let id): EventDetailView(id: id)
+            case .material(let s): MaterialDetailView(slug: s)
+            case .materialStock: MaterialStockView()
             }
         }
         .background(Color.paper)
@@ -153,6 +161,7 @@ struct SheetHost: View {
         case .collectionPicker(let t, let id): CollectionPickerSheet(type: t, id: id)
         case .shoppingListPicker(let k, let id, let t): ShoppingListPickerSheet(kind: k, id: id, title: t)
         case .web(let url): SafariSheet(url: url).ignoresSafeArea()
+        case .coauthors(let id, let co): SocialCoauthorSheet(postId: id, asCoauthor: co)
         }
     }
 }

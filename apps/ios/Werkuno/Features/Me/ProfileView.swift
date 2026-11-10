@@ -1,6 +1,16 @@
 import SwiftUI
 
-private enum MeProfileTab: String, Hashable { case posts, projects, tutorials, shop, blog, collections, about }
+private enum MeProfileTab: String, Hashable { case posts, projects, tutorials, shop, blog, collections, about, reviews }
+
+/// `GET /users/:handle` einmal laden, zweimal lesen: Profil (`MeProfilePage`) + Bewertungen/Auszeichnungen.
+private struct MeProfileResponse: Decodable {
+    var page: MeProfilePage
+    var extras: SocialProfileExtras
+    init(from decoder: Decoder) throws {
+        page = try MeProfilePage(from: decoder)
+        extras = try SocialProfileExtras(from: decoder)
+    }
+}
 
 /// Creator-Profil (PRD §12)
 struct ProfileView: View {
@@ -10,6 +20,7 @@ struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var page: MeProfilePage?
+    @State private var extras: SocialProfileExtras?
     @State private var error: String?
     @State private var tab: MeProfileTab = .posts
     @State private var posts: [PostItem] = []
@@ -38,7 +49,8 @@ struct ProfileView: View {
 
     private func load() async {
         do {
-            let p: MeProfilePage = try await APIClient.shared.get("/users/\(handle.lowercased())")
+            let r: MeProfileResponse = try await APIClient.shared.get("/users/\(handle.lowercased())")
+            let p = r.page
             if let r = p.redirect {
                 dismiss()
                 try? await Task.sleep(for: .milliseconds(350))
@@ -47,6 +59,7 @@ struct ProfileView: View {
             }
             let first = page == nil
             page = p
+            extras = r.extras
             posts = p.posts ?? []
             cursor = p.postsCursor
             error = nil
@@ -79,6 +92,7 @@ struct ProfileView: View {
                     if viewer.isSelf {
                         Button("Profil bearbeiten", systemImage: "pencil") { router.open(.settingsSection(.profile)) }
                         Button("Werkuno Studio", systemImage: "chart.bar.xaxis") { router.open(.studio) }
+                        Button("Entwürfe & geplante Beiträge", systemImage: "doc.text") { router.open(.postDrafts) }
                     } else {
                         Button("Nachricht schreiben", systemImage: "bubble.left") { router.present(.newConversation(handle: prof.handle)) }
                         Divider()
@@ -128,6 +142,7 @@ struct ProfileView: View {
         t.append((.projects, "Projekte", (p.projects ?? []).count))
         if !(p.tutorials ?? []).isEmpty { t.append((.tutorials, "Anleitungen", p.tutorials?.count)) }
         if !(p.products ?? []).isEmpty { t.append((.shop, "Shop", p.products?.count)) }
+        if let r = extras?.reviews, r.show == true { t.append((.reviews, "Bewertungen", hasActiveShop(prof) ? r.received : r.given)) }
         if (p.articleCount ?? 0) > 0 { t.append((.blog, "Blog", p.articleCount)) }
         if !(p.collections ?? []).isEmpty { t.append((.collections, "Sammlungen", p.collections?.count)) }
         t.append((.about, "Über mich", nil))
@@ -187,6 +202,7 @@ struct ProfileView: View {
                     }
                 }
                 counts(prof)
+                SocialAwardsList(awards: extras?.awards ?? [])
                 if let shop = prof.shop, shop.status == "ACTIVE" {
                     LinkedThreadRow(kicker: "Shop", title: [shop.name, shop.tagline?.nilIfEmpty].compactMap { $0 }.joined(separator: " – "), seed: shop.slug, category: prof.categories?.first, url: nil) {
                         router.open(.shop(slug: shop.slug))
@@ -353,8 +369,14 @@ struct ProfileView: View {
             }
         case .about:
             about(prof)
+        case .reviews:
+            if let r = extras?.reviews {
+                SocialProfileReviews(handle: prof.handle, shopName: prof.shop?.name, hasShop: hasActiveShop(prof), counts: r, isSelf: p.viewer?.isSelf == true)
+            }
         }
     }
+
+    private func hasActiveShop(_ prof: MeProfilePage.Profile) -> Bool { prof.shop?.status == "ACTIVE" }
 
     private func about(_ prof: MeProfilePage.Profile) -> some View {
         VStack(alignment: .leading, spacing: 18) {

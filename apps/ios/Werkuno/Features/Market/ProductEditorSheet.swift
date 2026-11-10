@@ -145,7 +145,7 @@ struct ProductEditorSheet: View {
                 TextField("Beschreibung – wie ist es entstanden, wofür eignet es sich, wie pflegt man es?", text: $description, axis: .vertical)
                     .lineLimit(4...12)
             } header: { Text("Angebot") } footer: {
-                if isDigital { Text("Digitale Dateien verwaltest du im Web. Auf iOS werden digitale Produkte nicht verkauft.") }
+                if isDigital { Text("Digitale Dateien verwaltest du im Web. In der iOS-App kaufen Kund:innen über Apple; dein Anteil ist gleich wie bei einem Web-Verkauf.") }
                 else { Text("Konkret und ehrlich, z. B. „Gehäkelter Korb aus Baumwollkordel, natur“.") }
             }
 

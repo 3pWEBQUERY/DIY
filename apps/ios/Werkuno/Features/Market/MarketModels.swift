@@ -202,6 +202,9 @@ struct MarketProductPage: Decodable, Sendable {
     var reviews: [MarketReview]?
     var moreFromShop: [ProductCard]?
     var payments: MarketPayments?
+    /// Digitale Produkte: Apple-Produkt-ID der Preisstufe (nil = in der App nicht kaufbar).
+    /// `priceMinor` ist bei digitalen Produkten bereits der App-Preis.
+    var appStoreProductId: String?
 
     var isDigital: Bool { kind == "DIGITAL" }
     var href: String { "/markt/\(shop.slug)/\(slug)" }

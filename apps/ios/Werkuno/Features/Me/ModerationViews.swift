@@ -108,7 +108,7 @@ struct AppealView: View {
 
 // MARK: - Moderation (§24)
 
-private enum MeModTab: String, Hashable { case overview, queue, appeals, reports, users }
+private enum MeModTab: String, Hashable { case overview, queue, appeals, reports, users, content }
 
 struct ModerationView: View {
     @Environment(AppState.self) private var app
@@ -134,6 +134,7 @@ struct ModerationView: View {
                                 case .appeals: MeModAppealsList()
                                 case .reports: MeModReportsList()
                                 case .users: MeAdminUsersList()
+                                case .content: MeAdminContentList()
                                 }
                             }
                             .padding(.horizontal, Space.gutter)
@@ -145,6 +146,7 @@ struct ModerationView: View {
                                 (.appeals, "Einsprüche", dashboard?.counts?.appeals),
                                 (.reports, "Meldungen", nil),
                                 (.users, "Nutzer:innen", nil),
+                                (.content, "Inhalte", nil),
                                 (.overview, "Kennzahlen", nil),
                             ], selection: $tab)
                         }
@@ -269,7 +271,7 @@ private struct MeModQueueList: View {
                             .font(.wr(.footnote).weight(on ? .semibold : .regular))
                             .foregroundStyle(on ? Color.paper : Color.ink)
                             .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(on ? Color.ink : Color.sunken, in: Capsule())
+                            .background(on ? Color.action : Color.sunken, in: Capsule())
                         }
                         .buttonStyle(.plain)
                     }
@@ -556,7 +558,7 @@ private struct MeModReportsList: View {
             .font(.wr(.footnote).weight(on ? .semibold : .regular))
             .foregroundStyle(on ? Color.paper : Color.ink)
             .padding(.horizontal, 12).padding(.vertical, 7)
-            .background(on ? Color.ink : Color.sunken, in: Capsule())
+            .background(on ? Color.action : Color.sunken, in: Capsule())
         }
         .buttonStyle(.plain)
     }
@@ -724,7 +726,7 @@ struct ModerationCaseView: View {
                                     _ = try await APIClient.shared.post("/admin/cases/\(id)/assign", ["assign": JSONValue.bool(!mine)]) as JSONValue
                                 }) { await load() }
                             } label: { Text(mine ? "Freigeben" : "Übernehmen").font(.wr(.footnote, .semibold)) }
-                            .buttonStyle(mine ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
+                            .glassToggleStyle(prominent: !mine)
                             .tint(.moss)
                         }
                     }
@@ -905,6 +907,7 @@ struct AdminUserView: View {
     @State private var error: String?
     @State private var sheet: MeAdminSheet?
     @State private var confirmRevoke = false
+    @State private var showEmailChange = false
 
     var body: some View {
         MePhase(value: data, error: error, retry: load) { d in content(d) }
@@ -915,6 +918,10 @@ struct AdminUserView: View {
             .refreshable { await load() }
             .sheet(item: $sheet) { s in
                 MeAdminActionSheet(kind: s, userId: id, currentRole: data?.user.role ?? "MEMBER") { await load() }.meSheetEnvironment(app, router)
+            }
+            .sheet(isPresented: $showEmailChange) {
+                MeAdminEmailSheet(userId: id, current: data?.user.email ?? "", canMarkVerified: app.me?.role == "SUPERADMIN") { await load() }
+                    .meSheetEnvironment(app, router)
             }
             .confirmationDialog("Alle Sitzungen widerrufen?", isPresented: $confirmRevoke, titleVisibility: .visible) {
                 Button("Widerrufen", role: .destructive) {
@@ -985,6 +992,10 @@ struct AdminUserView: View {
                             }
                             if app.me?.isAdmin == true {
                                 MeNavRow(symbol: "person.badge.key", title: "Rolle ändern", subtitle: L.roles[u.role] ?? u.role) { sheet = .role }
+                                // Wie im Web: nur Administration, nie das eigene Konto, gleiche oder höhere Rolle nur Superadministration
+                                if u.status != "DELETED", app.me?.role == "SUPERADMIN" || MeRoleRank.rank(u.role) < MeRoleRank.rank(app.me?.role) {
+                                    MeNavRow(symbol: "at", title: "E-Mail-Adresse ändern", subtitle: "Support-Fall, mit Begründung") { showEmailChange = true }
+                                }
                                 if u.emailVerifiedAt == nil {
                                     MeNavRow(symbol: "checkmark.seal", title: "E-Mail manuell bestätigen") {
                                         Task { if await app.run("E-Mail bestätigt.", { _ = try await APIClient.shared.post("/admin/users/\(id)/verify-email") as JSONValue }) { await load() } }

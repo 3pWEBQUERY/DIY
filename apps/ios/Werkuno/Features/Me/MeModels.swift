@@ -218,6 +218,7 @@ struct MeShoppingItem: Decodable, Sendable, Identifiable, Hashable {
     var sourceTitle: String?
     var category: String?
     var materialSlug: String?
+    var materialId: String?
     var isDone: Bool { haveIt || purchased }
 }
 
@@ -240,7 +241,7 @@ struct MeMaterialHit: Decodable, Sendable, Identifiable, Hashable {
     var category: String?
 }
 
-struct MeAddSourceResult: Decodable, Sendable { var listId: String; var added: Int?; var merged: Int? }
+struct MeAddSourceResult: Decodable, Sendable { var listId: String; var added: Int?; var merged: Int?; var alreadyHave: Int? }
 struct MeShareResult: Decodable, Sendable { var shareToken: String? }
 struct MeMergeResult: Decodable, Sendable { var added: Int?; var merged: Int? }
 struct MeCountResult: Decodable, Sendable { var count: Int?; var removed: Int?; var revoked: Int? }

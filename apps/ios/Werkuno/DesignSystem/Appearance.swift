@@ -114,7 +114,7 @@ struct AppearancePicker: View {
     }
 
     private func miniScreen(dark: Bool) -> some View {
-        let paper = Color(UIColor(hex: dark ? 0x151312 : 0xFAF8F5))
+        let paper = Color(UIColor(hex: dark ? 0x151312 : 0xFFFFFF))
         let card = Color(UIColor(hex: dark ? 0x1F1C1B : 0xFFFFFF))
         let ink = Color(UIColor(hex: dark ? 0xEEEAE6 : 0x262427))
         let accent = Color(UIColor(hex: dark ? 0xE47F6B : 0xB64B3A))

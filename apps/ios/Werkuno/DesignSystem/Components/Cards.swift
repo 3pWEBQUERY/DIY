@@ -23,7 +23,10 @@ struct ProjectCardView: View {
                     .aspectRatio(4 / 5, contentMode: .fit)
                     .overlay(alignment: .topLeading) { StatusBadge(status: project.status).padding(8) }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(project.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(project.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                        .lineLimit(2, reservesSpace: true) // alle Kacheln gleich hoch, egal wie lang der Titel ist
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     HStack(spacing: 6) {
                         AvatarView(url: project.owner.avatarUrl, name: project.owner.displayName, size: 18)
                         Text(project.owner.displayName).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
@@ -41,7 +44,15 @@ struct ProjectCardView: View {
         case .wide:
             VStack(alignment: .leading, spacing: 0) {
                 CoverView(url: project.coverUrl, seed: project.id, category: project.category)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 190)
+                    .overlay(alignment: .bottom) {
+                        if project.coverUrl != nil {
+                            LinearGradient(colors: [.black.opacity(0), .black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+                                .frame(height: 70)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .overlay(alignment: .bottomLeading) {
                         HStack { StatusBadge(status: project.status); Spacer() }.padding(10)
                     }
@@ -56,6 +67,8 @@ struct ProjectCardView: View {
                     }
                 }
                 .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.card) // Text immer auf ruhiger Kartenfläche, nie auf dem Foto
             }
             .cardSurface()
             .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))

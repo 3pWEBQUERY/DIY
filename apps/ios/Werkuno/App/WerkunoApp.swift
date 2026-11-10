@@ -109,6 +109,8 @@ struct RootView: View {
         .toastOverlay()
         .onAppear { AppAppearance.apply() } // gespeicherte Darstellung (Hell/Dunkel/System)
         .task { await app.launch() }
+        // Käufe digitaler Produkte, die ausserhalb des Kaufdialogs abgeschlossen wurden, nachträglich verbuchen
+        .task(id: app.phase == .ready) { if app.phase == .ready { DigitalStore.shared.startListening() } }
         .onChange(of: scenePhase) { _, p in app.setActive(p == .active) }
     }
 }

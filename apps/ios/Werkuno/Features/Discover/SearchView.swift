@@ -172,7 +172,7 @@ struct SearchView: View {
             .padding(.horizontal, 13).padding(.vertical, 8)
         }
         .buttonStyle(.plain)
-        .glassEffect(on ? .regular.tint(Color.ink).interactive() : .regular.interactive(), in: Capsule())
+        .glassEffect(on ? .regular.tint(Color.action).interactive() : .regular.interactive(), in: Capsule())
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 

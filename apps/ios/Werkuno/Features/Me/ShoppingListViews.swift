@@ -26,11 +26,18 @@ struct ShoppingListsView: View {
                             ForEach(lists) { l in row(l, others: lists.filter { $0.id != l.id }) }
                         }
                     }
-                    Button { router.open(.materials) } label: {
-                        Label("Materialdatenbank durchsuchen", systemImage: "shippingbox")
-                            .font(.wr(.subheadline, .semibold))
+                    HStack(spacing: 10) {
+                        Button { router.open(.materials) } label: {
+                            Label("Materialdatenbank", systemImage: "shippingbox")
+                                .font(.wr(.subheadline, .semibold))
+                        }
+                        .buttonStyle(.glass)
+                        Button { router.open(.materialStock) } label: {
+                            Label("Mein Bestand", systemImage: "archivebox")
+                                .font(.wr(.subheadline, .semibold))
+                        }
+                        .buttonStyle(.glass)
                     }
-                    .buttonStyle(.glass)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 6)
                 }
@@ -155,6 +162,8 @@ struct ShoppingListView: View {
     @State private var materialId: String?
     @State private var materialName: String?
     @State private var suggestions: [MeMaterialHit] = []
+    /// Gekaufte Positionen, die in den Bestand übernommen wurden (`to-stock`)
+    @State private var stocked: Set<String> = []
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -280,6 +289,18 @@ struct ShoppingListView: View {
                 if !sub.isEmpty { Text(sub.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1) }
             }
             Spacer(minLength: 8)
+            if it.purchased {
+                Button { Task { await toStock(it) } } label: {
+                    Image(systemName: stocked.contains(it.id) ? "checkmark.circle" : "archivebox")
+                        .font(.wr(.body))
+                        .foregroundStyle(stocked.contains(it.id) ? Color.moss : Color.muted)
+                        .frame(width: 36, height: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .disabled(stocked.contains(it.id))
+                .accessibilityLabel(stocked.contains(it.id) ? "\(it.name) ist im Bestand" : "\(it.name) in den Bestand übernehmen")
+            }
             Button { qtyText = it.quantity ?? ""; editingQty = it } label: {
                 Text(it.quantity?.nilIfEmpty ?? "Menge")
                     .font(.wr(.subheadline, .medium)).monospacedDigit()
@@ -304,7 +325,10 @@ struct ShoppingListView: View {
             Button(it.purchased ? "Nicht gekauft" : "Gekauft", systemImage: "cart") { Task { await patch(it, ["purchased": .bool(!it.purchased)]) } }
             Button(it.haveIt ? "Brauche ich doch" : "Habe ich schon", systemImage: "house") { Task { await patch(it, ["haveIt": .bool(!it.haveIt)]) } }
             Button("Menge ändern", systemImage: "number") { qtyText = it.quantity ?? ""; editingQty = it }
-            if it.materialSlug != nil { Button("Materialdatenbank", systemImage: "shippingbox") { router.open(.materials) } }
+            if it.purchased && !stocked.contains(it.id) {
+                Button("In den Bestand übernehmen", systemImage: "archivebox") { Task { await toStock(it) } }
+            }
+            if let slug = it.materialSlug { Button("Materialseite", systemImage: "shippingbox") { router.open(.material(slug: slug)) } }
             Button("Entfernen", systemImage: "trash", role: .destructive) { Task { await remove(it) } }
         }
     }
@@ -402,6 +426,15 @@ struct ShoppingListView: View {
         }
         do { _ = try await APIClient.shared.patch("/shopping-list-items/\(it.id)", body) as JSONValue }
         catch { app.show(error: error); await load() }
+    }
+
+    private func toStock(_ it: MeShoppingItem) async {
+        do {
+            _ = try await APIClient.shared.post("/shopping-list-items/\(it.id)/to-stock") as JSONValue
+            Haptics.success()
+            withAnimation(.snappy) { _ = stocked.insert(it.id) }
+            app.show("«\(it.name)» ist in deinem Bestand.")
+        } catch { app.show(error: error) }
     }
 
     private func remove(_ it: MeShoppingItem) async {
@@ -537,13 +570,13 @@ struct ShoppingListPickerSheet: View {
         Form {
             Section {
                 HStack(spacing: 12) {
-                    Image(systemName: kind == "TUTORIAL" ? "list.number" : "hammer").foregroundStyle(Color.moss).frame(width: 26)
+                    Image(systemName: kind == "TUTORIAL" ? "list.number" : kind == "MATERIAL" ? "shippingbox" : "hammer").foregroundStyle(Color.moss).frame(width: 26)
                     VStack(alignment: .leading, spacing: 2) {
-                        SpecLabel(kind == "TUTORIAL" ? "Anleitung" : "Projekt", color: .moss)
+                        SpecLabel(kind == "TUTORIAL" ? "Anleitung" : kind == "MATERIAL" ? "Material" : "Projekt", color: .moss)
                         Text(title).font(.wr(.subheadline, .semibold))
                     }
                 }
-            } footer: { Text("Alle Materialien werden übernommen. Was schon auf der Liste steht, wird zusammengezählt.") }
+            } footer: { Text(kind == "MATERIAL" ? "Steht es schon auf der Liste, wird es zusammengefasst." : "Alle Materialien werden übernommen. Gleiche Materialien werden zusammengefasst, was du schon im Bestand hast, wird als „Habe ich“ markiert.") }
             if let error {
                 Section { ErrorStateView(message: error) { await load() } }
             } else if let lists {
@@ -573,6 +606,13 @@ struct ShoppingListPickerSheet: View {
             Image(systemName: "checklist.checked").font(.wr(size: 44)).foregroundStyle(Color.moss).symbolEffect(.bounce, value: r.listId)
             Text("Auf der Liste").font(.display(26))
             Text("\(Fmt.plural(r.added ?? 0, "Position", "Positionen")) neu, \(r.merged ?? 0) zusammengefasst.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
+            if let have = r.alreadyHave, have > 0 {
+                Label(have == 1 ? "1 Position hast du schon im Bestand – als „Habe ich“ markiert." : "\(have) Positionen hast du schon im Bestand – als „Habe ich“ markiert.", systemImage: "archivebox")
+                    .font(.wr(.footnote, .semibold))
+                    .foregroundStyle(Color.mossInk)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
             Button {
                 dismiss()
                 let target = r.listId
@@ -595,12 +635,13 @@ struct ShoppingListPickerSheet: View {
     }
 
     private func submit() async {
-        var body: [String: JSONValue] = ["kind": .string(kind == "TUTORIAL" ? "TUTORIAL" : "PROJECT"), "id": .string(id)]
+        let k = kind == "TUTORIAL" || kind == "MATERIAL" ? kind : "PROJECT"
+        var body: [String: JSONValue] = ["kind": .string(k), "id": .string(id)]
         if selection == "new" { body["newTitle"] = .string(newTitle.trimmed) } else { body["listId"] = .string(selection) }
         do {
             let r: MeAddSourceResult = try await APIClient.shared.post("/shopping-lists/add-source", body)
             Haptics.success()
-            app.show("Materialien übernommen – \(r.added ?? 0) neu, \(r.merged ?? 0) zusammengefasst.")
+            app.show(k == "MATERIAL" ? "«\(title)» ist auf der Einkaufsliste." : "Materialien übernommen – \(r.added ?? 0) neu, \(r.merged ?? 0) zusammengefasst.")
             withAnimation(.snappy) { result = r }
         } catch { app.show(error: error) }
     }

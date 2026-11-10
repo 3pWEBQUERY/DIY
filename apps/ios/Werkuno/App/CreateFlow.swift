@@ -15,9 +15,14 @@ struct WorkbenchAccessory: View {
     var body: some View {
         HStack(spacing: 12) {
             Button { router.present(.createMenu) } label: {
-                Label("Erstellen", systemImage: "plus")
+                Group {
+                    if placement == .inline {
+                        Label("Erstellen", systemImage: "plus").labelStyle(.iconOnly)
+                    } else {
+                        Label("Erstellen", systemImage: "plus").labelStyle(.titleAndIcon)
+                    }
+                }
                     .font(.wr(.subheadline, .semibold))
-                    .labelStyle(placement == .inline ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(.rect)
             }
@@ -56,12 +61,6 @@ struct WorkbenchAccessory: View {
         guard app.isSignedIn, let c: Ctx = try? await APIClient.shared.get("/feed/context") else { return }
         withAnimation { active = c.workbench.first }
     }
-}
-
-struct AnyLabelStyle: LabelStyle {
-    private let make: (Configuration) -> AnyView
-    init<S: LabelStyle>(_ s: S) { make = { AnyView(s.makeBody(configuration: $0)) } }
-    func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }
 
 // MARK: - Erstellen-Menü

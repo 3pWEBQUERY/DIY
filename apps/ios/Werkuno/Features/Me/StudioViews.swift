@@ -92,6 +92,7 @@ struct StudioView: View {
                         ForEach(StudioSection.allCases) { s in
                             MeNavRow(symbol: s.symbol, title: s.title, subtitle: subtitle(s), tint: isShopSection(s) ? .clay : .ink) { router.open(.studioSection(s)) }
                         }
+                        MeNavRow(symbol: "seal", title: "Creator Pro", subtitle: app.me?.profile?.isCreatorPro == true ? "Aktiv · Schaufenster, Medienkit, Abo" : "Status und Vorteile", tint: .moss) { router.open(.creatorPro) }
                     }
                 }
 

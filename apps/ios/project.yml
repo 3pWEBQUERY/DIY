@@ -48,3 +48,5 @@ schemes:
         Werkuno: all
     run:
       config: Debug
+      # Lokaler Test der In-App-Käufe (digitale Produkte) ohne App Store Connect
+      storeKitConfiguration: StoreKit/Werkuno.storekit

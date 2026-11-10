@@ -195,6 +195,7 @@ final class AppState {
 
     func signIn(email: String, password: String) async throws {
         let r = try await api.login(email: email, password: password)
+        if r.mfaRequired == true { throw MfaChallenge(token: r.token) }
         api.token = r.token
         isGuest = false
         await refresh()
@@ -221,10 +222,11 @@ final class AppState {
         await refresh()
     }
 
-    struct AppleResult: Decodable { var token: String; var isNew: Bool }
+    struct AppleResult: Decodable { var token: String; var isNew: Bool; var mfaRequired: Bool? }
 
     func signInWithApple(identityToken: String, givenName: String?, familyName: String?) async throws {
         let r: AppleResult = try await api.post("/auth/apple", ["identityToken": JSONValue.string(identityToken), "givenName": .from(givenName), "familyName": .from(familyName)])
+        if r.mfaRequired == true { throw MfaChallenge(token: r.token) }
         api.token = r.token
         isGuest = false
         await refresh()

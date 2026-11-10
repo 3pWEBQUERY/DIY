@@ -30,6 +30,8 @@ struct ConversationView: View {
     @State private var showViewer = false
     @State private var confirmBlock = false
     @State private var scrollTarget: String?
+    @State private var showGroupInfo = false
+    @State private var confirmLeaveGroup = false
     @FocusState private var focused: Bool
 
     private static let maxImages = 6
@@ -46,9 +48,12 @@ struct ConversationView: View {
         }
         .background(Color.paper)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle(thread?.other?.displayName ?? "Unterhaltung")
+        .navigationTitle(thread?.group?.title ?? thread?.other?.displayName ?? "Unterhaltung")
         .toolbar {
-            if let other = thread?.other {
+            if let group = thread?.group {
+                ToolbarItem(placement: .principal) { groupHeader(group) }
+                ToolbarItem(placement: .topBarTrailing) { groupMenu(group) }
+            } else if let other = thread?.other {
                 ToolbarItem(placement: .principal) {
                     Button { router.open(.profile(handle: other.handle)) } label: {
                         HStack(spacing: 8) {
@@ -81,6 +86,19 @@ struct ConversationView: View {
         .fullScreenCover(isPresented: $showViewer) {
             if let v = viewerMedia { MediaViewer(media: v.items, start: v.start) }
         }
+        .sheet(isPresented: $showGroupInfo) {
+            if let g = thread?.group {
+                GroupInfoSheet(conversationId: id, group: g, reload: { await load(); return thread?.group }, onLeft: {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        dismiss()
+                    }
+                })
+            }
+        }
+        .confirmationDialog("Gruppe verlassen?", isPresented: $confirmLeaveGroup, titleVisibility: .visible) {
+            Button("Verlassen", role: .destructive) { Task { await leaveGroup() } }
+        } message: { Text("Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") }
         .confirmationDialog("\(thread?.other?.displayName ?? "Profil") blockieren?", isPresented: $confirmBlock, titleVisibility: .visible) {
             Button("Blockieren", role: .destructive) { Task { await block() } }
         } message: { Text("Ihr könnt euch dann keine Nachrichten mehr schicken und seht eure Inhalte nicht mehr.") }
@@ -113,9 +131,13 @@ struct ConversationView: View {
                         if i == 0 || !Calendar.current.isDate(messages[i - 1].createdAt, inSameDayAs: m.createdAt) {
                             daySeparator(m.createdAt)
                         }
+                        if m.isSystem {
+                            SocialSystemNotice(text: m.body).id(m.id)
+                        } else {
                         SocialMessageBubble(
                             message: m,
-                            otherName: t.other?.displayName ?? "Unbekannt",
+                            otherName: senderName(m, t),
+                            sender: t.group != nil && !m.mine && !grouped(i) ? senderMember(m, t) : nil,
                             showTime: showTime(i),
                             groupedWithPrevious: grouped(i),
                             onImage: { item in
@@ -125,7 +147,8 @@ struct ConversationView: View {
                             onReport: { router.present(.report(targetType: "MESSAGE", targetId: m.id, title: "Nachricht melden")) }
                         )
                         .id(m.id)
-                        if m.id == lastMine?.id {
+                        }
+                        if t.group == nil, m.id == lastMine?.id {
                             Text(receipt)
                                 .font(.wr(.caption2))
                                 .foregroundStyle(Color.muted)
@@ -164,7 +187,7 @@ struct ConversationView: View {
     private func showTime(_ i: Int) -> Bool {
         guard let next = messages[safe: i + 1] else { return true }
         let m = messages[i]
-        return next.senderId != m.senderId
+        return next.senderId != m.senderId || next.isSystem
             || !Calendar.current.isDate(next.createdAt, inSameDayAs: m.createdAt)
             || next.createdAt.timeIntervalSince(m.createdAt) > 5 * 60
     }
@@ -172,10 +195,57 @@ struct ConversationView: View {
     private func grouped(_ i: Int) -> Bool {
         guard i > 0 else { return false }
         let p = messages[i - 1], m = messages[i]
-        return p.senderId == m.senderId && m.createdAt.timeIntervalSince(p.createdAt) < 5 * 60 && Calendar.current.isDate(p.createdAt, inSameDayAs: m.createdAt)
+        return !p.isSystem && p.senderId == m.senderId && m.createdAt.timeIntervalSince(p.createdAt) < 5 * 60 && Calendar.current.isDate(p.createdAt, inSameDayAs: m.createdAt)
     }
 
-    private var lastMine: SocialMessage? { messages.last { $0.mine && !$0.isRemoved } }
+    private var lastMine: SocialMessage? { messages.last { $0.mine && !$0.isRemoved && !$0.isSystem } }
+
+    private func senderMember(_ m: SocialMessage, _ t: SocialThread) -> SocialGroupMember {
+        t.group?.members.first { $0.id == m.senderId } ?? SocialGroupMember(id: m.senderId, handle: "", displayName: "Ehemaliges Mitglied")
+    }
+
+    private func senderName(_ m: SocialMessage, _ t: SocialThread) -> String {
+        if t.group != nil { return senderMember(m, t).displayName }
+        return t.other?.displayName ?? "Unbekannt"
+    }
+
+    // MARK: Gruppenkopf
+
+    private func groupHeader(_ g: SocialGroup) -> some View {
+        Button { showGroupInfo = true } label: {
+            HStack(spacing: 8) {
+                SocialGroupAvatar(avatars: g.others.prefix(2).map { ($0.displayName, $0.avatarUrl) }, size: 30)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(g.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(groupSubtitle(g)).font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Gruppeninfo: \(g.title), \(groupSubtitle(g))")
+    }
+
+    private func groupSubtitle(_ g: SocialGroup) -> String {
+        let names = g.activeMembers.filter { !$0.isMe }.prefix(4).map(\.firstName).joined(separator: ", ")
+        let n = g.activeMembers.count
+        return names.isEmpty ? Fmt.plural(n, "Mitglied", "Mitglieder") : "\(Fmt.plural(n, "Mitglied", "Mitglieder")) · \(names)"
+    }
+
+    private func groupMenu(_ g: SocialGroup) -> some View {
+        Menu {
+            Button("Gruppeninfo", systemImage: "info.circle") { showGroupInfo = true }
+            if !isRequest {
+                Button(archived ? "Zurück in den Posteingang" : "Archivieren", systemImage: archived ? "tray.and.arrow.up" : "archivebox") {
+                    Task { await setArchived(!archived) }
+                }
+                Divider()
+                Button("Gruppe verlassen", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmLeaveGroup = true }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+        .accessibilityLabel("Optionen der Gruppe")
+    }
 
     private var receipt: String {
         guard let m = lastMine else { return "" }
@@ -187,7 +257,9 @@ struct ConversationView: View {
 
     @ViewBuilder private func bottomBar(_ t: SocialThread) -> some View {
         VStack(spacing: 8) {
-            if isRequest, let other = t.other {
+            if isRequest, let g = t.group {
+                groupInviteBanner(g)
+            } else if isRequest, let other = t.other {
                 requestBanner(other)
             } else if otherPending, let q = t.requestQuotaLeft {
                 Text("Deine Nachricht wurde als Kontaktanfrage zugestellt. Bis \(t.other?.displayName ?? "die Person") annimmt, kannst du \(q > 0 ? "noch höchstens \(Fmt.plural(q, "Nachricht", "Nachrichten"))" : "keine weiteren Nachrichten") senden.")
@@ -214,9 +286,37 @@ struct ConversationView: View {
 
     private func disabledReason(_ t: SocialThread) -> String {
         if let until = t.messagingRestrictedUntil { return "Deine Nachrichtenfunktion ist bis \(Fmt.date(until, style: .long)) eingeschränkt." }
+        if t.group != nil { return "In dieser Gruppe ist sonst niemand mehr." }
         if t.other?.declined == true { return "Diese Unterhaltung ist geschlossen." }
         if t.other?.active == false { return "Dieses Konto kann derzeit keine Nachrichten empfangen." }
         return "In dieser Unterhaltung kannst du keine Nachrichten senden."
+    }
+
+    private func groupInviteBanner(_ g: SocialGroup) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Du wurdest in die Gruppe **\(g.title)** eingeladen. Erst wenn du annimmst, sehen die anderen, dass du dabei bist.")
+                .font(.wr(.footnote))
+                .foregroundStyle(Color.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    Button { Task { await respond(true) } } label: { Text("Beitreten").font(.wr(.subheadline, .semibold)).padding(.horizontal, 6) }
+                        .buttonStyle(.glassProminent)
+                        .tint(.action)
+                    Button { Task { await respond(false) } } label: { Text("Ablehnen").font(.wr(.subheadline)).padding(.horizontal, 6) }
+                        .buttonStyle(.glass)
+                    Spacer(minLength: 0)
+                    Button { showGroupInfo = true } label: {
+                        Label("Mitglieder", systemImage: "person.3").font(.wr(.subheadline))
+                    }
+                    .buttonStyle(.glass)
+                }
+            }
+            .disabled(responding)
+        }
+        .padding(14)
+        .glassEffect(.regular, in: .rect(cornerRadius: Radius.card, style: .continuous))
+        .padding(.horizontal, Space.gutter - 8)
     }
 
     private func requestBanner(_ other: SocialThread.Other) -> some View {
@@ -260,7 +360,7 @@ struct ConversationView: View {
                 .disabled(attachments.count >= Self.maxImages)
                 .accessibilityLabel("Bilder anhängen")
 
-                TextField(isRequest ? "Antworten nimmt die Anfrage an …" : "Nachricht an \(t.other?.displayName ?? "…") …", text: $text, axis: .vertical)
+                TextField(isRequest ? (t.group != nil ? "Schreiben tritt der Gruppe bei …" : "Antworten nimmt die Anfrage an …") : "Nachricht an \(t.group?.title ?? t.other?.displayName ?? "…") …", text: $text, axis: .vertical)
                     .lineLimit(1...6)
                     .focused($focused)
                     .padding(.vertical, 8)
@@ -401,12 +501,14 @@ struct ConversationView: View {
             }
             guard !r.messages.isEmpty else { return }
             merge(r.messages)
-            if r.messages.contains(where: { !$0.mine }) {
+            // Gruppenereignis (hinzugefügt, umbenannt, verlassen …): Kopf und Mitglieder neu laden
+            if thread?.group != nil, r.messages.contains(where: \.isSystem) { await load() }
+            if r.messages.contains(where: { !$0.mine && !$0.isSystem }) {
                 Haptics.soft()
                 scrollTarget = "bottom"
                 await markRead()
-                if let last = r.messages.last(where: { !$0.mine }) {
-                    UIAccessibility.post(notification: .announcement, argument: "Neue Nachricht von \(thread?.other?.displayName ?? ""): \(last.body.isEmpty ? "Bild" : String(last.body.prefix(120)))")
+                if let last = r.messages.last(where: { !$0.mine && !$0.isSystem }), let t = thread {
+                    UIAccessibility.post(notification: .announcement, argument: "Neue Nachricht von \(senderName(last, t)): \(last.body.isEmpty ? "Bild" : String(last.body.prefix(120)))")
                 }
             }
         } catch {
@@ -454,13 +556,15 @@ struct ConversationView: View {
     private func respond(_ accept: Bool) async {
         responding = true
         defer { responding = false }
-        let ok = await app.run(accept ? "Anfrage angenommen." : "Anfrage abgelehnt.") {
+        let isGroup = thread?.group != nil
+        let ok = await app.run(accept ? (isGroup ? "Du bist der Gruppe beigetreten." : "Anfrage angenommen.") : (isGroup ? "Einladung abgelehnt." : "Anfrage abgelehnt.")) {
             _ = try await APIClient.shared.post("/conversations/\(id)/respond", ["accept": JSONValue.bool(accept)]) as JSONValue
         }
         guard ok else { return }
         await app.refreshCounts()
         if accept {
             withAnimation(.snappy) { isRequest = false }
+            if isGroup { await load() }
             focused = true
         } else {
             dismiss()
@@ -472,6 +576,17 @@ struct ConversationView: View {
             _ = try await APIClient.shared.post("/conversations/\(id)/archive", ["archived": JSONValue.bool(value)]) as JSONValue
         }
         if ok { archived = value }
+    }
+
+    private func leaveGroup() async {
+        do {
+            let r: SocialGroupLeft = try await APIClient.shared.post("/conversations/\(id)/leave")
+            app.show(r.dissolved == true ? "Gruppe verlassen und aufgelöst." : "Du hast die Gruppe verlassen.")
+            await app.refreshCounts()
+            dismiss()
+        } catch {
+            app.show(error: error)
+        }
     }
 
     private func block() async {
@@ -505,6 +620,8 @@ struct ConversationView: View {
 private struct SocialMessageBubble: View {
     var message: SocialMessage
     var otherName: String
+    /// Gruppen: Name über der ersten Nachricht einer Folge
+    var sender: SocialGroupMember? = nil
     var showTime: Bool
     var groupedWithPrevious: Bool
     var onImage: (MediaItem) -> Void
@@ -513,6 +630,14 @@ private struct SocialMessageBubble: View {
     var body: some View {
         let m = message
         VStack(alignment: m.mine ? .trailing : .leading, spacing: 4) {
+            if let sender {
+                HStack(spacing: 6) {
+                    AvatarView(url: sender.avatarUrl, name: sender.displayName, size: 18)
+                    Text(sender.displayName).font(.wr(.caption, .semibold)).foregroundStyle(Color.ink2).lineLimit(1)
+                }
+                .padding(.leading, 4)
+                .accessibilityHidden(true)
+            }
             if m.isSuspicious { SocialPaymentWarning() }
             HStack {
                 if m.mine { Spacer(minLength: 48) }
@@ -605,6 +730,22 @@ private struct SocialMessageBubble: View {
         s += message.body
         if message.isSuspicious { s = "Warnung, möglicher Zahlungslink. " + s }
         return s
+    }
+}
+
+/// Systemhinweis im Verlauf („Lena hat Mattia hinzugefügt.“)
+private struct SocialSystemNotice: View {
+    var text: String
+    var body: some View {
+        Text(text)
+            .font(.wr(.caption))
+            .foregroundStyle(Color.ink2)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(Color.sunken, in: Capsule())
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .accessibilityLabel("Hinweis: \(text)")
     }
 }
 

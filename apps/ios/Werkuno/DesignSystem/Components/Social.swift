@@ -131,19 +131,20 @@ struct FollowButton: View {
                     .foregroundStyle(following ? Color.ink : Color.paper)
                     .padding(.horizontal, compact ? 4 : 8)
             }
-            .buttonStyle(following ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
-            .tint(following ? nil : .ink)
+            .glassToggleStyle(prominent: !following)
+            .tint(following ? nil : .action)
             .controlSize(compact ? .small : .regular)
             .accessibilityLabel(following ? "Entfolgen" : "Folgen")
         }
     }
 }
 
-/// Typ-Löschung für Button-Styles
-struct AnyPrimitiveButtonStyle: PrimitiveButtonStyle {
-    private let make: (Configuration) -> AnyView
-    init<S: PrimitiveButtonStyle>(_ s: S) { make = { AnyView(s.makeBody(configuration: $0)) } }
-    func makeBody(configuration: Configuration) -> some View { make(configuration) }
+extension View {
+    /// Glas (aus) bzw. hervorgehobenes Glas (an) – Style direkt angewendet, damit SwiftUI
+    /// seine Umgebung (Tönung, Grösse, Farbschema) korrekt einsetzt.
+    @ViewBuilder func glassToggleStyle(prominent: Bool) -> some View {
+        if prominent { buttonStyle(.glassProminent) } else { buttonStyle(.glass) }
+    }
 }
 
 // MARK: - Sicherheitsmenü (Melden, Blockieren, Stummschalten, Ausblenden)
@@ -256,6 +257,7 @@ struct PostCardView: View {
                 Text(post.body).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
+            if let poll = post.poll { SocialPollView(postId: post.id, poll: poll) }
             if !post.media.isEmpty { MediaStrip(media: post.media) }
             if let r = post.repostOf { repost(r) }
             linked
@@ -277,8 +279,9 @@ struct PostCardView: View {
             Button { router.open(.profile(handle: post.author.handle)) } label: {
                 HStack(spacing: 10) {
                     AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 38, category: post.category)
+                        .overlay(alignment: .bottomTrailing) { SocialCoauthorBadge(coauthors: post.coauthors ?? []) }
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(post.author.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                        SocialAuthors.names(post).lineLimit(2)
                         HStack(spacing: 4) {
                             Text("@\(post.author.handle)")
                             Text("·")
@@ -297,7 +300,11 @@ struct PostCardView: View {
             Menu {
                 if post.viewer?.isAuthor == true {
                     Button("Bearbeiten", systemImage: "pencil") { router.present(.editPost(id: post.id)) }
+                    SocialPostMenuItems(post: post)
                     Button("Löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    Divider()
+                } else if post.viewer?.isCoauthor == true {
+                    SocialPostMenuItems(post: post)
                     Divider()
                 }
                 SafetyMenuItems(targetType: "POST", targetId: post.id, authorId: post.author.id, authorName: post.author.displayName, allowHide: post.viewer?.isAuthor != true, shareURL: AppConfig.webURL("/beitrag/\(post.id)"))

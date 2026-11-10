@@ -15,6 +15,9 @@ struct ProductDetailView: View {
     @State private var justAdded = false
     @State private var viewerMedia: MediaItem?
     @State private var tracked = false
+    /// Preis, wie Apple ihn abrechnet (Währung der App-Store-Region)
+    @State private var storePrice: String?
+    @State private var purchasePending = false
 
     var body: some View {
         Group {
@@ -31,6 +34,7 @@ struct ProductDetailView: View {
         .onChange(of: router.sheet) { old, new in
             if new == nil, case .productEditor = old { Task { await load() } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: DigitalStore.purchasedNotification)) { _ in Task { await load() } }
     }
 
     // MARK: Laden
@@ -42,6 +46,7 @@ struct ProductDetailView: View {
             error = nil
             if variantId == nil, let first = p.variantStock?.first(where: { $0.available > 0 }) { variantId = first.id }
             if !tracked { tracked = true; SocialAPI.track("PRODUCT", p.id) }
+            if p.isDigital, storePrice == nil { storePrice = await DigitalStore.shared.displayPrice(p.appStoreProductId) }
         } catch is CancellationError {
         } catch {
             self.error = (error as? APIError)?.message ?? error.localizedDescription
@@ -172,11 +177,15 @@ struct ProductDetailView: View {
                 Button { router.present(.web(url: AppConfig.webURL("/api/v1/downloads/\(e)"))) } label: { Label("Herunterladen", systemImage: "arrow.down.circle") }
                     .buttonStyle(.glass)
             }
+        } else if purchasePending {
+            NoticeView(tone: .info, title: "Kauf wartet auf Bestätigung", message: "Sobald Apple den Kauf bestätigt (z. B. nach einer Kaufanfrage in der Familienfreigabe), findest du den Download hier und in deinen Bestellungen.")
         } else {
-            VStack(alignment: .leading, spacing: 10) {
-                NoticeView(tone: .info, title: "Digitale Anleitung", message: "Digitale Anleitungen kannst du im Web kaufen. Danach findest du den Download in deinen Bestellungen.")
-                Button { router.present(.web(url: AppConfig.webURL(p.href))) } label: { Label("Im Web öffnen", systemImage: "safari") }
-                    .buttonStyle(.glass)
+            VStack(alignment: .leading, spacing: 8) {
+                NoticeView(tone: .info, title: "Digitale Anleitung", message: "Nach dem Kauf findest du den Download hier und in deinen Bestellungen.")
+                Text(DigitalStoreNotice.text)
+                    .font(.wr(.footnote))
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -202,8 +211,8 @@ struct ProductDetailView: View {
                         .foregroundStyle(on ? Color.paper : out ? Color.muted : Color.ink)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .frame(minHeight: 44)
-                        .background(on ? Color.ink : Color.card, in: .rect(cornerRadius: Radius.small, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: Radius.small, style: .continuous).strokeBorder(on ? Color.ink : Color.lineStrong, lineWidth: 0.75))
+                        .background(on ? Color.action : Color.card, in: .rect(cornerRadius: Radius.small, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.small, style: .continuous).strokeBorder(on ? Color.action : Color.lineStrong, lineWidth: 0.75))
                         .opacity(out ? 0.55 : 1)
                     }
                     .buttonStyle(.plain)
@@ -390,7 +399,8 @@ struct ProductDetailView: View {
         let price = unitPrice(p) * (p.isDigital ? 1 : quantity)
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(Fmt.money(price, currency: p.currency)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+                Text(p.isDigital && !(p.isOwner ?? false) ? (storePrice ?? Fmt.money(price, currency: p.currency)) : Fmt.money(price, currency: p.currency))
+                    .font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
                 Text(barSubtitle(p)).font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(2)
             }
             .layoutPriority(1)
@@ -406,7 +416,7 @@ struct ProductDetailView: View {
 
     private func barSubtitle(_ p: MarketProductPage) -> String {
         if p.isOwner ?? false { return "Dein Produkt" }
-        if p.isDigital { return p.viewer?.entitlementId != nil ? "Bereits gekauft" : "Kauf im Web" }
+        if p.isDigital { return p.viewer?.entitlementId != nil ? "Bereits gekauft" : "Digital · Kauf über Apple" }
         if soldOut(p) { return "Derzeit ausverkauft" }
         if quantity > 1 { return "\(quantity) × \(Fmt.money(unitPrice(p), currency: p.currency)), zzgl. Versand" }
         return (p.shippingMinor ?? 0) == 0 ? "inkl. Versand" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand"
@@ -417,18 +427,22 @@ struct ProductDetailView: View {
             Button { router.present(.productEditor(id: p.id)) } label: { Label("Bearbeiten", systemImage: "pencil") }
                 .buttonStyle(.glass).controlSize(.large)
         } else if p.isDigital {
-            // PRD §13.7: Digitale Produkte werden auf iOS nicht verkauft.
+            // PRD §13.7: Digitale Produkte kauft man in der App nur über Apple (In-App-Kauf).
             if let e = p.viewer?.entitlementId {
                 Button { router.present(.web(url: AppConfig.webURL("/api/v1/downloads/\(e)"))) } label: { Label("Herunterladen", systemImage: "arrow.down.circle") }
-                    .buttonStyle(.glassProminent).tint(.moss).controlSize(.large)
+                    .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
+            } else if purchasePending {
+                Button("Wartet auf Apple") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
+            } else if p.appStoreProductId == nil || soldOut(p) || !(p.purchasable ?? false) {
+                Button("Nicht erhältlich") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
             } else {
-                Button { router.present(.web(url: AppConfig.webURL(p.href))) } label: { Label("Im Web ansehen", systemImage: "safari") }
-                    .buttonStyle(.glass).controlSize(.large)
-                    .accessibilityHint("Digitale Anleitungen kannst du im Web kaufen")
+                AsyncButton { await buyDigital(p) } label: { Label("Kaufen", systemImage: "arrow.down.circle") }
+                    .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
+                    .accessibilityHint("Kauf über Apple. Danach kannst du die Datei herunterladen.")
             }
         } else if justAdded {
             Button { router.open(.cart) } label: { Label("Zum Warenkorb", systemImage: "bag.fill") }
-                .buttonStyle(.glassProminent).tint(.ink).controlSize(.large)
+                .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
                 .transition(.scale.combined(with: .opacity))
         } else if app.paymentsMode == "disabled" || p.payments?.mode == "disabled" {
             Button("Bald bestellbar") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
@@ -439,6 +453,24 @@ struct ProductDetailView: View {
         } else {
             AsyncButton { await addToCart(p) } label: { Label("In den Warenkorb", systemImage: "bag.badge.plus") }
                 .buttonStyle(.glassProminent).tint(.moss).controlSize(.large)
+        }
+    }
+
+    private func buyDigital(_ p: MarketProductPage) async {
+        do {
+            switch try await DigitalStore.shared.buy(productId: p.id) {
+            case .purchased:
+                Haptics.success()
+                app.show("Gekauft – dein Download ist bereit.")
+                await load()
+            case .pending:
+                withAnimation(.snappy) { purchasePending = true }
+            case .cancelled:
+                break
+            }
+        } catch {
+            app.show(error: error)
+            if let e = error as? APIError, e.marketIsConflict { await load() }
         }
     }
 

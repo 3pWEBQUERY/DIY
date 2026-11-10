@@ -164,7 +164,7 @@ struct CommunityManageView: View {
 
     private func deleteChallenge(_ c: CommunityChallenge) async {
         guard let id else { return }
-        if await app.run("Challenge gelöscht.", { _ = try await APIClient.shared.delete("/communities/\(id)/challenges/\(c.id)") as JSONValue }) { await load() }
+        if await app.run("Wettbewerb gelöscht.", { _ = try await APIClient.shared.delete("/communities/\(id)/challenges/\(c.id)") as JSONValue }) { await load() }
     }
 
     // MARK: Liste
@@ -283,19 +283,28 @@ struct CommunityManageView: View {
 
             Section {
                 ForEach(m.challenges) { c in
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack {
-                            Text(c.title).font(.wr(.headline))
-                            if c.isRunning { Pill(text: "Läuft", tint: .clay) }
+                    Button { router.open(.competition(id: c.id)) } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text(c.title).font(.wr(.headline)).foregroundStyle(Color.ink)
+                                Spacer(minLength: 4)
+                                Pill(text: c.phase.label, tint: c.phase.isRunning ? .clay : .muted)
+                            }
+                            Text("\(Fmt.date(c.startsAt)) – \(Fmt.date(c.endsAt)) · \(c.judging == "JURY" ? "Jury" : "Abstimmung") · \(Fmt.plural(c.entryCount ?? 0, "Einreichung", "Einreichungen"))")
+                                .font(.wr(.caption)).foregroundStyle(Color.muted)
+                            if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
                         }
-                        Text("\(Fmt.date(c.startsAt)) – \(Fmt.date(c.endsAt))").font(.wr(.caption)).foregroundStyle(Color.muted)
-                        if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
+                        .contentShape(.rect)
                     }
+                    .buttonStyle(.plain)
                     .swipeActions { Button("Löschen", role: .destructive) { Task { await deleteChallenge(c) } } }
-                    .contextMenu { Button("Challenge löschen", systemImage: "trash", role: .destructive) { Task { await deleteChallenge(c) } } }
+                    .contextMenu {
+                        Button("Wettbewerb öffnen", systemImage: "trophy") { router.open(.competition(id: c.id)) }
+                        Button("Wettbewerb löschen", systemImage: "trash", role: .destructive) { Task { await deleteChallenge(c) } }
+                    }
                 }
-                Button { showChallenge = true } label: { Label("Challenge anlegen", systemImage: "flag.checkered") }
-            } header: { Text("Challenges") }
+                Button { showChallenge = true } label: { Label("Wettbewerb anlegen", systemImage: "trophy") }
+            } header: { Text("Wettbewerbe") }
 
             Section {
                 if m.log.isEmpty { Text("Noch keine Moderationsaktionen.").foregroundStyle(Color.muted) }
@@ -382,6 +391,10 @@ struct CommunityChallengeSheet: View {
     @State private var description = ""
     @State private var startsAt = Date()
     @State private var endsAt = Date().addingTimeInterval(86400 * 30)
+    @State private var rules = ""
+    @State private var prize = ""
+    @State private var judging = "VOTES"
+    @State private var votingEndsAt = Date().addingTimeInterval(86400 * 37)
     @State private var fields: [String: String] = [:]
 
     var body: some View {
@@ -393,14 +406,30 @@ struct CommunityChallengeSheet: View {
                     TextField("Worum geht es? Regeln, Ziel, Hashtag …", text: $description, axis: .vertical).lineLimit(3...8)
                 }
                 Section {
-                    DatePicker("Start", selection: $startsAt)
-                    DatePicker("Ende", selection: $endsAt, in: startsAt...)
+                    TextField("Regeln (optional)", text: $rules, axis: .vertical).lineLimit(2...8)
+                    TextField("Preis (optional), z. B. „Garnpaket“", text: $prize)
+                }
+                Section {
+                    DatePicker("Einreichung ab", selection: $startsAt)
+                    DatePicker("Einreichung bis", selection: $endsAt, in: startsAt...)
                     DiscoverFieldError(message: fields["endsAt"])
-                } footer: { Text("Laufende und bald startende Challenges erscheinen als Banner auf der Community-Seite.") }
+                    Picker("Entscheidung", selection: $judging) {
+                        Text("Abstimmung").tag("VOTES")
+                        Text("Jury").tag("JURY")
+                    }
+                    if judging == "VOTES" {
+                        DatePicker("Abstimmung bis", selection: $votingEndsAt, in: endsAt...)
+                        DiscoverFieldError(message: fields["votingEndsAt"])
+                    }
+                } footer: {
+                    Text(judging == "VOTES"
+                         ? "Nach der Einreichung vergeben Mitglieder bis zu 3 Stimmen. Laufende Wettbewerbe erscheinen als Banner auf der Community-Seite."
+                         : "Nach der Einreichung wählt die Moderation Platz 1–3 und veröffentlicht das Ergebnis.")
+                }
             }
             .scrollContentBackground(.hidden)
             .background(Color.paper)
-            .navigationTitle("Neue Challenge")
+            .navigationTitle("Neuer Wettbewerb")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
@@ -414,13 +443,15 @@ struct CommunityChallengeSheet: View {
     }
 
     private func save() async {
-        let body: [String: JSONValue] = [
+        var body: [String: JSONValue] = [
             "title": .string(title.trimmed), "description": .string(description.trimmed),
+            "rules": .string(rules.trimmed), "prize": .string(prize.trimmed), "judging": .string(judging),
             "startsAt": .string(JSON.isoFormatter.string(from: startsAt)), "endsAt": .string(JSON.isoFormatter.string(from: endsAt)),
         ]
+        if judging == "VOTES" { body["votingEndsAt"] = .string(JSON.isoFormatter.string(from: max(votingEndsAt, endsAt.addingTimeInterval(3600)))) }
         do {
             try await APIClient.shared.action("POST", "/communities/\(communityId)/challenges", body)
-            app.show("Challenge angelegt.")
+            app.show("Wettbewerb angelegt.")
             onCreated()
             dismiss()
         } catch let e as APIError {

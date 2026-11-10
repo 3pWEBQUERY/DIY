@@ -26,6 +26,13 @@ struct MeView: View {
                     MeGroup(title: "Team") {
                         MeNavRow(symbol: "checkmark.shield", title: "Moderation", subtitle: app.me?.isAdmin == true ? "Fälle, Einsprüche, Nutzer:innen · Admin" : "Fälle, Einsprüche, Meldungen", tint: .slate) { router.open(.moderation) }
                     }
+                } else if ["PLATFORM_MODERATOR", "ADMIN", "SUPERADMIN"].contains(app.me?.role ?? "") {
+                    // Team-Rollen sind erst mit aktiver Zwei-Faktor-Anmeldung freigeschaltet (Einrichtung im Web)
+                    MeGroup(title: "Team", footer: "Moderation und Administration sind erst mit aktiver Zwei-Faktor-Anmeldung freigeschaltet. Danach fragt die App bei jeder Anmeldung nach dem Code.") {
+                        MeNavRow(symbol: "lock.shield", title: "Zwei-Faktor-Anmeldung einrichten", subtitle: "Pflicht für Moderation und Administration", tint: .slate, external: true) {
+                            router.open(.web(path: "/einstellungen/sicherheit?zweifaktor=pflicht"))
+                        }
+                    }
                 }
                 MeGroup(title: "Konto") {
                     MeNavRow(symbol: "gearshape", title: "Einstellungen", subtitle: "Profil, Konto, Benachrichtigungen, Privatsphäre") { router.open(.settings) }

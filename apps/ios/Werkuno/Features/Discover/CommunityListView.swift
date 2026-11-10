@@ -20,8 +20,18 @@ struct CommunityListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageTitle(kicker: "Gemeinsam werken", title: "Communities", subtitle: "Treffpunkte für Fragen, Challenges und gemeinsame Projekte – lokal und online.")
+                PageTitle(kicker: "Gemeinsam werken", title: "Communities", subtitle: "Treffpunkte für Fragen, Wettbewerbe und gemeinsame Projekte – lokal und online.")
                     .padding(.horizontal, Space.gutter)
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Button { router.open(.events) } label: { Label("Events", systemImage: "calendar").font(.wr(.subheadline, .semibold)) }
+                            .buttonStyle(.glass)
+                        Button { router.open(.competitions()) } label: { Label("Wettbewerbe", systemImage: "trophy").font(.wr(.subheadline, .semibold)) }
+                            .buttonStyle(.glass)
+                        Spacer(minLength: 0)
+                    }
+                }
+                .padding(.horizontal, Space.gutter)
                 DiscoverSearchField(prompt: "Community suchen", text: $query)
                     .padding(.horizontal, Space.gutter)
                 DiscoverCategoryChips(categories: app.activeCategories, selection: $category)

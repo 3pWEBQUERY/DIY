@@ -122,7 +122,9 @@ struct StatusBadge: View {
             Text(L.projectStatus(status)).font(.wr(.caption, .semibold)).foregroundStyle(fg)
         }
         .padding(.horizontal, 9).padding(.vertical, 4)
+        // Deckende Kartenfläche darunter: auch auf Fotos immer lesbar
         .background(bg, in: Capsule())
+        .background(Color.card, in: Capsule())
     }
     private var colors: (Color, Color) {
         switch status {
@@ -172,7 +174,7 @@ struct ChipBar<T: Hashable>: View {
                                 .padding(.horizontal, 14).padding(.vertical, 8)
                         }
                         .buttonStyle(.plain)
-                        .glassEffect(on ? .regular.tint(Color.ink).interactive() : .regular.interactive(), in: Capsule())
+                        .glassEffect(on ? .regular.tint(Color.action).interactive() : .regular.interactive(), in: Capsule())
                         .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }

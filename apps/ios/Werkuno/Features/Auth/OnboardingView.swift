@@ -246,7 +246,7 @@ struct OnboardingView: View {
         Button { Haptics.tap(); withAnimation(.snappy) { action() } } label: {
             Text(on ? onTitle : offTitle).font(.wr(.footnote, .semibold))
         }
-        .buttonStyle(on ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
+        .glassToggleStyle(prominent: !on)
         .tint(on ? nil : .ink)
         .controlSize(.small)
     }

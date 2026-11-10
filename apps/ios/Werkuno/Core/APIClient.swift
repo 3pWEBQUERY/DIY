@@ -11,8 +11,13 @@ enum ServerEnvironment: String, CaseIterable, Identifiable, Codable {
     var label: String { self == .production ? "Produktion (werkuno.ch)" : "Lokal (localhost:3000)" }
     var baseURL: URL {
         switch self {
-        case .production: URL(string: "https://werkuno.ch")!
-        case .local: URL(string: "http://localhost:3000")!
+        case .production: return URL(string: "https://werkuno.ch")!
+        case .local:
+            #if DEBUG
+            // Entwicklung: anderer Port möglich (`defaults write … werkuno.localURL http://localhost:3100`)
+            if let s = UserDefaults.standard.string(forKey: "werkuno.localURL"), let u = URL(string: s) { return u }
+            #endif
+            return URL(string: "http://localhost:3000")!
         }
     }
 }
@@ -250,7 +255,8 @@ final class APIClient: @unchecked Sendable {
 
     func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
         var req = request
-        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        // Eigenes Token (z. B. ausstehende 2FA-Anmeldung) nicht überschreiben
+        if let token, req.value(forHTTPHeaderField: "Authorization") == nil { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         let data: Data
         let response: URLResponse
         do {
@@ -291,10 +297,30 @@ final class APIClient: @unchecked Sendable {
 
     // MARK: Bestehende /api/v1-Endpunkte (Token-Login, Medien, Export)
 
-    struct LoginResult: Decodable { let token: String; let userId: String }
+    /// `mfaRequired`: Token gilt erst nach `verifyMfa` (Zwei-Faktor-Anmeldung)
+    struct LoginResult: Decodable { let token: String; let userId: String; var mfaRequired: Bool? }
 
     func login(email: String, password: String) async throws -> LoginResult {
         try await send("POST", "/auth/session", body: ["email": email, "password": password], root: "/api/v1")
+    }
+
+    /// Zweiter Anmeldeschritt: ausstehendes Token mit Code aus der Authenticator-App
+    /// (`kind: "totp"`) oder einem Wiederherstellungscode (`"recovery"`) freischalten.
+    func verifyMfa(pendingToken: String, code: String, kind: String) async throws {
+        var req = URLRequest(url: AppConfig.baseURL.appendingPathComponent("/api/v1/auth/session/mfa"))
+        req.httpMethod = "POST"
+        req.httpBody = try JSON.encoder.encode(["code": code, "kind": kind])
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(pendingToken)", forHTTPHeaderField: "Authorization")
+        let _: JSONValue = try await perform(req)
+    }
+
+    /// Ausstehende (noch nicht bestätigte) Anmeldung serverseitig verwerfen.
+    func revoke(pendingToken: String) async {
+        var req = URLRequest(url: AppConfig.baseURL.appendingPathComponent("/api/v1/auth/session"))
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(pendingToken)", forHTTPHeaderField: "Authorization")
+        _ = try? await perform(req) as JSONValue
     }
 
     func logout() async {

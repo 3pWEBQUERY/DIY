@@ -118,6 +118,7 @@ struct ViewerState: Codable, Hashable, Sendable {
     var saved: Bool?
     var isAuthor: Bool?
     var isOwner: Bool?
+    var isCoauthor: Bool?
 }
 
 struct PostItem: Codable, Hashable, Identifiable, Sendable {
@@ -166,6 +167,11 @@ struct PostItem: Codable, Hashable, Identifiable, Sendable {
     var repostOf: RepostRef?
     var counts: Counts
     var viewer: ViewerState?
+    // Koautor:innen (nur bestätigte), Umfrage, Entwurf/Planung – Typen in Features/Social/SocialModels.swift
+    var coauthors: [UserMini]?
+    var poll: SocialPoll?
+    var scheduledAt: Date?
+    var draft: SocialDraftInfo?
 }
 
 struct CommentItem: Codable, Hashable, Identifiable, Sendable {
@@ -360,6 +366,16 @@ struct ConversationItem: Codable, Hashable, Identifiable, Sendable {
     var flagged: Bool?
     var unread: Bool?
     var other: UserMini?
+    /// Nur bei Gruppenchats (`kind == "GROUP"`)
+    var group: ConversationGroupInfo?
+}
+
+/// Gruppenkopf in der Posteingangsliste
+struct ConversationGroupInfo: Codable, Hashable, Sendable {
+    struct Avatar: Codable, Hashable, Sendable { var name: String; var avatarUrl: String? }
+    var title: String
+    var memberCount: Int?
+    var avatars: [Avatar]?
 }
 
 struct InboxCounts: Codable, Hashable, Sendable { var requests: Int; var unread: Int }

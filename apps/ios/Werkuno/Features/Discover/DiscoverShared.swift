@@ -121,10 +121,7 @@ struct DiscoverCategoryTile: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 128, alignment: .leading)
-        .background {
-            ThreadPlate(seed: category.slug, category: category.slug, glyph: category.glyph, showLabel: false, lineWidth: 1.1)
-                .opacity(0.75)
-        }
+        .background(color.opacity(0.08))
         .clipShape(.rect(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(selected ? color : Color.line, lineWidth: selected ? 1.5 : 0.75))
         .accessibilityElement(children: .ignore)
@@ -144,7 +141,7 @@ struct DiscoverCategoryChips: View {
         ScrollView(.horizontal, showsIndicators: false) {
             GlassEffectContainer(spacing: 6) {
                 HStack(spacing: 6) {
-                    chip(nil, label: allLabel, symbol: "sparkles", color: .ink)
+                    chip(nil, label: allLabel, symbol: "sparkles", color: .action)
                     ForEach(categories) { c in
                         chip(c.slug, label: c.short, symbol: CategoryPalette.symbol(for: c.glyph), color: CategoryPalette.color(for: c.slug))
                     }

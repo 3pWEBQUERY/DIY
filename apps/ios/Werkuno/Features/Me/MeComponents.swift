@@ -168,7 +168,7 @@ struct MeTabSwitcher<T: Hashable>: View {
                         .foregroundStyle(on ? Color.paper : Color.ink)
                         .padding(.horizontal, 14).padding(.vertical, 9)
                         .background {
-                            if on { Capsule().fill(Color.ink).matchedGeometryEffect(id: "tab", in: ns) }
+                            if on { Capsule().fill(Color.action).matchedGeometryEffect(id: "tab", in: ns) }
                         }
                         .contentShape(Capsule())
                     }

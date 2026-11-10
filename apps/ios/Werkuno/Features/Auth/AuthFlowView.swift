@@ -7,6 +7,7 @@ struct AuthFlowView: View {
     @State private var chapter = 0
     @State private var sheet: AuthSheet?
     @State private var autoplay = true
+    @State private var appleMfa: MfaChallenge?
 
     enum AuthSheet: String, Identifiable { case signIn, signUp, reset; var id: String { rawValue } }
 
@@ -86,6 +87,9 @@ struct AuthFlowView: View {
             .environment(app)
             .toastOverlay()
         }
+        .sheet(item: $appleMfa) { c in
+            TwoFactorSheet(challenge: c).environment(app).toastOverlay()
+        }
         .task {
             // Story läuft von selbst, bis jemand wischt
             while autoplay && !Task.isCancelled {
@@ -139,6 +143,7 @@ struct AuthFlowView: View {
         case .success(let auth):
             guard let cred = auth.credential as? ASAuthorizationAppleIDCredential, let data = cred.identityToken, let token = String(data: data, encoding: .utf8) else { return }
             do { try await app.signInWithApple(identityToken: token, givenName: cred.fullName?.givenName, familyName: cred.fullName?.familyName) }
+            catch let c as MfaChallenge { appleMfa = c }
             catch { app.show(error: error) }
         case .failure(let e):
             if (e as? ASAuthorizationError)?.code != .canceled { app.show(error: e) }
@@ -170,38 +175,57 @@ struct SignInSheet: View {
     @State private var email = ""
     @State private var password = ""
     @State private var error: APIError?
+    @State private var mfa: MfaChallenge?
     @FocusState private var field: Int?
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    PageTitle(kicker: "Willkommen zurück", title: "Anmelden", subtitle: "Schön, dass du wieder in der Werkstatt bist.")
-                    VStack(spacing: 12) {
-                        AuthField(title: "E-Mail", text: $email, error: error?.fields?["email"], keyboard: .emailAddress, content: .username)
-                            .focused($field, equals: 0).submitLabel(.next).onSubmit { field = 1 }
-                        AuthField(title: "Passwort", text: $password, error: error?.fields?["password"], secure: true, content: .password)
-                            .focused($field, equals: 1).submitLabel(.go).onSubmit { Task { await submit() } }
-                    }
-                    if let error, error.fields == nil { NoticeView(tone: .danger, message: error.message) }
-                    AsyncButton { await submit() } label: { Text("Anmelden").frame(maxWidth: .infinity) }
-                        .primaryButton()
-                        .disabled(email.trimmed.isEmpty || password.isEmpty)
-                    HStack {
-                        Button("Passwort vergessen?", action: onReset)
-                        Spacer()
-                        Button("Neu hier? Registrieren", action: onSignUp)
-                    }
-                    .font(.wr(.footnote, .semibold))
-                    .foregroundStyle(Color.moss)
+                if let mfa {
+                    TwoFactorStep(challenge: mfa, onDone: { dismiss() }, onCancel: { withAnimation(.snappy) { self.mfa = nil; password = "" } })
+                        .padding(Space.gutter)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    credentials
                 }
-                .padding(Space.gutter)
             }
             .background(Color.paper)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schliessen", systemImage: "xmark") { dismiss() } } }
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schliessen", systemImage: "xmark") { close() } } }
             .onAppear { field = 0 }
         }
         .presentationDetents([.large])
+        .interactiveDismissDisabled(mfa != nil)
+    }
+
+    /// Schliessen während Schritt 2: ausstehende Sitzung verwerfen
+    private func close() {
+        if let mfa { Task { await app.cancelSignIn(mfa) } }
+        dismiss()
+    }
+
+    private var credentials: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            PageTitle(kicker: "Willkommen zurück", title: "Anmelden", subtitle: "Schön, dass du wieder in der Werkstatt bist.")
+            VStack(spacing: 12) {
+                AuthField(title: "E-Mail", text: $email, error: error?.fields?["email"], keyboard: .emailAddress, content: .username)
+                    .focused($field, equals: 0).submitLabel(.next).onSubmit { field = 1 }
+                AuthField(title: "Passwort", text: $password, error: error?.fields?["password"], secure: true, content: .password)
+                    .focused($field, equals: 1).submitLabel(.go).onSubmit { Task { await submit() } }
+            }
+            if let error, error.fields == nil { NoticeView(tone: .danger, message: error.message) }
+            AsyncButton { await submit() } label: { Text("Anmelden").frame(maxWidth: .infinity) }
+                .primaryButton()
+                .disabled(email.trimmed.isEmpty || password.isEmpty)
+            HStack {
+                Button("Passwort vergessen?", action: onReset)
+                Spacer()
+                Button("Neu hier? Registrieren", action: onSignUp)
+            }
+            .font(.wr(.footnote, .semibold))
+            .foregroundStyle(Color.moss)
+        }
+        .padding(Space.gutter)
     }
 
     private func submit() async {
@@ -210,6 +234,8 @@ struct SignInSheet: View {
             try await app.signIn(email: email.trimmed, password: password)
             Haptics.success()
             dismiss()
+        } catch let c as MfaChallenge {
+            withAnimation(.snappy) { mfa = c }
         } catch let e as APIError { withAnimation { error = e }; Haptics.warning() }
         catch { app.show(error: error) }
     }

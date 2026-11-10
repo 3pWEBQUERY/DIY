@@ -11,6 +11,8 @@ struct NotificationsView: View {
     @State private var unread: [String: Int] = [:]
     @State private var loaded = false
     @State private var error: String?
+    /// Offene Koautor:innen-Einladungen (`GET /me/coauthor-invites`)
+    @State private var invites: [SocialCoauthorInvite] = []
 
     var body: some View {
         List {
@@ -23,6 +25,28 @@ struct NotificationsView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+            }
+
+            if !invites.isEmpty, filter == .all || filter == .mentions {
+                Section {
+                    ForEach(invites) { inv in
+                        SocialCoauthorInviteCard(invite: inv, showExcerpt: true) { _ in
+                            withAnimation(.snappy) { invites.removeAll { $0.id == inv.id } }
+                        }
+                        .contentShape(.rect)
+                        .onTapGesture { router.open(.post(id: inv.postId)) }
+                        .listRowInsets(EdgeInsets(top: 6, leading: Space.gutter, bottom: 6, trailing: Space.gutter))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+                } header: {
+                    HStack(spacing: 10) {
+                        SpecLabel("Einladungen", color: .ink)
+                        Rectangle().fill(Color.line).frame(height: 0.75)
+                    }
+                    .padding(.top, 8)
+                    .accessibilityAddTraits(.isHeader)
+                }
             }
 
             if !loaded {
@@ -84,12 +108,14 @@ struct NotificationsView: View {
             }
         }
         .task(id: filter) { await load(reset: true) }
+        .task { await loadInvites() }
         // Live: neue/gebündelte Benachrichtigungen erscheinen sofort (Server-Sent Events)
         .onReceive(NotificationCenter.default.publisher(for: LiveEvent.notification)) { n in
             guard let e = LiveEvent(n), e == .counts, loaded else { return }
             Task { await load(reset: true) }
         }
         .refreshable {
+            await loadInvites()
             await load(reset: true)
             await app.refreshCounts()
         }
@@ -157,6 +183,12 @@ struct NotificationsView: View {
         }
     }
 
+    private func loadInvites() async {
+        guard app.me != nil, let list = try? await APIClient.shared.get("/me/coauthor-invites") as [SocialCoauthorInvite] else { return }
+        withAnimation(.snappy) { invites = list }
+    }
+
+    /// Koautor:innen-Benachrichtigungen (`data.kind == coauthor_invite / coauthor_accepted`) führen über `href` zum Beitrag.
     private func open(_ n: NotificationItem) async {
         Haptics.tap()
         if !n.read { await markRead(n) }

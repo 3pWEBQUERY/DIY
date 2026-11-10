@@ -10,6 +10,7 @@ struct ConversationListView: View {
     @State private var counts = InboxCounts(requests: 0, unread: 0)
     @State private var loaded = false
     @State private var error: String?
+    @State private var showNewGroup = false
 
     init(initialBox: SocialInboxBox = .inbox) {
         _box = State(initialValue: initialBox)
@@ -72,12 +73,21 @@ struct ConversationListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Haptics.tap()
-                    router.present(.newConversation())
+                Menu {
+                    Button("Neue Nachricht", systemImage: "square.and.pencil") {
+                        Haptics.tap()
+                        router.present(.newConversation())
+                    }
+                    Button("Neue Gruppe", systemImage: "person.3") {
+                        Haptics.tap()
+                        showNewGroup = true
+                    }
                 } label: { Image(systemName: "square.and.pencil") }
-                .accessibilityLabel("Neue Nachricht")
+                .accessibilityLabel("Neue Nachricht oder Gruppe")
             }
+        }
+        .sheet(isPresented: $showNewGroup, onDismiss: { Task { await load() } }) {
+            NewGroupSheet()
         }
         .task(id: box) { await load() }
         .onAppear { if loaded { Task { await load() } } }
@@ -114,7 +124,7 @@ struct ConversationListView: View {
                 router.present(.newConversation())
             }
         case .requests:
-            EmptyStateView(symbol: "tray", title: "Keine Anfragen", message: "Wenn dir jemand schreibt, dem du nicht folgst, landet die Nachricht zuerst hier.")
+            EmptyStateView(symbol: "tray", title: "Keine Anfragen", message: "Wenn dir jemand schreibt, dem du nicht folgst, oder dich in eine Gruppe einlädt, landet das zuerst hier.")
         case .archived:
             EmptyStateView(symbol: "archivebox", title: "Archiv ist leer", message: "Wische eine Unterhaltung nach links, um sie zu archivieren.")
         }
@@ -159,7 +169,7 @@ private struct ConversationRow: View {
         let unread = item.unread == true
         Button(action: action) {
             HStack(alignment: .top, spacing: 12) {
-                AvatarView(url: item.other?.avatarUrl, name: item.other?.displayName ?? "?", size: 48)
+                avatar
                     .overlay(alignment: .topTrailing) {
                         if unread {
                             Circle().fill(Color.clay).frame(width: 12, height: 12)
@@ -169,7 +179,7 @@ private struct ConversationRow: View {
                     }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(item.other?.displayName ?? "Unterhaltung")
+                        Text(title)
                             .font(.wr(.subheadline).weight(unread ? .bold : .semibold))
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
@@ -206,7 +216,18 @@ private struct ConversationRow: View {
         .accessibilityLabel(accessibility)
     }
 
+    @ViewBuilder private var avatar: some View {
+        if let g = item.group {
+            SocialGroupAvatar(avatars: (g.avatars ?? []).map { ($0.name, $0.avatarUrl) }, size: 48)
+        } else {
+            AvatarView(url: item.other?.avatarUrl, name: item.other?.displayName ?? "?", size: 48)
+        }
+    }
+
+    private var title: String { item.group?.title ?? item.other?.displayName ?? "Unterhaltung" }
+
     private var contextLabel: (String, String)? {
+        if let g = item.group { return (g.memberCount.map { "Gruppe · \(Fmt.plural($0, "Person", "Personen"))" } ?? "Gruppe", "person.3") }
         if let n = item.orderNumber { return ("Bestellung \(n)", "shippingbox") }
         if item.isProductInquiry == true { return ("Produktanfrage", "tag") }
         return nil
@@ -218,7 +239,7 @@ private struct ConversationRow: View {
     }
 
     private var accessibility: String {
-        var s = item.other?.displayName ?? "Unterhaltung"
+        var s = title
         if item.unread == true { s += ", ungelesen" }
         if let c = contextLabel { s += ", \(c.0)" }
         s += ": \(previewText), \(Fmt.relative(item.lastMessageAt))"

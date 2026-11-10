@@ -9,6 +9,9 @@ struct SocialPostDraft: Equatable {
     var category: String?
     var projectId: String?
     var visibility = "PUBLIC"
+    /// Nur beim Erstellen (nicht bearbeitbar): Umfrage und einzuladende Koautor:innen
+    var poll: SocialPollDraft?
+    var coauthors: [SocialPerson] = []
 
     static let maxBody = 5000
 
@@ -16,7 +19,9 @@ struct SocialPostDraft: Equatable {
     var isUploading: Bool { media.isUploading }
     var missingAlt: Bool { media.contains { !$0.isVideo && $0.state == .ready && $0.alt.trimmed.isEmpty } }
     var hasFailedUploads: Bool { media.contains { if case .failed = $0.state { true } else { false } } }
-    var canSubmit: Bool { hasContent && !isUploading && body.count <= Self.maxBody }
+    var canSubmit: Bool { hasContent && !isUploading && body.count <= Self.maxBody && pollOK }
+    /// Umfrage: alle Antworten ausgefüllt, und die Frage steht im Text
+    var pollOK: Bool { poll.map { $0.isReady && !body.trimmed.isEmpty } ?? true }
 
     var readyMediaJSON: JSONValue {
         .array(media.filter { $0.state == .ready }.compactMap(\.ref).map { ["id": .string($0.id), "alt": .string($0.alt)] })
@@ -32,6 +37,8 @@ struct SocialPostEditor: View {
     var projects: [IdTitle] = []
     var projectsLoading = false
     var placeholder = "Was entsteht gerade auf deiner Werkbank?"
+    /// Umfrage & Koautor:innen anbieten (nur neuer Beitrag ausserhalb von Communities)
+    var extras = false
 
     @Environment(AppState.self) private var app
     @State private var showPreview = false
@@ -60,6 +67,8 @@ struct SocialPostEditor: View {
                 .padding(16)
                 .cardSurface()
 
+                if extras { extrasSection }
+
                 if mode == .standard || mode == .repost { settings }
 
                 preview
@@ -83,7 +92,7 @@ struct SocialPostEditor: View {
                     if let h = app.handle { Text("@\(h)").font(.wr(.caption)).foregroundStyle(Color.muted) }
                 }
             }
-            TextField(placeholder, text: $draft.body, axis: .vertical)
+            TextField(draft.poll != nil ? "Stelle deine Frage …" : placeholder, text: $draft.body, axis: .vertical)
                 .font(.wr(.title3))
                 .foregroundStyle(Color.ink)
                 .lineLimit(5...16)
@@ -100,6 +109,55 @@ struct SocialPostEditor: View {
         }
         .padding(16)
         .cardSurface()
+    }
+
+    // MARK: Umfrage & Koautor:innen
+
+    @ViewBuilder private var extrasSection: some View {
+        if draft.poll != nil {
+            SocialPollEditor(poll: Binding(get: { draft.poll ?? SocialPollDraft() }, set: { draft.poll = $0 })) {
+                withAnimation(.snappy) { draft.poll = nil }
+            }
+            .transition(.opacity.combined(with: .move(edge: .top)))
+            if draft.poll?.isReady == true && draft.body.trimmed.isEmpty {
+                Label("Formuliere deine Frage im Text.", systemImage: "questionmark.bubble")
+                    .font(.wr(.caption))
+                    .foregroundStyle(Color.warn)
+            }
+        }
+        VStack(alignment: .leading, spacing: 0) {
+            if draft.poll == nil {
+                Button {
+                    Haptics.selection()
+                    withAnimation(.snappy) { draft.poll = SocialPollDraft() }
+                } label: {
+                    extrasRow(symbol: "checklist", label: "Umfrage hinzufügen", value: nil, chevron: false)
+                }
+                .buttonStyle(.plain)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.line).frame(height: 0.75) }
+            }
+            NavigationLink {
+                SocialCoauthorPickerPage(selection: $draft.coauthors)
+            } label: {
+                extrasRow(symbol: "person.2", label: "Koautor:innen", value: draft.coauthors.isEmpty ? "Bis zu \(SocialPerson.maxCoauthors)" : draft.coauthors.map(\.displayName).joined(separator: ", "), chevron: true)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+        .cardSurface()
+    }
+
+    private func extrasRow(symbol: String, label: String, value: String?, chevron: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 20)
+            Text(label).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+            Spacer(minLength: 8)
+            if let value { Text(value).font(.wr(.subheadline)).foregroundStyle(Color.ink).lineLimit(1) }
+            Image(systemName: chevron ? "chevron.right" : "plus").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
+        }
+        .frame(minHeight: 44)
+        .contentShape(.rect)
     }
 
     // MARK: Einstellungen (Datenblatt)
@@ -219,7 +277,14 @@ struct SocialPostEditor: View {
             media: media,
             project: project,
             counts: Counts(likes: 0, comments: 0, saves: 0, reposts: 0),
-            viewer: ViewerState(liked: false, saved: false, isAuthor: true)
+            viewer: ViewerState(liked: false, saved: false, isAuthor: true),
+            poll: draft.poll.map { p in
+                SocialPoll(
+                    id: "preview", endsAt: Date().addingTimeInterval(Double(p.durationHours) * 3600), ended: false, multiple: p.multiple,
+                    voterCount: 0, showResults: false, viewerVotes: [],
+                    options: p.options.enumerated().map { SocialPoll.Option(id: "o\($0.offset)", label: $0.element.trimmed.nilIfEmpty ?? "Antwort \($0.offset + 1)", votes: nil) }
+                )
+            }
         )
     }
 }
@@ -232,6 +297,7 @@ struct ComposerSheet: View {
     var communityId: String? = nil
 
     @Environment(AppState.self) private var app
+    @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft = SocialPostDraft()
@@ -239,6 +305,8 @@ struct ComposerSheet: View {
     @State private var projectsLoading = true
     @State private var sending = false
     @State private var confirmDiscard = false
+    @State private var openDraftsAfterDiscard = false
+    @State private var scheduling = false
 
     var body: some View {
         NavigationStack {
@@ -247,13 +315,17 @@ struct ComposerSheet: View {
                 mode: communityId == nil ? .standard : .community(name: nil),
                 projects: projects,
                 projectsLoading: projectsLoading,
-                placeholder: communityId == nil ? "Was entsteht gerade auf deiner Werkbank?" : "Was möchtest du mit der Community teilen?"
+                placeholder: communityId == nil ? "Was entsteht gerade auf deiner Werkbank?" : "Was möchtest du mit der Community teilen?",
+                extras: communityId == nil
             )
             .navigationTitle(communityId == nil ? "Neuer Beitrag" : "Community-Beitrag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbrechen") { if draft.hasContent { confirmDiscard = true } else { dismiss() } }
+                    Button("Abbrechen") { openDraftsAfterDiscard = false; if draft.hasContent { confirmDiscard = true } else { dismiss() } }
+                }
+                if communityId == nil {
+                    ToolbarItem(placement: .topBarTrailing) { laterMenu }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button { Task { await submit() } } label: {
@@ -265,8 +337,11 @@ struct ComposerSheet: View {
                 }
             }
             .confirmationDialog("Entwurf verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                Button("Verwerfen", role: .destructive) { dismiss() }
+                Button("Verwerfen", role: .destructive) { dismiss(); if openDraftsAfterDiscard { router.open(.postDrafts) } }
                 Button("Weiter schreiben", role: .cancel) {}
+            }
+            .sheet(isPresented: $scheduling) {
+                SocialScheduleSheet { date in await submit(publish: "schedule", at: date) }
             }
         }
         .interactiveDismissDisabled(draft.hasContent)
@@ -276,6 +351,23 @@ struct ComposerSheet: View {
         }
     }
 
+    /// „Später“: als Entwurf speichern, planen oder zu den Entwürfen wechseln
+    private var laterMenu: some View {
+        Menu {
+            Button("Als Entwurf speichern", systemImage: "tray.and.arrow.down") { Task { await submit(publish: "draft") } }
+                .disabled(!draft.canSubmit || sending)
+            Button("Veröffentlichung planen …", systemImage: "calendar.badge.clock") { scheduling = true }
+                .disabled(!draft.canSubmit || sending)
+            Divider()
+            Button("Entwürfe & geplante Beiträge", systemImage: "doc.text") {
+                if draft.hasContent { openDraftsAfterDiscard = true; confirmDiscard = true } else { dismiss(); router.open(.postDrafts) }
+            }
+        } label: {
+            Label("Später", systemImage: "calendar.badge.clock")
+        }
+        .accessibilityLabel("Später veröffentlichen")
+    }
+
     private func loadProjects() async {
         guard communityId == nil else { projectsLoading = false; return }
         projects = (try? await APIClient.shared.get("/me/project-options") as [IdTitle]) ?? []
@@ -283,8 +375,10 @@ struct ComposerSheet: View {
         projectsLoading = false
     }
 
-    private func submit() async {
-        guard draft.canSubmit, !sending else { return }
+    /// `publish`: `now` (sofort), `draft` (Entwurf) oder `schedule` (geplant für `at`)
+    @discardableResult
+    private func submit(publish: String = "now", at: Date? = nil) async -> Bool {
+        guard draft.canSubmit, !sending else { return false }
         sending = true
         defer { sending = false }
         do {
@@ -296,14 +390,28 @@ struct ComposerSheet: View {
                 var body: [String: JSONValue] = ["body": .string(draft.body.trimmed), "media": draft.readyMediaJSON, "visibility": .string(draft.visibility)]
                 if let c = draft.category { body["category"] = .string(c) }
                 if let p = draft.projectId { body["projectId"] = .string(p) }
+                if let poll = draft.poll { body["poll"] = poll.json }
+                if !draft.coauthors.isEmpty { body["coauthors"] = .from(draft.coauthors.map(\.handle)) }
+                if publish != "now" { body["publish"] = .string(publish) }
+                if publish == "schedule", let at { body["scheduledAt"] = .string(SocialFmt.iso(at)) }
                 let post: PostItem = try await APIClient.shared.post("/posts", body)
-                NotificationCenter.default.post(name: .socialPostsChanged, object: post)
+                if publish == "now" {
+                    NotificationCenter.default.post(name: .socialPostsChanged, object: post)
+                } else {
+                    NotificationCenter.default.post(name: .socialDraftsChanged, object: post.id)
+                }
             }
             Haptics.success()
-            app.show("Veröffentlicht.")
+            switch publish {
+            case "draft": app.show("Als Entwurf gespeichert – nur du siehst ihn.")
+            case "schedule": app.show("Geplant für \(at.map(SocialSchedule.label) ?? "später").")
+            default: app.show("Veröffentlicht.")
+            }
             dismiss()
+            return true
         } catch {
             app.show(error: error)
+            return false
         }
     }
 }
@@ -341,7 +449,7 @@ struct EditPostSheet: View {
                 }
             }
             .background(Color.paper)
-            .navigationTitle("Beitrag bearbeiten")
+            .navigationTitle(source?.state == "DRAFT" ? "Entwurf bearbeiten" : "Beitrag bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
@@ -403,6 +511,7 @@ struct EditPostSheet: View {
         do {
             let post: PostItem = try await APIClient.shared.patch("/posts/\(id)", body)
             NotificationCenter.default.post(name: .socialPostsChanged, object: post, userInfo: ["edited": true])
+            if source?.state == "DRAFT" { NotificationCenter.default.post(name: .socialDraftsChanged, object: id) }
             Haptics.success()
             app.show("Änderungen gesichert.")
             dismiss()
