@@ -338,14 +338,23 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
     if (o.user.status !== "ACTIVE") throw fail.forbidden("Dieses Konto kann derzeit keine Nachrichten empfangen.");
     if (isDeclined(o)) throw fail.forbidden("Diese Nachricht kann nicht zugestellt werden.");
   }
-  if (!isGroup && others.some((o) => o.isRequest)) {
+  const pendingRequest = !isGroup && others.some((o) => o.isRequest);
+  const requestLimitMsg = "Warte, bis deine Kontaktanfrage angenommen wurde, bevor du weitere Nachrichten schickst.";
+  if (pendingRequest) {
     const sent = await db.message.count({ where: { conversationId, senderId: user.id } });
-    if (sent >= MAX_UNANSWERED_REQUEST_MESSAGES) throw fail.invalid("Warte, bis deine Kontaktanfrage angenommen wurde, bevor du weitere Nachrichten schickst.");
+    if (sent >= MAX_UNANSWERED_REQUEST_MESSAGES) throw fail.invalid(requestLimitMsg);
   }
   await requireAdult(user);
   await limit("message", user.id);
   const flags = flagsFor(data.body);
   const message = await db.$transaction(async (tx) => {
+    if (pendingRequest) {
+      // Parallele Anfragen (mehrere Tabs/Skript) nacheinander zählen – sonst sähen alle „noch frei“
+      // und das Limit für Nachrichten an Fremde wäre umgangen. Sperre gilt bis zum Ende der Transaktion.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`contact-request:${conversationId}:${user.id}`}))`;
+      const sent = await tx.message.count({ where: { conversationId, senderId: user.id } });
+      if (sent >= MAX_UNANSWERED_REQUEST_MESSAGES) throw fail.invalid(requestLimitMsg);
+    }
     const media = await buildMedia(tx, user.id, data.media);
     const m = await tx.message.create({ data: { conversationId, senderId: user.id, body: data.body, media: media as unknown as Prisma.InputJsonValue, flags } });
     await tx.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: m.createdAt } });
@@ -363,7 +372,7 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
   const excerpt = data.body ? data.body.slice(0, 120) : "Hat dir ein Bild geschickt.";
   // Erste Nachricht einer Kontaktanfrage: genau eine Benachrichtigung pro Unterhaltung
   // (weitere Nachrichten sind bis zur Annahme ohnehin begrenzt → kein Spam-Kanal)
-  const firstRequestMessage = !isGroup && others.some((o) => o.isRequest) && (await db.message.count({ where: { conversationId, senderId: user.id } })) === 1;
+  const firstRequestMessage = pendingRequest && (await db.message.count({ where: { conversationId, senderId: user.id } })) === 1;
   for (const o of others) {
     if (isGroup) {
       // Offene Einladungen und inaktive Konten nicht anpingen

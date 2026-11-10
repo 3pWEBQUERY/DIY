@@ -152,6 +152,168 @@ export async function mediaCoverUrl(mediaId: string | undefined | null) {
   return v.lg ?? v.md ?? null;
 }
 
+/**
+ * Eingefrorene Verweise nachtragen: Anleitungsschritte (TutorialStep.media), Journal-Einträge
+ * (ProjectUpdate.media) und Cover (Project/Tutorial.coverUrl) speichern beim Speichern die URL des
+ * Mediums. War es da noch in Verarbeitung (PROCESSING), steht dort `null` – das Bild fehlte in der
+ * veröffentlichten Version für immer. Sobald das Medium READY ist, werden diese Stellen ergänzt.
+ *
+ * Aufgerufen vom Worker nach `processMedia` und nach dem Speichern, falls eine URL fehlte (Wettlauf:
+ * Medium wird fertig, bevor die Speicher-Transaktion committet). Idempotent; ändert nur leere URLs.
+ * Gefiltert über die Eigentümerin (nur eigene Medien lassen sich anhängen) → indexgestützt, kein Tabellenscan.
+ */
+export async function patchFrozenMediaRefs(mediaId: string) {
+  const m = await db.media.findUnique({ where: { id: mediaId }, select: { ownerId: true, state: true, variants: true } });
+  if (!m || m.state !== "READY") return { patched: 0 };
+  const v = (m.variants ?? {}) as Record<string, string>;
+  const url = v.lg ?? v.md ?? v.sm ?? null; // wie mediaUrls() in Anleitungen/Projekten
+  const cover = v.lg ?? v.md ?? null; // wie mediaCoverUrl()
+  let patched = 0;
+  if (url) {
+    const ref = JSON.stringify([{ mediaId }]);
+    patched += await db.$executeRaw`
+      UPDATE "TutorialStep" s SET media = (
+        SELECT jsonb_agg(CASE WHEN e->>'mediaId' = ${mediaId} AND COALESCE(e->>'url', '') = '' THEN jsonb_set(e, '{url}', to_jsonb(${url}::text)) ELSE e END ORDER BY i)
+        FROM jsonb_array_elements(s.media) WITH ORDINALITY AS t(e, i))
+      FROM "TutorialVersion" tv JOIN "Tutorial" tu ON tu.id = tv."tutorialId"
+      WHERE s."versionId" = tv.id AND tu."authorId" = ${m.ownerId}
+        AND jsonb_typeof(s.media) = 'array' AND s.media @> ${ref}::jsonb
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(s.media) x WHERE x->>'mediaId' = ${mediaId} AND COALESCE(x->>'url', '') = '')`;
+    patched += await db.$executeRaw`
+      UPDATE "ProjectUpdate" u SET media = (
+        SELECT jsonb_agg(CASE WHEN e->>'mediaId' = ${mediaId} AND COALESCE(e->>'url', '') = '' THEN jsonb_set(e, '{url}', to_jsonb(${url}::text)) ELSE e END ORDER BY i)
+        FROM jsonb_array_elements(u.media) WITH ORDINALITY AS t(e, i))
+      WHERE u."authorId" = ${m.ownerId}
+        AND jsonb_typeof(u.media) = 'array' AND u.media @> ${ref}::jsonb
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(u.media) x WHERE x->>'mediaId' = ${mediaId} AND COALESCE(x->>'url', '') = '')`;
+  }
+  if (cover) {
+    patched += (await db.project.updateMany({ where: { ownerId: m.ownerId, coverMediaId: mediaId, coverUrl: null }, data: { coverUrl: cover } })).count;
+    patched += (await db.tutorial.updateMany({ where: { authorId: m.ownerId, coverUrl: null, media: { some: { mediaId, position: 0 } } }, data: { coverUrl: cover } })).count;
+  }
+  return { patched };
+}
+
+/** Nach dem Speichern: Medien, deren URL beim Einfrieren noch fehlte, nachtragen, falls sie inzwischen fertig sind. */
+export async function patchFrozenMediaRefsLater(mediaIds: (string | null | undefined)[]) {
+  for (const id of new Set(mediaIds.filter((x): x is string => !!x))) {
+    await patchFrozenMediaRefs(id).catch((e) => console.warn(JSON.stringify({ level: "warn", msg: "media_ref_patch_failed", err: e instanceof Error ? e.message : String(e) })));
+  }
+}
+
+/**
+ * Tatsächliche Verwendung von Medien – auf Abfrage berechnet statt aus dem „klebrigen“ `attachedAt`
+ * (wird beim Anhängen gesetzt, aber nie zurückgesetzt, wenn der Inhalt gelöscht wird).
+ *
+ * Erfasst: Verknüpfungstabellen (Beitrag, Projekt, Produkt, Anleitung), Projekt-Cover (coverMediaId),
+ * digitale Produktdateien, Verweise per URL (Profil, Cover von Projekt/Anleitung/Artikel/Community/Produkt)
+ * und JSON-Felder mit Medien-ID (Anleitungsschritte, Journal, Nachrichten, Artikelblöcke inkl. Revisionen).
+ * JSON-Abfragen sind auf die Eigentümer:innen eingeschränkt (nur eigene Medien lassen sich anhängen).
+ */
+export async function mediaInUse(ids: string[]): Promise<Set<string>> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return new Set();
+  const rows = await db.media.findMany({ where: { id: { in: unique } }, select: { id: true, ownerId: true, variants: true } });
+  if (!rows.length) return new Set();
+  const mediaIds = rows.map((r) => r.id);
+  const owners = [...new Set(rows.map((r) => r.ownerId))];
+  const byUrl = new Map<string, string>();
+  for (const r of rows) for (const u of Object.values((r.variants ?? {}) as Record<string, string>)) if (typeof u === "string" && u) byUrl.set(u, r.id);
+  const urls = [...byUrl.keys()];
+  const used = new Set<string>();
+  const add = (list: { mediaId?: string | null }[]) => list.forEach((x) => x.mediaId && used.add(x.mediaId));
+  const addUrls = (list: Record<string, string | null>[]) => list.forEach((x) => Object.values(x).forEach((u) => u && byUrl.has(u) && used.add(byUrl.get(u)!)));
+  const inIds = { in: mediaIds };
+  const [post, project, product, tutorial, covers, digital] = await Promise.all([
+    db.postMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
+    db.projectMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
+    db.productMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
+    db.tutorialMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
+    db.project.findMany({ where: { coverMediaId: inIds }, select: { coverMediaId: true } }),
+    db.product.findMany({ where: { digitalKey: inIds }, select: { digitalKey: true } }),
+  ]);
+  add([...post, ...project, ...product, ...tutorial, ...covers.map((c) => ({ mediaId: c.coverMediaId })), ...digital.map((d) => ({ mediaId: d.digitalKey }))]);
+  if (urls.length) {
+    const inUrls = { in: urls };
+    const res = await Promise.all([
+      db.userProfile.findMany({ where: { OR: [{ avatarUrl: inUrls }, { coverUrl: inUrls }] }, select: { avatarUrl: true, coverUrl: true } }),
+      db.project.findMany({ where: { coverUrl: inUrls }, select: { coverUrl: true } }),
+      db.tutorial.findMany({ where: { coverUrl: inUrls }, select: { coverUrl: true } }),
+      db.blogArticle.findMany({ where: { coverUrl: inUrls }, select: { coverUrl: true } }),
+      db.community.findMany({ where: { coverUrl: inUrls }, select: { coverUrl: true } }),
+      db.product.findMany({ where: { coverUrl: inUrls }, select: { coverUrl: true } }),
+    ]);
+    for (const list of res) addUrls(list);
+  }
+  const rest = mediaIds.filter((id) => !used.has(id));
+  if (rest.length) {
+    // Medien-ID im JSON-Text: deckt jede Struktur ab ({mediaId}, {id}, Blöcke); cuids kommen nicht zufällig vor
+    const hits = await db.$queryRaw<{ id: string }[]>`
+      SELECT m.id FROM unnest(${rest}::text[]) AS m(id)
+      WHERE EXISTS (SELECT 1 FROM "ProjectUpdate" u WHERE u."authorId" = ANY(${owners}) AND strpos(u.media::text, m.id) > 0)
+         OR EXISTS (SELECT 1 FROM "TutorialStep" s JOIN "TutorialVersion" v ON v.id = s."versionId" JOIN "Tutorial" t ON t.id = v."tutorialId"
+                    WHERE t."authorId" = ANY(${owners}) AND strpos(s.media::text, m.id) > 0)
+         OR EXISTS (SELECT 1 FROM "Message" g WHERE g."conversationId" IN (SELECT "conversationId" FROM "ConversationMember" WHERE "userId" = ANY(${owners}))
+                    AND g."senderId" = ANY(${owners}) AND strpos(g.media::text, m.id) > 0)
+         OR EXISTS (SELECT 1 FROM "BlogArticle" a WHERE a."authorId" = ANY(${owners}) AND strpos(a.blocks::text, m.id) > 0)
+         OR EXISTS (SELECT 1 FROM "ArticleRevision" r JOIN "BlogArticle" a ON a.id = r."articleId" WHERE a."authorId" = ANY(${owners}) AND strpos(r.blocks::text, m.id) > 0)`;
+    for (const h of hits) used.add(h.id);
+  }
+  return used;
+}
+
+/**
+ * Nach dem Löschen von Inhalten: Medien, die nirgends mehr verwendet werden, wieder als „nicht verknüpft“
+ * markieren (`attachedAt = null`). Die Bereinigung entfernt sie dann nach der Schonfrist (14 Tage ab
+ * dieser Änderung, siehe Worker `cleanup`), in der Medienbibliothek erscheinen sie als „nicht verwendet“.
+ */
+export async function releaseMedia(ids: (string | null | undefined)[]) {
+  const list = [...new Set(ids.filter((x): x is string => !!x))];
+  if (!list.length) return { released: 0 };
+  try {
+    const used = await mediaInUse(list);
+    const free = list.filter((id) => !used.has(id));
+    if (!free.length) return { released: 0 };
+    const r = await db.media.updateMany({ where: { id: { in: free }, attachedAt: { not: null } }, data: { attachedAt: null } });
+    return { released: r.count };
+  } catch (e) {
+    // Nie den Löschvorgang scheitern lassen – im schlimmsten Fall bleibt ein Medium länger „verknüpft“
+    console.warn(JSON.stringify({ level: "warn", msg: "media_release_failed", err: e instanceof Error ? e.message.slice(0, 200) : String(e) }));
+    return { released: 0 };
+  }
+}
+
+/**
+ * Darf ein Medium in geteilten Caches (Proxy/CDN) liegen? Nur, wenn es nachweislich an öffentlich
+ * sichtbaren, veröffentlichten Inhalten hängt (öffentlicher Beitrag ausserhalb privater Communities,
+ * öffentliches Projekt inkl. Cover, veröffentlichte Anleitung, aktives Produkt, Profilbild/-banner).
+ * Alles andere – Nachrichten, private/Follower-Inhalte, Entwürfe, gelöschte Inhalte, nur in JSON
+ * verwendete Medien – gilt konservativ als nicht öffentlich (`Cache-Control: private`).
+ * Ein Index-Lookup je Medium, zusätzlich 5 Min. im Prozess zwischengespeichert.
+ */
+const publicCache = new Map<string, { pub: boolean; exp: number }>();
+export async function isMediaPublic(mediaId: string) {
+  const now = Date.now();
+  const hit = publicCache.get(mediaId);
+  if (hit && hit.exp > now) return hit.pub;
+  const prefix = `/media/m/${mediaId}/%`;
+  const rows = await db.$queryRaw<{ pub: boolean }[]>`
+    SELECT (
+      EXISTS (SELECT 1 FROM "PostMedia" pm JOIN "Post" p ON p.id = pm."postId" LEFT JOIN "Community" c ON c.id = p."communityId"
+              WHERE pm."mediaId" = ${mediaId} AND p.state = 'PUBLISHED' AND p.visibility = 'PUBLIC' AND p."publishedAt" <= now()
+                AND (p."communityId" IS NULL OR (c.visibility <> 'PRIVATE' AND c.state = 'PUBLISHED')))
+      OR EXISTS (SELECT 1 FROM "ProjectMedia" x JOIN "Project" p ON p.id = x."projectId" WHERE x."mediaId" = ${mediaId} AND p.state = 'PUBLISHED' AND p.visibility = 'PUBLIC')
+      OR EXISTS (SELECT 1 FROM "Media" m JOIN "Project" p ON p."ownerId" = m."ownerId" WHERE m.id = ${mediaId} AND p."coverMediaId" = m.id AND p.state = 'PUBLISHED' AND p.visibility = 'PUBLIC')
+      OR EXISTS (SELECT 1 FROM "TutorialMedia" x JOIN "Tutorial" t ON t.id = x."tutorialId" WHERE x."mediaId" = ${mediaId} AND t.state = 'PUBLISHED')
+      OR EXISTS (SELECT 1 FROM "ProductMedia" x JOIN "Product" p ON p.id = x."productId" WHERE x."mediaId" = ${mediaId} AND p.status IN ('ACTIVE', 'SOLD_OUT'))
+      OR EXISTS (SELECT 1 FROM "Media" m JOIN "UserProfile" up ON up."userId" = m."ownerId" WHERE m.id = ${mediaId} AND (up."avatarUrl" LIKE ${prefix} OR up."coverUrl" LIKE ${prefix}))
+    ) AS pub`;
+  const pub = !!rows[0]?.pub;
+  if (publicCache.size > 10_000) publicCache.clear();
+  publicCache.set(mediaId, { pub, exp: now + 5 * 60_000 });
+  return pub;
+}
+
 /** Verarbeitungsstand eines eigenen Mediums (Uploader fragt bei Videos nach). */
 export async function mediaStatus(user: SessionUser, mediaId: string) {
   const m = await db.media.findUnique({ where: { id: mediaId }, select: { ownerId: true, state: true, processingError: true, variants: true } });

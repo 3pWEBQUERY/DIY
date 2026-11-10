@@ -6,16 +6,16 @@ import { db, type Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { emit } from "@/server/events";
 import { limit } from "@/server/ratelimit";
-import { notify } from "@/server/notifications";
 import { audit } from "@/server/audit";
 import { relationsFor, canViewContent } from "@/server/visibility";
 import { hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
-import { attachMedia, mediaCoverUrl } from "@/server/media/service";
+import { attachMedia, mediaCoverUrl, patchFrozenMediaRefsLater, releaseMedia } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listCommentPage } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
+import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 
 /**
@@ -37,8 +37,10 @@ export type MaterialLine = { name: string; quantity: string; note: string; mater
 
 const KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
-async function uniqueTutorialSlug(client: Tx | typeof db, title: string, excludeId?: string) {
+/** `attempt` > 0: Wiederholung nach Slug-Kollision (gleichzeitige Anlage) → Zufallssuffix. */
+async function uniqueTutorialSlug(client: Tx | typeof db, title: string, excludeId?: string, attempt = 0) {
   const root = slugify(title, 70);
+  if (attempt > 0) return `${root}-${slugSuffix()}`;
   const rows = await client.tutorial.findMany({ where: { slug: { startsWith: root }, ...(excludeId ? { id: { not: excludeId } } : {}) }, select: { slug: true } });
   const taken = new Set(rows.map((r) => r.slug));
   if (!taken.has(root)) return root;
@@ -61,6 +63,26 @@ function asLines(json: unknown): MaterialLine[] {
     .filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && typeof (x as { name?: unknown }).name === "string")
     .map((x) => ({ name: String(x.name), quantity: typeof x.quantity === "string" ? x.quantity : "", note: typeof x.note === "string" ? x.note : "", materialId: typeof x.materialId === "string" ? x.materialId : undefined }));
 }
+
+/**
+ * Inhalt einer Version ohne zufällige Schlüssel – erkennt einen Doppelklick auf „Veröffentlichen“
+ * (gleicher Inhalt kurz hintereinander), damit keine doppelte Version entsteht.
+ */
+export function versionFingerprint(v: {
+  changeNote: string;
+  isMajor: boolean;
+  materials: unknown;
+  tools: unknown;
+  steps: { position: number; title: string; body: string; minutes: number | null; tip: string | null; safety: string | null; safetyKinds: string[]; media: unknown; materials: string[]; tools: string[] }[];
+}) {
+  const steps = [...v.steps]
+    .sort((a, b) => a.position - b.position)
+    .map((st) => [st.title, st.body, st.minutes ?? null, st.tip || null, st.safety || null, st.safetyKinds, asStepMedia(st.media).map((m) => [m.mediaId, m.alt]), st.materials, st.tools]);
+  return JSON.stringify([v.changeNote, v.isMajor, asLines(v.materials), asLines(v.tools), steps]);
+}
+
+/** Zeitfenster, in dem identische Veröffentlichungen als Doppelklick gelten. */
+const DUPLICATE_PUBLISH_MS = 2 * 60_000;
 
 function asStepMedia(json: unknown): StepMedia[] {
   if (!Array.isArray(json)) return [];
@@ -121,7 +143,8 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
       tools: s.tools.filter(Boolean),
     }));
 
-  const result = await db.$transaction(async (tx) => {
+  const notifyReaders = data.isMajor && !!data.notifyReaders;
+  const result = await withSlugRetry((attempt) => db.$transaction(async (tx) => {
     await attachMedia(tx, user.id, [...new Set([...stepMediaIds, ...(data.coverMediaId ? [data.coverMediaId] : [])])]);
     const meta = {
       title: data.title,
@@ -136,11 +159,11 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
     let t: { id: string; slug: string };
     if (!existing) {
       t = await tx.tutorial.create({
-        data: { ...meta, authorId: user.id, slug: await uniqueTutorialSlug(tx, data.title), state: "DRAFT", safetyKinds, isPaid: false, priceMinor: null },
+        data: { ...meta, authorId: user.id, slug: await uniqueTutorialSlug(tx, data.title, undefined, attempt), state: "DRAFT", safetyKinds, isPaid: false, priceMinor: null },
         select: { id: true, slug: true },
       });
     } else {
-      const slug = neverPublished && existing.title !== data.title ? await uniqueTutorialSlug(tx, data.title, existing.id) : existing.slug;
+      const slug = neverPublished && existing.title !== data.title ? await uniqueTutorialSlug(tx, data.title, existing.id, attempt) : existing.slug;
       t = await tx.tutorial.update({ where: { id: existing.id }, data: { ...meta, slug, ...(neverPublished ? { safetyKinds } : {}) }, select: { id: true, slug: true } });
     }
 
@@ -158,10 +181,23 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
     await tx.tutorialStep.deleteMany({ where: { versionId: draft.id } });
     await tx.tutorialStep.createMany({ data: stepRows(draft.id) });
 
-    if (!opts.publish) return { id: t.id, slug: t.slug, version: null as number | null };
+    if (!opts.publish) return { id: t.id, slug: t.slug, version: null as number | null, duplicate: false };
 
-    const last = await tx.tutorialVersion.findFirst({ where: { tutorialId: t.id, version: { gt: DRAFT_VERSION } }, orderBy: { version: "desc" }, select: { version: true } });
+    // Gleichzeitige/doppelte Veröffentlichungen derselben Anleitung nacheinander abarbeiten
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tutorial-publish:${t.id}`}))`;
+    const last = await tx.tutorialVersion.findFirst({
+      where: { tutorialId: t.id, version: { gt: DRAFT_VERSION } },
+      orderBy: { version: "desc" },
+      select: { version: true, publishedAt: true, changeNote: true, isMajor: true, materials: true, tools: true, steps: true },
+    });
     const n = (last?.version ?? 0) + 1;
+    // Doppelklick (z. B. nach einem Timeout erneut geklickt): identische Version kurz zuvor → keine neue
+    if (last && Date.now() - last.publishedAt.getTime() < DUPLICATE_PUBLISH_MS) {
+      // So, wie `last` gespeichert worden wäre (Version 1: Standard-Notiz, nie „wesentlich“)
+      const first = last.version === 1;
+      const candidate = { changeNote: data.changeNote ?? (first ? "Erstveröffentlichung" : ""), isMajor: first ? false : data.isMajor, materials, tools, steps: stepRows("") };
+      if (versionFingerprint(last) === versionFingerprint(candidate)) return { id: t.id, slug: t.slug, version: last.version, duplicate: true };
+    }
     const v = await tx.tutorialVersion.create({
       data: { tutorialId: t.id, version: n, changeNote: data.changeNote ?? (n === 1 ? "Erstveröffentlichung" : ""), isMajor: n === 1 ? false : data.isMajor, materials, tools },
       select: { id: true },
@@ -177,25 +213,17 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
         qualityScore: 0.4 + (coverUrl ? 0.15 : 0) + Math.min(0.25, steps.length / 40) + (safetyKinds.length ? 0.05 : 0) + (stepMediaIds.length ? 0.15 : 0),
       },
     });
-    await emit({ type: "TutorialPublished", tutorialId: t.id, authorId: user.id, version: n, major: data.isMajor }, tx);
-    return { id: t.id, slug: t.slug, version: n };
-  });
+    // Leser:innen benachrichtigen (bis zu Tausende) läuft im Worker (Outbox → Job mit notifyMany),
+    // nicht in dieser Anfrage – sonst Timeout, obwohl die Version schon gespeichert ist
+    await emit({ type: "TutorialPublished", tutorialId: t.id, authorId: user.id, version: n, major: data.isMajor, notifyReaders: n > 1 && notifyReaders }, tx);
+    return { id: t.id, slug: t.slug, version: n, duplicate: false };
+  }));
+
+  // Medien, die beim Einfrieren noch in Verarbeitung waren, nachtragen, falls sie inzwischen fertig sind
+  await patchFrozenMediaRefsLater([...stepMediaIds.filter((id) => !urls.get(id)), ...(data.coverMediaId && !coverUrl ? [data.coverMediaId] : [])]);
 
   const href = `/anleitungen/${result.slug}`;
-  if (opts.publish && result.version) {
-    if (result.version > 1 && data.isMajor && data.notifyReaders) {
-      const readers = await db.tutorialProgress.findMany({ where: { tutorialId: result.id, userId: { not: user.id } }, select: { userId: true }, take: 2000 });
-      for (const r of readers) {
-        await notify({
-          recipientId: r.userId,
-          type: "TUTORIAL_UPDATED",
-          actorId: user.id,
-          targetType: "TUTORIAL",
-          targetId: result.id,
-          data: { title: data.title, href, version: result.version, changeNote: data.changeNote ?? "" },
-        });
-      }
-    }
+  if (opts.publish && result.version && !result.duplicate) {
     if (data.shareToFeed) {
       const body =
         result.version === 1
@@ -208,7 +236,34 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
       );
     }
   }
-  return { ...result, href };
+  const { duplicate: _duplicate, ...out } = result;
+  return { ...out, href };
+}
+
+/** Leser:innen über eine wesentliche neue Version informieren (Worker, aus dem Ereignis TutorialPublished). */
+export async function notifyTutorialReaders(tutorialId: string, authorId: string, version: number) {
+  const { notifyMany } = await import("@/server/notifications");
+  const t = await db.tutorial.findUnique({ where: { id: tutorialId }, select: { title: true, slug: true, state: true, versions: { where: { version }, select: { changeNote: true } } } });
+  if (!t || t.state !== "PUBLISHED") return { notified: 0 };
+  const href = `/anleitungen/${t.slug}`;
+  const data = { title: t.title, href, version, changeNote: t.versions[0]?.changeNote ?? "" };
+  let cursor: string | undefined;
+  let n = 0;
+  for (;;) {
+    const readers = await db.tutorialProgress.findMany({
+      where: { tutorialId, userId: { not: authorId } },
+      orderBy: { userId: "asc" },
+      take: 500,
+      ...(cursor ? { cursor: { userId_tutorialId: { userId: cursor, tutorialId } }, skip: 1 } : {}),
+      select: { userId: true },
+    });
+    if (!readers.length) break;
+    await notifyMany(readers.map((r) => r.userId), { type: "TUTORIAL_UPDATED", actorId: authorId, targetType: "TUTORIAL", targetId: tutorialId, data });
+    n += readers.length;
+    cursor = readers[readers.length - 1]!.userId;
+    if (readers.length < 500) break;
+  }
+  return { notified: n };
 }
 
 /** Veröffentlichte Anleitung zurückziehen (wieder Entwurf) bzw. erneut freigeben. */
@@ -235,6 +290,12 @@ export async function deleteTutorial(user: SessionUser, tutorialId: string) {
   }
   // Ausgeblendete Anleitungen bleiben als Nachweis für Einspruch und Fallakte erhalten
   if (t.state === "HIDDEN") throw fail.forbidden("Diese Anleitung wurde von der Moderation ausgeblendet und kann nicht gelöscht werden.");
+  // Medien (Cover + Schritte aller Versionen) merken, um sie nach dem Löschen freizugeben
+  const [cover, steps] = await Promise.all([
+    db.tutorialMedia.findMany({ where: { tutorialId }, select: { mediaId: true } }),
+    db.tutorialStep.findMany({ where: { version: { tutorialId } }, select: { media: true } }),
+  ]);
+  const mediaIds = [...cover.map((c) => c.mediaId), ...steps.flatMap((st) => asStepMedia(st.media).map((m) => m.mediaId))];
   await db.$transaction(async (tx) => {
     await tx.bookmark.deleteMany({ where: { targetType: "TUTORIAL", targetId: tutorialId } });
     await tx.reaction.deleteMany({ where: { targetType: "TUTORIAL", targetId: tutorialId } });
@@ -242,6 +303,7 @@ export async function deleteTutorial(user: SessionUser, tutorialId: string) {
     await tx.tutorial.update({ where: { id: tutorialId }, data: { currentVersionId: null } });
     await tx.tutorial.delete({ where: { id: tutorialId } });
   });
+  await releaseMedia(mediaIds);
 }
 
 // ───────────────────────── Fortschritt ─────────────────────────
@@ -412,8 +474,28 @@ async function visibleTutorialsWhere(viewerId: string | null | undefined): Promi
   };
 }
 
+const TUTORIAL_SORTS = ["new", "popular", "updated"] as const;
+const optStr = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.slice(0, max) : undefined);
+
+/** Filter aus Query-Strings/Server-Actions bereinigen: unbekannte Werte fallen weg (400/leer statt 500). */
+export function sanitizeTutorialFilters(f: unknown): TutorialFilters {
+  const x = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
+  const difficulty = Number(x.difficulty);
+  return {
+    authorId: optStr(x.authorId, 64),
+    category: optStr(x.category, 80),
+    difficulty: Number.isInteger(difficulty) && difficulty >= 1 && difficulty <= 5 ? difficulty : undefined,
+    duration: DURATIONS.find((d) => d.key === x.duration)?.key,
+    projectId: optStr(x.projectId, 64),
+    q: optStr(x.q, 200),
+    sort: TUTORIAL_SORTS.find((s) => s === x.sort),
+  };
+}
+
 /** Anleitungsliste mit Filtern und Cursor-Pagination – kartenfertig. */
-export async function listTutorials(filters: TutorialFilters, viewerId: string | null | undefined, opts: { cursor?: string | null; take?: number } = {}) {
+export async function listTutorials(rawFilters: TutorialFilters, viewerId: string | null | undefined, opts: { cursor?: string | null; take?: number } = {}) {
+  const filters = sanitizeTutorialFilters(rawFilters);
+  if (typeof opts.cursor !== "string") opts = { ...opts, cursor: null };
   const take = Math.min(opts.take ?? 24, 60);
   const own = !!filters.authorId && filters.authorId === viewerId;
   const and: Prisma.TutorialWhereInput[] = [own ? { authorId: filters.authorId, state: { not: "REMOVED" } } : await visibleTutorialsWhere(viewerId)];

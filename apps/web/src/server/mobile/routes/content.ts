@@ -109,6 +109,7 @@ export const contentRoutes: RouteDef[] = [
     return projects.listProjects(
       {
         category: str(c.q, "category"),
+        // Unbekannte Werte für sort/status bereinigt listProjects (sanitizeProjectFilters) – kein 500er
         sort: (str(c.q, "sort") as projects.ProjectSort | undefined) ?? "new",
         q: str(c.q, "q"),
         difficulty: int(c.q, "difficulty", { max: 5 }),

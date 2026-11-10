@@ -17,6 +17,16 @@ export function prefFor(prefs: Prefs | null | undefined, type: NotificationType)
 }
 
 /**
+ * Gebündelte Ereignisse lösen nicht jedes Mal einen neuen Push aus: Wurde der offene Eintrag in den
+ * letzten 30 Minuten bereits gepusht, wird er nur still in der App hochgezählt (kein Push mit Ton alle
+ * paar Sekunden bei einem viralen Beitrag). Danach darf ein neues Ereignis wieder pushen.
+ */
+export const REPUSH_AFTER_MS = 30 * 60_000;
+export function shouldRepush(pushedAt: Date | null | undefined, now = new Date()) {
+  return !pushedAt || now.getTime() - pushedAt.getTime() >= REPUSH_AFTER_MS;
+}
+
+/**
  * Erzeugt oder bündelt eine Benachrichtigung. Gleiche ungelesene Ereignisse eines Ziels
  * (z. B. 12 Likes auf einem Projekt) werden zu einem Eintrag zusammengefasst.
  */
@@ -64,13 +74,13 @@ export async function notify(
   if (groupKey) {
     const existing = await c.notification.findFirst({
       where: { recipientId: input.recipientId, groupKey, readAt: null },
-      select: { id: true },
+      select: { id: true, pushedAt: true },
     });
     if (existing) {
       live(input.recipientId);
       return c.notification.update({
         where: { id: existing.id },
-        data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object, pushedAt: null },
+        data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object, ...(shouldRepush(existing.pushedAt) ? { pushedAt: null } : {}) },
       });
     }
   }
@@ -128,7 +138,10 @@ export async function notifyMany(
       // Ungelesene Einträge desselben Ziels hochzählen statt neue anlegen
       const open = await db.notification.findMany({ where: { recipientId: { in: wanted.map((w) => w.id) }, groupKey, readAt: null }, select: { id: true, recipientId: true } });
       if (open.length) {
-        await db.notification.updateMany({ where: { id: { in: open.map((o) => o.id) } }, data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object, pushedAt: null } });
+        const openIds = open.map((o) => o.id);
+        await db.notification.updateMany({ where: { id: { in: openIds } }, data: { count: { increment: 1 }, actorId: input.actorId ?? undefined, data: (input.data ?? {}) as object } });
+        // Nur Einträge, deren letzter Push länger her ist, erneut zum Pushen freigeben (siehe `shouldRepush`)
+        await db.notification.updateMany({ where: { id: { in: openIds }, pushedAt: { lt: new Date(Date.now() - REPUSH_AFTER_MS) } }, data: { pushedAt: null } });
         const bundled = new Set(open.map((o) => o.recipientId));
         fresh = wanted.filter((w) => !bundled.has(w.id));
       }

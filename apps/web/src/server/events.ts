@@ -8,8 +8,12 @@ import { db, type Tx } from "@/server/db";
 export type DomainEvent =
   | { type: "PostPublished"; postId: string; authorId: string }
   | { type: "ProjectUpdated"; projectId: string; ownerId: string; updateId?: string }
+  /** Genau einmal: beim ersten Übergang zu PUBLISHED (publishedAt null → gesetzt), für `project_published`. */
+  | { type: "ProjectPublished"; projectId: string; ownerId: string }
+  /** Follower:innen eines Projekts benachrichtigen (Fan-out im Worker statt in der Anfrage). */
+  | { type: "ProjectFollowersNotify"; projectId: string; actorId: string; event: "completed" | "update"; excerpt?: string }
   | { type: "ProjectRemixed"; projectId: string; originalId: string; ownerId: string }
-  | { type: "TutorialPublished"; tutorialId: string; authorId: string; version: number; major: boolean }
+  | { type: "TutorialPublished"; tutorialId: string; authorId: string; version: number; major: boolean; notifyReaders?: boolean }
   | { type: "UserFollowed"; followerId: string; followeeId: string }
   | { type: "CommentCreated"; commentId: string; authorId: string }
   | { type: "ProductPurchased"; orderId: string }

@@ -146,7 +146,8 @@ export const tutorialUpsertSchema = z.object({
   minutes: z.coerce.number().int().min(0).max(100_000).optional(),
   projectId: z.string().optional(),
   coverMediaId: z.string().optional(),
-  language: z.string().default("de-CH"),
+  // Sprach-Tag (BCP 47, z. B. de-CH) – landet in der DB und im JSON-LD (`inLanguage`), daher begrenzt
+  language: z.string().trim().max(16).regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/, "Ungültige Sprache").default("de-CH"),
   materials: z.array(materialLineSchema).max(60).default([]),
   tools: z.array(materialLineSchema).max(60).default([]),
   steps: z.array(tutorialStepSchema).min(1, "Mindestens ein Schritt").max(80),

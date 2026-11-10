@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { projectUpsertSchema, projectUpdateEntrySchema, projectStatusChangeSchema, type ProjectStatus } from "@werkraum/shared";
+import { PROJECT_STATUS, projectUpsertSchema, projectUpdateEntrySchema, projectStatusChangeSchema, type ProjectStatus } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { emit } from "@/server/events";
@@ -11,10 +11,11 @@ import { relationsFor, visibleContentWhere, canViewContent } from "@/server/visi
 import { hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
-import { attachMedia, mediaCoverUrl } from "@/server/media/service";
+import { attachMedia, mediaCoverUrl, patchFrozenMediaRefsLater, releaseMedia } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listCommentPage } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
+import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 
 /**
@@ -30,9 +31,11 @@ const RESERVED_SLUGS = new Set([
   "follower", "folgt", "info", "neu", "shop", "medien", "artikel",
 ]);
 
-async function uniqueProjectSlug(client: Tx | typeof db, ownerId: string, title: string) {
+/** `attempt` > 0: Wiederholung nach Slug-Kollision (gleichzeitige Anlage) → Zufallssuffix. */
+async function uniqueProjectSlug(client: Tx | typeof db, ownerId: string, title: string, attempt = 0) {
   const base = slugify(title, 60);
   const root = RESERVED_SLUGS.has(base) ? `${base}-projekt` : base;
+  if (attempt > 0) return `${root}-${slugSuffix()}`;
   const rows = await client.project.findMany({ where: { ownerId, slug: { startsWith: root } }, select: { slug: true } });
   const taken = new Set(rows.map((r) => r.slug));
   if (!taken.has(root)) return root;
@@ -115,11 +118,49 @@ function ownerHref(handle: string | null | undefined, slug: string) {
   return `/u/${handle ?? "unbekannt"}/${slug}`;
 }
 
-async function notifyFollowers(projectId: string, actorId: string, data: Record<string, unknown>) {
-  const followers = await db.projectFollow.findMany({ where: { projectId, userId: { not: actorId } }, select: { userId: true }, take: 500 });
-  for (const f of followers) {
-    await notify({ recipientId: f.userId, type: "PROJECT_ACTIVITY", actorId, targetType: "PROJECT", targetId: projectId, data });
+/**
+ * Follower:innen benachrichtigen: nur ein Outbox-Ereignis in der Transaktion – der Fan-out (bis zu
+ * Tausende Personen) läuft im Worker (`notifyProjectFollowers`), nicht in der Anfrage.
+ */
+async function queueFollowerNotice(tx: Tx, projectId: string, actorId: string, event: "completed" | "update", excerpt?: string) {
+  await emit({ type: "ProjectFollowersNotify", projectId, actorId, event, ...(excerpt ? { excerpt } : {}) }, tx);
+}
+
+/** Worker: Follower:innen eines (weiterhin öffentlichen) Projekts in Blöcken mit notifyMany informieren. */
+export async function notifyProjectFollowers(projectId: string, actorId: string, event: "completed" | "update", excerpt?: string) {
+  const { notifyMany } = await import("@/server/notifications");
+  const p = await db.project.findUnique({ where: { id: projectId }, select: { title: true, slug: true, state: true, visibility: true, owner: { select: { profile: { select: { handle: true } } } } } });
+  if (!p || p.state !== "PUBLISHED" || p.visibility !== "PUBLIC") return { notified: 0 };
+  const href = ownerHref(p.owner.profile?.handle, p.slug);
+  const data = event === "update" ? { title: p.title, href: `${href}#journal`, excerpt: excerpt ?? "", event } : { title: p.title, href, event };
+  let cursor: string | undefined;
+  let n = 0;
+  for (;;) {
+    const followers = await db.projectFollow.findMany({
+      where: { projectId, userId: { not: actorId } },
+      orderBy: { userId: "asc" },
+      take: 500,
+      ...(cursor ? { cursor: { userId_projectId: { userId: cursor, projectId } }, skip: 1 } : {}),
+      select: { userId: true },
+    });
+    if (!followers.length) break;
+    await notifyMany(followers.map((f) => f.userId), { type: "PROJECT_ACTIVITY", actorId, targetType: "PROJECT", targetId: projectId, data });
+    n += followers.length;
+    cursor = followers[followers.length - 1]!.userId;
+    if (followers.length < 500) break;
   }
+  return { notified: n };
+}
+
+/**
+ * Erstveröffentlichung genau einmal erfassen: nur der Übergang `publishedAt` null → gesetzt (bedingtes
+ * Update) erzeugt `ProjectPublished` – unabhängig davon, wann der Worker das Ereignis verarbeitet und wie oft
+ * das Projekt danach bearbeitet wird.
+ */
+export async function markProjectPublished(tx: Tx, projectId: string, ownerId: string, at = new Date()) {
+  const r = await tx.project.updateMany({ where: { id: projectId, state: "PUBLISHED", publishedAt: null }, data: { publishedAt: at } });
+  if (r.count) await emit({ type: "ProjectPublished", projectId, ownerId }, tx);
+  return r.count > 0;
 }
 
 // ───────────────────────── Schreiben ─────────────────────────
@@ -147,9 +188,9 @@ export async function createProject(user: SessionUser, input: unknown) {
     resolveCatalog(data.tools, "tool"),
   ]);
 
-  const project = await db.$transaction(async (tx) => {
+  const project = await withSlugRetry((attempt) => db.$transaction(async (tx) => {
     await attachMedia(tx, user.id, [...new Set([...galleryIds, ...(coverId ? [coverId] : [])])]);
-    const slug = await uniqueProjectSlug(tx, user.id, data.title);
+    const slug = await uniqueProjectSlug(tx, user.id, data.title, attempt);
     const now = new Date();
     const p = await tx.project.create({
       data: {
@@ -168,7 +209,7 @@ export async function createProject(user: SessionUser, input: unknown) {
         coverMediaId: coverId,
         coverUrl,
         remixNote: original ? (data.remixNote ?? null) : null,
-        publishedAt: now,
+        // publishedAt setzt markProjectPublished (genau einmal, mit Ereignis ProjectPublished)
         completedAt: completedAtFor(data.status, null),
         qualityScore: 0.4 + (galleryIds.length ? 0.2 : 0) + (data.materials.length ? 0.1 : 0) + Math.min(0.2, data.description.length / 3000),
       },
@@ -180,9 +221,11 @@ export async function createProject(user: SessionUser, input: unknown) {
       await emit({ type: "ProjectRemixed", projectId: p.id, originalId: original.id, ownerId: user.id }, tx);
     }
     await emit({ type: "ProjectUpdated", projectId: p.id, ownerId: user.id }, tx);
+    await markProjectPublished(tx, p.id, user.id, now);
     await syncProjectCount(tx, user.id);
     return p;
-  });
+  }));
+  if (coverId && !coverUrl) await patchFrozenMediaRefsLater([coverId]);
 
   const href = ownerHref(user.profile?.handle, project.slug);
   if (original) {
@@ -246,11 +289,10 @@ export async function updateProject(user: SessionUser, projectId: string, input:
       await tx.project.update({ where: { id: projectId }, data: { remixNote: data.remixNote ?? null } });
     }
     await emit({ type: "ProjectUpdated", projectId, ownerId: user.id }, tx);
+    if (data.status === "COMPLETED" && prev.status !== "COMPLETED" && data.visibility === "PUBLIC") await queueFollowerNotice(tx, projectId, user.id, "completed");
     await syncProjectCount(tx, user.id);
   });
-  if (data.status === "COMPLETED" && prev.status !== "COMPLETED" && data.visibility === "PUBLIC") {
-    await notifyFollowers(projectId, user.id, { title: data.title, href: ownerHref(user.profile?.handle, prev.slug), event: "completed" });
-  }
+  if (coverId && !coverUrl) await patchFrozenMediaRefsLater([coverId]);
   return { id: projectId, slug: prev.slug, href: ownerHref(user.profile?.handle, prev.slug) };
 }
 
@@ -261,10 +303,8 @@ export async function setProjectStatus(user: SessionUser, projectId: string, inp
   await db.$transaction(async (tx) => {
     await tx.project.update({ where: { id: projectId }, data: { status, completedAt: completedAtFor(status, prev.completedAt) } });
     await emit({ type: "ProjectUpdated", projectId, ownerId: user.id }, tx);
+    if (status === "COMPLETED" && prev.visibility === "PUBLIC") await queueFollowerNotice(tx, projectId, user.id, "completed");
   });
-  if (status === "COMPLETED" && prev.visibility === "PUBLIC") {
-    await notifyFollowers(projectId, user.id, { title: prev.title, href: ownerHref(user.profile?.handle, prev.slug), event: "completed" });
-  }
   return { status };
 }
 
@@ -287,6 +327,7 @@ export async function deleteProject(user: SessionUser, projectId: string) {
   }
   // Ausgeblendete Projekte bleiben als Nachweis für Einspruch und Fallakte erhalten
   if (p.state === "HIDDEN") throw fail.forbidden("Dieses Projekt wurde von der Moderation ausgeblendet und kann nicht gelöscht werden.");
+  const mediaIds = await projectMediaIds(projectId);
   await db.$transaction(async (tx) => {
     const originals = await tx.projectRelation.findMany({ where: { fromId: projectId, kind: "REMIX" }, select: { toId: true } });
     for (const o of originals) await tx.project.updateMany({ where: { id: o.toId, remixCount: { gt: 0 } }, data: { remixCount: { decrement: 1 } } });
@@ -296,6 +337,22 @@ export async function deleteProject(user: SessionUser, projectId: string) {
     await tx.project.delete({ where: { id: projectId } });
     await syncProjectCount(tx, user.id);
   });
+  // Nicht mehr verwendete Medien freigeben (Bibliothek „nicht verwendet“, Bereinigung nach Schonfrist)
+  await releaseMedia(mediaIds);
+}
+
+/** Alle Medien eines Projekts: Galerie, Cover, Journal. */
+async function projectMediaIds(projectId: string) {
+  const [p, gallery, updates] = await Promise.all([
+    db.project.findUnique({ where: { id: projectId }, select: { coverMediaId: true } }),
+    db.projectMedia.findMany({ where: { projectId }, select: { mediaId: true } }),
+    db.projectUpdate.findMany({ where: { projectId }, select: { media: true } }),
+  ]);
+  return [p?.coverMediaId, ...gallery.map((g) => g.mediaId), ...updates.flatMap((u) => journalMediaIds(u.media))];
+}
+
+function journalMediaIds(json: unknown) {
+  return Array.isArray(json) ? json.map((m) => (m && typeof m === "object" ? (m as { mediaId?: unknown }).mediaId : null)).filter((x): x is string => typeof x === "string") : [];
 }
 
 // ───────────────────────── Journal ─────────────────────────
@@ -328,8 +385,11 @@ export async function addProjectUpdate(user: SessionUser, projectId: string, inp
     });
     await tx.project.update({ where: { id: projectId }, data: { updatedAt: new Date() } });
     await emit({ type: "ProjectUpdated", projectId, ownerId: project.ownerId, updateId: u.id }, tx);
+    if (project.visibility === "PUBLIC") await queueFollowerNotice(tx, projectId, user.id, "update", data.body.slice(0, 120));
     return u;
   });
+  // Medien, die beim Einfrieren noch in Verarbeitung waren, nachtragen, falls sie inzwischen fertig sind
+  await patchFrozenMediaRefsLater(data.media.map((m) => m.id).filter((id) => !urls.get(id)));
 
   const owner = await db.userProfile.findUnique({ where: { userId: project.ownerId }, select: { handle: true } });
   const href = ownerHref(owner?.handle, project.slug);
@@ -343,17 +403,15 @@ export async function addProjectUpdate(user: SessionUser, projectId: string, inp
     );
     postId = post.id;
   }
-  if (project.visibility === "PUBLIC") {
-    await notifyFollowers(projectId, user.id, { title: project.title, href: `${href}#journal`, excerpt: data.body.slice(0, 120), event: "update" });
-  }
   return { id: entry.id, postId, href };
 }
 
 export async function deleteProjectUpdate(user: SessionUser, updateId: string) {
-  const u = await db.projectUpdate.findUnique({ where: { id: updateId }, select: { authorId: true, project: { select: { ownerId: true } } } });
+  const u = await db.projectUpdate.findUnique({ where: { id: updateId }, select: { authorId: true, media: true, project: { select: { ownerId: true } } } });
   if (!u) throw fail.notFound();
   if (u.authorId !== user.id && u.project.ownerId !== user.id && !hasRole(user, "PLATFORM_MODERATOR")) throw fail.forbidden();
   await db.projectUpdate.delete({ where: { id: updateId } });
+  await releaseMedia(journalMediaIds(u.media));
 }
 
 // ───────────────────────── Karten & Listen ─────────────────────────
@@ -441,11 +499,34 @@ export type ProjectFilters = {
   sort?: ProjectSort;
 };
 
+const PROJECT_SORTS: readonly ProjectSort[] = ["new", "popular", "completed", "updated"];
+const optStr = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.slice(0, max) : undefined);
+
+/**
+ * Filter aus Query-Strings/Server-Actions (unvalidiert, z. B. iOS `?status=foo`) bereinigen: Unbekannte
+ * Werte fallen weg, statt als PrismaClientValidationError mit 500 zu enden.
+ */
+export function sanitizeProjectFilters(f: unknown): ProjectFilters {
+  const x = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
+  const difficulty = Number(x.difficulty);
+  return {
+    ownerId: optStr(x.ownerId, 64),
+    category: optStr(x.category, 80),
+    difficulty: Number.isInteger(difficulty) && difficulty >= 1 && difficulty <= 5 ? difficulty : undefined,
+    status: (PROJECT_STATUS as readonly string[]).includes(x.status as string) ? (x.status as ProjectStatus) : undefined,
+    hasTutorial: x.hasTutorial === true ? true : undefined,
+    q: optStr(x.q, 200),
+    sort: PROJECT_SORTS.includes(x.sort as ProjectSort) ? (x.sort as ProjectSort) : undefined,
+  };
+}
+
 /**
  * Projektliste mit Filtern und Cursor-Pagination – kartenfertig.
  * Eigene Projekte (ownerId === viewerId) enthalten auch private.
  */
-export async function listProjects(filters: ProjectFilters, viewerId: string | null | undefined, opts: { cursor?: string | null; take?: number } = {}) {
+export async function listProjects(rawFilters: ProjectFilters, viewerId: string | null | undefined, opts: { cursor?: string | null; take?: number } = {}) {
+  const filters = sanitizeProjectFilters(rawFilters);
+  if (typeof opts.cursor !== "string") opts = { ...opts, cursor: null };
   const take = Math.min(opts.take ?? 24, 60);
   const own = !!filters.ownerId && filters.ownerId === viewerId;
   const and: Prisma.ProjectWhereInput[] = [own ? { ownerId: filters.ownerId, state: { not: "REMOVED" } } : await visibleProjectsWhere(viewerId)];

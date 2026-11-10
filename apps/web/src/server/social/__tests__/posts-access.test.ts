@@ -22,7 +22,7 @@ vi.mock("@/server/authz", () => ({
   assertOwnerOrMod: vi.fn(),
   hasRole: (u: { role: string; totpEnabledAt?: Date | null } | null) => !!u && u.role !== "MEMBER" && !!u.totpEnabledAt,
 }));
-vi.mock("@/server/media/service", () => ({ attachMedia: vi.fn() }));
+vi.mock("@/server/media/service", () => ({ attachMedia: vi.fn(), releaseMedia: vi.fn() }));
 vi.mock("@/server/settings", () => ({ getSetting: vi.fn() }));
 vi.mock("@/server/categories/settings", () => ({ assertCategoryAllowed: vi.fn() }));
 
@@ -103,5 +103,35 @@ describe("Erwähnungen", () => {
     member(null);
     await posts.notifyMentions("@outsider schau", "a", "p1");
     expect(m.notify).not.toHaveBeenCalled();
+  });
+});
+
+describe("Kommentieren in Communities", () => {
+  const vis = (visibility: string) => m.db.community.findUnique.mockResolvedValue({ visibility });
+
+  it("öffentliche Community: auch ohne Mitgliedschaft", async () => {
+    vis("PUBLIC");
+    member(null);
+    await expect(posts.assertCanCommentInCommunity("c1", "u1")).resolves.toBeUndefined();
+  });
+
+  it("REQUEST/PRIVATE: nur aktive Mitglieder", async () => {
+    for (const v of ["REQUEST", "PRIVATE"]) {
+      vis(v);
+      for (const s of [null, "PENDING", "INVITED"]) {
+        member(s);
+        await expect(posts.assertCanCommentInCommunity("c1", "u1")).rejects.toMatchObject({ code: "FORBIDDEN" });
+      }
+      member("ACTIVE");
+      await expect(posts.assertCanCommentInCommunity("c1", "u1")).resolves.toBeUndefined();
+    }
+  });
+
+  it("gesperrt oder stummgeschaltet: auch in öffentlichen Communities nicht", async () => {
+    vis("PUBLIC");
+    member("BANNED");
+    await expect(posts.assertCanCommentInCommunity("c1", "u1")).rejects.toMatchObject({ code: "FORBIDDEN" });
+    member("ACTIVE", new Date(Date.now() + 60_000));
+    await expect(posts.assertCanCommentInCommunity("c1", "u1")).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

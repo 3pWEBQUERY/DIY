@@ -20,7 +20,21 @@ export class VideoRejected extends Error {
 }
 
 type ProbeStream = { codec_type?: string; codec_name?: string; width?: number; height?: number; tags?: Record<string, string>; side_data_list?: { rotation?: number }[] };
-type Probe = { format?: { duration?: string }; streams?: ProbeStream[] };
+type Probe = { format?: { duration?: string; format_name?: string }; streams?: ProbeStream[] };
+
+/**
+ * Härtung gegen präparierte Eingaben: ffmpeg/ffprobe dürfen nur lokale Dateien öffnen (kein http/tcp/…
+ * aus einer HLS-Playlist, einer concat-Liste oder Ähnlichem), und als Container sind nur echte
+ * Videoformate erlaubt. Der erkannte Demuxer wird beim Transkodieren explizit gesetzt (`-f`).
+ */
+const PROTOCOLS = ["-protocol_whitelist", "file"];
+/** ffprobe-format_name → Demuxer. Alles andere (hls, concat, image2, tty, …) wird abgelehnt. */
+export function allowedDemuxer(formatName: string | null | undefined) {
+  const names = (formatName ?? "").split(",");
+  if (names.includes("mov") || names.includes("mp4")) return "mov";
+  if (names.includes("matroska") || names.includes("webm")) return "matroska";
+  return null;
+}
 
 function run(cmd: string, args: string[], timeoutMs: number) {
   return new Promise<string>((resolve, reject) => {
@@ -53,12 +67,12 @@ export async function ffmpegAvailable() {
 }
 
 export async function probe(file: string) {
-  const json = JSON.parse(await run("ffprobe", ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", file], 60_000)) as Probe;
+  const json = JSON.parse(await run("ffprobe", ["-v", "error", ...PROTOCOLS, "-print_format", "json", "-show_format", "-show_streams", file], 60_000)) as Probe;
   const v = json.streams?.find((s) => s.codec_type === "video");
   const audio = !!json.streams?.some((s) => s.codec_type === "audio");
   const duration = Number(json.format?.duration ?? 0);
   const rotation = Math.abs(Number(v?.tags?.rotate ?? v?.side_data_list?.find((d) => d.rotation != null)?.rotation ?? 0)) % 180 === 90;
-  return { hasVideo: !!v, audio, duration: Number.isFinite(duration) ? duration : 0, codec: v?.codec_name ?? null, width: rotation ? v?.height : v?.width, height: rotation ? v?.width : v?.height };
+  return { hasVideo: !!v, audio, demuxer: allowedDemuxer(json.format?.format_name), duration: Number.isFinite(duration) ? duration : 0, codec: v?.codec_name ?? null, width: rotation ? v?.height : v?.width, height: rotation ? v?.width : v?.height };
 }
 
 export type TranscodeResult = {
@@ -83,6 +97,7 @@ export async function transcode<T>(src: string, opts: { maxSeconds: number; time
   try {
     const info = await probe(src).catch(() => null);
     if (!info?.hasVideo) throw new VideoRejected("Die Datei enthält kein lesbares Video.");
+    if (!info.demuxer) throw new VideoRejected("Dieses Videoformat wird nicht unterstützt. Bitte lade MP4, MOV oder WebM hoch.");
     if (info.duration > opts.maxSeconds + 1) {
       const max = opts.maxSeconds >= 60 ? `${Math.round(opts.maxSeconds / 60)} Min.` : `${opts.maxSeconds} Sek.`;
       throw new VideoRejected(`Das Video ist zu lang (${Math.round(info.duration)} Sek.). Erlaubt sind höchstens ${max}`);
@@ -91,6 +106,7 @@ export async function transcode<T>(src: string, opts: { maxSeconds: number; time
       "ffmpeg",
       [
         "-hide_banner", "-loglevel", "error", "-y",
+        ...PROTOCOLS, "-f", info.demuxer,
         "-i", src,
         "-map", "0:v:0", "-map", "0:a:0?",
         "-map_metadata", "-1", "-map_chapters", "-1",
@@ -106,7 +122,7 @@ export async function transcode<T>(src: string, opts: { maxSeconds: number; time
     );
     // Vorschaubild: kurz nach Beginn (erste Frames sind oft schwarz)
     const at = Math.min(1, Math.max(0, info.duration / 3)).toFixed(2);
-    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-ss", at, "-i", out, "-frames:v", "1", "-q:v", "3", poster], 60_000);
+    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", ...PROTOCOLS, "-ss", at, "-f", "mov", "-i", out, "-frames:v", "1", "-q:v", "3", poster], 60_000);
     const final = await probe(out);
     return await use({
       videoPath: out,

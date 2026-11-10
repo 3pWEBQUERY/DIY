@@ -7,7 +7,7 @@ import { pipeline } from "node:stream/promises";
 import sharp from "sharp";
 import { db } from "@/server/db";
 import { storage, publicMediaUrl } from "@/server/storage";
-import { videoLimits } from "./service";
+import { patchFrozenMediaRefs, videoLimits } from "./service";
 import { notify } from "@/server/notifications";
 import { VideoRejected, ffmpegAvailable, transcode } from "./video";
 import { decodeHeic, isHevcHeif } from "./heic";
@@ -61,7 +61,9 @@ export async function processMedia(mediaId: string) {
   if (!m || m.state === "READY") return;
   const st = storage();
   if (!(await st.head(m.storageKey))) {
-    await db.media.update({ where: { id: m.id }, data: { state: "FAILED" } });
+    // Fehlt die Rohdatei, weil ein paralleler Lauf (Inline-Verarbeitung im Request ↔ Worker) fertig ist
+    // und sie gelöscht hat, bleibt das Medium READY – nur sonst als FAILED markieren.
+    await markFailed(m.id, {});
     return;
   }
   try {
@@ -152,13 +154,26 @@ export async function processMedia(mediaId: string) {
     }
     if (!m.storageKey.startsWith("private/")) await st.del(m.storageKey).catch(() => {});
   } catch (e) {
-    await db.media.update({ where: { id: m.id }, data: { state: "FAILED", processingError: m.kind === "VIDEO" ? "Das Video konnte nicht verarbeitet werden. Versuche es mit einem anderen Format (z. B. MP4)." : "Die Datei konnte nicht verarbeitet werden." } });
+    // Paralleler Lauf war schneller (Rohdatei schon gelöscht) → nicht als Fehler werten
+    if (!(await markFailed(m.id, { processingError: m.kind === "VIDEO" ? "Das Video konnte nicht verarbeitet werden. Versuche es mit einem anderen Format (z. B. MP4)." : "Die Datei konnte nicht verarbeitet werden." }))) return;
     throw e;
   }
+  // Beim Speichern eingefrorene `url: null` (Medium war noch in Verarbeitung) nachtragen
+  await patchFrozenMediaRefs(m.id).catch((e) => console.warn(JSON.stringify({ level: "warn", msg: "media_ref_patch_failed", mediaId: m.id, err: String(e).slice(0, 200) })));
+}
+
+/**
+ * Bedingt auf FAILED setzen: nie ein bereits fertiges (READY) Medium überschreiben. Inline-Verarbeitung
+ * (completeUpload) und Worker können dasselbe Medium gleichzeitig bearbeiten; wer zuerst fertig ist,
+ * löscht die Rohdatei – der andere Lauf scheitert dann am fehlenden Original. Gibt zurück, ob markiert wurde.
+ */
+async function markFailed(mediaId: string, data: { processingError?: string }) {
+  const r = await db.media.updateMany({ where: { id: mediaId, state: { not: "READY" } }, data: { state: "FAILED", ...data } });
+  return r.count > 0;
 }
 
 async function rejectVideo(mediaId: string, ownerId: string, reason: string) {
-  await db.media.update({ where: { id: mediaId }, data: { state: "FAILED", processingError: reason } });
+  if (!(await markFailed(mediaId, { processingError: reason }))) return;
   const post = await db.postMedia.findFirst({ where: { mediaId }, select: { postId: true } });
   await notify({
     recipientId: ownerId,
