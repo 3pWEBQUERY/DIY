@@ -142,7 +142,8 @@ struct CreateMenuSheet: View {
             .background(Color.paper)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schliessen", systemImage: "xmark") { dismiss() } } }
         }
-        .presentationDetents([.medium, .large])
+        // Immer ganz geöffnet – auf halber Höhe waren die Karten abgeschnitten
+        .presentationDetents([.large])
         .presentationBackground(.thinMaterial)
     }
 }
