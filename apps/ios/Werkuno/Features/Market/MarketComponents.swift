@@ -302,7 +302,7 @@ struct MarketCartToolbarButton: View {
     @Environment(Router.self) private var router
     var body: some View {
         Button { router.open(.cart) } label: {
-            Image(systemName: "bag")
+            Image(systemName: "bag.fill")
                 .overlay(alignment: .topTrailing) {
                     if app.cartCount > 0 {
                         Text("\(min(app.cartCount, 99))")

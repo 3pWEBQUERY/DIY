@@ -196,7 +196,7 @@ struct MarketView: View {
             ErrorStateView(message: error) { await loadProducts(reset: true) }
         } else if products.isEmpty {
             EmptyStateView(
-                symbol: "bag",
+                symbol: "bag.fill",
                 title: filters.isFiltered ? "Nichts gefunden" : "Noch keine Arbeiten",
                 message: filters.isFiltered ? "Mit diesen Filtern gibt es gerade keine Arbeiten. Lockere die Auswahl oder versuche es mit einem anderen Begriff." : "Sobald Shops ihre ersten Stücke anbieten, erscheinen sie hier.",
                 actionTitle: filters.isFiltered ? "Filter zurücksetzen" : nil,

@@ -52,7 +52,7 @@ struct CartView: View {
     @ViewBuilder private func content(_ c: MarketCart) -> some View {
         if c.groups.isEmpty && (c.pendingOrders ?? []).isEmpty {
             ScrollView {
-                EmptyStateView(symbol: "bag", title: "Dein Warenkorb ist leer", message: "Stöbere im Marktplatz – viele Arbeiten zeigen ihr Projekt, du siehst, wie sie entstanden sind.", actionTitle: "Marktplatz entdecken") {
+                EmptyStateView(symbol: "bag.fill", title: "Dein Warenkorb ist leer", message: "Stöbere im Marktplatz – viele Arbeiten zeigen ihr Projekt, du siehst, wie sie entstanden sind.", actionTitle: "Marktplatz entdecken") {
                     router.tab = .market
                     router.popToRoot()
                 }

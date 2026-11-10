@@ -597,7 +597,7 @@ private struct MeNotificationSettingsView: View {
         Form {
             Section {
                 Toggle(isOn: Binding(get: { pushStatus == .authorized || pushStatus == .provisional }, set: { on in Task { await togglePush(on) } })) {
-                    Label("Push-Mitteilungen (iOS)", systemImage: "app.badge")
+                    Label("Push-Mitteilungen", systemImage: "app.badge")
                 }
                 .tint(.moss)
                 if pushStatus == .denied {

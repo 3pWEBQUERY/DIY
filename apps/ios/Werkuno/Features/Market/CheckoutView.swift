@@ -84,7 +84,7 @@ struct CheckoutView: View {
     @ViewBuilder private func content(_ p: MarketCheckoutPage) -> some View {
         let c = p.cart
         if c.groups.isEmpty {
-            EmptyStateView(symbol: "bag", title: "Nichts zu bestellen", message: "Dein Warenkorb ist leer.", actionTitle: "Zum Warenkorb") { router.open(.cart) }
+            EmptyStateView(symbol: "bag.fill", title: "Nichts zu bestellen", message: "Dein Warenkorb ist leer.", actionTitle: "Zum Warenkorb") { router.open(.cart) }
                 .padding(.top, 60)
         } else if c.mode == "disabled" || c.hasProblems {
             VStack(alignment: .leading, spacing: 16) {

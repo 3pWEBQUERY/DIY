@@ -477,7 +477,7 @@ struct ProductDetailView: View {
         } else if needsVariant(p) && (selectedVariant(p)?.available ?? 0) <= 0 {
             Button("Variante wählen") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
         } else {
-            AsyncButton { await addToCart(p) } label: { Label("In den Warenkorb", systemImage: "bag.badge.plus") }
+            AsyncButton { await addToCart(p) } label: { Label("In den Warenkorb", systemImage: "bag.fill.badge.plus") }
                 .buttonStyle(.glassProminent).tint(.moss).controlSize(.large)
         }
     }
