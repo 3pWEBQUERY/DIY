@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { LegalDoc } from "@/components/legal/legal-doc";
 import { Notice } from "@/components/ui/misc";
+import { LEGAL_UPDATED } from "@/config/legal";
 
 export const metadata: Metadata = { title: "Sicherheit beim Selbermachen", alternates: { canonical: "/richtlinien/sicherheit" } };
 
@@ -10,7 +11,7 @@ export default function SafetyGuidelinesPage() {
     <LegalDoc
       kicker="Richtlinien"
       title="Sicherheit beim Selbermachen"
-      updated="3. November 2026"
+      updated={LEGAL_UPDATED}
       intro={<>Gute Projekte beginnen mit sicherem Arbeiten. Diese Richtlinie gilt für alle, die Anleitungen schreiben, und für alle, die sie nachbauen. Wer eine Anleitung veröffentlicht, kennzeichnet Risiken in den betroffenen Schritten mit den passenden Sicherheitskategorien.</>}
       sections={[
         {
@@ -22,11 +23,11 @@ export default function SafetyGuidelinesPage() {
                 <li>Arbeite nur mit Werkzeugen und Materialien, die du sicher beherrschst. Lies die Herstellerhinweise.</li>
                 <li>Trage die passende Schutzausrüstung: Schutzbrille, Gehörschutz, Handschuhe, Atemschutz.</li>
                 <li>Halte den Arbeitsplatz aufgeräumt, gut beleuchtet und belüftet. Kinder und Haustiere fern halten.</li>
-                <li>Hab einen Erste-Hilfe-Kasten griffbereit und kenne die Notrufnummern (144 Sanität, 118 Feuerwehr, 145 Tox Info Suisse).</li>
+                <li>Hab einen Erste-Hilfe-Kasten griffbereit und kenne die Notrufnummern: in der Schweiz 144 Sanität, 118 Feuerwehr, 117 Polizei, 145 Tox Info Suisse; europaweit 112.</li>
               </ul>
               <Notice tone="warn" title="Wichtig">
-                Anleitungen auf dieser Plattform stammen von Mitgliedern und werden nicht fachlich geprüft. Automatische Sicherheitshinweise und KI-gestützte Funktionen helfen beim Erkennen von Risiken, ersetzen aber keine
-                professionelle Sicherheitsbeurteilung durch Fachpersonen.
+                Anleitungen auf dieser Plattform stammen von Mitgliedern und werden nicht fachlich geprüft. Die Sicherheitskennzeichnungen in Anleitungen setzen die Autor:innen selbst; sie helfen beim Erkennen von Risiken,
+                ersetzen aber keine Sicherheitsbeurteilung durch Fachpersonen. Das Nachbauen geschieht auf eigene Verantwortung.
               </Notice>
             </>
           ),
@@ -85,7 +86,7 @@ export default function SafetyGuidelinesPage() {
           title: "Kinderprodukte",
           body: (
             <>
-              <p>Für Spielzeug und Produkte für Kinder gelten strenge Anforderungen (u.a. Spielzeugverordnung, EN 71).</p>
+              <p>Für Spielzeug und Produkte für Kinder gelten strenge Anforderungen (u. a. die Spielzeugverordnung in der Schweiz bzw. die EU-Spielzeugrichtlinie und die Normenreihe EN 71).</p>
               <ul>
                 <li>Keine verschluckbaren Kleinteile für Kinder unter 3 Jahren. Knöpfe, Augen und Perlen sicher befestigen.</li>
                 <li>Nur speichelfeste, schadstoffarme Farben und Materialien verwenden.</li>
@@ -104,7 +105,7 @@ export default function SafetyGuidelinesPage() {
                 <li>Markiere riskante Schritte mit der passenden Kategorie (Strom, Hitze, Chemikalien, scharfe Werkzeuge, Elektrowerkzeuge, Kinderprodukt, Staub & Dämpfe) und schreibe einen konkreten Hinweis dazu.</li>
                 <li>Nenne die nötige Schutzausrüstung in der Material- und Werkzeugliste.</li>
                 <li>Beschreibe, was schiefgehen kann – und wie man es vermeidet.</li>
-                <li>Aktualisiere die Anleitung, wenn dich jemand auf einen fehlerhaften Schritt hinweist. Gemeldete fehlerhafte Schritte prüfen wir vorrangig.</li>
+                <li>Aktualisiere die Anleitung, wenn dich jemand auf einen fehlerhaften Schritt hinweist. Meldungen zu gefährlichen Anleitungen prüfen wir vorrangig.</li>
               </ul>
               <p>Anleitungen, die zu illegalen oder bewusst gefährlichen Handlungen anleiten, entfernen wir (siehe <Link href="/richtlinien/community">Community-Richtlinien</Link>).</p>
             </>

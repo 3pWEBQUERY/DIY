@@ -5,7 +5,7 @@ export const BRAND = {
   claim: "Entdecken. Erschaffen. Teilen. Gemeinsam wachsen.",
   description:
     "Das soziale Netzwerk für Menschen, die mit den eigenen Händen erschaffen – Projekte, Anleitungen, Communities und Handmade-Marktplatz.",
-  supportEmail: "hallo@werkuno.ch",
+  supportEmail: "kontakt@werkuno.ch",
   locale: "de-CH",
   currency: "CHF" as const,
 } as const;

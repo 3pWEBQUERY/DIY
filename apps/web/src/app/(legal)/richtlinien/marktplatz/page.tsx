@@ -4,6 +4,7 @@ import { computeFees, formatMoney } from "@werkraum/shared";
 import { DoDont, FactList, LegalDoc } from "@/components/legal/legal-doc";
 import { getSetting } from "@/server/settings";
 import { BRAND } from "@/config/brand";
+import { LEGAL_UPDATED } from "@/config/legal";
 
 export const metadata: Metadata = { title: "Marktplatz-Richtlinien", alternates: { canonical: "/richtlinien/marktplatz" } };
 
@@ -17,13 +18,14 @@ export default async function MarketplaceGuidelinesPage() {
   const proPct = (Math.min(feeBps, await getSetting("pro.feeBps")) / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
   const example = computeFees(4500, 900, feeBps);
   const [holdDays, autoCompleteDays] = await Promise.all([getSetting("commerce.payoutHoldDays"), getSetting("commerce.autoCompleteDays")]);
-  const tage = (n: number) => `${n} ${n === 1 ? "Tag" : "Tagen"}`;
+  // Akkusativ: „3 Tage nach dem Abschluss“
+  const tage = (n: number) => `${n} ${n === 1 ? "Tag" : "Tage"}`;
 
   return (
     <LegalDoc
       kicker="Richtlinien"
       title="Marktplatz-Richtlinien"
-      updated="3. November 2026"
+      updated={LEGAL_UPDATED}
       intro={
         <>
           Der Marktplatz von {BRAND.name} ist für Dinge, die Menschen mit eigenen Händen gemacht haben – und für alles, was anderen hilft, selbst etwas zu machen. Er ist kein Ort für Massenware. Diese Regeln gelten für alle,
@@ -63,9 +65,12 @@ export default async function MarketplaceGuidelinesPage() {
               <p>Du gibst bei der Shop-Eröffnung an, ob du privat oder gewerblich verkaufst. Diese Angabe ist für Käufer:innen sichtbar, weil sich daraus unterschiedliche Rechte ergeben.</p>
               <ul>
                 <li><strong>Privat</strong> – gelegentliche Verkäufe von Hobbyarbeiten. Gesetzliche Gewährleistung kann eingeschränkt sein; das Widerrufsrecht für Verbraucher gilt in der Regel nicht.</li>
-                <li><strong>Gewerblich</strong> – regelmässige Verkäufe mit Gewinnabsicht. Du gibst deine Anbieterangaben (Firma, Adresse, ggf. UID/MWST) an und erfüllst die Pflichten gegenüber Verbraucher:innen, z. B. Widerrufsrecht bei Käufen aus der EU.</li>
+                <li><strong>Gewerblich</strong> – regelmässige Verkäufe mit Gewinnabsicht. Firmenname, verantwortliche Person, Adresse und gegebenenfalls MWST-/USt-Nummer erscheinen auf deiner Shopseite. Du erfüllst die Pflichten gegenüber Verbraucher:innen selbst, z. B. das Widerrufsrecht bei Käufen aus der EU.</li>
               </ul>
-              <p>Alle Verkäufer werden über unseren Zahlungsdienstleister verifiziert, bevor Auszahlungen möglich sind. Wir prüfen neue Shops zusätzlich manuell.</p>
+              <p>
+                Shops können von Personen und Unternehmen mit Sitz in der Schweiz, in Liechtenstein, Deutschland oder Österreich eröffnet werden. Jeder Shop wird über unseren Zahlungsdienstleister Stripe verifiziert und erst danach
+                freigeschaltet. Wir können Shops zusätzlich prüfen und eine Freischaltung ablehnen.
+              </p>
             </>
           ),
         },
@@ -79,20 +84,20 @@ export default async function MarketplaceGuidelinesPage() {
                   ["Shop eröffnen", "kostenlos"],
                   ["Angebote einstellen", "kostenlos"],
                   ["Provision", `${pct} % auf den Warenwert eines abgeschlossenen Verkaufs (ohne Versand); mit Creator Pro ${proPct} %`],
-                  ["Zahlungsabwicklung", "Gebühren des Zahlungsdienstleisters, separat ausgewiesen"],
-                  ["Auszahlung", `auf dein hinterlegtes Konto, nach deinem Auszahlungsplan (auf Anfrage, täglich, wöchentlich oder monatlich)`],
+                  ["Weitere Gebühren", `keine von ${BRAND.name}; allfällige Kosten von Stripe für Auszahlung oder Währungsumrechnung siehst du in deinem Stripe-Konto`],
+                  ["Auszahlung", "auf dein bei Stripe hinterlegtes Bankkonto – nach deinem Auszahlungsplan (täglich, wöchentlich oder monatlich) oder jederzeit auf Anfrage"],
                   ["Haltefrist", holdDays > 0 ? `Der Erlös einer Bestellung wird ${tage(holdDays)} nach ihrem Abschluss auszahlbar – abgeschlossen ist sie mit der Erhaltsbestätigung, spätestens automatisch ${tage(autoCompleteDays)} nach dem Versand. Digitale Produkte: ${tage(holdDays)} nach dem Kauf.` : "keine – der Erlös ist nach Zahlungseingang auszahlbar"],
                 ]}
               />
               <p>
                 <strong>Beispiel:</strong> Ein Produkt für {formatMoney(example.subtotal)} plus {formatMoney(example.shipping)} Versand. Käufer:innen zahlen {formatMoney(example.total)}. Die Provision beträgt{" "}
-                {formatMoney(example.platformFee)}, dir bleiben {formatMoney(example.sellerNet)} vor Gebühren des Zahlungsdienstleisters.
+                {formatMoney(example.platformFee)}, dir bleiben {formatMoney(example.sellerNet)} – vor allfälligen Kosten von Stripe für Auszahlung oder Währungsumrechnung.
               </p>
               <p id="auszahlungen">
                 <strong>Warum eine Haltefrist?</strong> Bis eine Bestellung angekommen ist, bleibt der Erlös auf deinem Konto beim Zahlungsdienstleister reserviert. So lassen sich
                 Reklamationen und Erstattungen direkt abwickeln, ohne dass du Geld zurücküberweisen musst. Problemfälle und angefochtene Zahlungen werden erst nach ihrer Klärung freigegeben.
               </p>
-              <p>Änderungen der Provision kündigen wir mindestens 30 Tage im Voraus an. Es gibt keine versteckten Gebühren und keine bezahlte Bevorzugung im Feed.</p>
+              <p>Bei einer Erstattung erstatten wir die Provision anteilig zurück. Änderungen der Provision kündigen wir mindestens 30 Tage im Voraus an. Es gibt keine bezahlte Bevorzugung im Feed.</p>
             </>
           ),
         },
@@ -118,21 +123,26 @@ export default async function MarketplaceGuidelinesPage() {
                 <li>„Bezahlt“ gilt eine Bestellung erst, wenn der Zahlungsdienstleister die Zahlung bestätigt hat. Versende nie vorher.</li>
                 <li>Halte die angegebene Bearbeitungszeit ein und teile die Sendungsverfolgung, wo verfügbar.</li>
                 <li>Kommuniziere über die Bestellnachrichten. Zahlungen ausserhalb des Checkouts sind nicht erlaubt – sie sind die häufigste Betrugsmasche.</li>
-                <li>Deine Rückgaberegeln stehen auf der Produktseite. Gesetzliche Rechte von Käufer:innen bleiben unberührt.</li>
+                <li>Deine Versand- und Rückgaberegeln stehen auf der Shop- und Produktseite. Gesetzliche Rechte von Käufer:innen bleiben unberührt.</li>
+                <li>Vor dem Versand kannst du eine Bestellung mit Begründung stornieren – der Betrag wird vollständig erstattet. Teil- und Vollerstattungen löst du in der Bestellung aus.</li>
+                <li>Ohne Erhaltsbestätigung gilt eine versendete Bestellung {tage(autoCompleteDays)} nach dem Versand automatisch als abgeschlossen.</li>
               </ul>
-              <p>Gibt es ein Problem, kannst du die Bestellung als „Problemfall“ markieren. Wir vermitteln bei Bedarf über <Link href="/einstellungen/hilfe-support">Hilfe & Support</Link>.</p>
+              <p>
+                Gibt es ein Problem, melden Käufer:innen es über „Problem melden“ in der Bestellung; der Erlös bleibt bis zur Klärung zurückgehalten. Wir vermitteln bei Bedarf über{" "}
+                <Link href="/einstellungen/hilfe-support">Hilfe & Support</Link>. Wird eine Zahlung bei der Bank angefochten und das Verfahren verloren, wird der Betrag von deinem Guthaben zurückgeholt.
+              </p>
             </>
           ),
         },
         {
           id: "bewertungen",
           title: "Bewertungen",
-          body: <p>Bewerten kann nur, wer gekauft hat – einmal pro Bestellposition. Gekaufte, getauschte oder erzwungene Bewertungen sind verboten. Verkäufer:innen können öffentlich antworten, Bewertungen aber nicht löschen.</p>,
+          body: <p>Bewerten kann nur, wer gekauft hat – einmal pro Bestellposition, sobald die Bestellung versendet oder abgeschlossen ist. Gekaufte, getauschte oder erzwungene Bewertungen sind verboten. Shops können öffentlich antworten, Bewertungen aber nicht löschen. Unzulässige Bewertungen kannst du melden.</p>,
         },
         {
           id: "massnahmen",
           title: "Durchsetzung",
-          body: <p>Bei Verstössen können wir Angebote deaktivieren, Shops pausieren oder sperren und Auszahlungen für die Dauer einer Prüfung zurückhalten. Offene Bestellungen werden ordentlich abgewickelt. Gegen Entscheidungen kannst du Einspruch erheben.</p>,
+          body: <p>Bei Verstössen können wir Angebote deaktivieren, Shops sperren und Auszahlungen für die Dauer einer Prüfung zurückhalten. Zahlungen, die nach einer Sperre noch eingehen, werden automatisch erstattet. Gegen Entscheidungen kannst du innerhalb von 14 Tagen Einspruch erheben. Weitere Regeln stehen in den <Link href="/rechtliches/agb#verkaeufer">Nutzungsbedingungen</Link>.</p>,
         },
       ]}
     />

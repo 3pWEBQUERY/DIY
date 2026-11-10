@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
+import { BRAND } from "@/config/brand";
 
 /**
  * Browser-Push (Web Push mit VAPID). Die VAPID-Schlüssel kommen aus VAPID_PUBLIC_KEY /
@@ -12,7 +13,7 @@ import { rateLimit } from "@/server/ratelimit";
  */
 
 const SETTING_KEY = "push.vapid";
-const SUBJECT = "mailto:hallo@werkuno.ch";
+const SUBJECT = `mailto:${BRAND.supportEmail}`;
 
 type Vapid = { publicKey: string; privateKey: string };
 let cached: Vapid | null = null;

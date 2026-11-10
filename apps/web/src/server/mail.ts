@@ -1,6 +1,7 @@
 import "server-only";
 import { env, features } from "@/server/env";
 import { BRAND } from "@/config/brand";
+import { LEGAL, LEGAL_ADDRESS } from "@/config/legal";
 
 /** E-Mail-Adapter: Resend in Produktion, Konsole in Entwicklung (§25.8 externe Dienste über Adapter). */
 export async function sendMail(to: string, subject: string, text: string, opts: MailOptions = {}) {
@@ -48,7 +49,7 @@ function plainText(text: string, opts: MailOptions) {
   const parts = [text];
   if (opts.items?.length) parts.push(opts.items.map((i) => `• ${i.text}${i.excerpt ? `\n  „${i.excerpt}“` : ""}${i.url ? `\n  ${i.url}` : ""}`).join("\n\n"));
   if (opts.cta) parts.push(`${opts.cta.label}: ${opts.cta.url}`);
-  parts.push(`—\n${BRAND.name} · ${BRAND.claim}${opts.unsubscribeUrl ? `\nE-Mails abbestellen: ${opts.unsubscribeUrl}` : ""}`);
+  parts.push(`—\n${BRAND.name} · ${BRAND.claim}\n${LEGAL.company} · ${LEGAL_ADDRESS} · ${BRAND.supportEmail}${opts.unsubscribeUrl ? `\nE-Mails abbestellen: ${opts.unsubscribeUrl}` : ""}`);
   return parts.join("\n\n");
 }
 
@@ -185,7 +186,6 @@ export function renderMail(subject: string, text: string, opts: MailOptions = {}
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
 <title>${esc(subject)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>body{margin:0;padding:0}a{color:${C.coral}}@media (max-width:620px){.wk-pad{padding:28px 22px!important}.wk-h1{font-size:26px!important}}</style>
 </head>
 <body style="margin:0;padding:0;background:${C.paper};font-family:${FONT};color:${C.ink};-webkit-font-smoothing:antialiased">
@@ -202,7 +202,8 @@ ${paragraphs(text)}${opts.items?.length ? itemCards(opts.items) : ""}${opts.cta 
 <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.muted}">
 <p style="margin:0 0 10px;font-weight:700;color:${C.ink2}">${esc(BRAND.claim)}</p>
 <p style="margin:0 0 10px">${footerLinks}</p>
-<p style="margin:0">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Fragen? <a href="mailto:${BRAND.supportEmail}" style="color:${C.muted}">${BRAND.supportEmail}</a></p>
+<p style="margin:0 0 10px">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Fragen? <a href="mailto:${BRAND.supportEmail}" style="color:${C.muted}">${BRAND.supportEmail}</a></p>
+<p style="margin:0">${esc(BRAND.name)} · ${esc(LEGAL.company)} · ${esc(LEGAL_ADDRESS)} · <a href="${app}/rechtliches/impressum" style="color:${C.muted};text-decoration:underline">Impressum</a></p>
 </td></tr>
 </table>
 </td></tr></table>

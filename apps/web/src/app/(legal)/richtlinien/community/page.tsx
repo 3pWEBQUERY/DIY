@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { MODERATION_ACTIONS, MODERATION_ACTION_LABEL } from "@werkraum/shared";
 import { DoDont, LegalDoc } from "@/components/legal/legal-doc";
 import { BRAND } from "@/config/brand";
+import { LEGAL_UPDATED } from "@/config/legal";
 
 export const metadata: Metadata = { title: "Community-Richtlinien", alternates: { canonical: "/richtlinien/community" } };
 
@@ -11,7 +12,7 @@ export default function CommunityGuidelinesPage() {
     <LegalDoc
       kicker="Richtlinien"
       title="Community-Richtlinien"
-      updated="3. November 2026"
+      updated={LEGAL_UPDATED}
       intro={
         <>
           {BRAND.name} lebt davon, dass Menschen ihre Projekte zeigen – auch die halbfertigen, die schiefen und die gescheiterten. Damit das so bleibt, braucht es einen Ort, an dem man sich sicher fühlt. Diese Richtlinien
@@ -54,7 +55,7 @@ export default function CommunityGuidelinesPage() {
                 <li>Zeige, was du selbst gemacht hast. Inspiration ist willkommen – kennzeichne sie als „Nachbau“ oder „Inspiriert von“.</li>
                 <li>Keine Fake-Konten, keine gekauften Follower, keine Interaktions-Ringe.</li>
                 <li>KI-generierte Bilder sind als solche zu kennzeichnen und dürfen nicht als handgemachtes Ergebnis präsentiert werden.</li>
-                <li>Werbung und bezahlte Kooperationen kennzeichnest du deutlich. Verkaufsposts werden automatisch markiert.</li>
+                <li>Werbung und bezahlte Kooperationen kennzeichnest du deutlich. Beiträge mit verknüpftem Produkt werden automatisch als Verkaufspost markiert.</li>
               </ul>
               <p>Zu Urheberrechten und dem Meldeverfahren: <Link href="/richtlinien/urheberrecht">Urheberrecht</Link>.</p>
             </>
@@ -75,7 +76,10 @@ export default function CommunityGuidelinesPage() {
           title: "Melden",
           body: (
             <>
-              <p>Über „Melden“ bei jedem Inhalt, Profil oder jeder Nachricht kannst du Verstösse anzeigen. Jede Meldung erhält eine Fallnummer. Mehrere Meldungen zum selben Inhalt werden gebündelt und nach Risiko priorisiert.</p>
+              <p>
+                Über „Melden“ bei Inhalten, Profilen, Nachrichten, Bewertungen, Produkten und Communities kannst du Verstösse anzeigen. Jede Meldung erhält eine Fallnummer. Mehrere Meldungen zum selben Inhalt werden gebündelt und
+                nach Risiko priorisiert. Ohne Konto erreichst du uns über die <Link href="/kontakt">Kontaktseite</Link>.
+              </p>
               <p>Die gemeldete Person erfährt nicht, wer gemeldet hat. Du erhältst eine Rückmeldung, sobald der Fall abgeschlossen ist – ohne Details zur Massnahme, zum Schutz aller Beteiligten.</p>
               <p>Missbräuchliche Meldungen, etwa um Konkurrent:innen zu schaden, sind selbst ein Verstoss.</p>
             </>
@@ -95,14 +99,14 @@ export default function CommunityGuidelinesPage() {
                   </li>
                 ))}
               </ol>
-              <p>Moderation wird von Menschen entschieden. Automatische Einstufungen helfen nur bei der Priorisierung. Jede Entscheidung wird begründet und protokolliert.</p>
+              <p>Über Massnahmen entscheiden Menschen. Automatische Einstufungen helfen nur bei der Reihenfolge der Prüfung. Jede Entscheidung wird begründet und protokolliert.</p>
             </>
           ),
         },
         {
           id: "einspruch",
           title: "Einspruch",
-          body: <p>Bist du von einer Entscheidung betroffen, erhältst du eine Benachrichtigung mit Begründung und einem Link zum Einspruch. Du hast 14 Tage Zeit. Eine andere Person als die, die ursprünglich entschieden hat, prüft den Einspruch. Wird ihm stattgegeben, stellen wir den vorherigen Zustand vollständig wieder her.</p>,
+          body: <p>Bist du von einer Entscheidung betroffen, erhältst du eine Benachrichtigung – in der App und per E-Mail – mit Begründung und einem Link zum Einspruch. Du hast 14 Tage Zeit. Wenn möglich prüft eine andere Person als die, die ursprünglich entschieden hat. Wird dem Einspruch stattgegeben, heben wir die Massnahme auf und stellen den vorherigen Zustand wieder her, soweit er nicht inzwischen durch eine andere Entscheidung geändert wurde.</p>,
         },
         {
           id: "communities",
