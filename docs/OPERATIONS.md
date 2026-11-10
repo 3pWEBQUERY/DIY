@@ -193,3 +193,20 @@ Alles unter developer.apple.com → Account (Apple Developer Program, kostenpfli
 
 Die `.p8`-Datei ist ein Geheimnis: nie ins Repository, nur in Railway bzw. einem Passwortmanager aufbewahren.
 Bei Verlust in Apple einen neuen Schlüssel erstellen, den alten widerrufen und die Variablen ersetzen.
+
+## Auszahlungen & Haltefrist
+
+- Bei Stripe steht jedes Verkäuferkonto auf **manuelle Auszahlung**. Werkuno führt den Auszahlungsplan des Shops aus
+  (Studio → Einnahmen: auf Anfrage, täglich, wöchentlich, monatlich) – Worker-Job `payouts.run`, stündlich um :20.
+- Ausgezahlt wird nur **freigegebenes** Guthaben: Der Erlös einer Bestellung wird `commerce.payoutHoldDays` (Standard 3)
+  Tage nach ihrem **Abschluss** frei. Abgeschlossen ist eine Bestellung mit der Erhaltsbestätigung der Käuferin bzw. des
+  Käufers, spätestens automatisch `commerce.autoCompleteDays` (Standard 14) Tage nach dem Versand; digitale Bestellungen
+  mit der Zahlung. Problemfälle und angefochtene Zahlungen bleiben bis zur Klärung zurückgehalten.
+- Beim ersten Lauf nach dem Deploy übernimmt der Worker bestehende automatische Stripe-Auszahlungspläne in Werkuno und
+  stellt Stripe auf „manuell“ um (`Shop.payoutScheduleMigratedAt`).
+- Einzelnen vertrauenswürdigen Shops kann die Administration die Frist erlassen (Admin → Marktplatz → Shop → Zahlungen,
+  begründet, im Audit-Protokoll). Gesperrten Shops wird nichts ausgezahlt; nach einer Kontolöschung wird das Restguthaben
+  nach Ablauf der Frist täglich ausgezahlt.
+- Lautet das Bankkonto auf eine andere Währung als der Shop (z. B. EUR), wird der zurückgehaltene Betrag aus der tatsächlichen
+  Gutschrift je Zahlung bei Stripe ermittelt (an der Zahlung zwischengespeichert). Ist sie nicht ermittelbar, wird vorsichtshalber
+  nichts ausgezahlt, bis die Gutschrift abrufbar ist.

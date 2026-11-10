@@ -16,6 +16,8 @@ export default async function MarketplaceGuidelinesPage() {
   const pct = (feeBps / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
   const proPct = (Math.min(feeBps, await getSetting("pro.feeBps")) / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
   const example = computeFees(4500, 900, feeBps);
+  const [holdDays, autoCompleteDays] = await Promise.all([getSetting("commerce.payoutHoldDays"), getSetting("commerce.autoCompleteDays")]);
+  const tage = (n: number) => `${n} ${n === 1 ? "Tag" : "Tagen"}`;
 
   return (
     <LegalDoc
@@ -78,12 +80,17 @@ export default async function MarketplaceGuidelinesPage() {
                   ["Angebote einstellen", "kostenlos"],
                   ["Provision", `${pct} % auf den Warenwert eines abgeschlossenen Verkaufs (ohne Versand); mit Creator Pro ${proPct} %`],
                   ["Zahlungsabwicklung", "Gebühren des Zahlungsdienstleisters, separat ausgewiesen"],
-                  ["Auszahlung", "auf dein hinterlegtes Konto, gemäss Auszahlungsplan des Zahlungsdienstleisters"],
+                  ["Auszahlung", `auf dein hinterlegtes Konto, nach deinem Auszahlungsplan (auf Anfrage, täglich, wöchentlich oder monatlich)`],
+                  ["Haltefrist", holdDays > 0 ? `Der Erlös einer Bestellung wird ${tage(holdDays)} nach ihrem Abschluss auszahlbar – abgeschlossen ist sie mit der Erhaltsbestätigung, spätestens automatisch ${tage(autoCompleteDays)} nach dem Versand. Digitale Produkte: ${tage(holdDays)} nach dem Kauf.` : "keine – der Erlös ist nach Zahlungseingang auszahlbar"],
                 ]}
               />
               <p>
                 <strong>Beispiel:</strong> Ein Produkt für {formatMoney(example.subtotal)} plus {formatMoney(example.shipping)} Versand. Käufer:innen zahlen {formatMoney(example.total)}. Die Provision beträgt{" "}
                 {formatMoney(example.platformFee)}, dir bleiben {formatMoney(example.sellerNet)} vor Gebühren des Zahlungsdienstleisters.
+              </p>
+              <p id="auszahlungen">
+                <strong>Warum eine Haltefrist?</strong> Bis eine Bestellung angekommen ist, bleibt der Erlös auf deinem Konto beim Zahlungsdienstleister reserviert. So lassen sich
+                Reklamationen und Erstattungen direkt abwickeln, ohne dass du Geld zurücküberweisen musst. Problemfälle und angefochtene Zahlungen werden erst nach ihrer Klärung freigegeben.
               </p>
               <p>Änderungen der Provision kündigen wir mindestens 30 Tage im Voraus an. Es gibt keine versteckten Gebühren und keine bezahlte Bevorzugung im Feed.</p>
             </>

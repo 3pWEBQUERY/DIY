@@ -56,17 +56,32 @@ test.describe.serial("Marktplatz", () => {
     await expect(aside).toContainText("@elias.garten");
   });
 
-  test("Auszahlung über Werkuno beantragen (Testmodus)", async ({ browser }) => {
+  test("Auszahlung über Werkuno beantragen (Testmodus) – nur freigegebenes Guthaben (Haltefrist)", async ({ browser }) => {
+    // Eine bezahlte Bestellung von Lenas Shop: offen → in der Haltefrist; abgeschlossen vor > 3 Tagen → frei
+    const order = await one<{ id: string; status: string; completedAt: Date | null }>(
+      `SELECT o.id, o.status, o."completedAt" FROM "Order" o JOIN "Shop" s ON s.id = o."shopId" WHERE s."ownerId" = $1 AND o."paidAt" IS NOT NULL AND o.status IN ('NEW','IN_PROGRESS','READY_TO_SHIP','SHIPPED','COMPLETED') ORDER BY o."paidAt" DESC LIMIT 1`,
+      [await userId("lena")],
+    );
+    test.skip(!order, "Keine bezahlte Bestellung bei Lena");
     const lena = await loginAs(browser, "lena");
-    await lena.goto("/studio/einnahmen");
-    const panel = lena.locator("#auszahlungen");
-    await expect(panel).toContainText("Verfügbares Guthaben");
-    await expect(lena.locator("main")).not.toContainText("Stripe-Dashboard");
-    await lena.getByRole("button", { name: "Auszahlung beantragen" }).click();
-    const dlg = lena.getByRole("dialog", { name: "Auszahlung beantragen" });
-    await dlg.getByRole("textbox").fill("1.00");
-    await dlg.getByRole("button", { name: /auszahlen/ }).click();
-    await expect(lena.locator("main")).toContainText("Beantragt");
+    try {
+      await sql(`UPDATE "Order" SET status = 'NEW', "completedAt" = NULL WHERE id = $1`, [order!.id]);
+      await lena.goto("/studio/einnahmen");
+      const panel = lena.locator("#auszahlungen");
+      await expect(panel).toContainText("Auszahlbar");
+      await expect(panel).toContainText("in der Haltefrist");
+      await expect(lena.locator("main")).not.toContainText("Stripe-Dashboard");
+
+      await sql(`UPDATE "Order" SET status = 'COMPLETED', "completedAt" = now() - interval '10 days' WHERE id = $1`, [order!.id]);
+      await lena.reload();
+      await lena.getByRole("button", { name: "Auszahlung beantragen" }).click();
+      const dlg = lena.getByRole("dialog", { name: "Auszahlung beantragen" });
+      await dlg.getByRole("textbox").fill("1.00");
+      await dlg.getByRole("button", { name: /auszahlen/ }).click();
+      await expect(lena.locator("main")).toContainText("Beantragt");
+    } finally {
+      await sql(`UPDATE "Order" SET status = $2, "completedAt" = $3 WHERE id = $1`, [order!.id, order!.status, order!.completedAt]);
+    }
   });
 
   test("Bewertungen erscheinen im Profil – bei Shops immer, bei Käufer:innen erst mit Bewertung", async ({ page }) => {

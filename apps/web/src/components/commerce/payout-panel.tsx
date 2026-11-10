@@ -23,6 +23,11 @@ export type PayoutPanelData = {
   currency: string;
   available: number;
   pending: number;
+  /** Erlöse in der Haltefrist */
+  held?: number;
+  nextReleaseAt?: Date | string | null;
+  holdDays?: number;
+  holdWaived?: boolean;
   schedule: { interval: Interval; weeklyAnchor: string | null; monthlyAnchor: number | null } | null;
   bank: { name: string | null; last4: string; currency: string } | null;
   unavailable?: boolean;
@@ -39,7 +44,7 @@ const WEEKDAY: Record<string, string> = { monday: "Montag", tuesday: "Dienstag",
 export function scheduleText(s: PayoutPanelData["schedule"]) {
   if (!s) return null;
   if (s.interval === "manual") return "Auszahlung nur auf deine Anfrage";
-  if (s.interval === "daily") return "Stripe zahlt verfügbares Guthaben täglich automatisch aus";
+  if (s.interval === "daily") return "Freigegebenes Guthaben wird täglich automatisch ausgezahlt";
   if (s.interval === "weekly") return `Automatisch jeden ${WEEKDAY[s.weeklyAnchor ?? "monday"] ?? "Montag"}`;
   return `Automatisch am ${s.monthlyAnchor ?? 1}. des Monats`;
 }
@@ -85,17 +90,17 @@ export function PayoutPanel({ data }: { data: PayoutPanelData }) {
       )}
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
         <div>
-          <p className="text-[13px] font-medium text-muted">Verfügbares Guthaben</p>
+          <p className="text-[13px] font-medium text-muted">Auszahlbar</p>
           <p className="num mt-1 text-[2.4rem] font-bold leading-none tracking-tight">{money(data.available)}</p>
-          <p className="mt-2 text-[13px] text-muted">
-            {data.pending > 0 ? (
-              <>
-                + <span className="num font-medium text-ink-2">{money(data.pending)}</span> in Bearbeitung – wird nach der Sperrfrist von Stripe verfügbar
-              </>
-            ) : (
-              "Alles Verfügbare kann ausgezahlt werden."
-            )}
-          </p>
+          {(data.held ?? 0) > 0 ? (
+            <p className="mt-2 max-w-md text-[13px] text-muted">
+              + <span className="num font-medium text-ink-2">{money(data.held ?? 0)}</span> in der Haltefrist
+              {data.nextReleaseAt ? <> – nächste Freigabe voraussichtlich am {formatDate(data.nextReleaseAt, { day: "numeric", month: "long" })}</> : null}.{" "}
+              Erlöse werden {data.holdDays ? `${data.holdDays} ${data.holdDays === 1 ? "Tag" : "Tage"} ` : ""}nach Abschluss der Bestellung auszahlbar.
+            </p>
+          ) : (
+            <p className="mt-2 text-[13px] text-muted">{data.holdWaived ? "Für deinen Shop gilt keine Haltefrist." : "Alles Freigegebene kann ausgezahlt werden."}</p>
+          )}
         </div>
         <Button size="lg" onClick={() => setOpen(true)} disabled={data.available < 100 || data.unavailable} className="sm:min-w-56">
           <Banknote size={17} aria-hidden /> Auszahlung beantragen
@@ -191,7 +196,7 @@ function SchedulePicker({ schedule, disabled, onSaved }: { schedule: PayoutPanel
           </div>
         )}
         <p className="text-[13px] text-muted">
-          {interval === "manual" ? "Du entscheidest, wann ausgezahlt wird." : interval === "daily" ? "Verfügbares Guthaben geht täglich automatisch raus." : "Verfügbares Guthaben geht automatisch raus."} Über jede Auszahlung wirst du benachrichtigt.
+          {interval === "manual" ? "Du entscheidest, wann ausgezahlt wird." : interval === "daily" ? "Freigegebenes Guthaben geht täglich automatisch raus." : "Freigegebenes Guthaben geht automatisch raus."} Über jede Auszahlung wirst du benachrichtigt.
         </p>
         {dirty && (
           <Button size="sm" onClick={save} disabled={pending}>
@@ -209,13 +214,12 @@ function RequestDialog({ open, onClose, data, onDone }: { open: boolean; onClose
   const [pending, start] = useTransition();
   const c = data.currency as Currency;
   const minor = parseMoneyInput(amount);
-  const automatic = !!data.schedule && data.schedule.interval !== "manual";
   const valid = !!minor && minor >= 100 && minor <= data.available;
 
   const submit = () =>
     start(async () => {
       setError(null);
-      const r = await callAction(() => requestPayoutAction({ amountMinor: minor ?? undefined, switchToManual: automatic }));
+      const r = await callAction(() => requestPayoutAction({ amountMinor: minor ?? undefined }));
       if (r.ok) {
         const when = r.data.arrivalAt ? formatDate(r.data.arrivalAt, { weekday: "long", day: "numeric", month: "long" }) : null;
         toast(`Auszahlung von ${formatMoney(r.data.amountMinor, c)} ausgelöst${when ? ` – voraussichtlich am ${when} auf deinem Konto` : ""}.`);
@@ -225,7 +229,7 @@ function RequestDialog({ open, onClose, data, onDone }: { open: boolean; onClose
     });
 
   return (
-    <Dialog open={open} onClose={onClose} title="Auszahlung beantragen" description={`Verfügbar: ${formatMoney(data.available, c)}`}>
+    <Dialog open={open} onClose={onClose} title="Auszahlung beantragen" description={`Auszahlbar: ${formatMoney(data.available, c)}`}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -243,22 +247,17 @@ function RequestDialog({ open, onClose, data, onDone }: { open: boolean; onClose
               Alles
             </Button>
           </div>
-          {!valid && amount && <p className="mt-1.5 text-[12.5px] text-danger">{minor && minor > data.available ? "Höher als dein verfügbares Guthaben." : "Mindestens 1.00."}</p>}
+          {!valid && amount && <p className="mt-1.5 text-[12.5px] text-danger">{minor && minor > data.available ? "Höher als dein auszahlbares Guthaben." : "Mindestens 1.00."}</p>}
         </div>
         {data.bank && (
           <p className="text-[13.5px] text-muted">
             Auf <span className="font-medium text-ink">{data.bank.name ?? "dein Bankkonto"}</span> <span className="num">···· {data.bank.last4}</span> · Gutschrift meist nach 1–3 Bankarbeitstagen.
           </p>
         )}
-        {automatic && (
-          <Notice title="Auszahlungsplan wird umgestellt">
-            Du hast automatische Auszahlungen eingestellt. Für eine Auszahlung auf Anfrage stellen wir deinen Plan auf „Auf Anfrage“ um – du kannst ihn jederzeit wieder ändern.
-          </Notice>
-        )}
         {error && <p className="text-[13.5px] text-danger">{error}</p>}
         <Button type="submit" size="lg" className="w-full" disabled={!valid || pending}>
           {pending && <Loader2 size={15} className="animate-spin" />}
-          {valid ? `${automatic ? "Umstellen und " : ""}${formatMoney(minor!, c)} auszahlen` : "Auszahlen"}
+          {valid ? `${formatMoney(minor!, c)} auszahlen` : "Auszahlen"}
         </Button>
       </form>
     </Dialog>

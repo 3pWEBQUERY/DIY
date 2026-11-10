@@ -32,7 +32,7 @@ Fazit: Der Code ist sauber typisiert und gut getestet. Die Probleme liegen in **
 | S-1 Einspruch gebannter Konten | ✅ Signierter Einspruchs-Link in der Moderationsmail (nur dieser Fall, ohne Anmeldung) |
 | C-1 Chargeback ohne Rückholung | ✅ Transfer-Reversal (anteilig, idempotent je Streitfall). Fehler werden in der Fehlerüberwachung gemeldet |
 | C-2 Gesperrte Shops | ✅ Zahlung auf gesperrten Shop bzw. gebanntes Konto → automatische Vollerstattung. „Erstatten“ für ADMIN unter Transaktionen. Bei einer Sperre werden die Stripe-Auszahlungen angehalten |
-| C-3 Erlös ohne Haltefrist | ⏳ Produktentscheidung (Treuhand/Auszahlungsverzögerung) – offen |
+| C-3 Erlös ohne Haltefrist | ✅ Haltefrist: Erlös wird 3 Tage nach Abschluss der Bestellung auszahlbar. Automatischer Abschluss 14 Tage nach Versand. Werkuno führt den Auszahlungsplan aus (Stripe „manuell“). Problem- und Streitfälle bleiben zurückgehalten. Erlass je Shop durch die Administration. Beide Werte in den Systemeinstellungen |
 | P-1 Medien-Route im RAM | ✅ Streaming, Range-Requests (206/416), ETag-Prüfung vor dem Laden |
 | D-2 Demo-Purge | ✅ Vorprüfung auf echte Daten (Abbruch ohne Löschen), eine Transaktion, auditierte Demo-Konten bleiben |
 | D-3 Moderation macht Privates öffentlich | ✅ Sichtbarkeit nur einschränkbar |
@@ -52,6 +52,14 @@ Fazit: Der Code ist sauber typisiert und gut getestet. Die Probleme liegen in **
 | C-4, C-5, C-7, C-8, C-15 Marktplatz | ✅ Gescheiterte verzögerte Zahlungen werden storniert. Preise in der Shopwährung. Kein doppeltes Pro-Abo. Erstattungs-Timeout ohne Doppelerstattung. Provision live aus den Einstellungen |
 | F-4 … F-6 Frontend | ✅ Netz- und Serverfehler an rund 110 Aufrufstellen als Meldung statt Fehlerseite. Feldrahmen mit Kontrast ≥ 3:1. Sitemap in Teile aufgeteilt |
 | M-7 … M-18 iOS | ✅ Feature-Flags, Offline-Start, Gruppenchats (lesen), `stockBase`, Zahlen-Absturz, Apple-Nonce und Autorisierungscode, Umfragen, App-Badge, Fallnummer, Kontolöschung, Daten beim Abmelden, Debug-Funktionen nur im Debug-Build – **Xcode-Build ausstehend** |
+| **Niedrige Befunde** | |
+| A-11 … A-17, D-11, D-14 | ✅ 2FA-Sperre je Herkunft (bekannte Geräte nie ausgesperrt). Reset ohne Timing-Leck. Atomare Token. JSON-Body 400 statt 500. SSE prüft die Sitzung. P2002 → 409. Apple-Callback mit Statusprüfung. Shop-Entscheid bedingt. Audit-Kette mit HMAC (`AUDIT_HMAC_KEY`), Prüfpunkten und inkrementeller Vollprüfung |
+| C-9 … C-14, I-17 | ✅ Fehlgeschlagene Erstattung nach Erfolg wird zurückgebucht. Reservierungen beim Bearbeiten geschützt. Lizenz nach Klärung der Betragsabweichung. Connect-Status ohne Herabstufung. Bestand bei Vollerstattung vor dem Versand zurück (genau einmal). Worker-Stapel reihum. Simulations-Kasse zur Laufzeit statt Build, E2E-Test prüft die Seite echt |
+| S-9 … S-17 | ✅ Feed-Cursor ohne Duplikate und Lücken. Realtime in Blöcken unter 8 kB. Wettbewerbsstimmen nur von aktiven Mitgliedern. Gebündelte Pushes höchstens alle 30 Min. Kontaktanfrage-Limit mit Lock. Kommentieren in Anfrage- bzw. privaten Communities nur für Mitglieder |
+| P-9 … P-18 | ✅ Benachrichtigungs-Fan-out im Worker, Doppelklick-Schutz. `project_published` genau einmal. Eingefrorene leere Medien-URLs werden nachgetragen. Medienverwendung exakt, Freigabe beim Löschen. Validierung statt 500. Slug-Kollision mit Wiederholung. Kein FAILED über READY. Private Medien `private` gecacht. ffmpeg nur mit lokalen Dateien und erlaubten Formaten |
+| F-7 … F-18 | ✅ Zeitzonen und Hydration. Abschaltbare Tastenkürzel plus „?“-Übersicht. Zähler im zugänglichen Namen. Kontraste ≥ 4.5:1. Three.js aufgeräumt, reduzierte Bewegung beachtet. 404 mit `main`. Öffentliche Kontaktseite `/kontakt`. Ladeleiste über Router-Ereignis. ARIA-Muster korrigiert. Fokus-Rückgabe in Dialogen. Marke über `BRAND`, Manifest ergänzt (maskierbares Icon fehlt noch als Grafik) |
+| I-14, I-16, I-20 | ✅ Seed überschreibt keine Kategorienamen. Doku korrigiert. Kritische Pakete fest gepinnt. CI baut das Docker-Image (lokal nicht testbar). Apple-Variablen auch im Worker |
+| M-19, M-20 + Folgen | ✅ Video-Upload aus Datei mit `durationSec`. Ein Fenster pro App. Apple-Bestätigung für Konten ohne Passwort. Kommentar-Pagination – **Xcode-Build ausstehend** |
 | M-6 PrivacyInfo.xcprivacy | ✅ Manifest angelegt und in `project.yml` eingebunden – Angaben mit App Store Connect abgleichen |
 
 ## 1. Sofort beheben (vor dem Launch)
