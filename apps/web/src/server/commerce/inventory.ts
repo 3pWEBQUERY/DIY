@@ -68,6 +68,30 @@ export async function restock(tx: Tx, l: StockLine) {
   }
 }
 
+/**
+ * Zurückgebuchten Bestand erneut als verkauft verbuchen – nur ganz oder gar nicht: Die Zeilen werden
+ * gesperrt und erst geprüft, dann abgebucht. Gibt `false` zurück (ohne etwas zu ändern), wenn auch nur
+ * eine Position nicht mehr frei verfügbar ist (z. B. inzwischen an jemand anderen verkauft).
+ */
+export async function retakeSale(tx: Tx, lines: StockLine[]) {
+  const need = new Map<string, { line: StockLine; quantity: number }>();
+  for (const l of lines) {
+    if (l.isDigital) continue;
+    const key = l.variantId ?? `p:${l.productId}`;
+    const e = need.get(key);
+    if (e) e.quantity += l.quantity;
+    else need.set(key, { line: l, quantity: l.quantity });
+  }
+  for (const { line, quantity } of need.values()) {
+    const rows = line.variantId
+      ? await tx.$queryRaw<{ free: number }[]>`SELECT "onHand" - "reserved" AS free FROM "InventoryItem" WHERE "variantId" = ${line.variantId} FOR UPDATE`
+      : await tx.$queryRaw<{ free: number }[]>`SELECT "onHand" - "reserved" AS free FROM "InventoryItem" WHERE "productId" = ${line.productId} AND "variantId" IS NULL FOR UPDATE`;
+    if (!rows[0] || Number(rows[0].free) < quantity) return false;
+  }
+  for (const l of lines) await commitSale(tx, l, { reserved: false });
+  return true;
+}
+
 /** ACTIVE ↔ SOLD_OUT anhand des physischen Bestands nachführen. */
 export async function refreshSoldOut(tx: Tx, productIds: string[]) {
   for (const id of new Set(productIds)) {

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAs, one, runServer, sql, userId } from "./helpers";
+import { loginAs, one, sql, userId } from "./helpers";
 
 /**
  * Marktplatz Ende-zu-Ende im Testmodus: Kauf mit Pflichtangaben, Zahlung, Verkäuferin sieht
@@ -32,11 +32,19 @@ test.describe.serial("Marktplatz", () => {
     await elias.getByRole("button", { name: /Zahlungspflichtig bestellen/ }).click();
     await expect(elias).toHaveURL(/kasse\/simulation/, { timeout: 20_000 });
 
-    const order = await one<{ id: string; totalMinor: number; name: string }>(`SELECT id, "totalMinor", "buyerDetails"->>'name' AS name FROM "Order" WHERE "buyerId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [await userId("elias")]);
+    const order = await one<{ id: string; number: string; name: string }>(`SELECT id, number, "buyerDetails"->>'name' AS name FROM "Order" WHERE "buyerId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [await userId("elias")]);
     expect(order!.name).toBe("Elias Frei-Tester");
     orderId = order!.id;
-    runServer(`import("./src/server/commerce/payments").then(m=>m.markOrderPaid("${orderId}",{provider:"simulated",providerRef:"sim_e2e_${Date.now()}",amountMinor:${order!.totalMinor},currency:"CHF"}))`);
-    expect((await one<{ status: string }>(`SELECT status FROM "Order" WHERE id = $1`, [orderId]))!.status).not.toBe("PENDING_PAYMENT");
+    // Die Testzahlungsseite muss im Build wirklich erreichbar sein (kein 404) und die Zahlung über die Oberfläche verbuchen
+    await expect(elias.getByRole("heading", { name: "Testzahlung" })).toBeVisible();
+    await expect(elias.locator("main")).toContainText("Testmodus · keine echte Zahlung");
+    await expect(elias.locator("main")).toContainText(order!.number);
+    await elias.getByRole("button", { name: "Zahlung simulieren – erfolgreich" }).click();
+    await expect(elias).toHaveURL(/kasse\/erfolg\?bestellung=/, { timeout: 20_000 });
+    await expect(elias.getByRole("heading", { name: /deine Bestellung ist bestätigt/ })).toBeVisible();
+    const paid = await one<{ status: string; payment: string }>(`SELECT o.status, p.status AS payment FROM "Order" o JOIN "Payment" p ON p."orderId" = o.id WHERE o.id = $1`, [orderId]);
+    expect(paid!.status).toBe("NEW");
+    expect(paid!.payment).toBe("SUCCEEDED");
   });
 
   test("Verkäuferin sieht echten Namen und Adresse", async ({ browser }) => {

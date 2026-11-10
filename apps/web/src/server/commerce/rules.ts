@@ -136,6 +136,32 @@ export function paymentStatusAfterRefund(amountMinor: number, refundedMinor: num
 }
 
 /**
+ * Folgen eines geänderten Erstattungsstands – immer aus der Summe der tatsächlich erfolgreichen
+ * Erstattungen berechnet, damit auch ein nachträglich fehlgeschlagener Refund (succeeded → failed)
+ * korrekt verbucht wird.
+ * - `toRefunded`: Bestellung wird jetzt vollständig erstattet.
+ * - `restock`: dabei noch nicht versendet → Bestand zurück wie beim Storno (genau einmal, `restocked`).
+ * - `reopen`: Bestellung stand auf „Erstattet“, ist es nach dem Fehlschlag aber nicht mehr.
+ */
+export function refundEffects(o: { orderStatus: OrderStatus; paymentMinor: number; refundedMinor: number; shipped: boolean; restocked: boolean }) {
+  const payStatus = paymentStatusAfterRefund(o.paymentMinor, o.refundedMinor);
+  const full = payStatus === "REFUNDED";
+  const toRefunded = full && o.orderStatus !== "CANCELLED" && o.orderStatus !== "REFUNDED";
+  const restock = toRefunded && !o.restocked && canSellerCancel(o.orderStatus, o.shipped);
+  const reopen = !full && o.orderStatus === "REFUNDED";
+  return { payStatus, full, toRefunded, restock, reopen };
+}
+
+/** Status vor der letzten Umstellung auf „Erstattet“ (aus dem Bestellverlauf, älteste zuerst). */
+export function statusBeforeRefunded(events: { from: OrderStatus | null; to: OrderStatus }[]): OrderStatus | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]!;
+    if (e.to === "REFUNDED" && e.from && e.from !== "REFUNDED") return e.from;
+  }
+  return null;
+}
+
+/**
  * Plattformgebühr nach Erstattungen: Stripe erstattet die Application Fee anteilig
  * (`refund_application_fee`), damit Provision nur auf tatsächlich abgeschlossene
  * Umsätze anfällt (§22.2).

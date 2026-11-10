@@ -300,9 +300,11 @@ export async function abandonPendingOrder(user: SessionUser, orderId: string) {
 /**
  * Simulierter Zahlungsanbieter: nur ohne Stripe-Key und ausserhalb der Produktion.
  * Ruft exakt dieselben Verbuchungsfunktionen wie der Stripe-Webhook auf.
+ * Massgeblich ist allein paymentsMode() (Laufzeit-NODE_ENV) – `process.env.NODE_ENV` würde Next beim
+ * Build fest auf „production“ setzen und den Testmodus in jedem Build abschalten.
  */
 export async function simulatePayment(user: SessionUser, orderId: string, outcome: "success" | "failure") {
-  if (paymentsMode() !== "simulated" || process.env.NODE_ENV === "production") throw fail.forbidden("Der Testmodus ist hier nicht verfügbar.");
+  if (paymentsMode() !== "simulated") throw fail.forbidden("Der Testmodus ist hier nicht verfügbar.");
   const o = await db.order.findUnique({ where: { id: orderId }, select: { buyerId: true, status: true, totalMinor: true, currency: true, number: true } });
   if (!o || o.buyerId !== user.id) throw fail.notFound();
   if (o.status !== "PENDING_PAYMENT") throw fail.conflict("Diese Bestellung wartet nicht mehr auf eine Zahlung.");

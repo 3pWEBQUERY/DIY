@@ -8,8 +8,8 @@ import { notify } from "@/server/notifications";
 import { rateLimit } from "@/server/ratelimit";
 import type { SessionUser } from "@/server/auth/session";
 import { hasRole } from "@/server/authz";
-import { lockOrder, refreshSoldOut, restock } from "./inventory";
-import { orderWith, initiateRefund } from "./payments";
+import { lockOrder } from "./inventory";
+import { orderWith, initiateRefund, grantMissingEntitlementsTx, restockOrderTx } from "./payments";
 import { canReview, canSellerCancel, canTransition, refundableAmount, SELLER_ORDER_TABS } from "./rules";
 import { requireOwnShop } from "./shops";
 
@@ -187,9 +187,24 @@ export async function transitionOrder(user: SessionUser, orderId: string, to: Or
     const now = new Date();
     await tx.order.update({ where: { id: orderId }, data: { status: to, ...(to === "COMPLETED" ? { completedAt: now } : {}) } });
     await tx.orderEvent.create({ data: { orderId, actorId: user.id, from: o.status, to, note: note.slice(0, 1000) } });
+    const granted = o.status === "PROBLEM" ? await resolveProblemPayment(tx, o, user.id) : 0;
     await emit({ type: "OrderStatusChanged", orderId, to }, tx);
-    await notifyBuyer(tx, o, to, note.slice(0, 200), user.id);
+    await notifyBuyer(tx, o, to, [note.slice(0, 200), granted ? "Dein Download ist bereit." : ""].filter(Boolean).join(" – "), user.id);
   });
+}
+
+/**
+ * Der Shop löst einen Problemfall (weiter bearbeiten, versenden, abschliessen) und bestätigt damit auch die
+ * Zahlung: Wich der Betrag bei der Zahlung ab, wurden digitale Lizenzen zurückgehalten – sie werden jetzt
+ * freigeschaltet („Zahlung geprüft“). Andere Problemfälle (Lizenz besteht bereits) bleiben unverändert.
+ */
+async function resolveProblemPayment(tx: Prisma.TransactionClient, o: { id: string; status: OrderStatus }, actorId: string) {
+  const granted = await grantMissingEntitlementsTx(tx, o.id);
+  if (granted) {
+    await tx.orderEvent.create({ data: { orderId: o.id, actorId, from: o.status, to: o.status, note: "Zahlung geprüft – digitaler Download freigeschaltet" } });
+    await audit({ actorId, action: "payment.amount_mismatch.resolved", targetType: "Order", targetId: o.id, meta: { entitlements: granted } }, tx);
+  }
+  return granted;
 }
 
 /** Versand erfassen → SHIPPED, Käufer wird benachrichtigt, OrderShipped wird ausgelöst. */
@@ -203,6 +218,7 @@ export async function addShipment(user: SessionUser, orderId: string, input: unk
     await tx.order.update({ where: { id: orderId }, data: { status: "SHIPPED", shippedAt: now } });
     const label = [data.carrier, data.trackingNo].filter(Boolean).join(" · ");
     await tx.orderEvent.create({ data: { orderId, actorId: user.id, from: o.status, to: "SHIPPED", note: [`Versendet mit ${label}`, data.note].filter(Boolean).join(" – ") } });
+    if (o.status === "PROBLEM") await resolveProblemPayment(tx, o, user.id);
     await emit({ type: "OrderShipped", orderId }, tx);
     await emit({ type: "OrderStatusChanged", orderId, to: "SHIPPED" }, tx);
     await notifyBuyer(tx, o, "SHIPPED", data.trackingNo ? `Sendungsnummer ${data.trackingNo} (${data.carrier})` : `Versand mit ${data.carrier}`, user.id);
@@ -231,11 +247,10 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
     const o = await requireSellerOrder(tx, user, orderId);
     if (!canSellerCancel(o.status, o.shipments.length > 0)) throw fail.conflict("Diese Bestellung kann nicht mehr storniert werden.");
     const full = (await orderWith(tx, orderId))!;
-    for (const it of full.items) await restock(tx, it);
-    await refreshSoldOut(tx, full.items.map((i) => i.productId));
+    // Genau einmal zurückbuchen (z. B. nicht erneut, wenn eine frühere Vollerstattung es schon getan hat)
+    await restockOrderTx(tx, full);
     const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
     if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital } }, data: { revokedAt: new Date() } });
-    await tx.shop.update({ where: { id: o.shopId }, data: { salesCount: { decrement: full.items.reduce((s, i) => s + i.quantity, 0) } } });
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
     await tx.orderEvent.create({ data: { orderId, actorId: user.id, from: o.status, to: "CANCELLED", note: `Vom Shop storniert: ${why.slice(0, 500)}` } });
     await audit({ actorId: user.id, action: "order.cancel.seller", targetType: "Order", targetId: orderId, meta: { from: o.status } }, tx);
@@ -270,11 +285,9 @@ export async function refundOrderByAdmin(actor: Pick<SessionUser, "id" | "role">
     const shipped = (await tx.shipment.count({ where: { orderId } })) > 0;
     const cancel = canSellerCancel(full.status, shipped);
     if (cancel) {
-      for (const it of full.items) await restock(tx, it);
-      await refreshSoldOut(tx, full.items.map((i) => i.productId));
+      await restockOrderTx(tx, full);
       const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
       if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital } }, data: { revokedAt: new Date() } });
-      await tx.shop.update({ where: { id: full.shopId }, data: { salesCount: { decrement: full.items.reduce((s, i) => s + i.quantity, 0) } } });
       await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
       await tx.orderEvent.create({ data: { orderId, actorId: actor.id, from: full.status, to: "CANCELLED", note: "Von der Plattform storniert" } });
       await emit({ type: "OrderStatusChanged", orderId, to: "CANCELLED" }, tx);
