@@ -27,9 +27,12 @@ export const LIMITS = {
   // Je Netzwerkadresse über alle Konten (gegen Credential Stuffing); zählt nur Fehlversuche
   signInIp: [30, 900],
   signInIpDay: [200, 86400],
-  // Zweiter Faktor: wenige Versuche, damit 6-stellige Codes nicht durchprobiert werden können
+  // Zweiter Faktor: wenige Versuche, damit 6-stellige Codes nicht durchprobiert werden können.
+  // mfaFail je Konto + Herkunft (Adresse/Sitzung), mfaFailDay je Konto für unbekannte Herkünfte,
+  // mfaFailDayTrusted je Konto für bekannte Geräte/bestehende Sitzungen (siehe auth/mfa-limits.ts)
   mfaFail: [10, 900],
   mfaFailDay: [30, 86400],
+  mfaFailDayTrusted: [30, 86400],
   mfaManage: [20, 3600],
   signUp: [5, 3600],
   passwordReset: [5, 3600],

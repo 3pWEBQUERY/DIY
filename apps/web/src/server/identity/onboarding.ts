@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { CATEGORY_SLUGS, handleSchema } from "@werkraum/shared";
 import { db } from "@/server/db";
-import { fail } from "@/server/errors";
+import { fail, uniqueViolation } from "@/server/errors";
 import type { SessionUser } from "@/server/auth/session";
 import { audit } from "@/server/audit";
 import { attachMedia } from "@/server/media/service";
@@ -52,6 +52,10 @@ export async function completeOnboarding(user: SessionUser, input: unknown) {
     });
     await tx.userPreference.upsert({ where: { userId: user.id }, create: { userId: user.id, interests: d.interests }, update: { interests: d.interests } });
     await tx.user.update({ where: { id: user.id }, data: { ...(full.onboardedAt ? {} : { onboardedAt: new Date() }), ...(full.adultConfirmedAt ? {} : { adultConfirmedAt: new Date() }) } });
+  }).catch((e: unknown) => {
+    // Wettlauf: Handle wurde zwischen Prüfung und Speichern von jemand anderem belegt
+    if (uniqueViolation(e)?.includes("handle")) throw fail.invalid("Bereits vergeben", { handle: "Bereits vergeben" });
+    throw e;
   });
 }
 

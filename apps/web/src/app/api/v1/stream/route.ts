@@ -1,6 +1,7 @@
-import { currentUser } from "@/server/auth/session";
+import { getSession } from "@/server/auth/session";
 import { flagEnabled } from "@/server/flags";
 import { subscribe, type LiveEvent } from "@/server/realtime/bus";
+import { isSessionActive, watchSession } from "@/server/realtime/session-watch";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,16 +9,25 @@ export const runtime = "nodejs";
 /**
  * Server-Sent Events für Live-Updates (neue Nachrichten, Zähler).
  * Der Browser hält genau eine Verbindung pro Tab; bei Abbruch verbindet EventSource neu.
+ * Die Sitzung wird jede Minute erneut geprüft: Nach Abmelden, Widerruf, Ablauf oder Sperre endet der
+ * Stream; die Neuverbindung scheitert dann mit 401 (EventSource gibt auf).
  */
 export async function GET(req: Request) {
-  const user = await currentUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
+  const session = await getSession();
+  if (!session) return new Response("Unauthorized", { status: 401 });
+  const { user, sessionId } = session;
   // Live-Updates abgeschaltet: 204 beendet EventSource ohne Neuverbindung, Zähler laufen per Abfrage weiter
   if (!(await flagEnabled("realtime", user.id))) return new Response(null, { status: 204 });
   const enc = new TextEncoder();
   let cleanup = () => {};
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const close = () => {
+        cleanup();
+        try {
+          controller.close();
+        } catch {}
+      };
       const send = (chunk: string) => {
         try {
           controller.enqueue(enc.encode(chunk));
@@ -28,33 +38,22 @@ export async function GET(req: Request) {
       send("retry: 3000\n\n: verbunden\n\n");
       let unsub = () => {};
       try {
-        unsub = await subscribe(
-          user.id,
-          (e: LiveEvent) => send(`event: ${e.t}\ndata: ${JSON.stringify(e)}\n\n`),
-          () => {
-            cleanup();
-            try {
-              controller.close();
-            } catch {}
-          },
-        );
+        unsub = await subscribe(user.id, (e: LiveEvent) => send(`event: ${e.t}\ndata: ${JSON.stringify(e)}\n\n`), close);
       } catch {
         controller.close();
         return;
       }
       // Herzschlag hält Proxys (Railway, CDN) offen
       const ping = setInterval(() => send(": ping\n\n"), 25_000);
+      // Sitzung widerrufen/abgelaufen, Konto gesperrt oder gelöscht → Stream beenden
+      const stopWatch = watchSession(() => isSessionActive(sessionId, user.id), close);
       cleanup = () => {
         clearInterval(ping);
+        stopWatch();
         unsub();
         cleanup = () => {};
       };
-      req.signal.addEventListener("abort", () => {
-        cleanup();
-        try {
-          controller.close();
-        } catch {}
-      });
+      req.signal.addEventListener("abort", close);
     },
     cancel() {
       cleanup();

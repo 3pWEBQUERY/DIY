@@ -185,7 +185,8 @@ export async function confirmMfaSetupAction(code: string) {
 
 export async function regenerateRecoveryCodesAction(code: string) {
   return act(async () => {
-    const r = await mfa.regenerateRecoveryCodes((await mfaSession()).user, code);
+    const s = await mfaSession();
+    const r = await mfa.regenerateRecoveryCodes(s.user, s.sessionId, code);
     revalidatePath("/einstellungen/sicherheit");
     return r;
   }, "Neue Wiederherstellungscodes erstellt. Die alten sind ungültig.");

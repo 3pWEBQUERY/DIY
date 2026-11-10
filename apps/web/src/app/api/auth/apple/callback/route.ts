@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
-import { resolveAppleUser } from "@/server/identity/apple";
+import { appleAccountBlocked, resolveAppleUser } from "@/server/identity/apple";
 import { createSession } from "@/server/auth/session";
 import { warnNewDevice } from "@/server/auth/new-device";
 import { safeNext } from "@/lib/safe-next";
@@ -20,6 +20,9 @@ export async function POST(req: NextRequest) {
   }
   try {
     const { userId, isNew } = await resolveAppleUser(code, typeof form.get("user") === "string" ? (form.get("user") as string) : null);
+    // Gesperrt/gelöscht: keine Sitzung anlegen (getSession würde sie stillschweigend verwerfen), sondern erklären
+    const blocked = await appleAccountBlocked(userId);
+    if (blocked) return NextResponse.redirect(new URL(`/anmelden?fehler=${blocked === "BANNED" ? "gesperrt" : "geloescht"}`, base), 303);
     const s = await createSession(userId);
     if (s.mfaRequired) return NextResponse.redirect(new URL(`/anmelden/zwei-faktor${next ? `?weiter=${encodeURIComponent(next)}` : ""}`, base), 303);
     if (s.isNewDevice && !isNew) await warnNewDevice(userId, s.deviceLabel);

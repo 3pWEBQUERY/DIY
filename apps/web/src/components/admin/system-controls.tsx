@@ -163,23 +163,39 @@ export function TicketStatusSelect({ id, status, options, action }: { id: string
   );
 }
 
-export function AuditVerifyButton({ action }: { action: () => Promise<ActionResult<{ ok: boolean; checked: number; brokenAt?: number }>> }) {
-  const [result, setResult] = useState<{ ok: boolean; checked: number; brokenAt?: number } | null>(null);
+export type AuditVerifyResult =
+  | { ok: true; checked: number; from: number; through: number; complete: boolean; hmac: boolean; lastCheckpoint: { seq: number; at: string } | null }
+  | { ok: false; checked: number; from: number; brokenAt: number; reason: string; hmac: boolean; lastCheckpoint: { seq: number; at: string } | null };
+
+/**
+ * „Integrität prüfen“: prüft inkrementell ab dem letzten geprüften Prüfpunkt (schnell), „Vollständig“ vom
+ * ersten Eintrag an. Zeigt Bereich, Verfahren (mit/ohne Schlüssel) und letzten Prüfpunkt.
+ */
+export function AuditVerifyButton({ action }: { action: (input?: { full?: boolean }) => Promise<ActionResult<AuditVerifyResult>> }) {
+  const [result, setResult] = useState<AuditVerifyResult | null>(null);
   const { run, pending } = useAction(action, { refresh: false, onSuccess: setResult });
+  const n = (v: number) => v.toLocaleString("de-CH");
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button variant="ink" size="sm" onClick={() => run()} disabled={pending} aria-busy={pending}>
+      <Button variant="ink" size="sm" onClick={() => run({})} disabled={pending} aria-busy={pending}>
         <ShieldCheck size={15} aria-hidden /> {pending ? "Prüfe Hash-Kette …" : "Integrität prüfen"}
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => run({ full: true })} disabled={pending} title="Gesamte Kette vom ersten Eintrag an prüfen (dauert länger)">
+        Vollständig prüfen
       </Button>
       <span role="status" aria-live="polite" className="text-[13px]">
         {result &&
           (result.ok ? (
-            <span className="inline-flex items-center gap-1.5 text-moss">
-              <ShieldCheck size={15} aria-hidden /> Intakt – {result.checked.toLocaleString("de-CH")} Einträge lückenlos verkettet.
+            <span className="inline-flex flex-wrap items-center gap-1.5 text-moss">
+              <ShieldCheck size={15} aria-hidden /> Intakt bis Eintrag #{n(result.through)}
+              {" – "}
+              {result.from > 0 ? `${n(result.checked)} neue Einträge seit Prüfpunkt #${n(result.from)} geprüft` : `${n(result.checked)} Einträge lückenlos verkettet`}
+              {!result.complete && " (Teilprüfung – erneut klicken, um fortzusetzen)"}
+              {!result.hmac && <span className="text-warn"> · ohne AUDIT_HMAC_KEY (einfaches SHA-256)</span>}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 font-semibold text-danger">
-              <ShieldAlert size={15} aria-hidden /> Kette gebrochen bei Eintrag #{result.brokenAt} ({result.checked.toLocaleString("de-CH")} geprüft). Sofort eskalieren.
+              <ShieldAlert size={15} aria-hidden /> Kette gebrochen bei Eintrag #{n(result.brokenAt)}: {result.reason} Sofort eskalieren.
             </span>
           ))}
       </span>

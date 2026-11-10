@@ -32,6 +32,28 @@ function isPrismaNotFound(e: unknown) {
   return !!e && typeof e === "object" && (e as { name?: unknown }).name === "PrismaClientKnownRequestError" && (e as { code?: unknown }).code === "P2025";
 }
 
+/**
+ * Unique-Verletzung (Prisma P2002), z. B. zwei gleichzeitige Registrierungen mit demselben Handle.
+ * Gibt die betroffenen Spalten/den Index (klein geschrieben, z. B. "user_email_key") zurück oder null.
+ * Prisma 7 mit Treiberadapter liefert den Index unter `meta.driverAdapterError.cause.constraint`,
+ * ältere Varianten unter `meta.target`.
+ */
+export function uniqueViolation(e: unknown): string | null {
+  if (!e || typeof e !== "object" || (e as { code?: unknown }).code !== "P2002") return null;
+  if ((e as { name?: unknown }).name !== "PrismaClientKnownRequestError") return null;
+  const meta = (e as { meta?: Record<string, unknown> }).meta ?? {};
+  const parts: string[] = [];
+  const target = meta.target;
+  if (Array.isArray(target)) parts.push(...target.map(String));
+  else if (typeof target === "string") parts.push(target);
+  const constraint = (meta.driverAdapterError as { cause?: { constraint?: { index?: unknown; fields?: unknown } } } | undefined)?.cause?.constraint;
+  if (typeof constraint?.index === "string") parts.push(constraint.index);
+  if (Array.isArray(constraint?.fields)) parts.push(...constraint.fields.map(String));
+  return parts.join(",").toLowerCase();
+}
+
+export const UNIQUE_CONFLICT_MESSAGE = "Das wurde gerade gleichzeitig geändert oder existiert bereits. Bitte lade die Seite neu und versuche es erneut.";
+
 export type ActionResult<T = undefined> =
   | { ok: true; data: T; message?: string }
   | { ok: false; code: ErrorCode; error: string; fields?: Record<string, string> };
@@ -81,6 +103,8 @@ export function toResult(e: unknown, ctx?: { path?: string; method?: string }): 
   }
   // Datensatz existiert (nicht mehr): z. B. findUniqueOrThrow/update mit unbekannter ID → 404 statt 500
   if (isPrismaNotFound(e)) return { ok: false, code: "NOT_FOUND", error: "Nicht gefunden." };
+  // Unique-Verletzung (meist ein Wettlauf zweier Anfragen) → 409 statt 500
+  if (uniqueViolation(e) !== null) return { ok: false, code: "CONFLICT", error: UNIQUE_CONFLICT_MESSAGE };
   // Postgres lehnt Nullbytes/ungültige Kodierung ab – das ist eine fehlerhafte Eingabe, kein Serverfehler
   if (e instanceof Error && /invalid byte sequence for encoding|22021|22P05/.test(e.message)) {
     return { ok: false, code: "VALIDATION", error: "Die Anfrage enthält ungültige Zeichen." };

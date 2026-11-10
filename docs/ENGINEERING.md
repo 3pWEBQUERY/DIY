@@ -93,5 +93,6 @@ pnpm worker         # Hintergrundjobs
   Die generierten `search`-Spalten stehen als `Unsupported("tsvector")? @default(dbgenerated())`.
 - **Nicht im Schema abbildbar** (Prisma sieht sie nicht und lässt sie unangetastet – Änderungen nur per
   handgeschriebener Migration): die Ausdrücke der generierten `search`-Spalten, die Funktionen `wr_unaccent`/`wr_join`,
-  die Extensions `pg_trgm`/`unaccent` und der Trigger `AuditEvent_immutable` (alle in `20261103203143_init`).
+  die Extensions `pg_trgm`/`unaccent` und der Trigger `AuditEvent_immutable` (alle in `20261103203143_init`)
+  sowie der Trigger `AuditCheckpoint_immutable` (`20261120100000_audit_hmac_checkpoints`).
   Wer eine `search`-Spalte ändert, schreibt `DROP COLUMN`/`ADD COLUMN … GENERATED ALWAYS AS (…) STORED` samt Index selbst.

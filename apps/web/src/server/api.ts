@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
-import { AppError, httpStatus, toResult } from "@/server/errors";
+import { AppError, fail, httpStatus, toResult } from "@/server/errors";
+import { parseJsonObject } from "@/server/mobile/params";
 
 /**
  * Route-Handler-Wrapper für /api/v1 (Web + iOS):
@@ -26,10 +27,18 @@ export function api<C = unknown>(handler: (req: NextRequest, ctx: C) => Promise<
   };
 }
 
+/**
+ * JSON-Body als Objekt lesen – wie die Mobile-API (`parseJsonObject`): leer → {}, kein gültiges JSON oder
+ * kein Objekt (`null`, Array, Zahl, Text …) → HTTP 400 statt eines 500 beim Zugriff auf `b.feld`.
+ */
 export async function body<T = Record<string, unknown>>(req: NextRequest): Promise<T> {
+  let text: string;
   try {
-    return (await req.json()) as T;
+    text = await req.text();
   } catch {
-    throw new AppError("VALIDATION", "Ungültiger JSON-Body.");
+    throw fail.badRequest("Ungültiger JSON-Body.");
   }
+  const r = parseJsonObject(text);
+  if (!r.ok) throw fail.badRequest(r.reason === "syntax" ? "Ungültiger JSON-Body." : "Der Body muss ein JSON-Objekt sein.");
+  return r.value as T;
 }

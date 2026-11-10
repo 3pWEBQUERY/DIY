@@ -4,7 +4,7 @@ import { env } from "@/server/env";
 import { db } from "@/server/db";
 import { slugify } from "@/lib/utils";
 import { isHandleAvailable } from "./service";
-import { fail } from "@/server/errors";
+import { fail, uniqueViolation } from "@/server/errors";
 import { audit } from "@/server/audit";
 import { createSession, clientIpHash } from "@/server/auth/session";
 import { rateLimit } from "@/server/ratelimit";
@@ -37,7 +37,21 @@ export async function resolveAppleUser(code: string, rawUser: string | null) {
   return r;
 }
 
+/**
+ * Verknüpft per Apple-ID. Zwei gleichzeitige Anmeldungen derselben Apple-ID (Doppelklick, App + Web)
+ * legen beide die Verknüpfung an – die zweite scheitert an der Unique-Bedingung und übernimmt dann
+ * die inzwischen vorhandene Verknüpfung (bzw. versucht es mit einem anderen Handle erneut).
+ */
 export async function linkAppleClaims(claims: AppleClaims, displayName: string | null) {
+  try {
+    return await linkAppleClaimsOnce(claims, displayName);
+  } catch (e) {
+    if (uniqueViolation(e) === null) throw e;
+    return linkAppleClaimsOnce(claims, displayName);
+  }
+}
+
+async function linkAppleClaimsOnce(claims: AppleClaims, displayName: string | null) {
   const linked = await db.authAccount.findUnique({ where: { provider_providerAccountId: { provider: "apple", providerAccountId: claims.sub } } });
   if (linked) return { userId: linked.userId, isNew: false };
 
@@ -94,6 +108,19 @@ export async function linkAppleClaims(claims: AppleClaims, displayName: string |
   return { userId: user.id, isNew: true };
 }
 
+export const APPLE_BLOCKED_MESSAGE = {
+  BANNED: "Dieses Konto wurde dauerhaft gesperrt.",
+  DELETED: "Dieses Konto wurde gelöscht.",
+} as const;
+
+/** Darf sich dieses Konto anmelden? Gesperrte/gelöschte Konten bekommen keine Sitzung (getSession verwirft sie ohnehin). */
+export async function appleAccountBlocked(userId: string): Promise<keyof typeof APPLE_BLOCKED_MESSAGE | null> {
+  const u = await db.user.findUnique({ where: { id: userId }, select: { status: true } });
+  if (!u || u.status === "DELETED") return "DELETED";
+  if (u.status === "BANNED") return "BANNED";
+  return null;
+}
+
 // ───────────── Native Anmeldung mit Apple (iOS, AuthenticationServices) ─────────────
 
 /**
@@ -110,9 +137,8 @@ export async function signInWithAppleIdToken(idToken: string, displayName: strin
   await rateLimit(`apple-native:${await clientIpHash()}`, 30, 600);
   const claims = await verifyAppleIdentityToken(idToken, { audience, nonce: opts.nonce });
   const { userId, isNew } = await linkAppleClaims(claims, displayName);
-  const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { status: true } });
-  if (u.status === "BANNED") throw fail.forbidden("Dieses Konto wurde dauerhaft gesperrt.");
-  if (u.status === "DELETED") throw fail.forbidden("Dieses Konto wurde gelöscht.");
+  const blocked = await appleAccountBlocked(userId);
+  if (blocked) throw fail.forbidden(APPLE_BLOCKED_MESSAGE[blocked]);
   if (opts.authorizationCode) {
     const rt = await exchangeAppleCode(opts.authorizationCode, audience, claims.sub);
     if (rt) await storeAppleRefreshToken(claims.sub, rt, audience).catch(() => {});
