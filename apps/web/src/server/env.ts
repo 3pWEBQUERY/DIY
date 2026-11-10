@@ -32,6 +32,9 @@ const schema = z.object({
   APNS_TEAM_ID: z.string().optional(),
   APNS_PRIVATE_KEY: z.string().optional(),
   APNS_BUNDLE_ID: z.string().optional(),
+  // In-App-Käufe (App Store): Bundle-ID der App; lokale StoreKit-Tests aus Xcode nur in der Entwicklung
+  APPLE_IAP_BUNDLE_ID: z.string().default("ch.werkuno.app"),
+  APPLE_IAP_ALLOW_XCODE: z.string().optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

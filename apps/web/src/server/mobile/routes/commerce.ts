@@ -10,6 +10,7 @@ import { createReview, listProductReviews, listShopReviews } from "@/server/comm
 import { shopRevenue, type RevenueRange } from "@/server/commerce/revenue";
 import { paymentsMode } from "@/server/commerce/stripe";
 import * as payouts from "@/server/commerce/payouts";
+import * as appstore from "@/server/commerce/appstore";
 import { shopSlugSchema } from "@werkraum/shared";
 import { browseCategories, categoryOptions } from "@/server/categories/settings";
 import { getSetting } from "@/server/settings";
@@ -38,6 +39,16 @@ function publicCommerce<T>(value: T): T {
     return out;
   };
   return walk(value) as T;
+}
+
+const DIGITAL_IN_CART = "Digitale Produkte kaufst du in der App direkt auf der Produktseite. Bitte entferne sie aus dem Warenkorb.";
+
+/** Warenkorb für die App: digitale Positionen sind hier nicht bezahlbar (Kauf über Apple auf der Produktseite). */
+function appCartView<V extends { groups: { lines: { isDigital: boolean; problem: string | null }[] }[] }>(view: V): V {
+  return {
+    ...view,
+    groups: view.groups.map((g) => ({ ...g, lines: g.lines.map((l) => (l.isDigital ? { ...l, problem: l.problem ?? "In der App direkt auf der Produktseite kaufen" } : l)) })),
+  };
 }
 
 export const commerceRoutes: RouteDef[] = [
@@ -97,9 +108,21 @@ export const commerceRoutes: RouteDef[] = [
   GET("/cart", async () => {
     const u = await me();
     const [view, pending] = await Promise.all([cart.getCartView(u.id), checkout.payableOrders(u.id)]);
-    return { ...view, pendingOrders: pending };
+    return { ...appCartView(view), pendingOrders: pending };
   }),
-  POST("/cart/items", async (c) => cart.addToCart(await me(), await c.json())),
+  POST("/cart/items", async (c) => {
+    const body = await c.json<{ productId?: unknown }>();
+    // Digitale Produkte kauft man in der App nur über Apple (In-App-Kauf), nie über den Warenkorb
+    if (typeof body.productId === "string") {
+      const p = await db.product.findUnique({ where: { id: body.productId }, select: { kind: true } });
+      if (p?.kind === "DIGITAL") throw fail.invalid("Digitale Produkte kaufst du in der App direkt auf der Produktseite.");
+    }
+    return cart.addToCart(await me(), body);
+  }),
+
+  // ── Digitale Produkte: Kauf über Apple (In-App-Kauf) ──
+  POST("/iap/intent", async (c) => appstore.createPurchaseIntent(await me(), await c.json())),
+  POST("/iap/transactions", async (c) => appstore.fulfillAppStoreTransaction(await me(), await c.json())),
   PATCH("/cart/items/:id", async (c) => {
     const { quantity } = await c.body({ quantity: z.unknown() });
     return cart.updateCartItem(await me(), { itemId: c.p.id!, quantity });
@@ -116,11 +139,17 @@ export const commerceRoutes: RouteDef[] = [
     const details = await getCustomerDetails(u.id);
     const digitalOnly = view.groups.length > 0 && view.groups.every((g) => g.lines.every((l) => l.isDigital));
     // details = gespeicherte Angaben (null → beim ersten Kauf Pflichtformular, dann POST /checkout mit `details`)
-    return { cart: view, details, detailsRequired: !details, digitalOnly };
+    return { cart: appCartView(view), details, detailsRequired: !details, digitalOnly };
   }),
   GET("/me/customer-details", async () => ({ details: await getCustomerDetails((await me()).id) })),
   PUT("/me/customer-details", async (c) => ({ details: await saveCustomerDetails((await me()).id, await c.json()) })),
-  POST("/checkout", async (c) => checkout.startCheckout(await me(), await c.json())),
+  POST("/checkout", async (c) => {
+    const u = await me();
+    // Digitale Produkte (z. B. aus dem Web-Warenkorb) werden in der App nie über Stripe bezahlt
+    const view = await cart.getCartView(u.id);
+    if (view.groups.some((g) => g.lines.some((l) => l.isDigital))) throw fail.invalid(DIGITAL_IN_CART);
+    return checkout.startCheckout(u, await c.json());
+  }),
   POST("/orders/:id/resume", async (c) => ({ url: await checkout.resumePayment(await me(), c.p.id!) })),
   POST("/orders/:id/abandon", async (c) => {
     await checkout.abandonPendingOrder(await me(), c.p.id!);

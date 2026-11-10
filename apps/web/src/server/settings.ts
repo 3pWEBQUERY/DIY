@@ -7,7 +7,8 @@ export const SETTING_DEFAULTS = {
   "commerce.feeBps": 600, // 6 % Plattformprovision (§22.2)
   "commerce.reservationMinutes": 30,
   "commerce.digitalEnabledWeb": true,
-  "commerce.digitalEnabledIos": false, // §13.7 – erst nach Klärung der Apple-Regeln
+  "commerce.digitalEnabledIos": true, // §13.7 – in der App nur über Apple (In-App-Kauf)
+  "commerce.iosMarkupBps": 3000, // Aufschlag in der App (+30 %), deckt die Apple-Gebühr
   "media.maxImageMb": 15,
   "media.maxVideoMb": 200,
   "media.maxVideoSeconds": 180,

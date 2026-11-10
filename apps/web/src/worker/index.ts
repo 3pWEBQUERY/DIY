@@ -24,6 +24,7 @@ import { sendEventReminders } from "@/server/communities/events";
 import { syncPendingConnectAccounts } from "@/server/commerce/shops";
 import { syncPayouts } from "@/server/commerce/payouts";
 import { retryCancelledRefunds } from "@/server/commerce/payments";
+import { retrySellerTransfers } from "@/server/commerce/appstore";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
@@ -260,6 +261,8 @@ async function main() {
       if (new Date().getMinutes() % 30 < 10) await syncPayouts();
       // Fehlgeschlagene Erstattungen stornierter Bestellungen nachholen
       await retryCancelledRefunds();
+      // Shop-Anteile aus Apple-Käufen überweisen (nach Fehlern, z. B. zu wenig Plattformguthaben)
+      await retrySellerTransfers();
     }));
 
   await boss.schedule(Q.outbox, "* * * * *");

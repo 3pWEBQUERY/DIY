@@ -61,6 +61,27 @@ Ohne diese Variablen laufen die betroffenen Funktionen in einem klar gekennzeich
    `checkout.session.completed`, `checkout.session.expired`, `payment_intent.succeeded`,
    `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `account.updated` einrichten.
 
+## Digitale Produkte in der iOS-App (Apple In-App-Kauf)
+
+In der App werden digitale Produkte (Anleitungen als PDF, Schnittmuster) nur über Apple verkauft
+(App Review Guideline 3.1.1); im Web weiter über Stripe. Preis in der App = Web-Preis + Aufschlag
+(Admin → Systemkonfiguration „Aufschlag in der iOS-App“, Standard 30 %), aufgerundet auf eine Preisstufe.
+Der Shop erhält denselben Anteil wie bei einem Web-Verkauf; Werkuno überweist ihn per Stripe aus dem
+Plattformguthaben (Worker versucht es bei Fehlern erneut). Apple zahlt Werkuno monatlich aus –
+das Stripe-Plattformguthaben muss die Überweisungen decken.
+
+Einrichtung in App Store Connect:
+1. Pro Preisstufe einen **Verbrauchsartikel** anlegen: Produkt-ID `ch.werkuno.app.digital.chf<Franken>`
+   für 1–20, 22, 25, 28, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 120, 150, 200 (Liste:
+   `APP_STORE_TIERS_CHF` in `src/server/commerce/appstore.ts`), Preis in CHF genau dieser Betrag.
+2. App-Informationen → App Store Server Notifications **Version 2**, Produktions- und Sandbox-URL:
+   `https://werkuno.ch/api/webhooks/apple` (Erstattungen widerrufen den Download und holen den Shop-Anteil zurück).
+3. Optional `APPLE_IAP_BUNDLE_ID` (Standard `ch.werkuno.app`).
+
+Sandbox-Käufe (TestFlight, App Review) schalten den Download frei, lösen aber keine Überweisung aus.
+Lokal: Xcode-Schema nutzt `apps/ios/StoreKit/Werkuno.storekit`; der lokale Server nimmt solche
+Testbelege nur mit `APPLE_IAP_ALLOW_XCODE=true` an (nie in Produktion).
+
 ## Monitoring
 
 - Healthcheck: `GET /api/health` (DB-Latenz, Storage-Modus, Version). Railway nutzt ihn beim Deploy.

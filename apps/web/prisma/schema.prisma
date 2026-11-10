@@ -167,6 +167,23 @@ enum OrderStatus {
   PROBLEM
 }
 
+enum AppStorePurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  EXPIRED
+}
+
+/// Überweisung des Shop-Anteils bei Apple-Käufen
+enum SellerTransferStatus {
+  NONE
+  PENDING
+  SENT
+  FAILED
+  REVERSED
+  SKIPPED
+}
+
 enum PaymentStatus {
   REQUIRES_PAYMENT
   PROCESSING
@@ -291,6 +308,7 @@ model User {
   orders          Order[]       @relation("buyer")
   reviews         Review[]
   entitlements    DigitalEntitlement[]
+  appStorePurchases AppStorePurchase[]
   shoppingLists   ShoppingList[]
   media           Media[]
   conversationMemberships ConversationMember[]
@@ -1363,6 +1381,7 @@ model Product {
   reviews        Review[]
   posts          Post[]
   entitlements   DigitalEntitlement[]
+  appStorePurchases AppStorePurchase[]
 
   search         Unsupported("tsvector")? // generiert, siehe Migration init
   @@unique([shopId, slug])
@@ -1466,6 +1485,7 @@ model Order {
   items           OrderItem[]
   payments        Payment[]
   refunds         Refund[]
+  appStorePurchase AppStorePurchase?
   shipments       Shipment[]
   events          OrderEvent[]
   reviews         Review[]
@@ -1586,6 +1606,47 @@ model DigitalEntitlement {
   createdAt     DateTime @default(now())
 
   @@unique([userId, productId])
+}
+
+/// Kauf eines digitalen Produkts in der iOS-App über Apple (In-App-Kauf, §13.7).
+/// Apple ist dort Verkäufer gegenüber der Kundschaft; der Shop erhält denselben Anteil wie bei
+/// einem Web-Verkauf per Stripe-Überweisung aus dem Plattformguthaben.
+model AppStorePurchase {
+  id                    String                 @id @default(cuid())
+  /// appAccountToken (UUID), den die App beim Kauf an Apple mitgibt
+  token                 String                 @unique
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  appleProductId        String
+  /// Preis in der App (Preisstufe inkl. Aufschlag) und Web-Preis zum Kaufzeitpunkt
+  priceMinor            Int
+  webPriceMinor         Int
+  /// Anteil des Shops = Web-Preis − Plattformprovision (wie beim Web-Verkauf)
+  sellerNetMinor        Int
+  currency              String                 @default("CHF")
+  status                AppStorePurchaseStatus @default(PENDING)
+  transactionId         String?                @unique
+  originalTransactionId String?
+  environment           String?
+  applePriceMilli       Int?
+  appleCurrency         String?
+  storefront            String?
+  orderId               String?                @unique
+  order                 Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  transferStatus        SellerTransferStatus   @default(NONE)
+  transferId            String?
+  transferAttempts      Int                    @default(0)
+  transferError         String?
+  expiresAt             DateTime
+  completedAt           DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([transferStatus, updatedAt])
 }
 
 model PayoutRecord {
