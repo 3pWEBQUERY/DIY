@@ -85,7 +85,7 @@ export function Segments({ items, active, className }: { items: { key: string; l
           className={cn("flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[13px] text-ink-2 transition-colors hover:bg-moss-soft/60", active === s.key && "bg-moss font-semibold text-paper hover:bg-moss")}
         >
           {s.label}
-          {s.count != null && <span className={cn("font-mono text-[11px]", active === s.key ? "text-paper/70" : "text-muted")}>{s.count}</span>}
+          {s.count != null && <span className={cn("font-mono text-[11px]", active === s.key ? "text-paper" : "text-muted")}>{s.count}</span>}
         </Link>
       ))}
     </nav>

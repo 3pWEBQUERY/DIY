@@ -15,6 +15,7 @@ import { sendMail } from "@/server/mail";
 import { audit } from "@/server/audit";
 import { env } from "@/server/env";
 import { requireFlag } from "@/server/flags";
+import { BRAND } from "@/config/brand";
 
 const VERIFY_HOURS = 48;
 const RESET_MINUTES = 60;
@@ -46,7 +47,7 @@ export async function sendVerification(userId: string, email: string) {
   await sendMail(
     email,
     "Bestätige deine E-Mail-Adresse",
-    "Willkommen bei Werkuno! Bitte bestätige deine E-Mail-Adresse, damit wir dich bei wichtigen Ereignissen erreichen können.\n\nDer Link ist 48 Stunden gültig.",
+    `Willkommen bei ${BRAND.name}! Bitte bestätige deine E-Mail-Adresse, damit wir dich bei wichtigen Ereignissen erreichen können.\n\nDer Link ist 48 Stunden gültig.`,
     { eyebrow: "Willkommen", cta: { label: "E-Mail bestätigen", url: `${env().APP_URL}/verifizieren/${raw}` } },
   );
 }

@@ -10,6 +10,8 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
+  // Statische Datei ohne Build-Schritt – kann config/brand.ts nicht importieren. Der Server schickt den
+  // Titel (BRAND.name) immer mit; dieser Rückfall muss bei einer Umbenennung von Hand angepasst werden.
   const title = data.title || "Werkuno";
   const options = {
     body: data.body || "Es gibt Neuigkeiten.",

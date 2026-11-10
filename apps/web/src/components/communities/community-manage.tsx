@@ -12,7 +12,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Label, Select, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { useAction } from "@/lib/use-action";
-import { cn, formatDate, relativeTime } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+import { RelativeTime } from "@/components/ui/relative-time";
 import {
   addCommunityProjectAction,
   createChallengeAction,
@@ -70,7 +71,7 @@ export function RequestsList({ communityId, requests }: { communityId: string; r
     <ul className="divide-y divide-line">
       {requests.map((r) => (
         <li key={r.userId} className="flex flex-wrap items-center justify-between gap-3 py-3">
-          <PersonCell p={r}> · angefragt {relativeTime(r.since)}</PersonCell>
+          <PersonCell p={r}> · angefragt <RelativeTime date={r.since} /></PersonCell>
           <div className="flex gap-2">
             <Button size="sm" disabled={pending} onClick={() => run(() => decideRequestAction(communityId, r.userId, true))}><Check size={14} /> Freigeben</Button>
             <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => decideRequestAction(communityId, r.userId, false))}><X size={14} /> Ablehnen</Button>
@@ -114,7 +115,7 @@ export function InvitePanel({ communityId, invited }: { communityId: string; inv
           <ul className="divide-y divide-line">
             {invited.map((r) => (
               <li key={r.userId} className="flex items-center justify-between gap-3 py-3">
-                <PersonCell p={r}> · eingeladen {relativeTime(r.since)}</PersonCell>
+                <PersonCell p={r}> · eingeladen <RelativeTime date={r.since} /></PersonCell>
                 <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => revokeInviteAction(communityId, r.userId))}>Zurückziehen</Button>
               </li>
             ))}

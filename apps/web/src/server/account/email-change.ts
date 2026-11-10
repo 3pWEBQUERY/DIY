@@ -8,6 +8,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { sendMail } from "@/server/mail";
 import { env } from "@/server/env";
 import { sha256, token, verifyPassword } from "@/server/crypto";
+import { BRAND } from "@/config/brand";
 
 /**
  * E-Mail-Adresse selbst ändern: Passwort bestätigen → Link an die NEUE Adresse → erst nach
@@ -40,11 +41,11 @@ export async function requestEmailChange(userId: string, input: unknown) {
     await audit({ actorId: userId, action: "account.email_change_requested", targetType: "USER", targetId: userId }, tx);
   });
   const app = env().APP_URL;
-  await sendMail(d.email, "Bestätige deine neue E-Mail-Adresse", `Du möchtest diese Adresse für dein Werkuno-Konto verwenden. Bestätige die Änderung mit dem Button – erst dann wird umgestellt.\n\nDer Link ist ${EMAIL_CHANGE_HOURS} Stunden gültig. Warst du das nicht, kannst du diese E-Mail ignorieren.`, {
+  await sendMail(d.email, "Bestätige deine neue E-Mail-Adresse", `Du möchtest diese Adresse für dein ${BRAND.name}-Konto verwenden. Bestätige die Änderung mit dem Button – erst dann wird umgestellt.\n\nDer Link ist ${EMAIL_CHANGE_HOURS} Stunden gültig. Warst du das nicht, kannst du diese E-Mail ignorieren.`, {
     eyebrow: "Konto & Sicherheit",
     cta: { label: "Neue Adresse bestätigen", url: `${app}/e-mail-bestaetigen/${raw}` },
   });
-  await sendMail(u.email, "Änderung deiner E-Mail-Adresse angefragt", `Für dein Werkuno-Konto wurde eine neue E-Mail-Adresse angegeben: ${mask(d.email)}. Sie wird erst aktiv, wenn der Bestätigungslink an die neue Adresse angeklickt wird.\n\nWarst du das nicht? Ändere sofort dein Passwort und beende alle Sitzungen.`, {
+  await sendMail(u.email, "Änderung deiner E-Mail-Adresse angefragt", `Für dein ${BRAND.name}-Konto wurde eine neue E-Mail-Adresse angegeben: ${mask(d.email)}. Sie wird erst aktiv, wenn der Bestätigungslink an die neue Adresse angeklickt wird.\n\nWarst du das nicht? Ändere sofort dein Passwort und beende alle Sitzungen.`, {
     eyebrow: "Konto & Sicherheit",
     cta: { label: "Sicherheit prüfen", url: `${app}/einstellungen/sicherheit` },
   }).catch(() => {});
@@ -73,7 +74,7 @@ export async function confirmEmailChange(raw: string) {
     if ((e as { code?: string }).code === "P2002" || (e as { code?: string }).code === "CONFLICT") return null;
     throw e;
   }
-  await sendMail(before.email, "Deine E-Mail-Adresse wurde geändert", `Die E-Mail-Adresse deines Werkuno-Kontos lautet jetzt ${mask(newEmail)}. Diese Adresse erhält ab sofort keine Mails mehr zu deinem Konto.\n\nWarst du das nicht? Melde dich sofort beim Support.`, {
+  await sendMail(before.email, "Deine E-Mail-Adresse wurde geändert", `Die E-Mail-Adresse deines ${BRAND.name}-Kontos lautet jetzt ${mask(newEmail)}. Diese Adresse erhält ab sofort keine Mails mehr zu deinem Konto.\n\nWarst du das nicht? Melde dich sofort beim Support.`, {
     eyebrow: "Konto & Sicherheit",
     cta: { label: "Hilfe & Support", url: `${env().APP_URL}/hilfe` },
   }).catch(() => {});

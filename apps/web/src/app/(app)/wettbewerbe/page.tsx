@@ -5,8 +5,9 @@ import { Page, PageHeader } from "@/components/shell/page";
 import { CompetitionCard } from "@/components/communities/competition-card";
 import { Empty, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
+import { BRAND } from "@/config/brand";
 
-export const metadata: Metadata = { title: "Wettbewerbe", description: "Wettbewerbe aus den Werkuno-Communities: Projekt einreichen, abstimmen, gewinnen." };
+export const metadata: Metadata = { title: "Wettbewerbe", description: `Wettbewerbe aus den ${BRAND.name}-Communities: Projekt einreichen, abstimmen, gewinnen.` };
 export const dynamic = "force-dynamic";
 
 /** Übersicht aller laufenden, kommenden und kürzlich entschiedenen Wettbewerbe. */

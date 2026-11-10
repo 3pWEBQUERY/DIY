@@ -2,6 +2,7 @@ import "server-only";
 import Stripe from "stripe";
 import { env, features } from "@/server/env";
 import { fail } from "@/server/errors";
+import { BRAND } from "@/config/brand";
 
 /**
  * Stripe-Adapter (PRD §13.6, §25.7) – Stripe Connect Express, Destination Charges.
@@ -34,7 +35,7 @@ export function stripe(): Stripe {
     client = new Stripe(key, {
       maxNetworkRetries: 2,
       timeout: 20_000,
-      appInfo: { name: "Werkuno Marktplatz" },
+      appInfo: { name: `${BRAND.name} Marktplatz` },
     });
   }
   return client;
@@ -70,7 +71,7 @@ export async function createConnectedAccount(input: { shopId: string; email: str
   const defaults = (feesCollector: "application" | "application_express") => ({
     currency: CURRENCY[country] ?? "chf",
     locales: ["de" as const],
-    profile: { business_url: input.shopUrl, doing_business_as: input.shopName, product_description: "Handgemachte Produkte und DIY-Materialien über Werkuno" },
+    profile: { business_url: input.shopUrl, doing_business_as: input.shopName, product_description: `Handgemachte Produkte und DIY-Materialien über ${BRAND.name}` },
     responsibilities: { fees_collector: feesCollector, losses_collector: "application" as const },
   });
   try {
@@ -149,7 +150,7 @@ export async function updatePayoutSchedule(accountId: string, s: { interval: Pay
 
 export async function createConnectedPayout(accountId: string, input: { amountMinor: number; currency: string; idempotencyKey: string }) {
   return stripe().payouts.create(
-    { amount: input.amountMinor, currency: input.currency.toLowerCase(), description: "Werkuno", metadata: { source: "werkuno" } },
+    { amount: input.amountMinor, currency: input.currency.toLowerCase(), description: BRAND.name, metadata: { source: "werkuno" } },
     { stripeAccount: accountId, idempotencyKey: input.idempotencyKey },
   );
 }
@@ -253,7 +254,7 @@ export async function createCheckoutSession(input: {
       payment_intent_data: {
         application_fee_amount: input.applicationFeeMinor,
         transfer_data: { destination: input.destinationAccountId },
-        description: `Werkuno Bestellung ${input.orderNumber}`,
+        description: `${BRAND.name} Bestellung ${input.orderNumber}`,
         metadata,
       },
     },

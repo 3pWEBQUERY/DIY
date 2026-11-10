@@ -8,8 +8,9 @@ import { Avatar } from "@/components/ui/misc";
 import { PageTransition } from "@/components/shell/page-transition";
 import { isPro } from "@/server/pro/service";
 import { ProMark } from "@/components/pro/pro-mark";
+import { BRAND } from "@/config/brand";
 
-export const metadata = { title: { default: "Werkuno Studio", template: "%s · Werkuno Studio" }, robots: { index: false } };
+export const metadata = { title: { default: `${BRAND.name} Studio`, template: `%s · ${BRAND.name} Studio` }, robots: { index: false } };
 
 /** Werkuno Studio – separater Verwaltungsbereich im selben Konto (§6.3). */
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,7 @@ export default async function StudioLayout({ children }: { children: React.React
           <Wordmark compact />
         </Link>
         <span className="h-5 w-px bg-line" />
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em]">Werkuno Studio</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em]">{BRAND.name} Studio</span>
         {pro && <ProMark />}
         <div className="ml-auto flex items-center gap-3">
           <span className="hidden text-sm text-muted sm:inline">{user.profile.displayName}</span>

@@ -15,10 +15,11 @@ import { Empty, SectionTitle, Notice } from "@/components/ui/misc";
 import { Glyph } from "@/components/ui/glyphs";
 import { LinkButton } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = {
   title: "Marktplatz",
-  description: "Handgemachtes, DIY-Materialsets und Anleitungen – direkt von Menschen aus der Werkuno-Community.",
+  description: `Handgemachtes, DIY-Materialsets und Anleitungen – direkt von Menschen aus der ${BRAND.name}-Community.`,
   alternates: { canonical: "/markt" },
 };
 
@@ -224,7 +225,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
             <div>
               <p className="spec mb-1.5">Selbst verkaufen</p>
               <p>
-                Du werkst selbst? <Link href="/studio/shop" className="font-semibold text-ink underline underline-offset-2">Eröffne deinen Shop</Link> im Werkuno Studio und verknüpfe Produkte mit deinen Projekten.
+                Du werkst selbst? <Link href="/studio/shop" className="font-semibold text-ink underline underline-offset-2">Eröffne deinen Shop</Link> im {BRAND.name} Studio und verknüpfe Produkte mit deinen Projekten.
               </p>
             </div>
           </aside>

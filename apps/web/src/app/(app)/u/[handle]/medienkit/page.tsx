@@ -13,6 +13,7 @@ import { Avatar, Notice } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
 import { compactNumber, formatDate } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 type Props = { params: Promise<{ handle: string }> };
 
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const kit = await getMediaKit(handle, null);
   if (!kit) return { title: "Medienkit", robots: { index: false } };
-  return { title: `Medienkit · ${kit.profile.displayName}`, description: kit.profile.bio?.slice(0, 160) || `Arbeiten und Zahlen von ${kit.profile.displayName} auf Werkuno.`, robots: { index: false } };
+  return { title: `Medienkit · ${kit.profile.displayName}`, description: kit.profile.bio?.slice(0, 160) || `Arbeiten und Zahlen von ${kit.profile.displayName} auf ${BRAND.name}.`, robots: { index: false } };
 }
 
 /** Creator Pro: Medienkit – beste Arbeiten und ehrlich beschriftete Zahlen auf einer Seite (druckbar). */
@@ -53,7 +54,7 @@ export default async function MediaKitPage({ params }: Props) {
       </div>
       {kit.isOwner && !kit.public && (
         <Notice tone="warn" className="mb-8 print:hidden" title="Nur für dich sichtbar">
-          Gib dein Medienkit im <Link href="/studio/pro" className="font-semibold underline">Werkuno Studio unter Creator Pro</Link> frei, damit andere es über den Link sehen können.
+          Gib dein Medienkit im <Link href="/studio/pro" className="font-semibold underline">{BRAND.name} Studio unter Creator Pro</Link> frei, damit andere es über den Link sehen können.
         </Notice>
       )}
 
@@ -70,7 +71,7 @@ export default async function MediaKitPage({ params }: Props) {
                   <MapPin size={13} aria-hidden /> {p.region}
                 </span>
               )}
-              <span>Auf Werkuno seit {formatDate(p.memberSince, { month: "long", year: "numeric" })}</span>
+              <span>Auf {BRAND.name} seit {formatDate(p.memberSince, { month: "long", year: "numeric" })}</span>
             </p>
             {p.bio && <p className="mt-4 max-w-2xl whitespace-pre-line text-[15.5px] leading-relaxed text-ink-2">{p.bio}</p>}
             {p.categories.length > 0 && (
@@ -150,7 +151,7 @@ export default async function MediaKitPage({ params }: Props) {
         </footer>
       </article>
       <p className="mt-4 text-[12px] leading-relaxed text-muted">
-        Zahlen live von Werkuno, Stand {formatDate(kit.generatedAt, { day: "numeric", month: "long", year: "numeric" })}. Aufrufe zählen Seitenaufrufe, nicht eindeutige Personen; wiederholte Aufrufe innerhalb von 30 Minuten zählen einmal, eigene nie.
+        Zahlen live von {BRAND.name}, Stand {formatDate(kit.generatedAt, { day: "numeric", month: "long", year: "numeric" })}. Aufrufe zählen Seitenaufrufe, nicht eindeutige Personen; wiederholte Aufrufe innerhalb von 30 Minuten zählen einmal, eigene nie.
       </p>
     </div>
   );

@@ -9,6 +9,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Badge, Empty, Stat } from "@/components/ui/misc";
 import { Cover } from "@/components/ui/media";
 import { compactNumber, formatDate, relativeTime } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Blog" };
 
@@ -44,7 +45,7 @@ export default async function StudioBlogPage({ searchParams }: { searchParams: P
   return (
     <div className="max-w-[1100px]">
       <PageHeader
-        kicker="Werkuno Studio · Blog"
+        kicker={`${BRAND.name} Studio · Blog`}
         title="Deine Artikel"
         description="Schreibe Werkstattberichte, Materialkunde oder Hintergründe zu deinen Projekten. Entwürfe sind nur für dich sichtbar."
         actions={

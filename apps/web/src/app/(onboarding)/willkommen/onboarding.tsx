@@ -108,7 +108,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
               <p className="mt-4 max-w-md text-lg text-ink-2">Beginne mit einem einfachen Foto deiner aktuellen Arbeit – oder lege direkt ein Projekt an und dokumentiere es Schritt für Schritt.</p>
             </>
           )}
-          {error && <Notice tone="danger" className="mt-6">{error}</Notice>}
+          {error && <Notice tone="danger" alert className="mt-6">{error}</Notice>}
         </div>
 
         <div>

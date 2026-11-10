@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/server/db";
+import { BRAND } from "@/config/brand";
 
 /**
  * Datenauskunft (revDSG Art. 25 / Datenportabilität Art. 28, DSGVO Art. 15/20, PRD §23.1):
@@ -75,7 +76,7 @@ export async function exportUserData(userId: string) {
 
   return {
     exportedAt: new Date().toISOString(),
-    hinweis: "Datenauskunft von Werkuno. Nicht enthalten: Passwort, Zwei-Faktor-Schlüssel und Zugangstokens (aus Sicherheitsgründen) sowie Inhalte anderer Personen.",
+    hinweis: `Datenauskunft von ${BRAND.name}. Nicht enthalten: Passwort, Zwei-Faktor-Schlüssel und Zugangstokens (aus Sicherheitsgründen) sowie Inhalte anderer Personen.`,
     konto: { user, preference, customerDetails, subscription, sessions, devices, loginProviders: authAccounts },
     inhalte: { posts, coauthorships, projects, contributions, tutorials, tutorialProgress, articles, comments, reactions, pollVotes, media },
     netzwerk: { following: follows, followerCount: followers, blocks, mutes, memberships, eventAttendance, challengeEntries, challengeVotes },

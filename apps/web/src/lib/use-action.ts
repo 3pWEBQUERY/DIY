@@ -6,6 +6,7 @@ import type { ActionResult } from "@/server/errors";
 import { toast } from "@/components/ui/toast";
 import { isStaleDeployError, promptReload } from "./stale-deploy";
 import { reportClientError } from "./report-error";
+import { BRAND } from "@/config/brand";
 
 export const OFFLINE_MESSAGE = "Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und versuche es erneut – deine Eingaben bleiben erhalten.";
 
@@ -21,7 +22,7 @@ export async function callAction<T>(fn: () => Promise<ActionResult<T>>): Promise
     unstable_rethrow(e);
     if (isStaleDeployError(e)) {
       promptReload();
-      return { ok: false, code: "UNAVAILABLE", error: "Werkuno wurde aktualisiert – bitte lade die Seite neu." };
+      return { ok: false, code: "UNAVAILABLE", error: `${BRAND.name} wurde aktualisiert – bitte lade die Seite neu.` };
     }
     reportClientError(e);
     return { ok: false, code: "UNAVAILABLE", error: OFFLINE_MESSAGE };

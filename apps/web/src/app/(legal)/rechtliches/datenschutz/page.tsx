@@ -31,7 +31,7 @@ export default function PrivacyPage() {
                   ["EU-Vertretung (Art. 27 DSGVO)", legalValue("euRepresentative", "Name, Adresse in der EU – vor Launch benennen")],
                 ]}
               />
-              <p>Bei Fragen zum Datenschutz kannst du uns jederzeit schreiben – auch über <Link href="/einstellungen/hilfe-support">Hilfe & Support</Link> mit dem Thema „Datenschutz & Auskunft“.</p>
+              <p>Bei Fragen zum Datenschutz kannst du uns jederzeit schreiben – per E-Mail an <a href={`mailto:${BRAND.supportEmail}?subject=${encodeURIComponent("Datenschutz & Auskunft")}`}>{BRAND.supportEmail}</a> oder – mit Konto – über <Link href="/einstellungen/hilfe-support">Hilfe & Support</Link> mit dem Thema „Datenschutz & Auskunft“. Alle Wege findest du unter <Link href="/kontakt">Kontakt</Link>.</p>
             </>
           ),
         },
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
               <h3>Technische Daten</h3>
               <ul>
                 <li>Sitzungsdaten (Gerätebezeichnung wie „Safari auf macOS“, Zeitpunkt der letzten Nutzung, ein gekürzter Hash der IP-Adresse) – zur Sicherheit deines Kontos</li>
-                <li>Pseudonyme Nutzungsereignisse (z. B. „Projekt veröffentlicht“, Seitenaufrufe) ohne Klartext-Personendaten – für Statistiken im Werkuno Studio und zur Verbesserung der Plattform</li>
+                <li>Pseudonyme Nutzungsereignisse (z. B. „Projekt veröffentlicht“, Seitenaufrufe) ohne Klartext-Personendaten – für Statistiken im {BRAND.name} Studio und zur Verbesserung der Plattform</li>
               </ul>
             </>
           ),

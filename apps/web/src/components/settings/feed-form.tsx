@@ -35,28 +35,35 @@ export function FeedForm({ interests, hidden, feedDefault }: { interests: string
             <li key={c.slug} className="flex flex-wrap items-center gap-3 py-2.5">
               <Glyph name={c.glyph} size={20} className="text-ink" />
               <span className="min-w-0 flex-1 text-sm font-medium">{c.name}</span>
-              <span role="radiogroup" aria-label={c.name} className="flex gap-0.5 rounded-full border border-line-strong bg-card p-0.5">
+              {/* Native Radios: ein Tab-Stopp je Kategorie, Pfeiltasten wechseln die Auswahl (ARIA-Radiogruppe) */}
+              <fieldset className="flex gap-0.5 rounded-full border border-line-strong bg-card p-0.5">
+                <legend className="sr-only">{c.name}</legend>
                 {(["interest", "neutral", "hidden"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="radio"
-                    aria-checked={modes[c.slug] === m}
-                    onClick={() => setModes((s) => ({ ...s, [c.slug]: m }))}
-                    className={cn(
-                      "h-7 rounded-full px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-moss-soft/60 hover:text-ink",
-                      modes[c.slug] === m &&
-                        (m === "interest"
-                          ? "bg-moss font-semibold text-paper hover:bg-moss hover:text-paper"
-                          : m === "hidden"
-                            ? "bg-moss-ink font-semibold text-paper hover:bg-moss-ink hover:text-paper"
-                            : "bg-moss-soft font-semibold text-moss-ink hover:bg-moss-soft hover:text-moss-ink"),
-                    )}
-                  >
-                    {m === "interest" ? "Interessiert mich" : m === "neutral" ? "Neutral" : "Ausblenden"}
-                  </button>
+                  <label key={m} className="relative cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`mode-${c.slug}`}
+                      value={m}
+                      checked={modes[c.slug] === m}
+                      onChange={() => setModes((s) => ({ ...s, [c.slug]: m }))}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={cn(
+                        "grid h-7 place-items-center rounded-full px-3 text-[12.5px] text-ink-2 transition-colors hover:bg-moss-soft/60 hover:text-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-moss",
+                        modes[c.slug] === m &&
+                          (m === "interest"
+                            ? "bg-moss font-semibold text-paper hover:bg-moss hover:text-paper"
+                            : m === "hidden"
+                              ? "bg-moss-ink font-semibold text-paper hover:bg-moss-ink hover:text-paper"
+                              : "bg-moss-soft font-semibold text-moss-ink hover:bg-moss-soft hover:text-moss-ink"),
+                      )}
+                    >
+                      {m === "interest" ? "Interessiert mich" : m === "neutral" ? "Neutral" : "Ausblenden"}
+                    </span>
+                  </label>
                 ))}
-              </span>
+              </fieldset>
             </li>
           ))}
         </ul>

@@ -7,6 +7,7 @@ import { features } from "@/server/env";
 import { captureError } from "@/server/monitoring";
 import { NOTIFICATION_LABEL, type NotificationType } from "@werkraum/shared";
 import { notificationHref, notificationText } from "@/server/notifications-format";
+import { BRAND } from "@/config/brand";
 
 /** E-Mail-Versand von Benachrichtigungen (sofort / täglich / wöchentlich gebündelt) – läuft im Worker. */
 
@@ -127,7 +128,7 @@ async function mailBatch(pending: PendingMail[]) {
     // Sicherheits-, Bestell- und Moderationsmails lassen sich nicht abbestellen – nur Neuigkeiten
     const optional = list.some((n) => !ALWAYS_INSTANT.includes(n.type as NotificationType));
     const target = list.length === 1 ? mailHref(list[0]!) : "/benachrichtigungen";
-    const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf Werkuno` : `${list.length} Neuigkeiten auf Werkuno`;
+    const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf ${BRAND.name}` : `${list.length} Neuigkeiten auf ${BRAND.name}`;
     try {
       const r = await sendMail(to, subject, list.length > items.length ? `Das ist in deiner Werkstatt passiert.${more}` : "Das ist in deiner Werkstatt passiert:", {
         eyebrow: list.length === 1 ? "Neuigkeit" : `${list.length} Neuigkeiten`,

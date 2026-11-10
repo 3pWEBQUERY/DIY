@@ -66,7 +66,8 @@ export function MarketingFooter() {
             ["/rechtliches/datenschutz", "Datenschutz"],
             ["/rechtliches/agb", "Nutzungsbedingungen"],
             ["/rechtliches/impressum", "Impressum"],
-            ["/hilfe", "Hilfe & Kontakt"],
+            ["/hilfe", "Hilfe"],
+            ["/kontakt", "Kontakt"],
           ]}
         />
       </div>

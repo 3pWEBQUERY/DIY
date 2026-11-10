@@ -36,14 +36,14 @@ export default async function StudioStatsPage({ searchParams }: { searchParams: 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           {pro ? (
             <>
-              <div className="inline-flex rounded-xl bg-sunken p-1 text-[13px]" role="tablist" aria-label="Zeitraum">
+              <div className="inline-flex rounded-xl bg-sunken p-1 text-[13px]" role="group" aria-label="Zeitraum">
                 {(
                   [
                     ["wochen", "12 Wochen", "/studio/statistiken"],
                     ["jahr", "12 Monate", "/studio/statistiken?zeitraum=jahr"],
                   ] as const
                 ).map(([k, l, href]) => (
-                  <Link key={k} href={href} role="tab" aria-selected={(k === "jahr") === year} className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted hover:text-ink", (k === "jahr") === year && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
+                  <Link key={k} href={href} aria-current={(k === "jahr") === year ? "page" : undefined} className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted hover:text-ink", (k === "jahr") === year && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
                     {l}
                   </Link>
                 ))}

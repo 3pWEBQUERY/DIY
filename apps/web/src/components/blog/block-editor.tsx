@@ -288,7 +288,7 @@ function MenuList({ items, active, onPick, id }: { items: MenuItem[]; active: nu
               <span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center border rounded-xl", i === active ? "border-paper/30" : "border-line-strong")}>{m.icon}</span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{m.label}</span>
-                <span className={cn("block truncate text-xs", i === active ? "text-paper/70" : "text-muted")}>{m.hint}</span>
+                <span className={cn("block truncate text-xs", i === active ? "text-paper" : "text-muted")}>{m.hint}</span>
               </span>
             </button>
           </li>

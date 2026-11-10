@@ -63,7 +63,7 @@ test.describe.serial("Marktplatz", () => {
 
   test("Bewertungen erscheinen im Profil – bei Shops immer, bei Käufer:innen erst mit Bewertung", async ({ page }) => {
     await page.goto("/u/elias.garten");
-    await expect(page.getByRole("tablist").first()).not.toContainText("Bewertungen");
+    await expect(page.getByRole("navigation", { name: "Profilbereiche" })).not.toContainText("Bewertungen");
     const item = await one<{ id: string; productId: string }>(`SELECT id, "productId" FROM "OrderItem" WHERE "orderId" = $1 LIMIT 1`, [orderId]);
     await sql(
       `INSERT INTO "Review" (id, "orderId", "orderItemId", "productId", "authorId", "productRating", "sellerRating", body, "createdAt", "updatedAt")
@@ -75,6 +75,6 @@ test.describe.serial("Marktplatz", () => {
     await page.goto("/u/lena.haekelt?tab=bewertungen");
     await expect(page.locator("main")).toContainText("E2E: Wunderschön gearbeitet.");
     await page.goto("/u/mattia.holz");
-    await expect(page.getByRole("tablist").first()).toContainText("Bewertungen");
+    await expect(page.getByRole("navigation", { name: "Profilbereiche" })).toContainText("Bewertungen");
   });
 });

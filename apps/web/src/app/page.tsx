@@ -66,6 +66,13 @@ function Chapter({ n, kicker, title, children, aside }: { n: string; kicker: str
   );
 }
 
+const ZAHLWORT = ["Null", "Eine", "Zwei", "Drei", "Vier", "Fünf", "Sechs", "Sieben", "Acht", "Neun", "Zehn", "Elf", "Zwölf", "Dreizehn", "Vierzehn", "Fünfzehn", "Sechzehn", "Siebzehn", "Achtzehn", "Neunzehn", "Zwanzig"];
+/** „Fünfzehn Werkstätten“ – aus der Zahl aktiver Kategorien (Admins können Kategorien abschalten). */
+function werkstaetten(n: number) {
+  const word = ZAHLWORT[n] ?? String(n);
+  return n === 1 ? `${word} Werkstatt` : `${word} Werkstätten`;
+}
+
 export default async function Landing() {
   if (await currentUser()) redirect("/feed");
   const d = await landingData();
@@ -234,7 +241,7 @@ export default async function Landing() {
           <div className="mx-auto grid max-w-[1400px] gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[1fr_2fr] lg:py-28">
             <div>
               <p className="spec text-ink">Inhaltsverzeichnis</p>
-              <h2 className="display mt-4 text-5xl">Fünfzehn Werkstätten unter einem Dach.</h2>
+              <h2 className="display mt-4 text-5xl">{werkstaetten(listCategories({ activeOnly: true }).length)} unter einem Dach.</h2>
               <p className="mt-5 max-w-sm leading-relaxed text-ink-2">
                 Wir starten mit Häkeln, Stricken und Nähen – und bauen von Anfang an für Holz, Keramik, 3D-Druck, Elektronik und alles, was Hände erschaffen.
               </p>

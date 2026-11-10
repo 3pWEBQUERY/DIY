@@ -2,6 +2,7 @@
 
 import { unstable_isUnrecognizedActionError } from "next/navigation";
 import { confirmDialog } from "@/components/ui/confirm";
+import { BRAND } from "@/config/brand";
 
 /**
  * Nach einem Deploy kann eine noch offene Seite auf Code verweisen, den es nicht mehr gibt
@@ -20,7 +21,7 @@ export function isStaleDeployError(e: unknown) {
 let asking = false;
 
 export const UPDATE_MESSAGE = {
-  title: "Werkuno wurde aktualisiert",
+  title: `${BRAND.name} wurde aktualisiert`,
   body: "Eine neue Version ist online. Lade die Seite neu, damit alles wieder funktioniert. Nicht gespeicherte Eingaben auf dieser Seite gehen dabei verloren – kopiere sie vorher bei Bedarf.",
 };
 

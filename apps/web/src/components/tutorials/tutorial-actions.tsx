@@ -8,6 +8,7 @@ import { buttonClass } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { markTutorialVersionSeenAction } from "@/app/(app)/anleitungen/actions";
 import { callAction } from "@/lib/use-action";
+import { formatDate } from "@/lib/utils";
 
 /** Aktionsleiste einer Anleitung: Gefällt mir, Merken, Teilen, Melden bzw. Bearbeiten. */
 export function TutorialActions({
@@ -51,7 +52,7 @@ export function VersionBanner({ tutorialId, version, changeNote, isMajor, publis
       <div className="min-w-0 flex-1">
         <p className="spec text-moss-ink">
           Neue Version verfügbar · v{version}
-          {isMajor ? " · wesentliche Änderung" : ""} · {new Date(publishedAt).toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}
+          {isMajor ? " · wesentliche Änderung" : ""} · {formatDate(publishedAt, { day: "numeric", month: "long", year: "numeric" })}
         </p>
         <p className="mt-1 text-[15px] text-ink">
           {changeNote || "Die Anleitung wurde überarbeitet."} <span className="text-muted">Dein Fortschritt bleibt erhalten – geänderte Schritte prüfst du am besten noch einmal.</span>

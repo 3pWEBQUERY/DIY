@@ -8,7 +8,8 @@ import type { CommentView } from "@/server/social/interactions";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { relativeTime, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { commentAction, deleteCommentAction, listCommentsAction } from "@/app/(app)/social-actions";
 import { LikeButton, ReportDialog } from "./actions";
 import { callAction } from "@/lib/use-action";
@@ -168,7 +169,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <Link href={`/u/${c.author.handle}`} className="text-sm font-semibold hover:underline">{c.author.displayName}</Link>
-          <span className="text-xs text-muted">{relativeTime(c.createdAt)}</span>
+          <RelativeTime date={c.createdAt} className="text-xs text-muted" />
           {c.isQuestion && <span className="spec text-clay">Frage</span>}
           {c.isAnswer && <span className="spec text-moss">Lösung</span>}
         </div>

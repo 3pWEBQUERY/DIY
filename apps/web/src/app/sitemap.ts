@@ -38,7 +38,7 @@ const base = () => process.env.APP_URL ?? "http://localhost:3000";
 const u = (p: string) => `${base()}${p}`;
 
 function staticPages(): MetadataRoute.Sitemap {
-  const pages = ["/", "/entdecken", "/projekte", "/anleitungen", "/communities", "/markt", "/blogs", "/materialien", "/wettbewerbe", "/events", "/hilfe", "/richtlinien/community", "/richtlinien/marktplatz", "/richtlinien/sicherheit", "/richtlinien/urheberrecht", ...(LEGAL_FINAL ? LEGAL_PAGES : [])];
+  const pages = ["/", "/entdecken", "/projekte", "/anleitungen", "/communities", "/markt", "/blogs", "/materialien", "/wettbewerbe", "/events", "/hilfe", "/kontakt", "/richtlinien/community", "/richtlinien/marktplatz", "/richtlinien/sicherheit", "/richtlinien/urheberrecht", ...(LEGAL_FINAL ? LEGAL_PAGES : [])];
   return pages.map((p) => ({ url: u(p), changeFrequency: "daily" as const, priority: p === "/" ? 1 : 0.7 }));
 }
 

@@ -13,6 +13,7 @@ import { audit } from "@/server/audit";
 import { hasRole } from "@/server/authz";
 import { appUrl, isStripeError, paymentsMode, stripe } from "@/server/commerce/stripe";
 import type { SessionUser } from "@/server/auth/session";
+import { BRAND } from "@/config/brand";
 
 /**
  * Creator Pro (PRD §22.3) – optionales Abo für Menschen, die mit ihren Projekten wachsen wollen.
@@ -106,7 +107,7 @@ async function ensureProduct() {
   try {
     return await stripe().products.retrieve(PRODUCT_ID);
   } catch {
-    return stripe().products.create({ id: PRODUCT_ID, name: PRO_NAME, description: "Werkzeuge für Creator auf Werkuno", metadata: { kind: "pro" } });
+    return stripe().products.create({ id: PRODUCT_ID, name: PRO_NAME, description: `Werkzeuge für Creator auf ${BRAND.name}`, metadata: { kind: "pro" } });
   }
 }
 
@@ -246,7 +247,7 @@ export async function confirmProCheckout(userId: string, sessionId: string) {
 export async function setProCancel(user: Pick<SessionUser, "id">, cancel: boolean) {
   const s = await db.subscription.findUnique({ where: { userId: user.id } });
   if (!s || !isActiveSubscription(s)) throw fail.invalid(`Du hast kein aktives ${PRO_NAME}-Abo.`);
-  if (s.provider === "comp") throw fail.invalid("Dein Zugang wurde dir von Werkuno geschenkt und läuft ohne Abo.");
+  if (s.provider === "comp") throw fail.invalid(`Dein Zugang wurde dir von ${BRAND.name} geschenkt und läuft ohne Abo.`);
   await rateLimit(`pro-cancel:${user.id}`, 20, 3600);
   if (s.provider === "stripe" && s.subscriptionId) {
     try {
@@ -413,7 +414,7 @@ export async function grantPro(actor: Pick<SessionUser, "id" | "role">, userId: 
   await db.subscription.upsert({ where: { userId }, create: { userId, ...data }, update: data });
   await syncProFlag(userId);
   await audit({ action: "pro.grant", actorId: actor.id, targetType: "USER", targetId: userId, meta: { days, note } });
-  await tell(userId, `Werkuno hat dir ${PRO_NAME} geschenkt${days ? ` – für ${days} Tage` : ""}. Viel Freude damit!`);
+  await tell(userId, `${BRAND.name} hat dir ${PRO_NAME} geschenkt${days ? ` – für ${days} Tage` : ""}. Viel Freude damit!`);
   return { granted: true };
 }
 

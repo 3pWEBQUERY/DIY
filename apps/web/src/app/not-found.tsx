@@ -10,7 +10,7 @@ export default function NotFound() {
           <Wordmark />
         </Link>
       </header>
-      <div className="grid place-items-center px-6 pb-20">
+      <main id="main" className="grid place-items-center px-6 pb-20">
         <div className="max-w-lg text-center">
           <svg viewBox="0 0 320 90" className="mx-auto mb-10 w-72 text-ink" aria-hidden>
             <path d="M10 60 C 60 60, 70 20, 120 20 S 160 60, 150 70" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -26,7 +26,7 @@ export default function NotFound() {
             <LinkButton href="/entdecken" variant="outline">Entdecken</LinkButton>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

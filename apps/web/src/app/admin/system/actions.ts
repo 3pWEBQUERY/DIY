@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { act } from "@/server/errors";
 import { requireRole } from "@/server/authz";
 import { resetSetting, setFlagRollout, toggleFlag, updateSetting } from "@/server/admin/system";
+import { BRAND } from "@/config/brand";
 
 export async function updateSettingAction(key: string, value: unknown) {
   return act(async () => {
@@ -48,7 +49,7 @@ export async function sendTestMailAction() {
     const u = await requireRole("ADMIN");
     const { sendMail } = await import("@/server/mail");
     const { audit } = await import("@/server/audit");
-    const r = await sendMail(u.email, "Test-E-Mail von Werkuno", `Hallo!\n\nDiese Test-E-Mail bestätigt, dass der Versand über Resend funktioniert.\n\nGesendet am ${new Date().toLocaleString("de-CH", { timeZone: "Europe/Zurich" })}.`, {
+    const r = await sendMail(u.email, `Test-E-Mail von ${BRAND.name}`, `Hallo!\n\nDiese Test-E-Mail bestätigt, dass der Versand über Resend funktioniert.\n\nGesendet am ${new Date().toLocaleString("de-CH", { timeZone: "Europe/Zurich" })}.`, {
       eyebrow: "Systemtest",
       cta: { label: "Zur Systemübersicht", url: `${(await import("@/server/env")).env().APP_URL}/admin/system` },
     });

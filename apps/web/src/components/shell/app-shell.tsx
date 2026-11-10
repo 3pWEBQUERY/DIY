@@ -5,6 +5,7 @@ import { currentUser } from "@/server/auth/session";
 import { hasRoleIgnoringMfa } from "@/server/authz";
 import { SideNav, BottomNav, MobileMoreMenu, type ShellUser } from "./side-nav";
 import { CommandPalette } from "./command-palette";
+import { ShortcutsHelp } from "./shortcuts";
 import { Wordmark } from "./wordmark";
 import { MobileSearchButton } from "./mobile-search";
 import { PageTransition } from "./page-transition";
@@ -64,6 +65,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <BottomNav user={shellUser} hide={hide} />
       <CommandPalette />
+      <ShortcutsHelp />
     </div>
     </LiveCountsProvider>
   );

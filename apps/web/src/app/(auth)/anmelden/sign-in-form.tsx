@@ -12,7 +12,7 @@ export function SignInForm({ next, apple, error }: { next?: string; apple: boole
   const { run, pending, fields, error: err } = useAction(signInAction, { redirect: (d) => d.next });
   return (
     <div className="mt-8">
-      {error === "apple" && <Notice tone="danger" className="mb-6">Die Anmeldung mit Apple ist fehlgeschlagen. Bitte versuche es erneut.</Notice>}
+      {error === "apple" && <Notice tone="danger" alert className="mb-6">Die Anmeldung mit Apple ist fehlgeschlagen. Bitte versuche es erneut.</Notice>}
       {apple && (
         <>
           <AppleButton />

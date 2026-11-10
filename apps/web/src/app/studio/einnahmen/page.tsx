@@ -13,6 +13,7 @@ import { PayoutPanel } from "@/components/commerce/payout-panel";
 import { getPayoutOverview, PAYOUT_STATUS_LABEL } from "@/server/commerce/payouts";
 import { Empty, Notice, SectionTitle, Stat } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Einnahmen & Auszahlungen" };
 
@@ -39,7 +40,7 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <PageHeader kicker="Werkuno Studio · Marktplatz" title="Einnahmen & Auszahlungen" description="Alle Beträge in Rappen genau – so, wie sie verbucht wurden." />
+      <PageHeader kicker={`${BRAND.name} Studio · Marktplatz`} title="Einnahmen & Auszahlungen" description="Alle Beträge in Rappen genau – so, wie sie verbucht wurden." />
       <TabLinks active={range} tabs={RANGES.map((x) => ({ key: x.key, label: x.label, href: `/studio/einnahmen?zeitraum=${x.key}` }))} />
 
       {mode === "simulated" && (

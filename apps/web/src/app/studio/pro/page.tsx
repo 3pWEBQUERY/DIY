@@ -15,6 +15,7 @@ import { FeaturedPicker, ManageSubscription, MediaKitToggle, PricingCard } from 
 import { ProMark } from "@/components/pro/pro-mark";
 import { Notice, SectionTitle } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Creator Pro" };
 export const dynamic = "force-dynamic";
@@ -61,7 +62,7 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
     <header className="mb-10">
       <p className="spec mb-3 flex items-center gap-2">
         <span className="inline-block h-px w-6 bg-rule-strong" />
-        Werkuno Studio
+        {BRAND.name} Studio
       </p>
       <h1 className="display flex flex-wrap items-center gap-3 text-[2.4rem] sm:text-5xl">
         {PRO_NAME}
@@ -119,7 +120,7 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
   const end = status.periodEnd ? formatDate(status.periodEnd, { day: "numeric", month: "long", year: "numeric" }) : null;
   const plan =
     status.provider === "comp"
-      ? `Geschenkt von Werkuno${end ? ` · gültig bis ${end}` : " · unbefristet"}`
+      ? `Geschenkt von ${BRAND.name}${end ? ` · gültig bis ${end}` : " · unbefristet"}`
       : `${status.interval === "year" ? "Jährlich" : "Monatlich"}${status.priceMinor ? ` · ${formatMoney(status.priceMinor, "CHF")}` : ""}${end ? (status.cancelAtPeriodEnd ? ` · gekündigt, aktiv bis ${end}` : ` · nächste Abrechnung am ${end}`) : ""}`;
 
   return (

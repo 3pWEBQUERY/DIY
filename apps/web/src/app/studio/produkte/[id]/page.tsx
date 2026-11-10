@@ -8,6 +8,7 @@ import { ProductEditor } from "@/components/commerce/product-editor";
 import { Badge } from "@/components/ui/misc";
 import { categoryOptions } from "@/server/categories/settings";
 import { loadEditor } from "../editor-data";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Produkt bearbeiten" };
 
@@ -21,7 +22,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   return (
     <div>
       <PageHeader
-        kicker="Werkuno Studio · Produkte"
+        kicker={`${BRAND.name} Studio · Produkte`}
         title={data.initial.title || "Produkt"}
         actions={
           <>

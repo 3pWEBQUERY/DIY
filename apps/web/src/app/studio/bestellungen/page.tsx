@@ -11,6 +11,7 @@ import { PaymentStatusBadge } from "@/components/commerce/order-parts";
 import { Empty } from "@/components/ui/misc";
 import { formatDate, relativeTime } from "@/lib/utils";
 import { orderBuyer } from "@/server/account/customer";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Bestellungen" };
 
@@ -35,7 +36,7 @@ export default async function StudioOrdersPage({ searchParams }: { searchParams:
 
   return (
     <div>
-      <PageHeader kicker="Werkuno Studio · Marktplatz" title="Bestellungen" description={working ? "Älteste zuerst – so bleibt nichts liegen." : undefined} />
+      <PageHeader kicker={`${BRAND.name} Studio · Marktplatz`} title="Bestellungen" description={working ? "Älteste zuerst – so bleibt nichts liegen." : undefined} />
       <TabLinks
         active={tab.key}
         tabs={SELLER_ORDER_TABS.map((t) => ({ key: t.key, label: t.label, count: counts[t.status] ?? 0, href: `/studio/bestellungen?status=${t.key}` }))}

@@ -60,16 +60,18 @@ export function PageHeader({
   );
 }
 
-/** Tabs als Links (serverseitig, barrierefrei, ohne JS). */
-export function TabLinks({ tabs, active, className }: { tabs: { href: string; label: string; count?: number; key: string }[]; active: string; className?: string }) {
+/**
+ * Reiter als Links (serverseitig, ohne JS). Bewusst keine ARIA-Tabs: Jeder Reiter lädt eine eigene
+ * Ansicht (kein Tabpanel, keine Pfeiltasten) – also normale Links mit aria-current.
+ */
+export function TabLinks({ tabs, active, className, label }: { tabs: { href: string; label: string; count?: number; key: string }[]; active: string; className?: string; label?: string }) {
   return (
-    <div role="tablist" className={cn("flex gap-6 overflow-x-auto border-b border-line scrollbar-none", className)}>
+    <nav aria-label={label ?? "Ansichten"} className={cn("flex gap-6 overflow-x-auto border-b border-line scrollbar-none", className)}>
       {tabs.map((t) => (
         <Link
           key={t.key}
           scroll={false}
-          role="tab"
-          aria-selected={active === t.key}
+          aria-current={active === t.key ? "page" : undefined}
           href={t.href}
           className={cn(
             "relative -mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent py-3 text-[14px] text-muted transition-colors hover:text-ink",
@@ -80,6 +82,6 @@ export function TabLinks({ tabs, active, className }: { tabs: { href: string; la
           {t.count != null && <span className="font-mono text-[11px] text-muted">{t.count}</span>}
         </Link>
       ))}
-    </div>
+    </nav>
   );
 }
