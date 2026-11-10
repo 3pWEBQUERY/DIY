@@ -17,6 +17,7 @@ import { listCommentPage } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
 import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 /**
  * Anleitungen (PRD §11).
@@ -586,7 +587,7 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
       currentVersion: { include: { steps: { orderBy: { position: "asc" }, select: stepSelect } } },
       versions: { where: { version: { gt: DRAFT_VERSION } }, orderBy: { version: "desc" }, take: 30, select: { version: true, changeNote: true, isMajor: true, publishedAt: true } },
       project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, ownerId: true, visibility: true, state: true, owner: { select: { profile: { select: { handle: true, displayName: true } } } } } },
-      products: { where: { status: { in: ["ACTIVE", "SOLD_OUT"] }, shop: { status: "ACTIVE" } }, take: 6, select: { id: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true } } } },
+      products: { where: { ...publicProductWhere, shop: { status: "ACTIVE" } }, take: 6, select: { id: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true } } } },
     },
   });
   if (!t) return null;

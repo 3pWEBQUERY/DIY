@@ -7,6 +7,7 @@ struct ProductDetailView: View {
 
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var page: MarketProductPage?
     @State private var error: String?
@@ -15,6 +16,12 @@ struct ProductDetailView: View {
     @State private var justAdded = false
     @State private var viewerMedia: MediaItem?
     @State private var tracked = false
+    /// Preis, wie Apple ihn abrechnet (Währung der App-Store-Region)
+    @State private var storePrice: String?
+    @State private var purchasePending = false
+    @State private var askRestock = false
+    @State private var restockNote = ""
+    @State private var confirmWithdraw = false
 
     var body: some View {
         Group {
@@ -31,6 +38,7 @@ struct ProductDetailView: View {
         .onChange(of: router.sheet) { old, new in
             if new == nil, case .productEditor = old { Task { await load() } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: DigitalStore.purchasedNotification)) { _ in Task { await load() } }
     }
 
     // MARK: Laden
@@ -42,6 +50,7 @@ struct ProductDetailView: View {
             error = nil
             if variantId == nil, let first = p.variantStock?.first(where: { $0.available > 0 }) { variantId = first.id }
             if !tracked { tracked = true; SocialAPI.track("PRODUCT", p.id) }
+            if p.isDigital, storePrice == nil { storePrice = await DigitalStore.shared.displayPrice(p.appStoreProductId) }
         } catch is CancellationError {
         } catch {
             self.error = (error as? APIError)?.message ?? error.localizedDescription
@@ -70,6 +79,7 @@ struct ProductDetailView: View {
                 VStack(alignment: .leading, spacing: 26) {
                     titleBlock(p)
                     if p.isDigital && !(p.isOwner ?? false) { digitalNotice(p) }
+                    restockNotice(p)
                     if needsVariant(p) { variantPicker(p) }
                     if !p.isDigital && !(p.isOwner ?? false) && (p.purchasable ?? false) { quantityRow(p) }
                     if let d = p.description?.nilIfEmpty {
@@ -90,6 +100,18 @@ struct ProductDetailView: View {
             .padding(.bottom, 120)
         }
         .safeAreaInset(edge: .bottom) { buyBar(p) }
+        .alert("Nachproduktion anfragen", isPresented: $askRestock) {
+            TextField("Notiz (optional)", text: $restockNote)
+            Button("Anfrage senden") { Task { await requestRestock(p) } }
+            Button("Abbrechen", role: .cancel) { restockNote = "" }
+        } message: {
+            Text("\(p.shop.name) erfährt, dass du Interesse hast. Sobald das Produkt wieder verfügbar ist, bekommst du eine Benachrichtigung.")
+        }
+        .confirmationDialog("Anfrage zurückziehen?", isPresented: $confirmWithdraw, titleVisibility: .visible) {
+            Button("Anfrage zurückziehen", role: .destructive) { Task { await withdrawRestock(p) } }
+        } message: {
+            Text("Du wirst dann nicht benachrichtigt, wenn es wieder verfügbar ist.")
+        }
         .fullScreenCover(item: $viewerMedia) { m in MediaViewer(media: p.mediaItems, start: m) }
     }
 
@@ -165,16 +187,28 @@ struct ProductDetailView: View {
 
     // MARK: Digital (PRD §13.7)
 
-    /// Bereits gekaufte Anleitungen lassen sich laden; neue Käufe digitaler Produkte gibt es in der App nicht
-    /// (App Store 3.1.1/3.1.3 – deshalb auch kein Hinweis oder Link auf einen Kauf ausserhalb der App).
+    /// Gekaufte Anleitungen lassen sich laden; neue Käufe digitaler Produkte nur über Apple (In-App-Kauf,
+    /// App Store 3.1.1/3.1.3 – deshalb auch kein Hinweis oder Link auf einen Kauf ausserhalb der App).
     @ViewBuilder private func digitalNotice(_ p: MarketProductPage) -> some View {
         if let e = p.viewer?.entitlementId {
             VStack(alignment: .leading, spacing: 10) {
                 NoticeView(tone: .success, title: "Du besitzt diese Anleitung", message: "Lade die Datei herunter – sie ist für deine persönliche Nutzung bestimmt.")
                 MarketDownloadButton(entitlementId: e, fileName: p.title)
             }
-        } else {
+        } else if purchasePending {
+            NoticeView(tone: .info, title: "Kauf wartet auf Bestätigung", message: "Sobald Apple den Kauf bestätigt (z. B. nach einer Kaufanfrage in der Familienfreigabe), findest du den Download hier und in deinen Bestellungen.")
+        } else if p.appStoreProductId == nil {
+            // Kein In-App-Kauf für dieses Produkt (Apple-Kauf aus oder keine Preisstufe) – bewusst ohne
+            // Hinweis oder Link auf einen Kauf ausserhalb der App
             NoticeView(tone: .info, title: "Digitale Anleitung", message: "In der App nicht erhältlich.")
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                NoticeView(tone: .info, title: "Digitale Anleitung", message: "Nach dem Kauf findest du den Download hier und in deinen Bestellungen.")
+                Text(DigitalStoreNotice.text)
+                    .font(.wr(.footnote))
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -199,8 +233,8 @@ struct ProductDetailView: View {
                         .foregroundStyle(on ? Color.paper : out ? Color.muted : Color.ink)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .frame(minHeight: 44)
-                        .background(on ? Color.ink : Color.card, in: .rect(cornerRadius: Radius.small, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: Radius.small, style: .continuous).strokeBorder(on ? Color.ink : Color.lineStrong, lineWidth: 0.75))
+                        .background(on ? Color.action : Color.card, in: .rect(cornerRadius: Radius.small, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.small, style: .continuous).strokeBorder(on ? Color.action : Color.lineStrong, lineWidth: 0.75))
                         .opacity(out ? 0.55 : 1)
                     }
                     .buttonStyle(.plain)
@@ -292,7 +326,7 @@ struct ProductDetailView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.name).font(.wr(.headline)).foregroundStyle(Color.ink)
                             Text([s.owner?.displayName, s.owner?.profile?.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted)
-                            if let t = s.tagline?.nilIfEmpty { Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2) }
+                            if let t = s.tagline?.nilIfEmpty { Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2) }
                         }
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
@@ -385,17 +419,35 @@ struct ProductDetailView: View {
 
     @ViewBuilder private func buyBar(_ p: MarketProductPage) -> some View {
         let price = unitPrice(p) * (p.isDigital ? 1 : quantity)
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(Fmt.money(price, currency: p.currency)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
-                Text(barSubtitle(p)).font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(2)
-            }
-            .layoutPriority(1)
-            Spacer(minLength: 4)
-            barAction(p)
+        let priceBlock = VStack(alignment: .leading, spacing: 1) {
+            Text(p.isDigital && !(p.isOwner ?? false) ? (storePrice ?? Fmt.money(price, currency: p.currency)) : Fmt.money(price, currency: p.currency))
+                .font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+            Text(barSubtitle(p)).font(.wr(.caption2)).foregroundStyle(Color.muted)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
         }
-        .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 8)
-        .glassEffect(.regular, in: Capsule())
+        Group {
+            if typeSize.isAccessibilitySize {
+                // Sehr grosse Schrift: Preis oben, Knopf darunter in voller Breite – sonst bricht
+                // der Knopftext Buchstabe für Buchstabe um und die Leiste verdeckt die Seite
+                VStack(alignment: .leading, spacing: 10) {
+                    priceBlock
+                    barAction(p).frame(maxWidth: .infinity)
+                }
+                .padding(14)
+                .glassEffect(.regular, in: .rect(cornerRadius: 26, style: .continuous))
+            } else {
+                HStack(spacing: 12) {
+                    priceBlock.layoutPriority(1)
+                    Spacer(minLength: 4)
+                    barAction(p)
+                }
+                .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 8)
+                .glassEffect(.regular, in: Capsule())
+            }
+        }
+        // Die schwebende Leiste wächst nur bis zur ersten Bedienungshilfen-Stufe, damit die Seite sichtbar bleibt
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .padding(.horizontal, 14)
         .padding(.bottom, 6)
         .animation(.snappy, value: justAdded)
@@ -403,8 +455,11 @@ struct ProductDetailView: View {
 
     private func barSubtitle(_ p: MarketProductPage) -> String {
         if p.isOwner ?? false { return "Dein Produkt" }
-        if p.isDigital { return p.viewer?.entitlementId != nil ? "Bereits gekauft" : "In der App nicht erhältlich" }
-        if soldOut(p) { return "Derzeit ausverkauft" }
+        if p.isDigital {
+            if p.viewer?.entitlementId != nil { return "Bereits gekauft" }
+            return p.appStoreProductId == nil ? "In der App nicht erhältlich" : "Digital · Kauf über Apple"
+        }
+        if soldOut(p) { return canAskRestock(p) ? (p.viewer?.restockRequested == true ? "Ausverkauft · angefragt" : "Ausverkauft · Nachproduktion anfragen") : "Derzeit ausverkauft" }
         if quantity > 1 { return "\(quantity) × \(Fmt.money(unitPrice(p), currency: p.currency)), zzgl. Versand" }
         return (p.shippingMinor ?? 0) == 0 ? "inkl. Versand" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand"
     }
@@ -414,26 +469,137 @@ struct ProductDetailView: View {
             Button { router.present(.productEditor(id: p.id)) } label: { Label("Bearbeiten", systemImage: "pencil") }
                 .buttonStyle(.glass).controlSize(.large)
         } else if p.isDigital {
-            // PRD §13.7: Digitale Produkte werden auf iOS nicht verkauft (kein Verweis auf andere Kaufwege).
+            // PRD §13.7: Digitale Produkte kauft man in der App nur über Apple (In-App-Kauf) –
+            // kein Verweis auf andere Kaufwege. Download über den angemeldeten API-Client.
             if let e = p.viewer?.entitlementId {
                 MarketDownloadButton(entitlementId: e, fileName: p.title, prominent: true)
                     .controlSize(.large)
-            } else {
+            } else if purchasePending {
+                Button("Wartet auf Apple") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
+            } else if p.appStoreProductId == nil || soldOut(p) || !(p.purchasable ?? false) {
                 Button("Nicht erhältlich") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
+            } else {
+                AsyncButton { await buyDigital(p) } label: { Label("Kaufen", systemImage: "arrow.down.circle") }
+                    .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
+                    .accessibilityHint("Kauf über Apple. Danach kannst du die Datei herunterladen.")
             }
         } else if justAdded {
             Button { router.open(.cart) } label: { Label("Zum Warenkorb", systemImage: "bag.fill") }
-                .buttonStyle(.glassProminent).tint(.ink).controlSize(.large)
+                .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
                 .transition(.scale.combined(with: .opacity))
         } else if app.paymentsMode == "disabled" || p.payments?.mode == "disabled" {
             Button("Bald bestellbar") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
+        } else if canAskRestock(p) {
+            if p.viewer?.restockRequested == true {
+                Button { confirmWithdraw = true } label: { Label("Angefragt", systemImage: "checkmark") }
+                    .buttonStyle(.glass).controlSize(.large)
+                    .accessibilityHint("Anfrage zurückziehen")
+            } else {
+                Button { startRestockRequest() } label: { Label("Anfragen", systemImage: "bell.badge") }
+                    .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
+                    .accessibilityHint("Beim Shop fragen, ob das Produkt nachproduziert wird")
+            }
         } else if soldOut(p) || !(p.purchasable ?? false) {
             Button(soldOut(p) ? "Ausverkauft" : "Nicht erhältlich") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
         } else if needsVariant(p) && (selectedVariant(p)?.available ?? 0) <= 0 {
             Button("Variante wählen") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
         } else {
-            AsyncButton { await addToCart(p) } label: { Label("In den Warenkorb", systemImage: "bag.badge.plus") }
+            AsyncButton { await addToCart(p) } label: { Label("In den Warenkorb", systemImage: "bag.fill.badge.plus") }
                 .buttonStyle(.glassProminent).tint(.moss).controlSize(.large)
+        }
+    }
+
+    private func buyDigital(_ p: MarketProductPage) async {
+        do {
+            switch try await DigitalStore.shared.buy(productId: p.id) {
+            case .purchased:
+                Haptics.success()
+                app.show("Gekauft – dein Download ist bereit.")
+                await load()
+            case .pending:
+                withAnimation(.snappy) { purchasePending = true }
+            case .cancelled:
+                break
+            }
+        } catch {
+            app.show(error: error)
+            if let e = error as? APIError, e.marketIsConflict { await load() }
+        }
+    }
+
+    // MARK: Nachproduktion (ausverkaufte Produkte)
+
+    /// Anfragen ist nur bei ausverkauften, physischen Produkten anderer möglich
+    private func canAskRestock(_ p: MarketProductPage) -> Bool {
+        p.status == "SOLD_OUT" && !p.isDigital && !(p.isOwner ?? false)
+    }
+
+    @ViewBuilder private func restockNotice(_ p: MarketProductPage) -> some View {
+        if canAskRestock(p) {
+            let requested = p.viewer?.restockRequested == true
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: requested ? "checkmark.circle.fill" : "bell.badge")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color.moss)
+                    .frame(width: 36, height: 36)
+                    .background(Color.mossSoft, in: .rect(cornerRadius: 10, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(requested ? "Nachproduktion angefragt" : "Wird das nachproduziert?").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    Text(requested
+                         ? "Sobald es wieder verfügbar ist, bekommst du eine Benachrichtigung."
+                         : "Frag \(p.shop.name) an. Du wirst benachrichtigt, sobald es wieder verfügbar ist.")
+                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(requested ? "Anfrage zurückziehen" : "Nachproduktion anfragen") {
+                        if requested { confirmWithdraw = true } else { startRestockRequest() }
+                    }
+                    .font(.wr(.footnote, .semibold))
+                    .foregroundStyle(requested ? Color.muted : Color.moss)
+                    .padding(.top, 2)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .cardSurface(radius: Radius.inner)
+        } else if p.isOwner ?? false, p.status == "SOLD_OUT" {
+            let n = p.restockPendingCount ?? 0
+            NoticeView(
+                tone: .info,
+                title: p.hideWhenSoldOut == true ? "Ausverkauft und ausgeblendet" : "Ausverkauft",
+                message: [
+                    p.hideWhenSoldOut == true ? "Nur du siehst diese Seite. Mit neuem Bestand ist es wieder sichtbar." : "Das Produkt bleibt sichtbar, Interessierte können eine Nachproduktion anfragen.",
+                    n > 0 ? (n == 1 ? "1 Person fragt nach einer Nachproduktion." : "\(n) Personen fragen nach einer Nachproduktion.") : nil,
+                ].compactMap { $0 }.joined(separator: " ")
+            )
+        }
+    }
+
+    private func startRestockRequest() {
+        guard app.isSignedIn else { app.show("Melde dich an, um eine Nachproduktion anzufragen.", style: .warning); return }
+        restockNote = ""
+        askRestock = true
+    }
+
+    private func requestRestock(_ p: MarketProductPage) async {
+        do {
+            let _: MarketRestockState = try await APIClient.shared.post("/market/products/\(p.id)/restock-request", ["note": JSONValue.string(restockNote)])
+            Haptics.success()
+            app.show("Anfrage gesendet. Wir melden uns, sobald es wieder verfügbar ist.")
+            restockNote = ""
+            await load()
+        } catch {
+            app.show(error: error)
+        }
+    }
+
+    private func withdrawRestock(_ p: MarketProductPage) async {
+        do {
+            let _: MarketRestockState = try await APIClient.shared.delete("/market/products/\(p.id)/restock-request")
+            app.show("Anfrage zurückgezogen.")
+            await load()
+        } catch {
+            app.show(error: error)
         }
     }
 

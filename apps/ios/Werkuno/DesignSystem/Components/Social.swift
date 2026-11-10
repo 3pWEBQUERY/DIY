@@ -131,19 +131,20 @@ struct FollowButton: View {
                     .foregroundStyle(following ? Color.ink : Color.paper)
                     .padding(.horizontal, compact ? 4 : 8)
             }
-            .buttonStyle(following ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
-            .tint(following ? nil : .ink)
+            .glassToggleStyle(prominent: !following)
+            .tint(following ? nil : .action)
             .controlSize(compact ? .small : .regular)
             .accessibilityLabel(following ? "Entfolgen" : "Folgen")
         }
     }
 }
 
-/// Typ-Löschung für Button-Styles
-struct AnyPrimitiveButtonStyle: PrimitiveButtonStyle {
-    private let make: (Configuration) -> AnyView
-    init<S: PrimitiveButtonStyle>(_ s: S) { make = { AnyView(s.makeBody(configuration: $0)) } }
-    func makeBody(configuration: Configuration) -> some View { make(configuration) }
+extension View {
+    /// Glas (aus) bzw. hervorgehobenes Glas (an) – Style direkt angewendet, damit SwiftUI
+    /// seine Umgebung (Tönung, Grösse, Farbschema) korrekt einsetzt.
+    @ViewBuilder func glassToggleStyle(prominent: Bool) -> some View {
+        if prominent { buttonStyle(.glassProminent) } else { buttonStyle(.glass) }
+    }
 }
 
 // MARK: - Sicherheitsmenü (Melden, Blockieren, Stummschalten, Ausblenden)
@@ -258,8 +259,8 @@ struct PostCardView: View {
                 Text(post.body).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
+            if let poll = post.poll, poll.isUsable { SocialPollView(postId: post.id, poll: poll) }
             if !post.media.isEmpty { MediaStrip(media: post.media) }
-            if let poll = post.poll, poll.isUsable { PostPollView(postId: post.id, poll: poll) }
             if let r = post.repostOf { repost(r) }
             linked
             footer
@@ -280,15 +281,16 @@ struct PostCardView: View {
             Button { router.open(.profile(handle: post.author.handle)) } label: {
                 HStack(spacing: 10) {
                     AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 38, category: post.category)
+                        .overlay(alignment: .bottomTrailing) { SocialCoauthorBadge(coauthors: post.coauthors ?? []) }
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(post.author.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                        SocialAuthors.names(post).a11yLineLimit(2)
                         HStack(spacing: 4) {
                             Text("@\(post.author.handle)")
                             Text("·")
                             Text(Fmt.relative(post.publishedAt))
                             if post.editedAt != nil { Text("· bearbeitet") }
                         }
-                        .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
             }
@@ -300,7 +302,11 @@ struct PostCardView: View {
             Menu {
                 if post.viewer?.isAuthor == true {
                     Button("Bearbeiten", systemImage: "pencil") { router.present(.editPost(id: post.id)) }
+                    SocialPostMenuItems(post: post)
                     Button("Löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    Divider()
+                } else if post.viewer?.isCoauthor == true {
+                    SocialPostMenuItems(post: post)
                     Divider()
                 }
                 SafetyMenuItems(targetType: "POST", targetId: post.id, authorId: post.author.id, authorName: post.author.displayName, allowHide: post.viewer?.isAuthor != true, shareURL: AppConfig.webURL("/beitrag/\(post.id)"))
@@ -331,7 +337,7 @@ struct PostCardView: View {
                     Text(Fmt.relative(r.publishedAt)).font(.wr(.caption))
                 }.foregroundStyle(Color.muted)
             }
-            if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(5) }
+            if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(5) }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -386,7 +392,7 @@ struct LinkedThreadRow: View {
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     SpecLabel(kicker, color: .moss)
-                    Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.muted)
@@ -456,7 +462,14 @@ struct MediaViewer: View {
     var media: [MediaItem]
     var start: MediaItem
     @Environment(\.dismiss) private var dismiss
-    @State private var current: String = ""
+    @State private var current: String
+
+    init(media: [MediaItem], start: MediaItem) {
+        self.media = media
+        self.start = start
+        // Startbild sofort setzen (nicht erst in onAppear), sonst ist die erste Seite kurz leer
+        _current = State(initialValue: start.id)
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -478,6 +491,5 @@ struct MediaViewer: View {
                 .padding()
                 .accessibilityLabel("Schliessen")
         }
-        .onAppear { current = start.id }
     }
 }

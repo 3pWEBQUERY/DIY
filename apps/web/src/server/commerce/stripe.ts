@@ -376,4 +376,26 @@ export function verifyWebhook(raw: string, signature: string | null): Stripe.Eve
   throw fail.invalid(lastError instanceof Error ? `Ungültige Signatur: ${lastError.message}` : "Ungültige Signatur.");
 }
 
+/* ───────────────── Überweisungen an Shops (Käufe über Apple, §13.7) ───────────────── */
+
+/** Shop-Anteil eines App-Store-Kaufs aus dem Plattformguthaben an das verbundene Konto überweisen. */
+export async function createSellerTransfer(input: { accountId: string; amountMinor: number; currency: string; orderId: string; orderNumber: string; idempotencyKey: string }) {
+  return stripe().transfers.create(
+    {
+      amount: input.amountMinor,
+      currency: input.currency.toLowerCase(),
+      destination: input.accountId,
+      transfer_group: input.orderNumber,
+      description: `Werkuno ${input.orderNumber} – Kauf in der iOS-App`,
+      metadata: { orderId: input.orderId, source: "app_store" },
+    },
+    { idempotencyKey: input.idempotencyKey },
+  );
+}
+
+/** Überweisung zurückholen (Erstattung durch Apple). */
+export async function reverseSellerTransfer(transferId: string, idempotencyKey: string) {
+  return stripe().transfers.createReversal(transferId, { metadata: { reason: "app_store_refund" } }, { idempotencyKey });
+}
+
 export type { Stripe };

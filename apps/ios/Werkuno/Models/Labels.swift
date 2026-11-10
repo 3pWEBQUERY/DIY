@@ -63,6 +63,7 @@ enum L {
         ("PROJECT_ACTIVITY", "Projektaktivität"), ("REMIX", "Nachbauten deiner Projekte"), ("NEW_POST_FROM_FOLLOWED", "Neue Beiträge gefolgter Creator"),
         ("MESSAGE", "Nachrichten"), ("ORDER_NEW", "Neue Bestellungen"), ("ORDER_STATUS", "Bestellstatus"), ("MODERATION", "Moderationsentscheidungen"),
         ("COMMUNITY_INVITE", "Community-Einladungen"), ("TUTORIAL_UPDATED", "Aktualisierte Anleitungen"), ("SECURITY", "Sicherheit"),
+        ("RESTOCK", "Nachproduktion & wieder verfügbar"),
     ]
     static let emailDigest: [(key: String, label: String)] = [("OFF", "Keine E-Mails"), ("INSTANT", "Sofort"), ("DAILY", "Täglich gebündelt"), ("WEEKLY", "Wöchentlich gebündelt")]
     static let feedDefaults: [(key: String, label: String)] = [("FOR_YOU", "Für dich"), ("FOLLOWING", "Folge ich"), ("NEW", "Neu")]

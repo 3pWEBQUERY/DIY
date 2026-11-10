@@ -477,7 +477,7 @@ struct ArticleEditorSheet: View {
                         ForEach(revisions) { r in
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(r.title).font(.wr(.subheadline, .medium)).lineLimit(1)
+                                    Text(r.title).font(.wr(.subheadline, .medium)).a11yLineLimit(1)
                                     Text("\(Fmt.dateTime(r.createdAt)) · \(Fmt.plural(r.blockCount ?? 0, "Block", "Blöcke")) · \(Fmt.plural(r.words ?? 0, "Wort", "Wörter"))")
                                         .font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }

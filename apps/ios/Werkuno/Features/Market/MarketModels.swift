@@ -164,7 +164,7 @@ struct MarketReview: Decodable, Hashable, Identifiable, Sendable {
 }
 
 struct MarketProductPage: Decodable, Sendable {
-    struct Viewer: Decodable, Hashable, Sendable { var saved: Bool?; var entitlementId: String? }
+    struct Viewer: Decodable, Hashable, Sendable { var saved: Bool?; var entitlementId: String?; var restockRequested: Bool? }
     var id: String
     var shopId: String?
     var slug: String
@@ -199,9 +199,16 @@ struct MarketProductPage: Decodable, Sendable {
     var available: Int?
     var variantStock: [MarketVariantStock]?
     var viewer: Viewer?
+    /// Ausverkauft ausgeblendet (nur für den Shop relevant)
+    var hideWhenSoldOut: Bool?
+    /// Offene Anfragen zur Nachproduktion – nur für den Shop selbst, sonst nil
+    var restockPendingCount: Int?
     var reviews: [MarketReview]?
     var moreFromShop: [ProductCard]?
     var payments: MarketPayments?
+    /// Digitale Produkte: Apple-Produkt-ID der Preisstufe (nil = in der App nicht kaufbar).
+    /// `priceMinor` ist bei digitalen Produkten bereits der App-Preis.
+    var appStoreProductId: String?
 
     var isDigital: Bool { kind == "DIGITAL" }
     var href: String { "/markt/\(shop.slug)/\(slug)" }
@@ -581,6 +588,8 @@ struct MarketStudioProduct: Decodable, Hashable, Identifiable, Sendable {
     var saveCount: Int?
     var shop: ProductCard.ShopMini?
     var media: [M]?
+    var hideWhenSoldOut: Bool?
+    var restockPendingCount: Int?
     var inventory: [MarketStock]?
     var orderItems: [Sold]?
     var count: Count?
@@ -626,6 +635,7 @@ struct MarketEditorProduct: Decodable, Sendable {
     var tutorialId: String?
     var status: String
     var digitalKey: String?
+    var hideWhenSoldOut: Bool?
     var variants: [MarketVariant]?
     var inventory: [MarketStock]?
     var media: [M]?
@@ -721,4 +731,20 @@ enum MarketFee {
 
 extension APIError {
     var marketIsConflict: Bool { status == 409 || code == "CONFLICT" }
+}
+
+
+/// Antwort auf „Nachproduktion anfragen“ bzw. „Anfrage zurückziehen“
+struct MarketRestockState: Decodable, Sendable {
+    var requested: Bool
+    var pendingCount: Int?
+}
+
+/// Offene Anfrage zur Nachproduktion (Studio)
+struct MarketRestockRequest: Decodable, Identifiable, Hashable, Sendable {
+    struct Person: Decodable, Hashable, Sendable { var id: String; var handle: String; var displayName: String; var avatarUrl: String? }
+    var id: String
+    var note: String
+    var createdAt: Date?
+    var user: Person
 }

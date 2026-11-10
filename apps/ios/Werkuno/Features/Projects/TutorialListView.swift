@@ -19,6 +19,8 @@ struct TutorialListView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var generation = 0
+    /// Dauer-Filter (`GET /tutorials/durations`), lokale Liste als Rückfall
+    @State private var durations: [(key: String, label: String)] = L.tutorialDurations
 
     init(category: String? = nil) {
         self.category = category
@@ -40,7 +42,7 @@ struct TutorialListView: View {
 
                 ChipBar(items: [(value: "", label: "Alle")] + app.activeCategories.map { (value: $0.slug, label: $0.short) }, selection: $cat)
 
-                ChipBar(items: [(value: "", label: "Jede Dauer")] + L.tutorialDurations.map { (value: $0.key, label: $0.label) }, selection: $duration)
+                ChipBar(items: [(value: "", label: "Jede Dauer")] + durations.map { (value: $0.key, label: $0.label) }, selection: $duration)
 
                 HStack(spacing: 8) {
                     SpecLabel(query.trimmed.isEmpty ? (ProjectsSorts.tutorials.first { $0.key == sortKey }?.label ?? "Neu") : "Treffer für «\(query.trimmed)»")
@@ -81,6 +83,7 @@ struct TutorialListView: View {
             }
         }
         .refreshable { await reload() }
+        .task { await loadDurations() }
         .task(id: filterKey) {
             if !query.isEmpty { try? await Task.sleep(for: .milliseconds(320)) }
             guard !Task.isCancelled else { return }
@@ -128,7 +131,7 @@ struct TutorialListView: View {
             Menu("Dauer") {
                 Picker("Dauer", selection: $duration) {
                     Text("Jede Dauer").tag("")
-                    ForEach(L.tutorialDurations, id: \.key) { d in Text(d.label).tag(d.key) }
+                    ForEach(durations, id: \.key) { d in Text(d.label).tag(d.key) }
                 }
             }
             if activeFilterCount > 0 {
@@ -169,6 +172,13 @@ struct TutorialListView: View {
             items = []
         }
         if gen == generation { loading = false }
+    }
+
+    private func loadDurations() async {
+        struct Duration: Decodable { var key: String; var label: String }
+        if let d: [Duration] = try? await APIClient.shared.get("/tutorials/durations"), !d.isEmpty {
+            durations = d.map { (key: $0.key, label: $0.label) }
+        }
     }
 
     private func loadMore() async {

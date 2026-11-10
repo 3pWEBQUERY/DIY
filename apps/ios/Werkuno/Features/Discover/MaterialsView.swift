@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MaterialsView: View {
     @Environment(AppState.self) private var app
+    @Environment(Router.self) private var router
 
     @State private var groups: [MaterialGroup] = []
     @State private var category: String?
@@ -49,6 +50,14 @@ struct MaterialsView: View {
         .background(Color.paper)
         .navigationTitle("Materialien")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if app.isSignedIn {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { router.open(.materialStock) } label: { Image(systemName: "archivebox") }
+                        .accessibilityLabel("Mein Bestand")
+                }
+            }
+        }
         .refreshable { await loadGroups(); await load(reset: true) }
         .task { if groups.isEmpty { await loadGroups() } }
         .task(id: "\(query.trimmed)|\(category ?? "")") {
@@ -81,6 +90,8 @@ struct MaterialsView: View {
         let hasDetails = !props.isEmpty || m.notes?.nilIfEmpty != nil || m.safetyInfo?.nilIfEmpty != nil
         return VStack(alignment: .leading, spacing: 10) {
             Button {
+                // Materialseite (Preisvergleich, Bestand); ohne Slug: Details aufklappen
+                if let slug = m.slug?.nilIfEmpty { router.open(.material(slug: slug)); return }
                 guard hasDetails else { return }
                 withAnimation(.snappy) { if open { expanded.remove(m.id) } else { expanded.insert(m.id) } }
             } label: {
@@ -99,23 +110,35 @@ struct MaterialsView: View {
                             }
                         }
                         Text([m.type, m.brand, m.category?.name].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2)
                         HStack(spacing: 10) {
                             if let u = m.unit?.nilIfEmpty { SpecLabel("Einheit \(u)") }
                             if let n = m.usedIn, n > 0 { SpecLabel("in \(Fmt.plural(n, "Projekt", "Projekten"))", color: .moss) }
                         }
                     }
                     Spacer(minLength: 0)
-                    if hasDetails {
-                        Image(systemName: "chevron.down").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
-                            .rotationEffect(.degrees(open ? 180 : 0))
-                    }
                 }
+                .padding(.trailing, hasDetails ? 28 : 0)
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
-            .accessibilityHint(hasDetails ? (open ? "Details ausblenden" : "Details anzeigen") : "")
+            .accessibilityHint(m.slug?.nilIfEmpty != nil ? "Materialseite mit Preisvergleich öffnen" : (hasDetails ? (open ? "Details ausblenden" : "Details anzeigen") : ""))
+            .overlay(alignment: .topTrailing) {
+                if hasDetails {
+                    Button {
+                        withAnimation(.snappy) { if open { expanded.remove(m.id) } else { expanded.insert(m.id) } }
+                    } label: {
+                        Image(systemName: "chevron.down").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
+                            .rotationEffect(.degrees(open ? 180 : 0))
+                            .frame(width: 44, height: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 12, y: -6)
+                    .accessibilityLabel(open ? "Details zu \(m.name) ausblenden" : "Details zu \(m.name) anzeigen")
+                }
+            }
             if open {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(props, id: \.key) { k, v in SpecRow(label: propertyLabel(k), value: v.discoverText) }

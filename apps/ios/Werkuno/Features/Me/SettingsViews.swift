@@ -13,7 +13,7 @@ struct SettingsView: View {
                 PageTitle(kicker: "Einstellungen", title: "Dein Konto", subtitle: app.me.map { "Angemeldet als \($0.email)" })
                 MeGroup(title: "Profil & Konto") {
                     row(.profile, "Name, Handle, Bio, Bilder, Links")
-                    row(.account, "E-Mail, Passwort, Datenexport, Löschen")
+                    row(.account, "E-Mail, Passwort, Bestellangaben, Datenexport, Löschen")
                     row(.security, "Angemeldete Geräte, Ereignisse")
                 }
                 MeGroup(title: "Erlebnis") {
@@ -290,6 +290,7 @@ private struct MeAccountSettings: View {
     @State private var exportURL: URL?
     @State private var exporting = false
     @State private var showDelete = false
+    @State private var showEmailChange = false
     @State private var pwErrors: [String: String] = [:]
 
     var body: some View {
@@ -297,6 +298,11 @@ private struct MeAccountSettings: View {
             .task { if data == nil { await load() } }
             .sheet(isPresented: $showDelete) {
                 MeDeleteAccountSheet(hasPassword: data?.hasPassword ?? true, hasShop: data?.hasShop ?? false, orderCount: data?.orderCount ?? 0)
+                    .environment(app)
+                    .toastOverlay()
+            }
+            .sheet(isPresented: $showEmailChange) {
+                MeEmailChangeSheet(currentEmail: data?.email ?? "", hasPassword: data?.hasPassword ?? true)
                     .environment(app)
                     .toastOverlay()
             }
@@ -315,6 +321,7 @@ private struct MeAccountSettings: View {
                         await app.run("Wir haben dir einen neuen Bestätigungslink geschickt.") { _ = try await APIClient.shared.post("/auth/resend-verification") as JSONValue }
                     } label: { Label("Bestätigungslink erneut senden", systemImage: "envelope") }
                 }
+                Button { showEmailChange = true } label: { Label("Adresse ändern", systemImage: "at") }
                 if (a.providers ?? []).contains("apple") { Text("Du meldest dich (auch) mit Apple an.").font(.wr(.caption)).foregroundStyle(Color.muted) }
                 if let c = a.createdAt { LabeledContent("Mitglied seit", value: Fmt.date(c, style: .long)) }
             } header: { Text("E-Mail-Adresse") } footer: {
@@ -336,6 +343,8 @@ private struct MeAccountSettings: View {
                 Text(a.hasPassword ? "Mindestens 10 Zeichen, mit Buchstaben und einer Ziffer oder einem Sonderzeichen. Alle anderen Sitzungen werden danach beendet."
                                    : "Du meldest dich bisher nur mit Apple an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden. Mindestens 10 Zeichen, mit Buchstaben und einer Ziffer oder einem Sonderzeichen. Zur Sicherheit bestätigst du das Festlegen gleich noch einmal mit „Mit Apple anmelden“.")
             }
+
+            MeCustomerDetailsSection()
 
             Section {
                 if let exportURL {
@@ -628,7 +637,7 @@ private struct MeNotificationSettingsView: View {
         Form {
             Section {
                 Toggle(isOn: Binding(get: { pushStatus == .authorized || pushStatus == .provisional }, set: { on in Task { await togglePush(on) } })) {
-                    Label("Push-Mitteilungen (iOS)", systemImage: "app.badge")
+                    Label("Push-Mitteilungen", systemImage: "app.badge")
                 }
                 .tint(.moss)
                 if pushStatus == .denied {

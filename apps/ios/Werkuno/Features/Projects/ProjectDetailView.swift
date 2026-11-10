@@ -24,6 +24,8 @@ struct ProjectDetailView: View {
     @State private var viewerMedia: MediaItem?
     @State private var heroIndex = 0
     @State private var redirects = 0
+    /// Eigener Materialbestand (nur angemeldet) – markiert „Habe ich“ in der Materialliste
+    @State private var stock: MaterialStockIndex?
 
     var body: some View {
         Group {
@@ -45,6 +47,7 @@ struct ProjectDetailView: View {
             if let page { ToolbarItem(placement: .topBarTrailing) { moreMenu(page) } }
         }
         .task { if page == nil { await load() } }
+        .task { await loadStock() }
         .onChange(of: router.sheet) { old, new in
             if old != nil && new == nil { Task { await load() } }
         }
@@ -105,7 +108,7 @@ struct ProjectDetailView: View {
                 }
                 .padding(.bottom, 24)
             }
-            .refreshable { await load() }
+            .refreshable { await load(); await loadStock() }
             .safeAreaInset(edge: .bottom) { actionBar(p) }
             .fullScreenCover(item: $viewerMedia) { m in MediaViewer(media: p.galleryItems, start: m) }
         }
@@ -207,7 +210,7 @@ struct ProjectDetailView: View {
                             SpecLabel("Gebaut von")
                             Text(p.owner.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                             if let c = p.contributors, !c.isEmpty {
-                                Text("mit " + c.map(\.displayName).joined(separator: ", ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                Text("mit " + c.map(\.displayName).joined(separator: ", ")).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                             }
                         }
                     }
@@ -389,7 +392,20 @@ struct ProjectDetailView: View {
                     .font(.wr(.subheadline)).foregroundStyle(Color.muted)
             } else {
                 if !materials.isEmpty {
-                    ProjectsSpecTable(title: "Material", rows: materials.map { .init(id: $0.id, name: $0.name, quantity: $0.quantity, note: $0.note, safety: $0.safetyInfo) })
+                    if let summary = stockSummary(materials) {
+                        Label(summary, systemImage: "archivebox")
+                            .font(.wr(.footnote, .semibold))
+                            .foregroundStyle(Color.mossInk)
+                    }
+                    ProjectsSpecTable(
+                        title: "Material",
+                        rows: materials.map { .init(id: $0.id, name: $0.name, quantity: $0.quantity, note: $0.note, safety: $0.safetyInfo, materialId: $0.materialId?.nilIfEmpty, materialSlug: $0.materialSlug?.nilIfEmpty) },
+                        stock: stock,
+                        onOpenMaterial: { router.open(.material(slug: $0)) },
+                        onStockChange: { id, have in
+                            if have { stock?.ids.insert(id) } else { stock?.ids.remove(id) }
+                        }
+                    )
                 }
                 if !tools.isEmpty {
                     ProjectsSpecTable(title: "Werkzeug", rows: tools.map { .init(id: $0.id, name: $0.name, quantity: nil, note: $0.note, safety: $0.safetyInfo) }, showQuantity: false)
@@ -412,6 +428,20 @@ struct ProjectDetailView: View {
                 .padding(.top, 4)
             }
         }
+    }
+
+    /// „2 hast du schon, 3 fehlen“ bzw. „alles in deinem Bestand“ (nur wenn etwas im Bestand ist)
+    private func stockSummary(_ materials: [ProjectPage.Line]) -> String? {
+        guard let stock else { return nil }
+        let have = materials.filter { stock.has(materialId: $0.materialId?.nilIfEmpty, name: $0.name) }.count
+        guard have > 0 else { return nil }
+        if have == materials.count { return "Alles in deinem Bestand" }
+        return "\(have) hast du schon, \(materials.count - have) \(materials.count - have == 1 ? "fehlt" : "fehlen")"
+    }
+
+    private func loadStock() async {
+        guard app.isSignedIn else { stock = nil; return }
+        if let e: [MaterialStockEntry] = try? await APIClient.shared.get("/me/material-stock") { stock = MaterialStockIndex(e) }
     }
 
     // MARK: 05 Verknüpft
@@ -507,7 +537,7 @@ struct ProjectDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ProjectCardView(project: r.card, style: .tile)
                                 if let d = r.deviations?.nilIfEmpty {
-                                    Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3)
+                                    Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(3)
                                 }
                             }
                             .frame(width: 168)
@@ -533,7 +563,7 @@ struct ProjectDetailView: View {
     private func actionBar(_ p: ProjectPage) -> some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                HStack(spacing: 16) {
+                HStack(spacing: 10) {
                     LikeButton(type: "PROJECT", id: p.id, liked: p.viewer?.liked ?? false, count: p.counts?.likes ?? 0)
                     SaveButton(type: "PROJECT", id: p.id, saved: p.viewer?.saved ?? false)
                     if !p.isOwner {
@@ -556,7 +586,7 @@ struct ProjectDetailView: View {
                         .accessibilityLabel("Teilen")
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 14)
                 .frame(minHeight: 50)
                 .glassEffect(.regular.interactive(), in: Capsule())
                 .id(p.id + "\(p.viewer?.liked ?? false)\(p.viewer?.saved ?? false)")
@@ -564,20 +594,14 @@ struct ProjectDetailView: View {
                 Spacer(minLength: 0)
 
                 if p.isOwner {
-                    Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
-                        Label("Eintrag", systemImage: "plus").font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                    DockPrimaryButton(title: "Eintrag", systemImage: "plus") {
+                        router.present(.journalEntry(projectId: p.id, projectTitle: p.title))
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(.moss)
-                    .controlSize(.large)
                     .accessibilityLabel("Journal-Eintrag hinzufügen")
                 } else {
-                    Button { router.present(.projectEditor(remixOf: p.id)) } label: {
-                        Label("Nachbauen", systemImage: "arrow.triangle.branch").font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                    DockPrimaryButton(title: "Nachbauen", systemImage: "arrow.triangle.branch") {
+                        router.present(.projectEditor(remixOf: p.id))
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(.moss)
-                    .controlSize(.large)
                 }
             }
         }

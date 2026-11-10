@@ -39,7 +39,7 @@ export const NOTIFICATION_FILTERS: { key: "all" | NotificationGroup; label: stri
   { key: "all", label: "Alle", types: null },
   { key: "mentions", label: "Erwähnungen", types: ["MENTION", "REPLY", "COMMENT"] },
   { key: "projects", label: "Projekte", types: ["PROJECT_ACTIVITY", "REMIX", "TUTORIAL_UPDATED"] },
-  { key: "shop", label: "Shop", types: ["ORDER_NEW", "ORDER_STATUS"] },
+  { key: "shop", label: "Shop", types: ["ORDER_NEW", "ORDER_STATUS", "RESTOCK"] },
   { key: "system", label: "System", types: ["MODERATION", "SECURITY"] },
 ];
 
@@ -60,6 +60,7 @@ export const NOTIFICATION_ICON: Record<NotificationType, string> = {
   COMMUNITY_INVITE: "users",
   TUTORIAL_UPDATED: "book-open",
   SECURITY: "key-round",
+  RESTOCK: "refresh-cw",
 };
 
 const nf = new Intl.NumberFormat("de-CH");
@@ -237,6 +238,16 @@ export function notificationParts(n: NotificationLike): NotificationParts {
         text: `Die Anleitung${title ? ` ${title}` : ""} wurde aktualisiert${data.major ? " – mit wichtigen Änderungen" : ""}.`,
         excerpt: str(data.changeNote),
       };
+    case "RESTOCK": {
+      if (str(data.kind) === "available") {
+        return { lead: null, text: `Wieder verfügbar: ${title ?? "ein Produkt, das du angefragt hast"}. Du hattest nach einer Nachproduktion gefragt.`, excerpt: null };
+      }
+      return {
+        lead: actors(name, count),
+        text: `${plural ? "fragen" : "fragt"}, ob du${title ? ` ${title}` : " ein ausverkauftes Produkt"} nachproduzierst.`,
+        excerpt: plural ? null : excerpt,
+      };
+    }
     case "SECURITY": {
       const msg = str(data.message);
       if (msg) return { lead: null, text: msg, excerpt: null };

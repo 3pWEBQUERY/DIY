@@ -39,16 +39,40 @@ targets:
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_ENTITLEMENTS: Werkuno/Werkuno.entitlements
-        TARGETED_DEVICE_FAMILY: "1,2"
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
         SWIFT_STRICT_CONCURRENCY: minimal
+  # Bedienungshilfen-Prüfung (Apple Accessibility Audit) über die wichtigsten Bildschirme
+  WerkunoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: WerkunoUITests
+    dependencies:
+      - target: Werkuno
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.werkuno.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_IDENTITY: "-"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_TARGET_NAME: Werkuno
 schemes:
   Werkuno:
     build:
       targets:
         Werkuno: all
+        WerkunoUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - WerkunoUITests
     run:
       config: Debug
+      # Lokaler Test der In-App-Käufe (digitale Produkte) ohne App Store Connect
+      storeKitConfiguration: StoreKit/Werkuno.storekit

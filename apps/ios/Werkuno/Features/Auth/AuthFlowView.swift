@@ -12,8 +12,9 @@ struct AuthFlowView: View {
     /// Roh-Nonce der laufenden Apple-Anmeldung: Apple bekommt den SHA-256-Hash, der Server den Rohwert
     /// und prüft, dass das Identity-Token genau zu dieser Anfrage gehört (Schutz vor Token-Replay).
     @State private var appleNonce: String?
+    @State private var appleMfa: MfaChallenge?
 
-    enum AuthSheet: String, Identifiable { case signIn, signUp, reset, mfa; var id: String { rawValue } }
+    enum AuthSheet: String, Identifiable { case signIn, signUp, reset; var id: String { rawValue } }
 
     private struct Chapter { let kicker: String; let title: String; let text: String; let spec: [String] }
     private let chapters: [Chapter] = [
@@ -83,20 +84,19 @@ struct AuthFlowView: View {
                 .padding(.bottom, 12)
             }
         }
-        .sheet(item: $sheet, onDismiss: {
-            // Zwei-Faktor-Schritt weggewischt → ausstehende Session verwerfen
-            if !app.isSignedIn { app.cancelMfa() }
-        }) { s in
+        .sheet(item: $sheet) { s in
             Group {
                 switch s {
                 case .signIn: SignInSheet(onReset: { sheet = .reset }, onSignUp: { sheet = .signUp })
                 case .signUp: SignUpSheet(onSignIn: { sheet = .signIn })
                 case .reset: PasswordResetSheet()
-                case .mfa: MfaSheet()
                 }
             }
             .environment(app)
             .toastOverlay()
+        }
+        .sheet(item: $appleMfa) { c in
+            TwoFactorSheet(challenge: c).environment(app).toastOverlay()
         }
         .task {
             // Story läuft von selbst, bis jemand wischt
@@ -153,10 +153,9 @@ struct AuthFlowView: View {
             let code = cred.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
             let nonce = appleNonce
             appleNonce = nil
-            do {
-                let done = try await app.signInWithApple(identityToken: token, givenName: cred.fullName?.givenName, familyName: cred.fullName?.familyName, authorizationCode: code, nonce: nonce)
-                if !done && app.needsMfa { sheet = .mfa }
-            } catch { app.show(error: error) }
+            do { try await app.signInWithApple(identityToken: token, givenName: cred.fullName?.givenName, familyName: cred.fullName?.familyName, authorizationCode: code, nonce: nonce) }
+            catch let c as MfaChallenge { appleMfa = c }
+            catch { app.show(error: error) }
         case .failure(let e):
             if (e as? ASAuthorizationError)?.code != .canceled { app.show(error: e) }
         }
@@ -285,154 +284,69 @@ struct SignInSheet: View {
     @State private var email = ""
     @State private var password = ""
     @State private var error: APIError?
-    @State private var mfaStep = false
+    @State private var mfa: MfaChallenge?
     @FocusState private var field: Int?
 
     var body: some View {
         NavigationStack {
-            if mfaStep {
-                MfaStepView(onDone: { dismiss() }, onCancel: { withAnimation { mfaStep = false; password = "" } })
-            } else {
-                credentials
+            ScrollView {
+                if let mfa {
+                    TwoFactorStep(challenge: mfa, onDone: { dismiss() }, onCancel: { withAnimation(.snappy) { self.mfa = nil; password = "" } })
+                        .padding(Space.gutter)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    credentials
+                }
             }
+            .background(Color.paper)
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schliessen", systemImage: "xmark") { close() } } }
+            .onAppear { field = 0 }
         }
         .presentationDetents([.large])
+        .interactiveDismissDisabled(mfa != nil)
+    }
+
+    /// Schliessen während Schritt 2: ausstehende Sitzung verwerfen
+    private func close() {
+        if let mfa { Task { await app.cancelSignIn(mfa) } }
+        dismiss()
     }
 
     private var credentials: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                PageTitle(kicker: "Willkommen zurück", title: "Anmelden", subtitle: "Schön, dass du wieder in der Werkstatt bist.")
-                VStack(spacing: 12) {
-                    AuthField(title: "E-Mail", text: $email, error: error?.fields?["email"], keyboard: .emailAddress, content: .username)
-                        .focused($field, equals: 0).submitLabel(.next).onSubmit { field = 1 }
-                    AuthField(title: "Passwort", text: $password, error: error?.fields?["password"], secure: true, content: .password)
-                        .focused($field, equals: 1).submitLabel(.go).onSubmit { Task { await submit() } }
-                }
-                if let error, error.fields == nil { NoticeView(tone: .danger, message: error.message) }
-                AsyncButton { await submit() } label: { Text("Anmelden").frame(maxWidth: .infinity) }
-                    .primaryButton()
-                    .disabled(email.trimmed.isEmpty || password.isEmpty)
-                HStack {
-                    Button("Passwort vergessen?", action: onReset)
-                    Spacer()
-                    Button("Neu hier? Registrieren", action: onSignUp)
-                }
-                .font(.wr(.footnote, .semibold))
-                .foregroundStyle(Color.moss)
+        VStack(alignment: .leading, spacing: 20) {
+            PageTitle(kicker: "Willkommen zurück", title: "Anmelden", subtitle: "Schön, dass du wieder in der Werkstatt bist.")
+            VStack(spacing: 12) {
+                AuthField(title: "E-Mail", text: $email, error: error?.fields?["email"], keyboard: .emailAddress, content: .username)
+                    .focused($field, equals: 0).submitLabel(.next).onSubmit { field = 1 }
+                AuthField(title: "Passwort", text: $password, error: error?.fields?["password"], secure: true, content: .password)
+                    .focused($field, equals: 1).submitLabel(.go).onSubmit { Task { await submit() } }
             }
-            .padding(Space.gutter)
+            if let error, error.fields == nil { NoticeView(tone: .danger, message: error.message) }
+            AsyncButton { await submit() } label: { Text("Anmelden").frame(maxWidth: .infinity) }
+                .primaryButton()
+                .disabled(email.trimmed.isEmpty || password.isEmpty)
+            HStack {
+                Button("Passwort vergessen?", action: onReset)
+                Spacer()
+                Button("Neu hier? Registrieren", action: onSignUp)
+            }
+            .font(.wr(.footnote, .semibold))
+            .foregroundStyle(Color.moss)
         }
-        .background(Color.paper)
-        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schliessen", systemImage: "xmark") { dismiss() } } }
-        .onAppear { field = 0 }
+        .padding(Space.gutter)
     }
 
     private func submit() async {
         error = nil
         do {
-            if try await app.signIn(email: email.trimmed, password: password) {
-                Haptics.success()
-                dismiss()
-            } else if app.needsMfa {
-                withAnimation(.smooth) { mfaStep = true }
-            }
+            try await app.signIn(email: email.trimmed, password: password)
+            Haptics.success()
+            dismiss()
+        } catch let c as MfaChallenge {
+            withAnimation(.snappy) { mfa = c }
         } catch let e as APIError { withAnimation { error = e }; Haptics.warning() }
         catch { app.show(error: error) }
-    }
-}
-
-// MARK: - Zwei-Faktor-Anmeldung (TOTP / Wiederherstellungscode)
-
-/// Eigenes Sheet für den zweiten Schritt nach „Mit Apple anmelden“.
-struct MfaSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            MfaStepView(onDone: { dismiss() }, onCancel: { dismiss() })
-        }
-        .presentationDetents([.large])
-    }
-}
-
-/// Zweiter Anmeldeschritt: 6-stelliger Code aus der Authentifizierungs-App oder ein Wiederherstellungscode.
-struct MfaStepView: View {
-    var onDone: () -> Void
-    var onCancel: () -> Void
-    @Environment(AppState.self) private var app
-    @State private var code = ""
-    @State private var recovery = false
-    @State private var error: APIError?
-    @State private var submitting = false
-    @FocusState private var focused: Bool
-
-    private var digits: String { code.filter(\.isNumber) }
-    private var canSubmit: Bool { recovery ? code.filter { $0.isLetter || $0.isNumber }.count >= 8 : digits.count == 6 }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                PageTitle(kicker: "Zwei-Faktor-Anmeldung",
-                          title: recovery ? "Wiederherstellungscode" : "Bestätigungscode",
-                          subtitle: recovery
-                              ? "Gib einen deiner Wiederherstellungscodes ein. Jeder Code funktioniert nur einmal."
-                              : "Gib den 6-stelligen Code aus deiner Authentifizierungs-App ein.")
-                AuthField(title: recovery ? "Wiederherstellungscode" : "Code", text: $code, error: error?.fields?["code"],
-                          keyboard: recovery ? .asciiCapable : .numberPad, content: recovery ? nil : UITextContentType.oneTimeCode, plain: true)
-                    .focused($focused)
-                    .submitLabel(.go)
-                    .onSubmit { Task { await submit() } }
-                    .onChange(of: code) { _, v in
-                        if error != nil { withAnimation { error = nil } }
-                        guard !recovery else { return }
-                        let d = String(v.filter(\.isNumber).prefix(6))
-                        if d != v { code = d }
-                        // Vollständiger Code (auch per AutoFill) → direkt prüfen
-                        if d.count == 6 && !submitting { Task { await submit() } }
-                    }
-                if let error, error.fields?["code"] == nil { NoticeView(tone: .danger, message: error.message) }
-                AsyncButton { await submit() } label: { Text("Bestätigen").frame(maxWidth: .infinity) }
-                    .primaryButton()
-                    .disabled(!canSubmit || submitting)
-                Button(recovery ? "Code aus der App verwenden" : "Wiederherstellungscode verwenden") {
-                    withAnimation(.snappy) { recovery.toggle(); code = ""; error = nil }
-                    focused = true
-                }
-                .font(.wr(.footnote, .semibold))
-                .foregroundStyle(Color.moss)
-            }
-            .padding(Space.gutter)
-        }
-        .background(Color.paper)
-        .scrollDismissesKeyboard(.interactively)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Abbrechen", systemImage: "xmark") { app.cancelMfa(); onCancel() }
-            }
-        }
-        .onAppear { focused = true }
-    }
-
-    private func submit() async {
-        guard canSubmit, !submitting else { return }
-        submitting = true
-        defer { submitting = false }
-        error = nil
-        do {
-            try await app.verifyMfa(code: recovery ? code.trimmed : digits, recovery: recovery)
-            Haptics.success()
-            onDone()
-        } catch let e as APIError {
-            withAnimation { error = e }
-            Haptics.warning()
-            if !app.needsMfa {
-                // Ausstehende Session abgelaufen → zurück zur Anmeldung
-                app.show(e.message, style: .warning)
-                onCancel()
-            }
-        } catch {
-            app.show(error: error)
-        }
     }
 }
 
@@ -599,8 +513,6 @@ struct AuthField: View {
     var prefix: String? = nil
     var keyboard: UIKeyboardType = .default
     var content: UITextContentType? = nil
-    /// Codes o. ä.: keine Autokorrektur, keine Grossschreibung
-    var plain = false
     @State private var reveal = false
 
     var body: some View {
@@ -613,8 +525,8 @@ struct AuthField: View {
                 }
                 .textContentType(content)
                 .keyboardType(keyboard)
-                .textInputAutocapitalization(keyboard == .emailAddress || secure || prefix != nil || plain ? .never : .words)
-                .autocorrectionDisabled(keyboard == .emailAddress || secure || prefix != nil || plain)
+                .textInputAutocapitalization(keyboard == .emailAddress || secure || prefix != nil ? .never : .words)
+                .autocorrectionDisabled(keyboard == .emailAddress || secure || prefix != nil)
                 if secure {
                     Button { reveal.toggle() } label: { Image(systemName: reveal ? "eye.slash" : "eye").foregroundStyle(Color.muted) }
                         .buttonStyle(.plain)

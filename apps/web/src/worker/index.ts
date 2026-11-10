@@ -30,6 +30,7 @@ import { syncPendingConnectAccounts } from "@/server/commerce/shops";
 import { migrateStripePayoutSchedules, runScheduledPayouts, syncPayouts } from "@/server/commerce/payouts";
 import { autoCompleteShippedOrders } from "@/server/commerce/orders";
 import { retryCancelledRefunds } from "@/server/commerce/payments";
+import { retrySellerTransfers } from "@/server/commerce/appstore";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
@@ -369,7 +370,12 @@ async function main() {
 
   const releaseReservations = await optional<unknown>("@/server/commerce/reservations", "releaseExpiredReservations");
   const publishScheduled = await optional<unknown>("@/server/blog/service", "publishScheduledArticles");
-  await boss.work(Q.reservations, guarded(Q.reservations, async () => void (await releaseReservations?.())));
+  const notifyBackInStock = await optional<unknown>("@/server/commerce/restock", "notifyBackInStock");
+  await boss.work(Q.reservations, guarded(Q.reservations, async () => {
+    await releaseReservations?.();
+    // Wieder Bestand (z. B. nach Stornierung) → Anfragen zur Nachproduktion beantworten
+    await notifyBackInStock?.();
+  }));
   await boss.work(Q.scheduled, guarded(Q.scheduled, async () => void (await publishScheduled?.())));
   await boss.work(Q.polls, guarded(Q.polls, async () => void (await notifyEndedPolls())));
   await boss.work(Q.posts, guarded(Q.posts, async () => {
@@ -393,6 +399,8 @@ async function main() {
       if (new Date().getMinutes() % 30 < 10) await syncPayouts();
       // Fehlgeschlagene Erstattungen stornierter Bestellungen nachholen
       await retryCancelledRefunds();
+      // Shop-Anteile aus Apple-Käufen überweisen (nach Fehlern, z. B. zu wenig Plattformguthaben)
+      await retrySellerTransfers();
     }));
 
   await boss.schedule(Q.outbox, "* * * * *");

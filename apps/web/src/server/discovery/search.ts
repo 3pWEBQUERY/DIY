@@ -3,6 +3,7 @@ import { db, Prisma } from "@/server/db";
 import { relationsFor } from "@/server/visibility";
 import { rateLimit } from "@/server/ratelimit";
 import { clientIpHash } from "@/server/auth/session";
+import { publicProductSql } from "@/server/commerce/restock";
 
 /**
  * Globale Suche (PRD §18) auf Postgres: Volltext (deutsch, unaccent) + Trigramm-Ähnlichkeit
@@ -91,7 +92,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
         SELECT pr.id, pr.title, pr.slug, s.slug AS "shopSlug", s.name AS "shopName", pr.category, pr."coverUrl", pr."priceMinor", pr.currency,
           (ts_rank(pr.search, ${tsQuery(q)}) * 2 + similarity(pr.title, ${q}))::float AS score
         FROM "Product" pr JOIN "Shop" s ON s.id = pr."shopId"
-        WHERE pr.status IN ('ACTIVE','SOLD_OUT') AND s.status = 'ACTIVE' AND s."ownerId" NOT IN (${Prisma.join(blocked)})
+        WHERE ${publicProductSql("pr")} AND s.status = 'ACTIVE' AND s."ownerId" NOT IN (${Prisma.join(blocked)})
           AND (pr.search @@ ${tsQuery(q)} OR pr.title % ${q} OR pr.title ILIKE ${like})
           ${f.category ? Prisma.sql`AND pr.category = ${f.category}` : Prisma.empty}
           ${f.priceMin != null ? Prisma.sql`AND pr."priceMinor" >= ${f.priceMin}` : Prisma.empty}

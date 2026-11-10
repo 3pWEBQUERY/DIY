@@ -112,7 +112,7 @@ struct OnboardingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 PageTitle(kicker: "Schritt 2 · Interessen", title: "Woran arbeitest du gern?", subtitle: "Wir stellen deinen Feed danach zusammen. Du kannst das jederzeit ändern.")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                     ForEach(app.activeCategories) { c in
                         let on = interests.contains(c.slug)
                         Button {
@@ -194,7 +194,7 @@ struct OnboardingView: View {
                                     AvatarView(url: c.avatarUrl, name: c.displayName, size: 44, category: c.categories?.first)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(c.displayName).font(.wr(.subheadline, .semibold))
-                                        Text(c.bio ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2)
+                                        Text(c.bio ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2)
                                     }
                                     Spacer(minLength: 0)
                                     toggleButton(on: followed.contains(c.userId), onTitle: "Folge ich", offTitle: "Folgen") {
@@ -246,7 +246,7 @@ struct OnboardingView: View {
         Button { Haptics.tap(); withAnimation(.snappy) { action() } } label: {
             Text(on ? onTitle : offTitle).font(.wr(.footnote, .semibold))
         }
-        .buttonStyle(on ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
+        .glassToggleStyle(prominent: !on)
         .tint(on ? nil : .ink)
         .controlSize(.small)
     }

@@ -172,7 +172,7 @@ struct SearchView: View {
             .padding(.horizontal, 13).padding(.vertical, 8)
         }
         .buttonStyle(.plain)
-        .glassEffect(on ? .regular.tint(Color.ink).interactive() : .regular.interactive(), in: Capsule())
+        .glassEffect(on ? .regular.tint(Color.action).interactive() : .regular.interactive(), in: Capsule())
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
@@ -205,7 +205,7 @@ struct SearchView: View {
             case .project:
                 let cards = (r.projectCards ?? []).filter { c in list.contains { $0.id == c.id } }
                 if !cards.isEmpty {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                    AdaptiveGrid(spacing: 12, rowSpacing: 12) {
                         ForEach(cards.prefix(limit)) { c in
                             ProjectCardView(project: c, style: .tile).simultaneousGesture(TapGesture().onEnded { remember(q) })
                         }
@@ -328,13 +328,13 @@ struct SearchView: View {
             categoryChips(title: "Werkstätten")
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader("Direkt zu")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                     shortcut("Projekte", "hammer") { router.open(.projectList(category: nil, sort: nil)) }
                     shortcut("Anleitungen", "list.number") { router.open(.tutorialList(category: nil)) }
                     shortcut("Communities", "person.3") { router.open(.communities) }
                     shortcut("Blogs", "text.book.closed") { router.open(.blogHome) }
                     shortcut("Materialien", "shippingbox") { router.open(.materials) }
-                    if app.marketplaceEnabled { shortcut("Markt", "bag") { router.tab = .market } }
+                    if app.marketplaceEnabled { shortcut("Markt", "bag.fill") { router.tab = .market } }
                 }
             }
             .padding(.horizontal, Space.gutter)
@@ -394,8 +394,8 @@ struct DiscoverSearchHitRow: View {
             HStack(spacing: 12) {
                 thumb
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(hit.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    if let s = subtitle { Text(s).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                    Text(hit.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
+                    if let s = subtitle { Text(s).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2).multilineTextAlignment(.leading) }
                 }
                 Spacer(minLength: 0)
                 if let price = hit.meta?["priceMinor"]?.int {

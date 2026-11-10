@@ -6,6 +6,7 @@ import { currentUser, getSession, requireUser } from "@/server/auth/session";
 import { requireFlag } from "@/server/flags";
 import { requireAdult } from "@/server/auth/adult";
 import { clampInt, optInt, parseJsonObject } from "./params";
+import { withAppPricing } from "@/server/commerce/appstore";
 
 /**
  * Mobile-API (iOS) unter /api/v1/app/* – dünne REST-Schicht über die bestehenden
@@ -54,6 +55,8 @@ const adultFree = (parts: string[]) =>
   ADULT_FREE_PREFIXES.has(parts[0] ?? "") ||
   (parts[0] === "users" && ["block", "mute", "follow"].includes(parts[2] ?? "")) ||
   (parts[0] === "communities" && parts.length === 3 && ["join", "leave"].includes(parts[2] ?? ""));
+/** Bereiche, in denen digitale Produkte mit ihrem Web-Preis erscheinen (Shop-Verwaltung, Bestellungen). */
+const APP_PRICING_EXCLUDED = new Set(["studio", "admin", "orders", "cart", "checkout"]);
 
 export const viewer = () => currentUser();
 export async function viewerId() {
@@ -191,8 +194,10 @@ export async function dispatch(routes: RouteDef[], req: NextRequest, parts: stri
       json,
       body: async (shape) => z.object(shape).parse(await json()),
     };
-    const data = await found.handler(ctx);
+    let data = await found.handler(ctx);
     if (data instanceof Response) return data;
+    // Digitale Produkte: in der App gilt der App-Preis (Kauf über Apple). Studio/Verwaltung zeigen Web-Preise.
+    if (!APP_PRICING_EXCLUDED.has(parts[0] ?? "")) data = await withAppPricing(data);
     return new NextResponse(serialize(data), { headers: JSON_HEADERS });
   } catch (e) {
     return errorResponse(e, req);

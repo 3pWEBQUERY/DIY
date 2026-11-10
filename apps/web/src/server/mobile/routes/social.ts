@@ -16,6 +16,7 @@ import { profileAwards } from "@/server/communities/competitions";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { decodeFollowCursor, encodeFollowCursor } from "../params";
 import { DELETE, GET, PATCH, POST, me, need, str, takeParam, viewer, viewerId, zBool, zIds, zStr, type RouteDef } from "../router";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 /**
  * Kommentarliste für die App. Ohne `paged=1`/`cursor` wie bisher nur die erste Seite als Liste
@@ -193,7 +194,7 @@ export const socialRoutes: RouteDef[] = [
           posts.byAuthorsWhere([userId]).then((or) => posts.listPosts({ ...base, communityId: null, OR: or }, vid, { take: 12 })),
           profile.user.shop?.status === "ACTIVE"
             ? db.product.findMany({
-                where: { shop: { ownerId: userId }, status: { in: ["ACTIVE", "SOLD_OUT"] } },
+                where: { shop: { ownerId: userId }, ...publicProductWhere },
                 orderBy: { publishedAt: "desc" },
                 take: 12,
                 select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true },

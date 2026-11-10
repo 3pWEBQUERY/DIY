@@ -52,7 +52,7 @@ struct CartView: View {
     @ViewBuilder private func content(_ c: MarketCart) -> some View {
         if c.groups.isEmpty && (c.pendingOrders ?? []).isEmpty {
             ScrollView {
-                EmptyStateView(symbol: "bag", title: "Dein Warenkorb ist leer", message: "Stöbere im Marktplatz – viele Arbeiten zeigen ihr Projekt, du siehst, wie sie entstanden sind.", actionTitle: "Marktplatz entdecken") {
+                EmptyStateView(symbol: "bag.fill", title: "Dein Warenkorb ist leer", message: "Stöbere im Marktplatz – viele Arbeiten zeigen ihr Projekt, du siehst, wie sie entstanden sind.", actionTitle: "Marktplatz entdecken") {
                     router.tab = .market
                     router.popToRoot()
                 }
@@ -98,7 +98,7 @@ struct CartView: View {
                         Text(Fmt.money(o.totalMinor, currency: o.currency)).font(.wr(.headline)).monospacedDigit()
                     }
                     if let items = o.items, !items.isEmpty {
-                        Text(items.map { "\($0.quantity) × \($0.title)" }.joined(separator: ", ")).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2)
+                        Text(items.map { "\($0.quantity) × \($0.title)" }.joined(separator: ", ")).font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2)
                     }
                     if let exp = o.reservationExpiresAt {
                         Label("Reserviert bis \(exp.formatted(date: .omitted, time: .shortened))", systemImage: "clock").font(.wr(.caption)).foregroundStyle(Color.warn)
@@ -178,7 +178,7 @@ struct CartView: View {
                 .buttonStyle(.pressable)
                 .accessibilityLabel("\(l.title) öffnen")
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(l.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2)
+                    Text(l.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2)
                     if let v = l.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
                     Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
                     if l.isDigital { Label("In der App nicht erhältlich", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }

@@ -44,7 +44,7 @@ struct MarketDownloadButton: View {
 private struct MarketDownloadButtonStyle: ViewModifier {
     var prominent: Bool
     func body(content: Content) -> some View {
-        if prominent { content.buttonStyle(.glassProminent).tint(.moss) } else { content.buttonStyle(.glass) }
+        if prominent { content.buttonStyle(.glassProminent).tint(.action) } else { content.buttonStyle(.glass) }
     }
 }
 
@@ -348,7 +348,7 @@ struct MarketCartToolbarButton: View {
     @Environment(Router.self) private var router
     var body: some View {
         Button { router.open(.cart) } label: {
-            Image(systemName: "bag")
+            Image(systemName: "bag.fill")
                 .overlay(alignment: .topTrailing) {
                     if app.cartCount > 0 {
                         Text("\(min(app.cartCount, 99))")
@@ -389,12 +389,12 @@ struct MarketShopCardView: View {
                 HStack(spacing: 8) {
                     AvatarView(url: shop.owner?.avatarUrl, name: shop.owner?.displayName ?? shop.name, size: 26)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(shop.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text(shop.owner?.displayName ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(shop.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                        Text(shop.owner?.displayName ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
                 if let t = shop.tagline?.nilIfEmpty {
-                    Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer(minLength: 0)

@@ -36,6 +36,9 @@ struct ProductEditorSheet: View {
     @State private var stockBase: Int?
     /// Dasselbe je Variante (Schlüssel: Bezeichnung klein geschrieben, wie der Server sie zuordnet)
     @State private var variantStockBase: [String: Int] = [:]
+    /// Ausverkauft weiter öffentlich zeigen (Gegenteil von `hideWhenSoldOut` auf dem Server)
+    @State private var showWhenSoldOut = true
+    @State private var restockRequests: [MarketRestockRequest] = []
 
     @State private var fields: [String: String] = [:]
     @State private var formError: String?
@@ -86,7 +89,11 @@ struct ProductEditorSheet: View {
             loadError = nil
             if category.isEmpty { category = c.categories.first?.slug ?? "" }
             if c.shop.status != "ACTIVE" { status = "DRAFT" }
-            if let p = c.product { apply(p) }
+            if let p = c.product {
+                apply(p)
+                struct R: Decodable { var items: [MarketRestockRequest] }
+                restockRequests = ((try? await APIClient.shared.get("/studio/products/\(p.id)/restock-requests", as: R.self))?.items) ?? []
+            }
         } catch is CancellationError {
         } catch {
             loadError = (error as? APIError)?.message ?? error.localizedDescription
@@ -120,6 +127,37 @@ struct ProductEditorSheet: View {
         }
         variantStockBase = vb
         reserved = (p.inventory ?? []).reduce(0) { $0 + $1.reserved }
+        showWhenSoldOut = !(p.hideWhenSoldOut ?? false)
+    }
+
+    // MARK: Ausverkauft
+
+    private var soldOutSection: some View {
+        Section {
+            Toggle("Ausverkauft weiter anzeigen", isOn: $showWhenSoldOut)
+            if !restockRequests.isEmpty {
+                ForEach(restockRequests.prefix(20)) { r in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(r.user.displayName.nilIfEmpty ?? "@\(r.user.handle)").font(.wr(.subheadline, .semibold))
+                            Spacer()
+                            Text(Fmt.relative(r.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
+                        }
+                        if let n = r.note.nilIfEmpty { Text("„\(n)“").font(.wr(.footnote)).foregroundStyle(Color.ink2) }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        } header: {
+            Text(restockRequests.isEmpty ? "Wenn ausverkauft" : (restockRequests.count == 1 ? "Wenn ausverkauft · 1 Anfrage" : "Wenn ausverkauft · \(restockRequests.count) Anfragen"))
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(showWhenSoldOut
+                     ? "Ohne Bestand bleibt das Produkt als „Ausverkauft“ sichtbar, und Interessierte können eine Nachproduktion anfragen."
+                     : "Ohne Bestand verschwindet das Produkt aus Shop, Marktplatz und Suche. Mit neuem Bestand ist es automatisch wieder sichtbar.")
+                if !restockRequests.isEmpty { Text("Füllst du den Bestand auf, werden alle, die angefragt haben, automatisch benachrichtigt.") }
+            }
+        }
     }
 
     // MARK: Formular
@@ -156,7 +194,7 @@ struct ProductEditorSheet: View {
                 TextField("Beschreibung – wie ist es entstanden, wofür eignet es sich, wie pflegt man es?", text: $description, axis: .vertical)
                     .lineLimit(4...12)
             } header: { Text("Angebot") } footer: {
-                if isDigital { Text("Digitale Dateien verwaltest du im Web. Auf iOS werden digitale Produkte nicht verkauft.") }
+                if isDigital { Text("Digitale Dateien verwaltest du im Web. In der iOS-App kaufen Kund:innen über Apple; dein Anteil ist gleich wie bei einem Web-Verkauf.") }
                 else { Text("Konkret und ehrlich, z. B. „Gehäkelter Korb aus Baumwollkordel, natur“.") }
             }
 
@@ -186,6 +224,8 @@ struct ProductEditorSheet: View {
             }
 
             if !isDigital { variantSection }
+
+            if !isDigital { soldOutSection }
 
             if !isDigital {
                 Section("Details & Versand") {
@@ -349,7 +389,10 @@ struct ProductEditorSheet: View {
         if !projectId.isEmpty { input["projectId"] = .string(projectId) }
         if !tutorialId.isEmpty { input["tutorialId"] = .string(tutorialId) }
         var extra: [String: JSONValue] = ["announce": .bool(announce && status == "ACTIVE"), "announceText": .string(announceText.trimmed)]
-        if !isDigital { extra["shipsFrom"] = .string(shipsFrom) }
+        if !isDigital {
+            extra["shipsFrom"] = .string(shipsFrom)
+            extra["hideWhenSoldOut"] = .bool(!showWhenSoldOut)
+        }
         let body: [String: JSONValue] = ["input": .object(input), "extra": .object(extra)]
 
         do {

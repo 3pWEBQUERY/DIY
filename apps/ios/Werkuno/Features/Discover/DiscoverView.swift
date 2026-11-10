@@ -119,12 +119,7 @@ private struct DiscoverPageContent: View {
         let hc = heroCategory
         let color = hc.map { CategoryPalette.color(for: $0.slug) } ?? Color.moss
         return ZStack(alignment: .bottomLeading) {
-            Rectangle().fill(color.opacity(0.07))
-                .animation(.easeInOut(duration: 0.8), value: hc?.slug)
-            ThreeCanvas(scene: .glyph(hc?.glyph, color: color, seed: Int((hc?.slug ?? "werkuno").stableHash % 97) + 1, spin: 0.18))
-                .frame(height: 300)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 40)
+            Color.paper
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     SpecLabel(heroKicker, color: color)
@@ -141,11 +136,12 @@ private struct DiscoverPageContent: View {
                 }
             }
             .padding(.horizontal, Space.gutter)
-            .padding(.bottom, 18)
+            .padding(.top, 22)
+            .padding(.bottom, 20)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
         }
-        .frame(minHeight: 340)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
         .hairline()
     }
@@ -283,6 +279,8 @@ private struct DiscoverPageContent: View {
                 quick("Projekte", "hammer") { router.open(.projectList(category: active, sort: nil)) }
                 quick("Anleitungen", "list.number") { router.open(.tutorialList(category: active)) }
                 quick("Communities", "person.3") { router.open(.communities) }
+                quick("Events", "calendar") { router.open(.events) }
+                quick("Wettbewerbe", "trophy") { router.open(.competitions()) }
                 quick("Blogs", "text.book.closed") { router.open(.blogHome) }
                 quick("Materialien", "shippingbox") { router.open(.materials) }
             }
@@ -292,12 +290,16 @@ private struct DiscoverPageContent: View {
 
     private func quick(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: symbol).font(.wr(.title3)).foregroundStyle(Color.moss)
-                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+            VStack(alignment: .leading, spacing: 0) {
+                Image(systemName: symbol)
+                    .font(.wr(.title3)).foregroundStyle(Color.moss)
+                    .frame(height: 28, alignment: .leading) // Symbole unterschiedlich hoch → feste Zeile
+                Spacer(minLength: 10)
+                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
             }
             .padding(14)
             .frame(minWidth: 116, alignment: .leading)
+            .frame(height: 96) // alle Kacheln exakt gleich hoch
             .cardSurface(radius: 18)
         }
         .buttonStyle(.pressable)

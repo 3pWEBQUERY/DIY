@@ -108,7 +108,7 @@ struct AppealView: View {
 
 // MARK: - Moderation (§24)
 
-private enum MeModTab: String, Hashable { case overview, queue, appeals, reports, users }
+private enum MeModTab: String, Hashable { case overview, queue, appeals, reports, users, content }
 
 struct ModerationView: View {
     @Environment(AppState.self) private var app
@@ -134,6 +134,7 @@ struct ModerationView: View {
                                 case .appeals: MeModAppealsList()
                                 case .reports: MeModReportsList()
                                 case .users: MeAdminUsersList()
+                                case .content: MeAdminContentList()
                                 }
                             }
                             .padding(.horizontal, Space.gutter)
@@ -145,6 +146,7 @@ struct ModerationView: View {
                                 (.appeals, "Einsprüche", dashboard?.counts?.appeals),
                                 (.reports, "Meldungen", nil),
                                 (.users, "Nutzer:innen", nil),
+                                (.content, "Inhalte", nil),
                                 (.overview, "Kennzahlen", nil),
                             ], selection: $tab)
                         }
@@ -229,7 +231,7 @@ private struct MeModOverview: View {
     private func grid(_ title: String, _ items: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SpecLabel(title)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                 ForEach(items, id: \.0) { MeKPI(label: $0.0, value: $0.1) }
             }
         }
@@ -269,7 +271,7 @@ private struct MeModQueueList: View {
                             .font(.wr(.footnote).weight(on ? .semibold : .regular))
                             .foregroundStyle(on ? Color.paper : Color.ink)
                             .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(on ? Color.ink : Color.sunken, in: Capsule())
+                            .background(on ? Color.action : Color.sunken, in: Capsule())
                         }
                         .buttonStyle(.plain)
                     }
@@ -352,7 +354,7 @@ private struct MeCaseRow: View {
                     Spacer()
                     Text(Fmt.relative(c.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                Text(c.title ?? MeLabels.targetType(c.targetType)).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(c.title ?? MeLabels.targetType(c.targetType)).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
                     Text([MeLabels.targetType(c.targetType), MeLabels.reason(c.primaryReason), Fmt.plural(c._count?.reports ?? c.reportCount ?? 1, "Meldung", "Meldungen")].joined(separator: " · "))
                     Spacer(minLength: 0)
@@ -420,10 +422,10 @@ private struct MeModAppealsList: View {
                 Spacer()
                 Text(Fmt.relative(a.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
             }
-            if let t = a.case?.title { Text(t).font(.wr(.subheadline, .semibold)).lineLimit(2) }
+            if let t = a.case?.title { Text(t).font(.wr(.subheadline, .semibold)).a11yLineLimit(2) }
             Text([a.user?.handle.map { "@\($0)" }, MeLabels.targetType(a.case?.targetType), original.map { "Massnahme: \(MeLabels.action($0.action))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
                 .font(.wr(.caption)).foregroundStyle(Color.muted)
-            Text(a.statement).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(6).padding(10).frame(maxWidth: .infinity, alignment: .leading).sunkenSurface()
+            Text(a.statement).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(6).padding(10).frame(maxWidth: .infinity, alignment: .leading).sunkenSurface()
             if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.wr(.caption)).foregroundStyle(Color.ink2) }
             HStack {
                 if let cid = a.case?.id ?? a.caseId {
@@ -528,7 +530,7 @@ private struct MeModReportsList: View {
                                     }
                                     Text([MeLabels.targetType(r.targetType), r.reporter?.handle.map { "von @\($0)" }, r.case.map { "Fall Nº \($0.number ?? 0) · \(MeLabels.caseStatus($0.status ?? ""))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
                                         .font(.wr(.caption)).foregroundStyle(Color.muted)
-                                    if let d = r.details?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(3) }
+                                    if let d = r.details?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(3) }
                                 }
                                 .padding(14)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -556,7 +558,7 @@ private struct MeModReportsList: View {
             .font(.wr(.footnote).weight(on ? .semibold : .regular))
             .foregroundStyle(on ? Color.paper : Color.ink)
             .padding(.horizontal, 12).padding(.vertical, 7)
-            .background(on ? Color.ink : Color.sunken, in: Capsule())
+            .background(on ? Color.action : Color.sunken, in: Capsule())
         }
         .buttonStyle(.plain)
     }
@@ -632,7 +634,7 @@ private struct MeAdminUsersList: View {
                                             if u.status != "ACTIVE" { MeStatePill(text: MeLabels.accountStatus(u.status), tone: .danger) }
                                         }
                                         Text([u.profile?.handle.map { "@\($0)" }, u.email, (u._count?.moderationSubject ?? 0) > 0 ? "\(u._count?.moderationSubject ?? 0) Fälle" : nil].compactMap { $0 }.joined(separator: " · "))
-                                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                            .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                                     }
                                     Spacer(minLength: 0)
                                     Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
@@ -724,7 +726,7 @@ struct ModerationCaseView: View {
                                     _ = try await APIClient.shared.post("/admin/cases/\(id)/assign", ["assign": JSONValue.bool(!mine)]) as JSONValue
                                 }) { await load() }
                             } label: { Text(mine ? "Freigeben" : "Übernehmen").font(.wr(.footnote, .semibold)) }
-                            .buttonStyle(mine ? AnyPrimitiveButtonStyle(.glass) : AnyPrimitiveButtonStyle(.glassProminent))
+                            .glassToggleStyle(prominent: !mine)
                             .tint(.moss)
                         }
                     }
@@ -846,7 +848,7 @@ struct ModerationCaseView: View {
                 ForEach(c.appeals ?? []) { a in
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Einspruch · \(MeLabels.appealStatus(a.status))").font(.wr(.subheadline, .semibold))
-                        if let s = a.statement { Text(s).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(5) }
+                        if let s = a.statement { Text(s).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(5) }
                         if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.wr(.caption)).foregroundStyle(Color.muted) }
                         Text(Fmt.dateTime(a.createdAt)).specStyle()
                     }
@@ -905,6 +907,7 @@ struct AdminUserView: View {
     @State private var error: String?
     @State private var sheet: MeAdminSheet?
     @State private var confirmRevoke = false
+    @State private var showEmailChange = false
 
     var body: some View {
         MePhase(value: data, error: error, retry: load) { d in content(d) }
@@ -915,6 +918,10 @@ struct AdminUserView: View {
             .refreshable { await load() }
             .sheet(item: $sheet) { s in
                 MeAdminActionSheet(kind: s, userId: id, currentRole: data?.user.role ?? "MEMBER") { await load() }.meSheetEnvironment(app, router)
+            }
+            .sheet(isPresented: $showEmailChange) {
+                MeAdminEmailSheet(userId: id, current: data?.user.email ?? "", canMarkVerified: app.me?.role == "SUPERADMIN") { await load() }
+                    .meSheetEnvironment(app, router)
             }
             .confirmationDialog("Alle Sitzungen widerrufen?", isPresented: $confirmRevoke, titleVisibility: .visible) {
                 Button("Widerrufen", role: .destructive) {
@@ -985,6 +992,10 @@ struct AdminUserView: View {
                             }
                             if app.me?.isAdmin == true {
                                 MeNavRow(symbol: "person.badge.key", title: "Rolle ändern", subtitle: L.roles[u.role] ?? u.role) { sheet = .role }
+                                // Wie im Web: nur Administration, nie das eigene Konto, gleiche oder höhere Rolle nur Superadministration
+                                if u.status != "DELETED", app.me?.role == "SUPERADMIN" || MeRoleRank.rank(u.role) < MeRoleRank.rank(app.me?.role) {
+                                    MeNavRow(symbol: "at", title: "E-Mail-Adresse ändern", subtitle: "Support-Fall, mit Begründung") { showEmailChange = true }
+                                }
                                 if u.emailVerifiedAt == nil {
                                     MeNavRow(symbol: "checkmark.seal", title: "E-Mail manuell bestätigen") {
                                         Task { if await app.run("E-Mail bestätigt.", { _ = try await APIClient.shared.post("/admin/users/\(id)/verify-email") as JSONValue }) { await load() } }

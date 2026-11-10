@@ -58,7 +58,7 @@ struct ProjectsFieldErrors: Equatable {
 struct ProjectsChoiceChips<T: Hashable>: View {
     var items: [(value: T, label: String, symbol: String?)]
     @Binding var selection: T
-    var tint: Color = .ink
+    var tint: Color = .action
 
     var body: some View {
         FlowLayout(spacing: 8, lineSpacing: 8) {
@@ -429,10 +429,19 @@ struct ProjectsSpecTable: View {
         var quantity: String?
         var note: String?
         var safety: String?
+        /// Verknüpftes Material der Datenbank (für „Habe ich“ und Link zur Materialseite)
+        var materialId: String? = nil
+        var materialSlug: String? = nil
     }
     var title: String
     var rows: [Row]
     var showQuantity = true
+    /// Bestand der angemeldeten Person (nil = nicht anzeigen)
+    var stock: MaterialStockIndex? = nil
+    /// Tippen auf eine Zeile mit `materialSlug` öffnet die Materialseite
+    var onOpenMaterial: ((String) -> Void)? = nil
+    /// „Habe ich“ wurde umgeschaltet (materialId, neuer Zustand)
+    var onStockChange: ((String, Bool) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -448,20 +457,41 @@ struct ProjectsSpecTable: View {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(String(format: "%02d", i + 1)).font(.specLarge).foregroundStyle(Color.muted).frame(width: 34, alignment: .leading)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(r.name).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink)
+                        if let slug = r.materialSlug, let onOpenMaterial {
+                            Button { onOpenMaterial(slug) } label: {
+                                HStack(spacing: 4) {
+                                    Text(r.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
+                                    Image(systemName: "chevron.right").font(.wr(.caption2, .semibold)).foregroundStyle(Color.muted)
+                                }
+                                .contentShape(.rect)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Materialseite mit Preisvergleich öffnen")
+                        } else {
+                            Text(r.name).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink)
+                        }
                         if let n = r.note?.nilIfEmpty { Text(n).font(.wr(.caption)).foregroundStyle(Color.muted) }
                         if let s = r.safety?.nilIfEmpty {
                             Label(s, systemImage: "exclamationmark.triangle.fill").font(.wr(.caption)).foregroundStyle(Color.warn)
                         }
                     }
                     Spacer(minLength: 12)
-                    if showQuantity, let q = r.quantity?.nilIfEmpty {
-                        Text(q).font(.wr(.subheadline).monospacedDigit()).foregroundStyle(Color.ink2)
+                    VStack(alignment: .trailing, spacing: 6) {
+                        if showQuantity, let q = r.quantity?.nilIfEmpty {
+                            Text(q).font(.wr(.subheadline).monospacedDigit()).foregroundStyle(Color.ink2)
+                        }
+                        if let stock {
+                            if let mid = r.materialId {
+                                MaterialStockToggle(materialId: mid, name: r.name, have: Binding(get: { stock.has(materialId: mid, name: r.name) }, set: { onStockChange?(mid, $0) }), compact: true)
+                            } else if stock.has(materialId: nil, name: r.name) {
+                                Label("Im Bestand", systemImage: "checkmark").font(.wr(.caption, .semibold)).foregroundStyle(Color.mossInk)
+                            }
+                        }
                     }
                 }
                 .padding(.vertical, 11)
                 .hairline()
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .contain)
             }
         }
     }

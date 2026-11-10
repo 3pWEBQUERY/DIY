@@ -15,9 +15,14 @@ struct WorkbenchAccessory: View {
     var body: some View {
         HStack(spacing: 12) {
             Button { router.present(.createMenu) } label: {
-                Label("Erstellen", systemImage: "plus")
+                Group {
+                    if placement == .inline {
+                        Label("Erstellen", systemImage: "plus").labelStyle(.iconOnly)
+                    } else {
+                        Label("Erstellen", systemImage: "plus").labelStyle(.titleAndIcon)
+                    }
+                }
                     .font(.wr(.subheadline, .semibold))
-                    .labelStyle(placement == .inline ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(.rect)
             }
@@ -30,7 +35,7 @@ struct WorkbenchAccessory: View {
                         Circle().fill(CategoryPalette.color(for: p.category)).frame(width: 7, height: 7)
                         VStack(alignment: .leading, spacing: 0) {
                             if placement != .inline { Text("Auf der Werkbank").font(.wr(size: 9, weight: .semibold)).textCase(.uppercase).foregroundStyle(Color.muted) }
-                            Text(p.title).font(.wr(.footnote, .semibold)).lineLimit(1)
+                            Text(p.title).font(.wr(.footnote, .semibold)).a11yLineLimit(1)
                         }
                     }
                 }
@@ -56,12 +61,6 @@ struct WorkbenchAccessory: View {
         guard app.isSignedIn, let c: Ctx = try? await APIClient.shared.get("/feed/context") else { return }
         withAnimation { active = c.workbench.first }
     }
-}
-
-struct AnyLabelStyle: LabelStyle {
-    private let make: (Configuration) -> AnyView
-    init<S: LabelStyle>(_ s: S) { make = { AnyView(s.makeBody(configuration: $0)) } }
-    func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }
 
 // MARK: - Erstellen-Menü
@@ -98,7 +97,7 @@ struct CreateMenuSheet: View {
                     }
                     .padding(.top, 4)
                     GlassEffectContainer(spacing: 12) {
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        AdaptiveGrid(spacing: 12, rowSpacing: 12) {
                             ForEach(items) { item in
                                 Button {
                                     Haptics.tap()
@@ -110,7 +109,7 @@ struct CreateMenuSheet: View {
                                             .frame(width: 44, height: 44)
                                             .background(item.tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
                                         Text(item.title).font(.wr(.headline)).foregroundStyle(Color.ink)
-                                        Text(item.subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.leading).lineLimit(2)
+                                        Text(item.subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.leading).a11yLineLimit(2)
                                     }
                                     .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
                                     .padding(14)
@@ -143,7 +142,8 @@ struct CreateMenuSheet: View {
             .background(Color.paper)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schliessen", systemImage: "xmark") { dismiss() } } }
         }
-        .presentationDetents([.medium, .large])
+        // Immer ganz geöffnet – auf halber Höhe waren die Karten abgeschnitten
+        .presentationDetents([.large])
         .presentationBackground(.thinMaterial)
     }
 }

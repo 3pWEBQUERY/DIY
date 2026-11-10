@@ -13,8 +13,8 @@ extension Color {
         })
     }
 
-    /// Hintergrund (Papier) – web --color-paper
-    static let paper = Color.dynamic(light: 0xFAF8F5, dark: 0x151312)
+    /// Hintergrund – im hellen Modus reines Weiss, im Dunkelmodus warmes Schwarz
+    static let paper = Color.dynamic(light: 0xFFFFFF, dark: 0x151312)
     /// Karten und Panels – web --color-card
     static let card = Color.dynamic(light: 0xFFFFFF, dark: 0x1F1C1B)
     /// Abgesetzte Flächen – web --color-sunken
@@ -23,13 +23,16 @@ extension Color {
     static let ink = Color.dynamic(light: 0x262427, dark: 0xEEEAE6)
     static let ink2 = Color.dynamic(light: 0x3D393C, dark: 0xD6D0CB)
     /// Sekundärtext – web --color-muted
-    static let muted = Color.dynamic(light: 0x77706D, dark: 0xA39B96)
+    static let muted = Color.dynamic(light: 0x66605C, dark: 0xA39B96) // hell abgedunkelt: ≥ 4.5:1 auch auf Glas/Sunken
     /// Primärfarbe (Coral) – web --color-moss
     static let moss = Color.dynamic(light: 0xB64B3A, dark: 0xE47F6B)
     /// Primär, gedrückt/Hover – web --color-moss-ink
     static let mossInk = Color.dynamic(light: 0x973B2C, dark: 0xF2AC9C)
     /// Akzentfläche – web --color-moss-soft
     static let mossSoft = Color.dynamic(light: 0xF6E5E0, dark: 0x3B2420)
+    /// Gefüllte Aktions-Buttons (ausgewählte Chips, Folgen, Umschalter …): im hellen Modus das
+    /// Werkuno-Orange der Website statt Schwarz, im Dunkelmodus hell. Schrift darauf: `Color.paper`.
+    static let action = Color.dynamic(light: 0xB64B3A, dark: 0xEEEAE6)
     /// Akzent = Primärfarbe (wie im Web)
     static let clay = moss
     static let clayInk = mossInk
@@ -215,5 +218,34 @@ enum CategoryPalette {
         case "kite": "wind"
         default: "sparkles"
         }
+    }
+}
+
+
+// MARK: - Bedienungshilfen: grosse Schrift
+
+/// Zeilenbegrenzung, die bei Bedienungshilfen-Schriftgrössen aufgehoben wird – sonst wird Text abgeschnitten.
+private struct AccessibleLineLimit: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var size
+    let limit: Int
+    func body(content: Content) -> some View {
+        content.lineLimit(size.isAccessibilitySize ? nil : limit)
+    }
+}
+
+extension View {
+    func a11yLineLimit(_ limit: Int) -> some View { modifier(AccessibleLineLimit(limit: limit)) }
+}
+
+/// Zweispaltiges Raster, das bei Bedienungshilfen-Schriftgrössen einspaltig wird.
+struct AdaptiveGrid<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var size
+    var spacing: CGFloat = 12
+    var rowSpacing: CGFloat = 12
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        let count = size.isAccessibilitySize ? 1 : 2
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: count), spacing: rowSpacing, content: content)
     }
 }

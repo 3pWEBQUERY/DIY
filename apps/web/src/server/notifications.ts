@@ -6,7 +6,7 @@ import { publish } from "@/server/realtime/bus";
 type Prefs = Partial<Record<NotificationType, { inApp?: boolean; email?: boolean }>>;
 
 /** Standard: alles In-App; E-Mail nur für wirklich wichtige Ereignisse (§19.3, Bündelung). */
-export const DEFAULT_EMAIL: NotificationType[] = ["MESSAGE", "ORDER_NEW", "ORDER_STATUS", "MODERATION", "SECURITY", "COMMUNITY_INVITE"];
+export const DEFAULT_EMAIL: NotificationType[] = ["MESSAGE", "ORDER_NEW", "ORDER_STATUS", "MODERATION", "SECURITY", "COMMUNITY_INVITE", "RESTOCK"];
 
 export function prefFor(prefs: Prefs | null | undefined, type: NotificationType) {
   const p = prefs?.[type];

@@ -67,7 +67,7 @@ struct MeNavRow: View {
                     .background(tint.opacity(0.09), in: .rect(cornerRadius: 9, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.wr(.body)).foregroundStyle(tint == .danger ? Color.danger : Color.ink)
-                    if let subtitle { Text(subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
+                    if let subtitle { Text(subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2) }
                 }
                 Spacer(minLength: 8)
                 if badge > 0 {
@@ -134,7 +134,7 @@ struct MeKPI: View {
                     MeDelta(cur: cur, prev: prev)
                     Text("vs. \(Fmt.number(prev))").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                if let caption { Text(caption).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
+                if let caption { Text(caption).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -168,7 +168,7 @@ struct MeTabSwitcher<T: Hashable>: View {
                         .foregroundStyle(on ? Color.paper : Color.ink)
                         .padding(.horizontal, 14).padding(.vertical, 9)
                         .background {
-                            if on { Capsule().fill(Color.ink).matchedGeometryEffect(id: "tab", in: ns) }
+                            if on { Capsule().fill(Color.action).matchedGeometryEffect(id: "tab", in: ns) }
                         }
                         .contentShape(Capsule())
                     }

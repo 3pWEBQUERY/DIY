@@ -47,6 +47,7 @@ export const LIMITS = {
   report: [30, 3600],
   upload: [120, 3600],
   checkout: [20, 3600],
+  restockRequest: [30, 86400],
 } as const satisfies Record<string, readonly [number, number]>;
 
 export function limit(action: keyof typeof LIMITS, subject: string) {

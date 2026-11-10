@@ -12,8 +12,13 @@ enum ServerEnvironment: String, CaseIterable, Identifiable, Codable {
     var label: String { self == .production ? "Produktion (werkuno.ch)" : "Lokal (localhost:3000)" }
     var baseURL: URL {
         switch self {
-        case .production: URL(string: "https://werkuno.ch")!
-        case .local: URL(string: "http://localhost:3000")!
+        case .production: return URL(string: "https://werkuno.ch")!
+        case .local:
+            #if DEBUG
+            // Entwicklung: anderer Port möglich (`defaults write … werkuno.localURL http://localhost:3100`)
+            if let s = UserDefaults.standard.string(forKey: "werkuno.localURL"), let u = URL(string: s) { return u }
+            #endif
+            return URL(string: "http://localhost:3000")!
         }
     }
 }
@@ -256,7 +261,13 @@ final class APIClient: @unchecked Sendable {
 
     func perform<T: Decodable>(_ request: URLRequest, bearer: String? = nil) async throws -> T {
         var req = request
-        if let t = bearer ?? token { req.setValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
+        // `bearer` gilt nur für diese Anfrage; ein bereits gesetzter Authorization-Header
+        // (z. B. ausstehende 2FA-Anmeldung) wird nicht durch das gespeicherte Token überschrieben.
+        if let bearer {
+            req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        } else if let token, req.value(forHTTPHeaderField: "Authorization") == nil {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         let data: Data
         let response: URLResponse
         do {
@@ -307,10 +318,16 @@ final class APIClient: @unchecked Sendable {
         try await send("POST", "/auth/session", body: ["email": email, "password": password], root: "/api/v1")
     }
 
-    /// Zweiter Anmeldeschritt: ausstehende Session mit TOTP- oder Wiederherstellungscode freischalten.
-    func verifyMfa(pendingToken: String, code: String, recovery: Bool) async throws {
-        let body: [String: String] = ["code": code, "kind": recovery ? "recovery" : "totp"]
+    /// Zweiter Anmeldeschritt: ausstehendes Token mit Code aus der Authenticator-App
+    /// (`kind: "totp"`) oder einem Wiederherstellungscode (`"recovery"`) freischalten.
+    func verifyMfa(pendingToken: String, code: String, kind: String) async throws {
+        let body: [String: String] = ["code": code, "kind": kind]
         _ = try await send("POST", "/auth/session/mfa", body: body, root: "/api/v1", bearer: pendingToken) as JSONValue
+    }
+
+    /// Ausstehende (noch nicht bestätigte) Anmeldung serverseitig verwerfen.
+    func revoke(pendingToken: String) async {
+        await logout(bearer: pendingToken)
     }
 
     /// Session widerrufen – ohne `bearer` die gespeicherte, sonst z. B. eine abgebrochene 2FA-Anmeldung.

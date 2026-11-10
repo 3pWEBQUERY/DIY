@@ -12,7 +12,7 @@ import { bucket, defineRailway, github, group, postgres, preserve, project, serv
 export default defineRailway((ctx) => {
   const db = postgres("Postgres");
   const media = bucket("media", { region: "ams" });
-  const source = github("3pwebquery/diy", { branch: ctx.environment === "production" ? "claude/werkraum-diy-platform-m9g2tc" : "main" });
+  const source = github("3pwebquery/diy", { branch: ctx.environment === "production" ? "claude/page-analysis-extensions-xa57qd" : "main" });
 
   const storageEnv = {
     S3_ENDPOINT: media.env.ENDPOINT,

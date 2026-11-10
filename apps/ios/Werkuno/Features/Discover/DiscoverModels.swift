@@ -124,6 +124,14 @@ struct CommunityChallenge: Decodable, Hashable, Identifiable, Sendable {
     var description: String?
     var startsAt: Date?
     var endsAt: Date?
+    var rules: String?
+    var prize: String?
+    var judging: String?
+    var votingEndsAt: Date?
+    var resultsAt: Date?
+    var entryCount: Int?
+
+    var phase: CompetitionPhase { .compute(startsAt: startsAt, endsAt: endsAt, votingEndsAt: votingEndsAt, resultsAt: resultsAt, judging: judging) }
 
     var isRunning: Bool {
         let now = Date()

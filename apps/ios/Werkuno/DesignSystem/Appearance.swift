@@ -42,14 +42,13 @@ enum AppAppearance: String, CaseIterable, Identifiable {
         AppAppearance(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .system
     }
 
-    /// Auf alle offenen Fenster anwenden
+    /// Auf alle offenen Fenster anwenden. Bewusst ohne UIView.transition: Die Überblendung des ganzen
+    /// Fensters hielt die alte Darstellung (inkl. alter Auswahl) fest und schluckte Tipps während der Animation.
     @MainActor static func apply(_ a: AppAppearance = .current) {
         for scene in UIApplication.shared.connectedScenes {
             guard let ws = scene as? UIWindowScene else { continue }
             for w in ws.windows where w.overrideUserInterfaceStyle != a.style {
-                UIView.transition(with: w, duration: 0.3, options: .transitionCrossDissolve) {
-                    w.overrideUserInterfaceStyle = a.style
-                }
+                w.overrideUserInterfaceStyle = a.style
             }
         }
     }
@@ -58,17 +57,20 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 /// Auswahl als drei Kacheln (Hell · Dunkel · System) – für Einstellungen und Gastbereich.
 struct AppearancePicker: View {
     @AppStorage(AppAppearance.storageKey) private var raw = AppAppearance.system.rawValue
-
-    private var selection: AppAppearance { AppAppearance(rawValue: raw) ?? .system }
+    /// Sichtbare Auswahl – wechselt sofort beim Tippen, unabhängig vom Umschalten der Fenster
+    @State private var selection: AppAppearance = .current
 
     var body: some View {
         HStack(spacing: 10) {
             ForEach([AppAppearance.light, .dark, .system]) { a in
                 let on = a == selection
                 Button {
+                    guard a != selection else { return }
                     Haptics.selection()
+                    selection = a
                     raw = a.rawValue
-                    AppAppearance.apply(a)
+                    // Erst die neue Auswahl zeichnen, dann die Darstellung umschalten
+                    Task { @MainActor in AppAppearance.apply(a) }
                 } label: {
                     VStack(spacing: 8) {
                         preview(a)
@@ -91,6 +93,8 @@ struct AppearancePicker: View {
             }
         }
         .padding(12)
+        .onAppear { selection = AppAppearance(rawValue: raw) ?? .system }
+        .onChange(of: raw) { _, new in selection = AppAppearance(rawValue: new) ?? .system }
     }
 
     /// Kleine Vorschau: Papier, Karte, Akzent – in hell bzw. dunkel; „System“ halb/halb
@@ -114,7 +118,7 @@ struct AppearancePicker: View {
     }
 
     private func miniScreen(dark: Bool) -> some View {
-        let paper = Color(UIColor(hex: dark ? 0x151312 : 0xFAF8F5))
+        let paper = Color(UIColor(hex: dark ? 0x151312 : 0xFFFFFF))
         let card = Color(UIColor(hex: dark ? 0x1F1C1B : 0xFFFFFF))
         let ink = Color(UIColor(hex: dark ? 0xEEEAE6 : 0x262427))
         let accent = Color(UIColor(hex: dark ? 0xE47F6B : 0xB64B3A))

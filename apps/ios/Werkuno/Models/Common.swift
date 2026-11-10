@@ -118,6 +118,7 @@ struct ViewerState: Codable, Hashable, Sendable {
     var saved: Bool?
     var isAuthor: Bool?
     var isOwner: Bool?
+    var isCoauthor: Bool?
 }
 
 struct PostItem: Codable, Hashable, Identifiable, Sendable {
@@ -147,55 +148,15 @@ struct PostItem: Codable, Hashable, Identifiable, Sendable {
 
         private enum CodingKeys: String, CodingKey { case id, body, author, media, publishedAt }
 
-        // Tolerant dekodieren: Ein unvollständiger Autor oder unerwartete Medien dürfen nicht die ganze
-        // Feed-Seite (Page<PostItem>) unlesbar machen – dann wird nur dieses Feld weggelassen.
+        // Unvollständige Angaben zum Original (z. B. Autor ohne id) dürfen nie den ganzen Feed scheitern lassen
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             id = try c.decode(String.self, forKey: .id)
-            body = try c.decodeIfPresent(String.self, forKey: .body)
-            author = (try? c.decodeIfPresent(UserMini.self, forKey: .author)) ?? nil
-            media = (try? c.decodeIfPresent([MediaItem].self, forKey: .media)) ?? nil
-            publishedAt = (try? c.decodeIfPresent(Date.self, forKey: .publishedAt)) ?? nil
+            body = try? c.decodeIfPresent(String.self, forKey: .body)
+            author = try? c.decodeIfPresent(UserMini.self, forKey: .author)
+            media = try? c.decodeIfPresent([MediaItem].self, forKey: .media)
+            publishedAt = try? c.decodeIfPresent(Date.self, forKey: .publishedAt)
         }
-    }
-
-    /// Umfrage am Beitrag. Stimmenzahlen (`votes`) nur nach eigener Abstimmung, nach Ende oder für die Autorin.
-    struct Poll: Codable, Hashable, Sendable {
-        struct Option: Codable, Hashable, Identifiable, Sendable { var id: String; var label: String; var votes: Int? }
-        var id: String?
-        var endsAt: Date?
-        var ended: Bool?
-        var multiple: Bool?
-        var voterCount: Int?
-        var showResults: Bool?
-        var viewerVotes: [String]?
-        var options: [Option]
-
-        private enum CodingKeys: String, CodingKey { case id, endsAt, ended, multiple, voterCount, showResults, viewerVotes, options }
-
-        // Wirft nie: Eine unerwartete Umfrage darf nicht die ganze Feed-Seite (Page<PostItem>) unlesbar machen –
-        // dann bleibt sie leer (`isUsable == false`) und wird nicht angezeigt.
-        init(from decoder: Decoder) throws {
-            guard let c = try? decoder.container(keyedBy: CodingKeys.self) else {
-                options = []
-                return
-            }
-            id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? nil
-            endsAt = (try? c.decodeIfPresent(Date.self, forKey: .endsAt)) ?? nil
-            ended = (try? c.decodeIfPresent(Bool.self, forKey: .ended)) ?? nil
-            multiple = (try? c.decodeIfPresent(Bool.self, forKey: .multiple)) ?? nil
-            voterCount = (try? c.decodeIfPresent(Int.self, forKey: .voterCount)) ?? nil
-            showResults = (try? c.decodeIfPresent(Bool.self, forKey: .showResults)) ?? nil
-            viewerVotes = (try? c.decodeIfPresent([String].self, forKey: .viewerVotes)) ?? nil
-            options = (try? c.decodeIfPresent([Option].self, forKey: .options)) ?? []
-        }
-
-        var isUsable: Bool { id != nil && !options.isEmpty }
-        var isEnded: Bool { ended == true || (endsAt.map { $0 <= Date() } ?? false) }
-        var hasVoted: Bool { !(viewerVotes ?? []).isEmpty }
-        var isMultiple: Bool { multiple == true }
-        /// Ergebnisse zeigen: Server sagt es, oder bereits abgestimmt bzw. beendet
-        var revealsResults: Bool { showResults == true || hasVoted || isEnded }
     }
 
     var id: String
@@ -216,9 +177,13 @@ struct PostItem: Codable, Hashable, Identifiable, Sendable {
     var article: ArticleRef?
     var community: CommunityRef?
     var repostOf: RepostRef?
-    var poll: Poll?
     var counts: Counts
     var viewer: ViewerState?
+    // Koautor:innen (nur bestätigte), Umfrage, Entwurf/Planung – Typen in Features/Social/SocialModels.swift
+    var coauthors: [UserMini]?
+    var poll: SocialPoll?
+    var scheduledAt: Date?
+    var draft: SocialDraftInfo?
 }
 
 struct CommentItem: Codable, Hashable, Identifiable, Sendable {
@@ -403,16 +368,8 @@ struct NotificationPage: Decodable, Sendable {
 // MARK: - Nachrichten (§16)
 
 struct ConversationItem: Codable, Hashable, Identifiable, Sendable {
-    /// Gruppenunterhaltung (`kind == "GROUP"`): Titel, Mitgliederzahl und bis zu zwei Avatare
-    struct GroupInfo: Codable, Hashable, Sendable {
-        struct Avatar: Codable, Hashable, Sendable { var name: String?; var avatarUrl: String? }
-        var title: String?
-        var memberCount: Int?
-        var avatars: [Avatar]?
-    }
     var id: String
     var kind: String?
-    var group: GroupInfo?
     var orderNumber: String?
     var isProductInquiry: Bool?
     var lastMessageAt: Date?
@@ -421,12 +378,14 @@ struct ConversationItem: Codable, Hashable, Identifiable, Sendable {
     var flagged: Bool?
     var unread: Bool?
     var other: UserMini?
+    /// Nur bei Gruppenchats (`kind == "GROUP"`)
+    var group: ConversationGroupInfo?
 
     var isGroup: Bool { kind == "GROUP" || group != nil }
     /// Anzeigename in der Liste: Gruppentitel bzw. Gegenüber
-    var displayTitle: String { isGroup ? (group?.title?.nilIfEmpty ?? "Gruppe") : (other?.displayName ?? "Unterhaltung") }
+    var displayTitle: String { isGroup ? (group?.title.nilIfEmpty ?? "Gruppe") : (other?.displayName ?? "Unterhaltung") }
 
-    private enum CodingKeys: String, CodingKey { case id, kind, group, orderNumber, isProductInquiry, lastMessageAt, preview, lastFromMe, flagged, unread, other }
+    private enum CodingKeys: String, CodingKey { case id, kind, orderNumber, isProductInquiry, lastMessageAt, preview, lastFromMe, flagged, unread, other, group }
 
     // Tolerant dekodieren: Ein unerwarteter Gruppenblock oder ein unvollständiges Gegenüber darf nicht
     // den ganzen Posteingang unlesbar machen.
@@ -434,7 +393,6 @@ struct ConversationItem: Codable, Hashable, Identifiable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         kind = (try? c.decodeIfPresent(String.self, forKey: .kind)) ?? nil
-        group = (try? c.decodeIfPresent(GroupInfo.self, forKey: .group)) ?? nil
         orderNumber = (try? c.decodeIfPresent(String.self, forKey: .orderNumber)) ?? nil
         isProductInquiry = (try? c.decodeIfPresent(Bool.self, forKey: .isProductInquiry)) ?? nil
         lastMessageAt = (try? c.decodeIfPresent(Date.self, forKey: .lastMessageAt)) ?? nil
@@ -443,7 +401,16 @@ struct ConversationItem: Codable, Hashable, Identifiable, Sendable {
         flagged = (try? c.decodeIfPresent(Bool.self, forKey: .flagged)) ?? nil
         unread = (try? c.decodeIfPresent(Bool.self, forKey: .unread)) ?? nil
         other = (try? c.decodeIfPresent(UserMini.self, forKey: .other)) ?? nil
+        group = (try? c.decodeIfPresent(ConversationGroupInfo.self, forKey: .group)) ?? nil
     }
+}
+
+/// Gruppenkopf in der Posteingangsliste
+struct ConversationGroupInfo: Codable, Hashable, Sendable {
+    struct Avatar: Codable, Hashable, Sendable { var name: String; var avatarUrl: String? }
+    var title: String
+    var memberCount: Int?
+    var avatars: [Avatar]?
 }
 
 struct InboxCounts: Codable, Hashable, Sendable { var requests: Int; var unread: Int }

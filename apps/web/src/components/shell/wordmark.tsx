@@ -2,8 +2,10 @@ import Image from "next/image";
 import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
-/** Seitenverhältnis des Werkuno-Logos (public/brand/werkuno-logo.png, 1400×440). */
-const LOGO_RATIO = 1980 / 622;
+/** Seitenverhältnis der Wortmarke (public/brand/werkuno-wordmark*.png, 1200×192, eng zugeschnitten). */
+const LOGO_RATIO = 1200 / 192;
+/** Schrifthöhe relativ zu `height` – entspricht der Grösse der früheren Wortmarke mit Nadel und Schere. */
+const LETTER_SCALE = 0.5;
 
 /** Bildzeichen (Werkuno-Icon: Hammer, Garn, Schere, Pflanze). */
 export function Signet({ size = 28, className }: { size?: number; className?: string }) {
@@ -11,21 +13,25 @@ export function Signet({ size = 28, className }: { size?: number; className?: st
 }
 
 /**
- * Wortmarke „Werkuno“ als Logo-Bild. `compact` zeigt nur das Bildzeichen,
- * `tone="light"` die helle Variante für dunkle Flächen (z. B. Admin-Kopfzeile).
+ * Wortmarke „WERKUNO“ als Logo-Bild. `compact` zeigt nur das Bildzeichen.
+ * Die Web-Ansicht ist hell: Standard ist die schwarze Wortmarke; `tone="light"`/`"mono"` zeigt die weisse
+ * Variante für dunkle Flächen (z. B. Admin-Kopfzeile). `height` ist die Höhe des Platzes, den das Logo belegt.
  */
 export function Wordmark({ className, compact, tone = "dark", height = 32 }: { className?: string; compact?: boolean; tone?: "dark" | "light" | "mono"; height?: number }) {
   if (compact) return <Signet size={Math.round(height * 1.15)} className={className} />;
-  const width = Math.round(height * LOGO_RATIO);
+  const h = Math.round(height * LETTER_SCALE);
+  const width = Math.round(h * LOGO_RATIO);
   return (
-    <Image
-      src={tone === "mono" ? "/brand/werkuno-logo-mono-light.png" : tone === "light" ? "/brand/werkuno-logo-light.png" : "/brand/werkuno-logo.png"}
-      alt={BRAND.wordmark}
-      width={width}
-      height={height}
-      priority
-      className={cn("shrink-0 select-none", className)}
-      style={{ width, height }}
-    />
+    <span className={cn("inline-flex shrink-0 items-center", className)} style={{ height }}>
+      <Image
+        src={tone === "dark" ? "/brand/werkuno-wordmark.png" : "/brand/werkuno-wordmark-white.png"}
+        alt={BRAND.wordmark}
+        width={width}
+        height={h}
+        priority
+        className="select-none"
+        style={{ width, height: h }}
+      />
+    </span>
   );
 }

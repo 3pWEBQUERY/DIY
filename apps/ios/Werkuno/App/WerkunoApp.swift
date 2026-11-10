@@ -110,6 +110,8 @@ struct RootView: View {
         .toastOverlay()
         .onAppear { AppAppearance.apply() } // gespeicherte Darstellung (Hell/Dunkel/System)
         .task { await app.launch() }
+        // Käufe digitaler Produkte, die ausserhalb des Kaufdialogs abgeschlossen wurden, nachträglich verbuchen
+        .task(id: app.phase == .ready) { if app.phase == .ready { DigitalStore.shared.startListening() } }
         .onChange(of: scenePhase) { _, p in app.setActive(p == .active) }
     }
 }
@@ -136,15 +138,17 @@ struct LaunchView: View {
     }
 }
 
-/// Wortmarke „WERKUNO“ (Nadel, Schere, Knopf). Hell/Dunkel-Variante im Asset-Katalog.
+/// Wortmarke „WERKUNO“: schwarz im hellen, weiss im dunklen Modus (Asset-Katalog).
 struct Wordmark: View {
-    /// Höhe in Punkten (entspricht ungefähr der früheren Schriftgrösse)
+    /// Höhe des Platzes in Punkten (wie bei der früheren Wortmarke mit Nadel und Schere)
     var size: CGFloat = 22
     var body: some View {
         Image("Wordmark")
             .resizable()
             .interpolation(.high)
             .scaledToFit()
+            // Die neue Wortmarke ist eng zugeschnitten – etwas kleiner, damit die Schrift gleich gross bleibt
+            .frame(height: size * 0.62)
             .frame(height: size)
             .accessibilityElement()
             .accessibilityLabel("Werkuno")

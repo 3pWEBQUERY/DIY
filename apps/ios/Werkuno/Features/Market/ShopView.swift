@@ -11,7 +11,6 @@ struct ShopView: View {
     @State private var products: [ProductCard] = []
     @State private var error: String?
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
         Group {
@@ -141,7 +140,7 @@ struct ShopView: View {
                 EmptyStateView(symbol: "tag", title: "Gerade keine Arbeiten", message: s.status == "PAUSED" ? "Während der Pause sind die Arbeiten nicht bestellbar." : "Schau bald wieder vorbei.")
                     .cardSurface()
             } else {
-                LazyVGrid(columns: columns, spacing: 12) {
+                AdaptiveGrid(spacing: 12, rowSpacing: 12) {
                     ForEach(products) { p in ProductCardView(product: p) }
                 }
                 if (s.count?.products ?? 0) > products.count, let h = s.owner?.handle {

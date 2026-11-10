@@ -225,9 +225,14 @@ struct CoverView: View {
     var animated = false
 
     var body: some View {
-        RemoteImage(path: url) {
-            ThreadPlate(seed: seed, category: category, showLabel: showLabel, animated: animated)
-        }
-        .clipped()
+        // Color.clear übernimmt die vorgeschlagene Grösse; das Bild füllt sie und wird genau dort beschnitten
+        Color.clear
+            .overlay {
+                RemoteImage(path: url) {
+                    ThreadPlate(seed: seed, category: category, showLabel: showLabel, animated: animated)
+                }
+            }
+            .clipped()
+            .contentShape(.rect)
     }
 }

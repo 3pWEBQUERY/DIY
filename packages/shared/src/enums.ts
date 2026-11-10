@@ -124,6 +124,7 @@ export const MODERATION_ACTION_LABEL: Record<ModerationActionKind, string> = {
 export const NOTIFICATION_TYPES = [
   "FOLLOW", "COMMENT", "REPLY", "MENTION", "LIKE", "PROJECT_ACTIVITY", "REMIX", "NEW_POST_FROM_FOLLOWED",
   "MESSAGE", "ORDER_NEW", "ORDER_STATUS", "MODERATION", "COMMUNITY_INVITE", "TUTORIAL_UPDATED", "SECURITY",
+  "RESTOCK",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export const NOTIFICATION_LABEL: Record<NotificationType, string> = {
@@ -142,6 +143,7 @@ export const NOTIFICATION_LABEL: Record<NotificationType, string> = {
   COMMUNITY_INVITE: "Community-Einladungen",
   TUTORIAL_UPDATED: "Aktualisierte Anleitungen",
   SECURITY: "Sicherheit",
+  RESTOCK: "Nachproduktion & wieder verfügbar",
 };
 
 export const ROLES = ["MEMBER", "PLATFORM_MODERATOR", "ADMIN", "SUPERADMIN"] as const;

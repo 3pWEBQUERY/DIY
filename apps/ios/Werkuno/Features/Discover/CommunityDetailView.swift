@@ -3,12 +3,13 @@ import SwiftUI
 // MARK: - Community-Seite (PRD §15)
 
 private enum CommunityTab: String, CaseIterable, Identifiable {
-    case posts, projects, members, rules
+    case posts, projects, events, members, rules
     var id: String { rawValue }
     var label: String {
         switch self {
         case .posts: "Beiträge"
         case .projects: "Projekte"
+        case .events: "Events"
         case .members: "Mitglieder"
         case .rules: "Regeln"
         }
@@ -35,6 +36,7 @@ struct CommunityDetailView: View {
     @State private var hideTarget: PostItem?
     @State private var hideReason = ""
     @State private var confirmLeave = false
+    @State private var nextEvent: CommunityEventCard?
 
     var body: some View {
         Group {
@@ -78,10 +80,18 @@ struct CommunityDetailView: View {
                 feedCursor = d.feed?.nextCursor
                 error = nil
             }
+            await loadNextEvent()
         } catch is CancellationError {
         } catch {
             if data == nil { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
         }
+    }
+
+    /// Nächstes Event als Hinweis über den Beiträgen (wie im Web)
+    private func loadNextEvent() async {
+        guard let d = data, d.canView else { nextEvent = nil; return }
+        let list: [CommunityEventCard]? = try? await APIClient.shared.get("/communities/\(d.community.id)/events")
+        withAnimation(.snappy) { nextEvent = list?.first { !$0.isCancelled } }
     }
 
     private func loadMorePosts() async {
@@ -167,6 +177,10 @@ struct CommunityDetailView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 ShareLink(item: AppConfig.webURL("/c/\(d.community.slug)")) { Label("Teilen", systemImage: "square.and.arrow.up") }
+                if d.canView {
+                    Button("Wettbewerbe", systemImage: "trophy") { router.open(.competitions(communitySlug: d.community.slug)) }
+                    Button("Events", systemImage: "calendar") { tab = .events }
+                }
                 if d.isManager || d.isMod {
                     Button("Verwalten", systemImage: "slider.horizontal.3") { router.open(.communityManage(slug: d.community.slug)) }
                 }
@@ -192,7 +206,7 @@ struct CommunityDetailView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header(d)
                 if d.canView {
-                    if let ch = d.challenge { challengeBanner(ch).padding(.horizontal, Space.gutter) }
+                    if let ch = d.challenge { CompetitionBanner(challenge: ch).padding(.horizontal, Space.gutter) }
                     if d.isMod, let n = d.pendingCount, n > 0 {
                         Button { router.open(.communityManage(slug: d.community.slug)) } label: {
                             HStack(spacing: 10) {
@@ -207,11 +221,8 @@ struct CommunityDetailView: View {
                         .buttonStyle(.pressable)
                         .padding(.horizontal, Space.gutter)
                     }
-                    Picker("Bereich", selection: $tab) {
-                        ForEach(CommunityTab.allCases) { t in Text(tabLabel(t, d)).tag(t) }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, Space.gutter)
+                    // Fünf Bereiche: wischbare Chips statt zu schmaler Segmente
+                    ChipBar(items: CommunityTab.allCases.map { ($0, tabLabel($0, d)) }, selection: $tab)
                     tabContent(d)
                         .padding(.horizontal, Space.gutter)
                 } else {
@@ -245,9 +256,10 @@ struct CommunityDetailView: View {
                 .clipped()
                 .overlay(alignment: .bottomLeading) {
                     HStack(spacing: 6) {
-                        Image(systemName: visibilitySymbol(c.visibility))
+                        Image(systemName: visibilitySymbol(c.visibility)).accessibilityHidden(true)
                         Text(L.communityVisibility.first { $0.key == c.visibility }?.label ?? c.visibility)
                     }
+                    .accessibilityElement(children: .combine)
                     .font(.wr(.caption, .semibold))
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .glassEffect(.regular, in: Capsule())
@@ -329,41 +341,6 @@ struct CommunityDetailView: View {
         }
     }
 
-    // MARK: Challenge
-
-    private func challengeBanner(_ ch: CommunityChallenge) -> some View {
-        let start = ch.startsAt ?? Date()
-        let end = ch.endsAt ?? Date()
-        let total = max(1, end.timeIntervalSince(start))
-        let progress = min(1, max(0, Date().timeIntervalSince(start) / total))
-        let running = ch.isRunning
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "flag.checkered").foregroundStyle(Color.clay)
-                SpecLabel(running ? "Challenge · läuft bis \(Fmt.date(end))" : "Challenge · ab \(Fmt.date(start))", color: .clay)
-            }
-            Text(ch.title).font(.titleSerif).foregroundStyle(Color.ink)
-            if let d = ch.description?.nilIfEmpty { Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true) }
-            if running {
-                GeometryReader { g in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.clay.opacity(0.15))
-                        Capsule().fill(Color.clay).frame(width: g.size.width * progress)
-                    }
-                }
-                .frame(height: 4)
-                .accessibilityLabel("Fortschritt der Challenge")
-                .accessibilityValue("\(Int(progress * 100)) Prozent der Zeit vergangen")
-                let days = max(0, Int(ceil(end.timeIntervalSinceNow / 86400)))
-                Text(days == 1 ? "Noch 1 Tag" : "Noch \(days) Tage").font(.wr(.caption)).foregroundStyle(Color.muted)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.claySoft.opacity(0.6), in: .rect(cornerRadius: Radius.card, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.clay.opacity(0.25), lineWidth: 0.75))
-    }
-
     // MARK: Gesperrt (privat)
 
     private func lockScreen(_ d: CommunityPagePayload) -> some View {
@@ -404,6 +381,7 @@ struct CommunityDetailView: View {
         switch tab {
         case .posts: postsTab(d)
         case .projects: projectsTab(d)
+        case .events: CommunityEventsSection(communityId: d.community.id, canCreate: d.isMember && d.muted != true, isMember: d.isMember)
         case .members: membersTab(d)
         case .rules: rulesTab(d)
         }
@@ -411,6 +389,15 @@ struct CommunityDetailView: View {
 
     @ViewBuilder private func postsTab(_ d: CommunityPagePayload) -> some View {
         LazyVStack(alignment: .leading, spacing: 14) {
+            if let ev = nextEvent {
+                HStack {
+                    SpecLabel("Nächstes Event", color: .moss)
+                    Spacer()
+                    Button("Alle Events") { tab = .events }.font(.wr(.caption, .semibold)).tint(.muted)
+                }
+                CommunityEventRow(event: ev, showCommunity: false)
+                    .padding(.bottom, 6)
+            }
             if !pinned.isEmpty {
                 SpecLabel("Angeheftet", color: .moss)
                 ForEach(pinned) { p in postCell(p, d) }
@@ -602,10 +589,10 @@ struct CommunityMemberLine: View {
                     AvatarView(url: member.avatarUrl, name: member.displayName, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(member.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            Text(member.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                             if member.isMuted { Image(systemName: "speaker.slash.fill").font(.wr(.caption2)).foregroundStyle(Color.warn).accessibilityLabel("Stummgeschaltet") }
                         }
-                        Text("@\(member.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text("@\(member.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
                 .contentShape(.rect)

@@ -11,7 +11,7 @@ const { unsubscribeUrl, verifyUnsubscribeToken } = await import("../mail-unsubsc
 describe("E-Mail-Layout", () => {
   it("zeigt Logo, Titel, Button und maskiert HTML", () => {
     const html = renderMail("Test <b>", "Hallo <script>x</script>\n\nZweiter Absatz", { eyebrow: "Konto", cta: { label: "Los", url: "https://werkuno.ch/a?b=1&c=2" } });
-    expect(html).toContain('src="https://werkuno.ch/brand/werkuno-logo-email.png"');
+    expect(html).toContain('src="https://werkuno.ch/brand/werkuno-wordmark-email.png"');
     expect(html).toContain("Test &lt;b&gt;");
     expect(html).not.toContain("<script>");
     expect(html).toContain("https://werkuno.ch/a?b=1&amp;c=2");

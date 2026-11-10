@@ -135,8 +135,6 @@ struct SocialMessageMedia: Codable, Hashable, Identifiable, Sendable {
 
 struct SocialMessage: Codable, Hashable, Identifiable, Sendable {
     var id: String
-    /// Gruppenereignis („X hat Y hinzugefügt“) statt einer echten Nachricht
-    var system: Bool?
     var body: String
     var media: [SocialMessageMedia]
     var flags: [String]?
@@ -144,9 +142,11 @@ struct SocialMessage: Codable, Hashable, Identifiable, Sendable {
     var createdAt: Date
     var senderId: String
     var mine: Bool
+    /// Gruppenereignis („Lena hat Mattia hinzugefügt“) statt Nachricht
+    var system: Bool?
 
-    var isRemoved: Bool { removed == true }
     var isSystem: Bool { system == true }
+    var isRemoved: Bool { removed == true }
     var isSuspicious: Bool { !mine && !isSystem && (flags ?? []).contains("SUSPICIOUS_PAYMENT_LINK") }
 }
 
@@ -185,35 +185,10 @@ struct SocialThread: Decodable, Sendable {
         var pendingRequest: Bool?
         var declined: Bool?
     }
-    /// Gruppenunterhaltung: Titel und aktuelle Mitglieder (inkl. mir) für Namen über den Nachrichten
-    struct GroupInfo: Decodable, Sendable {
-        struct Member: Decodable, Sendable {
-            var id: String
-            var handle: String?
-            var displayName: String?
-            var avatarUrl: String?
-            var role: String?
-            var pending: Bool?
-            var me: Bool?
-        }
-        var title: String?
-        var isAdmin: Bool?
-        var members: [Member]?
-
-        private enum CodingKeys: String, CodingKey { case title, isAdmin, members }
-        init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
-            title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? nil
-            isAdmin = (try? c.decodeIfPresent(Bool.self, forKey: .isAdmin)) ?? nil
-            members = (try? c.decodeIfPresent([Member].self, forKey: .members)) ?? nil
-        }
-
-        var displayTitle: String { title?.nilIfEmpty ?? "Gruppe" }
-        func member(_ id: String) -> Member? { members?.first { $0.id == id } }
-    }
     var id: String
     var kind: String?
-    var group: GroupInfo?
+    /// Nur bei Gruppenchats: Name, eigene Rolle, Mitglieder
+    var group: SocialGroup?
     var messages: [SocialMessage]
     var hasMore: Bool
     var me: Me
@@ -270,11 +245,192 @@ struct SocialUserSearch: Decodable, Sendable {
     var results: Results?
 }
 
+// MARK: - Umfragen
+
+/// `post.poll` bzw. Antwort von `POST /posts/:id/poll`. Stimmen (`votes`) erst nach eigener Stimme,
+/// nach Ende oder für die Autorin/den Autor.
+struct SocialPoll: Codable, Hashable, Sendable {
+    struct Option: Codable, Hashable, Identifiable, Sendable { var id: String; var label: String; var votes: Int? }
+    var id: String
+    var endsAt: Date?
+    var ended: Bool?
+    var multiple: Bool?
+    var voterCount: Int?
+    var showResults: Bool?
+    var viewerVotes: [String]?
+    var options: [Option]
+
+    private enum CodingKeys: String, CodingKey { case id, endsAt, ended, multiple, voterCount, showResults, viewerVotes, options }
+
+    var isEnded: Bool { ended == true || (endsAt.map { $0 <= Date() } ?? false) }
+    var isMultiple: Bool { multiple == true }
+    var voters: Int { voterCount ?? 0 }
+    var myVotes: [String] { viewerVotes ?? [] }
+    /// Nur vollständige Umfragen anzeigen (siehe tolerantes Dekodieren unten)
+    var isUsable: Bool { !id.isEmpty && !options.isEmpty }
+}
+
+extension SocialPoll {
+    // Wirft nie: Eine unerwartete Umfrage darf nicht die ganze Feed-Seite (Page<PostItem>) unlesbar machen –
+    // dann bleibt sie leer (`isUsable == false`) und wird nicht angezeigt. Im Extension-Block, damit der
+    // memberweise Initialisierer (Composer-Vorschau) erhalten bleibt.
+    init(from decoder: Decoder) throws {
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else {
+            self.init(id: "", options: [])
+            return
+        }
+        self.init(
+            id: (try? c.decodeIfPresent(String.self, forKey: .id)) ?? "",
+            endsAt: (try? c.decodeIfPresent(Date.self, forKey: .endsAt)) ?? nil,
+            ended: (try? c.decodeIfPresent(Bool.self, forKey: .ended)) ?? nil,
+            multiple: (try? c.decodeIfPresent(Bool.self, forKey: .multiple)) ?? nil,
+            voterCount: (try? c.decodeIfPresent(Int.self, forKey: .voterCount)) ?? nil,
+            showResults: (try? c.decodeIfPresent(Bool.self, forKey: .showResults)) ?? nil,
+            viewerVotes: (try? c.decodeIfPresent([String].self, forKey: .viewerVotes)) ?? nil,
+            options: (try? c.decodeIfPresent([Option].self, forKey: .options)) ?? []
+        )
+    }
+}
+
+/// Umfrage im Composer: 2–4 Antworten, Laufzeit 1/3/7 Tage. Die Frage ist der Beitragstext.
+struct SocialPollDraft: Equatable {
+    var options: [String] = ["", ""]
+    var durationHours = 72
+    var multiple = false
+
+    static let maxOptions = 4
+    static let maxLength = 80
+    static let durations: [(hours: Int, label: String)] = [(24, "1 Tag"), (72, "3 Tage"), (168, "7 Tage")]
+
+    var isReady: Bool {
+        let t = options.map(\.trimmed)
+        return t.count >= 2 && t.allSatisfy { !$0.isEmpty && $0.count <= Self.maxLength } && Set(t.map { $0.lowercased() }).count == t.count
+    }
+
+    var json: JSONValue {
+        ["options": .from(options.map(\.trimmed)), "durationHours": .number(Double(durationHours)), "multiple": .bool(multiple)]
+    }
+}
+
+// MARK: - Entwürfe & geplante Beiträge
+
+/// `post.draft` (nur für die Autorin/den Autor, solange der Beitrag ein Entwurf ist)
+struct SocialDraftInfo: Codable, Hashable, Sendable { var scheduledAt: Date? }
+
+/// `POST /posts/:id/schedule` → `{ id, scheduledAt }`
+struct SocialScheduleResult: Decodable, Sendable { var id: String; var scheduledAt: Date? }
+
+enum SocialSchedule {
+    /// Gültiger Bereich wie auf dem Server: frühestens in 5 Minuten, spätestens in einem Jahr.
+    static var range: ClosedRange<Date> {
+        let now = Date()
+        return now.addingTimeInterval(5 * 60)...now.addingTimeInterval(365 * 86400)
+    }
+
+    static func label(_ d: Date) -> String {
+        d.formatted(Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.wide).hour().minute().locale(Fmt.locale))
+    }
+}
+
+// MARK: - Koautor:innen
+
+/// Person für Koautorenschaft (`/me/coauthor-candidates`, `/posts/:id/coauthors`)
+struct SocialPerson: Decodable, Hashable, Identifiable, Sendable {
+    var id: String
+    var handle: String
+    var displayName: String
+    var avatarUrl: String?
+    /// Nur bei `/posts/:id/coauthors`: `QUEUED` | `PENDING` | `ACCEPTED`
+    var status: String?
+
+    static let maxCoauthors = 3
+
+    var statusLabel: String {
+        switch status {
+        case "ACCEPTED": "Bestätigt"
+        case "QUEUED": "Beim Veröffentlichen"
+        default: "Eingeladen"
+        }
+    }
+}
+
+/// `GET /me/coauthor-invites`
+struct SocialCoauthorInvite: Decodable, Hashable, Identifiable, Sendable {
+    var postId: String
+    var createdAt: Date?
+    var excerpt: String?
+    var author: ProfileRef.P?
+    var id: String { postId }
+}
+
+/// `POST /posts/:id/coauthors` → `{ invited: [Name], queued }`
+struct SocialInviteResult: Decodable, Sendable { var invited: [String]?; var queued: Bool? }
+
+// MARK: - Profil: Bewertungen & Auszeichnungen
+
+/// Zusatzfelder aus `GET /users/:handle` (werden neben `MeProfilePage` aus derselben Antwort gelesen).
+struct SocialProfileExtras: Decodable, Sendable {
+    struct Reviews: Decodable, Hashable, Sendable {
+        var given: Int?
+        var received: Int?
+        var show: Bool?
+        var defaultView: String?
+    }
+    var reviews: Reviews?
+    var awards: [SocialAward]?
+}
+
+/// Gewinner-Abzeichen aus Wettbewerben
+struct SocialAward: Decodable, Hashable, Identifiable, Sendable {
+    var id: String
+    var place: Int
+    var title: String
+    var href: String?
+    var community: String?
+    var date: Date?
+}
+
+/// `GET /users/:handle/reviews?view=received|given`
+struct SocialReviewPage: Decodable, Sendable {
+    struct Bucket: Decodable, Hashable, Sendable { var stars: Int; var n: Int }
+    var view: String
+    var items: [SocialReview]
+    var distribution: [Bucket]?
+}
+
+struct SocialReview: Decodable, Hashable, Identifiable, Sendable {
+    struct OrderItem: Decodable, Hashable, Sendable { var variantName: String? }
+    struct Shop: Decodable, Hashable, Sendable { var slug: String?; var name: String?; var status: String? }
+    struct Product: Decodable, Hashable, Sendable {
+        var title: String
+        var slug: String?
+        var coverUrl: String?
+        var status: String?
+        var shop: Shop?
+    }
+    var id: String
+    var productRating: Double?
+    var sellerRating: Double?
+    var body: String?
+    var sellerReply: String?
+    var createdAt: Date?
+    var orderItem: OrderItem?
+    var product: Product?
+    var author: ProfileRef?
+
+    /// Produkt öffentlich erreichbar (sonst nur Titel ohne Link)
+    var productIsPublic: Bool {
+        ["ACTIVE", "SOLD_OUT"].contains(product?.status ?? "") && ["ACTIVE", "PAUSED"].contains(product?.shop?.status ?? "")
+    }
+}
+
 // MARK: - Interne Ereignisse
 
 extension Notification.Name {
     /// Ein Beitrag wurde erstellt, bearbeitet oder gelöscht (`object`: Beitrags-ID oder `PostItem`).
     static let socialPostsChanged = Notification.Name("werkuno.social.postsChanged")
+    /// Entwürfe/geplante Beiträge haben sich geändert (gespeichert, geplant, veröffentlicht, gelöscht).
+    static let socialDraftsChanged = Notification.Name("werkuno.social.draftsChanged")
 }
 
 // MARK: - Hilfen

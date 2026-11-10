@@ -12,6 +12,8 @@ struct PostDetailView: View {
     @State private var error: APIError?
     @State private var tracked = false
     @State private var confirmDelete = false
+    /// Offene Koautor:innen-Einladung der angemeldeten Person zu diesem Beitrag
+    @State private var invite: SocialCoauthorInvite?
 
     var body: some View {
         Group {
@@ -48,6 +50,15 @@ struct PostDetailView: View {
     private func content(_ post: PostItem) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xl) {
+                if post.viewer?.isAuthor == true, let d = post.draft {
+                    SocialDraftBanner(postId: post.id, scheduledAt: d.scheduledAt)
+                        .padding(.horizontal, Space.gutter)
+                }
+                if let invite {
+                    SocialCoauthorInviteCard(invite: invite) { _ in withAnimation(.snappy) { self.invite = nil } }
+                        .padding(.horizontal, Space.gutter)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 article(post)
                     .padding(.horizontal, Space.gutter)
                 datasheet(post)
@@ -68,8 +79,9 @@ struct PostDetailView: View {
             Button { router.open(.profile(handle: post.author.handle)) } label: {
                 HStack(spacing: 12) {
                     AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 46, category: post.category)
+                        .overlay(alignment: .bottomTrailing) { SocialCoauthorBadge(coauthors: post.coauthors ?? [], size: 22) }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(post.author.displayName).font(.wr(.headline)).foregroundStyle(Color.ink)
+                        SocialAuthors.names(post, font: .wr(.headline))
                         Text("@\(post.author.handle)").font(.wr(.footnote)).foregroundStyle(Color.muted)
                     }
                     Spacer(minLength: 0)
@@ -78,7 +90,10 @@ struct PostDetailView: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(SocialAuthors.accessibility(post))
             .accessibilityHint("Profil öffnen")
+
+            SocialCoauthorRow(coauthors: post.coauthors ?? [])
 
             if let k = kindLabel(post) {
                 HStack(spacing: 8) {
@@ -101,9 +116,12 @@ struct PostDetailView: View {
                     .textSelection(.enabled)
             }
 
-            if !post.media.isEmpty { MediaStrip(media: post.media) }
+            if let poll = post.poll, poll.isUsable {
+                SocialPollView(postId: post.id, poll: poll)
+                    .id("\(poll.id)-\(poll.voters)-\(poll.myVotes.count)")
+            }
 
-            if let poll = post.poll, poll.isUsable { PostPollView(postId: post.id, poll: poll) }
+            if !post.media.isEmpty { MediaStrip(media: post.media) }
 
             if let r = post.repostOf { repost(r) }
 
@@ -133,7 +151,7 @@ struct PostDetailView: View {
                     .foregroundStyle(Color.muted)
                 }
                 if let b = r.body?.nilIfEmpty {
-                    Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(6).multilineTextAlignment(.leading)
+                    Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(6).multilineTextAlignment(.leading)
                 }
                 if let m = r.media, !m.isEmpty {
                     SpecLabel(Fmt.plural(m.count, "Bild", "Bilder"))
@@ -217,7 +235,11 @@ struct PostDetailView: View {
         Menu {
             if post.viewer?.isAuthor == true {
                 Button("Bearbeiten", systemImage: "pencil") { router.present(.editPost(id: post.id)) }
+                SocialPostMenuItems(post: post)
                 Button("Löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                Divider()
+            } else if post.viewer?.isCoauthor == true {
+                SocialPostMenuItems(post: post)
                 Divider()
             }
             Button("Link kopieren", systemImage: "link") {
@@ -250,6 +272,7 @@ struct PostDetailView: View {
             let p: PostItem = try await APIClient.shared.get("/posts/\(id)")
             withAnimation(.snappy) { post = p; error = nil }
             if !tracked { tracked = true; SocialAPI.track("POST", id) }
+            await loadInvite(p)
         } catch is CancellationError {
         } catch let e as APIError {
             if post == nil { error = e } else { app.show(error: e) }
@@ -258,10 +281,18 @@ struct PostDetailView: View {
         }
     }
 
+    /// Eingeladene Personen sehen hier „Bestätigen / Ablehnen“ (Web: CoauthorInviteBanner).
+    private func loadInvite(_ p: PostItem) async {
+        guard app.me != nil, p.viewer?.isAuthor != true, p.viewer?.isCoauthor != true else { invite = nil; return }
+        let all = (try? await APIClient.shared.get("/me/coauthor-invites") as [SocialCoauthorInvite]) ?? []
+        withAnimation(.snappy) { invite = all.first { $0.postId == p.id } }
+    }
+
     private func delete() async {
         let ok = await app.run("Beitrag gelöscht.") { _ = try await APIClient.shared.delete("/posts/\(id)") as JSONValue }
         if ok {
             NotificationCenter.default.post(name: .socialPostsChanged, object: id, userInfo: ["deleted": true])
+            if post?.draft != nil { NotificationCenter.default.post(name: .socialDraftsChanged, object: id) }
             dismiss()
         }
     }

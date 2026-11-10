@@ -20,8 +20,18 @@ struct CommunityListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageTitle(kicker: "Gemeinsam werken", title: "Communities", subtitle: "Treffpunkte für Fragen, Challenges und gemeinsame Projekte – lokal und online.")
+                PageTitle(kicker: "Gemeinsam werken", title: "Communities", subtitle: "Treffpunkte für Fragen, Wettbewerbe und gemeinsame Projekte – lokal und online.")
                     .padding(.horizontal, Space.gutter)
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Button { router.open(.events) } label: { Label("Events", systemImage: "calendar").font(.wr(.subheadline, .semibold)) }
+                            .buttonStyle(.glass)
+                        Button { router.open(.competitions()) } label: { Label("Wettbewerbe", systemImage: "trophy").font(.wr(.subheadline, .semibold)) }
+                            .buttonStyle(.glass)
+                        Spacer(minLength: 0)
+                    }
+                }
+                .padding(.horizontal, Space.gutter)
                 DiscoverSearchField(prompt: "Community suchen", text: $query)
                     .padding(.horizontal, Space.gutter)
                 DiscoverCategoryChips(categories: app.activeCategories, selection: $category)
@@ -175,9 +185,9 @@ struct CommunityListView: View {
                 CoverView(url: c.coverUrl, seed: c.id, category: c.category)
                     .frame(height: 120)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(c.name).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(c.name).font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(1)
                     Text([app.categoryShort(c.category), c.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                        .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     SpecLabel(Fmt.plural(c.memberCount ?? 0, "Mitglied", "Mitglieder"))
                 }
                 .padding(12)

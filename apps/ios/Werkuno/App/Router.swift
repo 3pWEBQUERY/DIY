@@ -98,6 +98,7 @@ enum Route: Hashable {
     case materials
     case studio
     case studioSection(StudioSection)
+    case creatorPro
     case sellerOrder(id: String)
     case settings
     case settingsSection(SettingsSection)
@@ -108,6 +109,18 @@ enum Route: Hashable {
     case search(query: String)
     case category(slug: String)
     case web(path: String)
+    /// Materialseite `/materialien/:slug` (Preisvergleich, Bestand)
+    case material(slug: String)
+    /// „Mein Bestand“ `/materialien/bestand`
+    case materialStock
+    /// Eigene Entwürfe & geplante Beiträge (Web: Studio → Inhalte → Beiträge/Entwürfe)
+    case postDrafts
+    /// Wettbewerbe (`/wettbewerbe`, optional auf eine Community gefiltert)
+    case competitions(communitySlug: String? = nil)
+    case competition(id: String)
+    /// Events (`/events`) und Event-Detail (`/c/:slug/events/:id`)
+    case events
+    case event(id: String)
 
     /// Web-Pfade (Benachrichtigungen, geteilte Links, Server-`href`) → native Ziele.
     static func from(href: String) -> Route? {
@@ -141,6 +154,8 @@ enum Route: Hashable {
             case "admin": return .moderation
             case "suche": return .search(query: q["q"] ?? "")
             case "entdecken": return q["kategorie"].map { .category(slug: $0) }
+            case "wettbewerbe": return .competitions(communitySlug: q["community"])
+            case "events": return .events
             default: return .web(path: href)
             }
         default:
@@ -158,13 +173,21 @@ enum Route: Hashable {
             case ("bestellungen", _): return .order(id: s[1])
             case ("kasse", _): return q["bestellung"].map { .order(id: $0) } ?? .orders
             case ("c", 3) where s[2] == "verwalten": return .communityManage(slug: s[1])
+            case ("c", 4) where s[2] == "wettbewerbe": return .competition(id: s[3])
+            case ("c", 3) where s[2] == "wettbewerbe": return .competitions(communitySlug: s[1])
+            case ("c", 4) where s[2] == "events" && s[3] != "neu": return .event(id: s[3])
+            case ("c", 5) where s[2] == "events": return .event(id: s[3])
             case ("c", _): return .community(slug: s[1])
+            case ("nachrichten", _) where s[1] == "gruppe": return .conversations
             case ("nachrichten", _) where s[1] != "neu": return .conversation(id: s[1])
             case ("sammlungen", _): return .collection(id: s[1])
             case ("einkaufslisten", _): return .shoppingList(id: s[1])
             case ("liste", _): return .sharedShoppingList(token: s[1])
+            case ("materialien", 2) where s[1] == "bestand": return .materialStock
+            case ("materialien", 2): return .material(slug: s[1])
             case ("einspruch", _): return .appeal(caseId: s[1])
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
+            case ("studio", 2) where s[1] == "pro": return .creatorPro
             case ("studio", _):
                 let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "produkte": .products, "bestellungen": .orders, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue]
                 return map[s[1]].map { .studioSection($0) } ?? .studio
@@ -198,6 +221,8 @@ enum SheetRoute: Identifiable, Hashable {
     case collectionPicker(type: String, id: String)
     case shoppingListPicker(kind: String, id: String, title: String)
     case web(url: URL)
+    /// Koautor:innen eines Beitrags verwalten (Autor:in) bzw. Koautorenschaft (eingeladene Person)
+    case coauthors(postId: String, asCoauthor: Bool = false)
 
     var id: String { String(describing: self) }
 }
@@ -259,8 +284,27 @@ final class Router {
     }
 
     func open(href: String?) {
-        guard let href, let r = Route.from(href: href) else { return }
+        guard let href else { return }
+        // Bereiche, die ein Tab sind (Start, Entdecken, Markt): Tab wechseln statt Webansicht
+        if let t = Self.tab(for: href) {
+            tab = t
+            popToRoot()
+            return
+        }
+        guard let r = Route.from(href: href) else { return }
         open(r)
+    }
+
+    private static func tab(for href: String) -> AppTab? {
+        guard let c = URLComponents(string: href) else { return nil }
+        let path = c.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let hasCategory = c.queryItems?.contains { $0.name == "kategorie" } ?? false
+        switch path {
+        case "": return .workbench
+        case "markt" where (c.queryItems ?? []).isEmpty: return .market
+        case "entdecken" where !hasCategory: return .discover
+        default: return nil
+        }
     }
 
     func present(_ s: SheetRoute) { sheet = s }

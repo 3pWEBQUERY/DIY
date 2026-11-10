@@ -122,7 +122,9 @@ struct StatusBadge: View {
             Text(L.projectStatus(status)).font(.wr(.caption, .semibold)).foregroundStyle(fg)
         }
         .padding(.horizontal, 9).padding(.vertical, 4)
+        // Deckende Kartenfläche darunter: auch auf Fotos immer lesbar
         .background(bg, in: Capsule())
+        .background(Color.card, in: Capsule())
     }
     private var colors: (Color, Color) {
         switch status {
@@ -172,7 +174,7 @@ struct ChipBar<T: Hashable>: View {
                                 .padding(.horizontal, 14).padding(.vertical, 8)
                         }
                         .buttonStyle(.plain)
-                        .glassEffect(on ? .regular.tint(Color.ink).interactive() : .regular.interactive(), in: Capsule())
+                        .glassEffect(on ? .regular.tint(Color.action).interactive() : .regular.interactive(), in: Capsule())
                         .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
@@ -442,5 +444,34 @@ struct LoadMoreTrigger: View {
             YarnSpinner(size: 22).frame(maxWidth: .infinity).padding(.vertical, 20)
                 .task { await load() }
         }
+    }
+}
+
+
+// MARK: - Hauptknopf der schwebenden Aktionsleiste
+
+/// Gefüllter Knopf rechts in der schwebenden Leiste (Projekt, Anleitung) – exakt so hoch wie die
+/// Glas-Kapsel daneben (50 pt), statt der höheren Standardgrösse `.controlSize(.large)`.
+struct DockPrimaryButton: View {
+    var title: String
+    var systemImage: String
+    var height: CGFloat = 50
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.wr(.subheadline, .semibold))
+                .lineLimit(1)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .frame(height: height)
+                .background(Color.moss, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.pressable)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        // Der Text wird nicht gekürzt: der Abstand zur Glas-Kapsel gibt zuerst nach
+        .layoutPriority(1)
     }
 }

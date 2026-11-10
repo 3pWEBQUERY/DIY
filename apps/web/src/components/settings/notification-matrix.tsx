@@ -13,7 +13,7 @@ type Row = { type: NotificationType; inApp: boolean; email: boolean; locked: boo
 const GROUPS: { title: string; types: NotificationType[] }[] = [
   { title: "Community", types: ["FOLLOW", "LIKE", "COMMENT", "REPLY", "MENTION", "NEW_POST_FROM_FOLLOWED", "COMMUNITY_INVITE"] },
   { title: "Projekte & Anleitungen", types: ["PROJECT_ACTIVITY", "REMIX", "TUTORIAL_UPDATED"] },
-  { title: "Nachrichten & Shop", types: ["MESSAGE", "ORDER_NEW", "ORDER_STATUS"] },
+  { title: "Nachrichten & Shop", types: ["MESSAGE", "ORDER_NEW", "ORDER_STATUS", "RESTOCK"] },
   { title: "Konto", types: ["SECURITY", "MODERATION"] },
 ];
 

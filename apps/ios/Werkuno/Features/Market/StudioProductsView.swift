@@ -87,7 +87,7 @@ struct StudioProductsView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 8) {
                             MarketStatusPill.product(p.status)
                             Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink2)
@@ -102,6 +102,20 @@ struct StudioProductsView: View {
                             Label(Fmt.number(p.sold), systemImage: "bag").labelStyle(.compact).accessibilityLabel("\(p.sold) verkauft")
                         }
                         .font(.wr(.caption)).foregroundStyle(Color.muted)
+                        if p.status == "SOLD_OUT" || (p.restockPendingCount ?? 0) > 0 {
+                            HStack(spacing: 10) {
+                                if p.status == "SOLD_OUT" {
+                                    Label(p.hideWhenSoldOut == true ? "Ausgeblendet" : "Sichtbar", systemImage: p.hideWhenSoldOut == true ? "eye.slash" : "eye")
+                                        .labelStyle(.compact).foregroundStyle(Color.muted)
+                                }
+                                if let n = p.restockPendingCount, n > 0 {
+                                    Label(n == 1 ? "1 Anfrage" : "\(n) Anfragen", systemImage: "bell.badge")
+                                        .labelStyle(.compact).foregroundStyle(Color.moss)
+                                        .accessibilityLabel(n == 1 ? "1 Anfrage zur Nachproduktion" : "\(n) Anfragen zur Nachproduktion")
+                                }
+                            }
+                            .font(.wr(.caption, .semibold))
+                        }
                     }
                 }
                 .contentShape(.rect)
@@ -116,6 +130,13 @@ struct StudioProductsView: View {
                     if p.status != "ACTIVE" && p.status != "SOLD_OUT" { Button("Aktivieren", systemImage: "play.circle") { Task { await setStatus(p, "ACTIVE") } } }
                     if p.status == "ACTIVE" || p.status == "SOLD_OUT" { Button("Pausieren", systemImage: "pause.circle") { Task { await setStatus(p, "PAUSED") } } }
                     if p.status != "DRAFT" { Button("Zum Entwurf machen", systemImage: "doc") { Task { await setStatus(p, "DRAFT") } } }
+                    if p.kind != "DIGITAL" {
+                        if p.hideWhenSoldOut == true {
+                            Button("Ausverkauft weiter anzeigen", systemImage: "eye") { Task { await setSoldOutVisibility(p, hide: false) } }
+                        } else {
+                            Button("Ausverkauft ausblenden", systemImage: "eye.slash") { Task { await setSoldOutVisibility(p, hide: true) } }
+                        }
+                    }
                 }
                 Divider()
                 Button("Löschen", systemImage: "trash", role: .destructive) { confirmDelete = p }
@@ -139,6 +160,13 @@ struct StudioProductsView: View {
         }
     }
 
+    private func setSoldOutVisibility(_ p: MarketStudioProduct, hide: Bool) async {
+        await app.run(hide ? "Ausverkauft wird es nicht mehr angezeigt." : "Ausverkauft bleibt es sichtbar.") {
+            _ = try await APIClient.shared.post("/studio/products/\(p.id)/sold-out-visibility", ["hide": JSONValue.bool(hide)]) as JSONValue
+        }
+        await load()
+    }
+
     private func setStatus(_ p: MarketStudioProduct, _ s: String) async {
         let label = s == "ACTIVE" ? "Aktiviert." : s == "PAUSED" ? "Pausiert." : "Zum Entwurf gemacht."
         await app.run(label) { _ = try await APIClient.shared.post("/studio/products/\(p.id)/status", ["status": JSONValue.string(s)]) as JSONValue }
@@ -146,22 +174,82 @@ struct StudioProductsView: View {
     }
 }
 
-/// Hinweis + CTA, wenn noch kein Shop besteht
+/// Hinweis + CTA, wenn noch kein Shop besteht – ruhig und sachlich im Datenblatt-Stil:
+/// Konditionen als Kennzahlen, danach die drei Schritte bis zum ersten Verkauf.
 struct MarketNoShopCTA: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+
+    private let steps: [(title: String, detail: String)] = [
+        ("Shop anlegen", "Name, kurze Beschreibung und Versandregeln – in wenigen Minuten erledigt."),
+        ("Produkte einstellen", "Fertige Stücke, Material-Sets oder digitale Anleitungen."),
+        ("Auszahlung erhalten", "Erlöse gehen über Stripe direkt auf dein Bankkonto."),
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ThreadPlate(seed: "shop-cta", category: "haekeln-stricken", glyph: "loop", showLabel: false, animated: true)
-                .frame(height: 140)
-                .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
-            Text("Verkaufe, was du machst.").font(.display(24))
-            Text("Eröffne deinen Shop in wenigen Schritten. Du zahlst keine Grundgebühr – nur eine Provision von \(Fmt.percent(bps: app.feeBps)) auf den Warenwert, wenn etwas verkauft wird.")
-                .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
-            Button { router.present(.shopWizard) } label: { Label("Shop eröffnen", systemImage: "storefront") }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "storefront")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color.moss)
+                    .frame(width: 44, height: 44)
+                    .background(Color.mossSoft, in: .rect(cornerRadius: 12, style: .continuous))
+                    .accessibilityHidden(true)
+                SpecLabel("Dein Shop auf Werkuno", color: .moss)
+            }
+            .padding(.bottom, 16)
+
+            Text("Verkaufe, was du machst.")
+                .font(.display(26))
+                .foregroundStyle(Color.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Eröffne deinen Shop und verkaufe direkt an die Werkuno-Community.")
+                .font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+
+            HStack(spacing: 0) {
+                StatCell(value: "CHF 0", label: "Grundgebühr")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Rectangle().fill(Color.line).frame(width: 0.75)
+                StatCell(value: Fmt.percent(bps: app.feeBps), label: "Provision pro Verkauf")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 16)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 14)
+            .hairline(.top)
+            .hairline(.bottom)
+            .padding(.top, 20)
+
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(String(format: "%02d", i + 1))
+                            .font(.specLarge).monospacedDigit()
+                            .foregroundStyle(Color.moss)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(step.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                            Text(step.detail).font(.wr(.footnote)).foregroundStyle(Color.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(.top, 18)
+
+            Button { router.present(.shopWizard) } label: { Text("Shop eröffnen") }
                 .primaryButton()
+                .padding(.top, 22)
+
+            Text("Die Provision fällt nur an, wenn du etwas verkaufst – auf den Warenwert.")
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .padding(.top, 10)
         }
-        .padding(16)
+        .padding(20)
         .cardSurface()
     }
 }

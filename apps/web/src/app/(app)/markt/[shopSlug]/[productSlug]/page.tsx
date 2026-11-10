@@ -10,6 +10,7 @@ import { listProductReviews } from "@/server/commerce/reviews";
 import { paymentsMode } from "@/server/commerce/stripe";
 import { env } from "@/server/env";
 import { BuyBox } from "@/components/commerce/buy-box";
+import { RestockRequest } from "@/components/commerce/restock-request";
 import { ProductGallery } from "@/components/commerce/product-gallery";
 import { ProductSafetyMenu } from "@/components/commerce/product-menu";
 import { ProductGrid, RatingInline } from "@/components/commerce/product-card";
@@ -101,7 +102,11 @@ export default async function ProductPage({ params }: Params) {
 
       {p.isOwner && p.status !== "ACTIVE" && (
         <Notice tone="warn" className="mb-6" title="Vorschau">
-          Dieses Produkt ist nicht öffentlich ({p.status === "SOLD_OUT" ? "vergriffen, aber sichtbar" : "nicht veröffentlicht"}).{" "}
+          {p.status === "SOLD_OUT"
+            ? p.hideWhenSoldOut
+              ? "Ausverkauft und ausgeblendet – nur du siehst diese Seite. Mit neuem Bestand ist es wieder sichtbar."
+              : "Ausverkauft, aber weiter sichtbar. Interessierte können eine Nachproduktion anfragen."
+            : "Dieses Produkt ist nicht öffentlich (nicht veröffentlicht)."}{" "}
           <Link href={`/studio/produkte/${p.id}`} className="font-semibold underline">
             Bearbeiten
           </Link>
@@ -144,6 +149,17 @@ export default async function ProductPage({ params }: Params) {
               entitlementId={p.viewer.entitlementId}
               paymentsLive={mode !== "disabled"}
             />
+            {p.status === "SOLD_OUT" && !p.isOwner && (
+              <div className="mt-4">
+                <RestockRequest productId={p.id} shopName={p.shop.name} signedIn={!!user} requested={p.viewer.restockRequested} />
+              </div>
+            )}
+            {p.status === "SOLD_OUT" && p.isOwner && (p.restockPendingCount ?? 0) > 0 && (
+              <p className="mt-3 text-[13.5px] text-ink-2">
+                <span className="font-semibold">{p.restockPendingCount === 1 ? "1 Person fragt" : `${p.restockPendingCount} Personen fragen`}</span>, ob du das nachproduzierst.{" "}
+                <Link href={`/studio/produkte/${p.id}`} className="font-semibold underline underline-offset-2">Bestand auffüllen</Link>
+              </p>
+            )}
             {p.shop.status === "PAUSED" && <p className="mt-3 text-[13px] text-muted">Der Shop macht gerade Pause – Bestellungen sind vorübergehend nicht möglich.</p>}
             {mode === "simulated" && <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.06em] text-warn">Testmodus · Zahlungen werden simuliert</p>}
           </div>

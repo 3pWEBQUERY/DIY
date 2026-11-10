@@ -1,5 +1,6 @@
 import "server-only";
 import { db, type Tx, type TargetType } from "@/server/db";
+import { isPublicProduct } from "@/server/commerce/restock";
 
 /**
  * Einheitlicher Zugriff auf interagierbare Ziele (Beitrag, Projekt, Anleitung, …):
@@ -22,8 +23,8 @@ export async function targetMeta(type: TargetType, id: string): Promise<Meta | n
       return t && { ownerId: t.authorId, visibility: "PUBLIC", state: t.state, title: t.title, href: `/anleitungen/${t.slug}` };
     }
     case "PRODUCT": {
-      const p = await db.product.findUnique({ where: { id }, select: { status: true, title: true, slug: true, shop: { select: { ownerId: true, slug: true } } } });
-      return p && { ownerId: p.shop.ownerId, visibility: "PUBLIC", state: p.status === "ACTIVE" || p.status === "SOLD_OUT" ? "PUBLISHED" : "HIDDEN", title: p.title, href: `/markt/${p.shop.slug}/${p.slug}` };
+      const p = await db.product.findUnique({ where: { id }, select: { status: true, hideWhenSoldOut: true, title: true, slug: true, shop: { select: { ownerId: true, slug: true } } } });
+      return p && { ownerId: p.shop.ownerId, visibility: "PUBLIC", state: isPublicProduct(p) ? "PUBLISHED" : "HIDDEN", title: p.title, href: `/markt/${p.shop.slug}/${p.slug}` };
     }
     case "ARTICLE": {
       const a = await db.blogArticle.findUnique({ where: { id }, select: { authorId: true, state: true, title: true, slug: true, author: { select: { profile: { select: { handle: true } } } } } });
