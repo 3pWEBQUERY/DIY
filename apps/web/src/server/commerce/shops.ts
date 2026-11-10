@@ -8,6 +8,7 @@ import { isBlockedBetween } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
 import { appUrl, createConnectedAccount, createDashboardLink, createOnboardingLink, isStripeError, paymentsMode, retrieveConnectStatus, type ConnectStatus } from "./stripe";
 import { requireFlag } from "@/server/flags";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 /**
  * Shop-Eröffnung & Verkäuferverifizierung (PRD §13.2).
@@ -269,7 +270,7 @@ export async function setShopPaused(user: SessionUser, paused: boolean) {
 const publicShopInclude = {
   verification: { select: { legalName: true, businessName: true, vatId: true, addressLine: true, postalCode: true, city: true, country: true, state: true } },
   owner: { select: { id: true, status: true, createdAt: true, profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, region: true, followerCount: true } } } },
-  _count: { select: { products: { where: { status: { in: ["ACTIVE", "SOLD_OUT"] } } } } },
+  _count: { select: { products: { where: { ...publicProductWhere } } } },
 } satisfies Prisma.ShopInclude;
 
 export type PublicShop = Prisma.ShopGetPayload<{ include: typeof publicShopInclude }>;

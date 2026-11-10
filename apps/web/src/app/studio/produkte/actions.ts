@@ -30,3 +30,12 @@ export async function deleteProductAction(productId: string) {
     return null;
   }, "Produkt gelöscht.");
 }
+
+/** Ausverkauft weiter anzeigen oder ausblenden. */
+export async function setSoldOutVisibilityAction(productId: string, hide: boolean) {
+  return act(async () => {
+    const p = await products.setSoldOutVisibility(await requireUser(), productId, hide);
+    revalidatePath("/studio/produkte");
+    return p;
+  }, hide ? "Ausverkauft wird es nicht mehr angezeigt." : "Ausverkauft bleibt es sichtbar.");
+}

@@ -42,6 +42,10 @@ export type ProductEditorInitial = {
   variants: { name: string; priceDelta: string; stock: number; reserved: number }[];
   digital: { mediaId: string; label: string; state: string } | null;
   publishedAt: string | null;
+  /** Ausverkauft nicht mehr öffentlich anzeigen */
+  hideWhenSoldOut: boolean;
+  /** Offene Anfragen zur Nachproduktion */
+  restockRequests: { id: string; note: string; createdAt: string; user: { handle: string; displayName: string } }[];
 };
 
 const KIND_HINT = PRODUCT_KIND_HINT;
@@ -96,6 +100,7 @@ export function ProductEditor({
   const [digital, setDigital] = useState(initial.digital);
   const [digitalBusy, setDigitalBusy] = useState(false);
   const [announce, setAnnounce] = useState(false);
+  const [hideWhenSoldOut, setHideWhenSoldOut] = useState(initial.hideWhenSoldOut);
   const [announceText, setAnnounceText] = useState("");
   const [fields, setFields] = useState<Record<string, string>>({});
   const [pending, start] = useTransition();
@@ -183,7 +188,7 @@ export function ProductEditor({
           variants: isDigital ? [] : variants,
           status,
         },
-        { shipsFrom: v.shipsFrom, digitalMediaId: isDigital ? (digital?.mediaId ?? null) : null, announce: announce && status === "ACTIVE", announceText },
+        { shipsFrom: v.shipsFrom, digitalMediaId: isDigital ? (digital?.mediaId ?? null) : null, announce: announce && status === "ACTIVE", announceText, hideWhenSoldOut },
       ).catch((e: unknown) => {
         // Nach einem Deploy: neu laden anbieten, Eingaben bleiben bis dahin erhalten
         if (!isStaleDeployError(e)) throw e;
@@ -357,6 +362,38 @@ export function ProductEditor({
                 <p className="px-4 py-3 text-[13px] text-muted">Keine Varianten – der Bestand oben gilt für das Produkt.</p>
               )}
               {fields.variants && <p className="border-t border-line px-4 py-2 text-[13px] font-medium text-danger">{fields.variants}</p>}
+            </div>
+          )}
+
+          {!isDigital && (
+            <div className="space-y-3 rounded-2xl border border-line bg-card px-4 py-3.5">
+              <Checkbox
+                label="Ausverkauft weiter anzeigen"
+                checked={!hideWhenSoldOut}
+                onChange={(e) => setHideWhenSoldOut(!e.currentTarget.checked)}
+              />
+              <p className="text-[13px] text-muted">
+                {hideWhenSoldOut
+                  ? "Ohne Bestand verschwindet das Produkt aus Shop, Marktplatz und Suche. Mit neuem Bestand ist es automatisch wieder sichtbar."
+                  : "Ohne Bestand bleibt das Produkt als „Ausverkauft“ sichtbar, und Interessierte können eine Nachproduktion anfragen."}
+              </p>
+              {initial.restockRequests.length > 0 && (
+                <div className="border-t border-line pt-3">
+                  <p className="text-[13.5px] font-semibold">
+                    {initial.restockRequests.length === 1 ? "1 Anfrage" : `${initial.restockRequests.length} Anfragen`} zur Nachproduktion
+                  </p>
+                  <p className="text-[13px] text-muted">Füllst du den Bestand auf, werden alle automatisch benachrichtigt.</p>
+                  <ul className="mt-2 space-y-1.5 text-[13.5px]">
+                    {initial.restockRequests.slice(0, 20).map((r) => (
+                      <li key={r.id}>
+                        <a href={`/u/${r.user.handle}`} className="font-semibold hover:underline">{r.user.displayName || `@${r.user.handle}`}</a>
+                        <span className="text-muted"> · {new Date(r.createdAt).toLocaleDateString("de-CH", { day: "numeric", month: "short" })}</span>
+                        {r.note && <span className="block text-ink-2">„{r.note}“</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </section>

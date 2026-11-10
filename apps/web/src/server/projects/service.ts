@@ -16,6 +16,7 @@ import { createPost } from "@/server/social/posts";
 import { listComments } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
 import { assertCategoryAllowed } from "@/server/categories/settings";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 /**
  * Projekte – der Produktkern (PRD §10). Ein Projekt bündelt Journal, Anleitung,
@@ -525,7 +526,7 @@ const pageInclude = {
   contributors: { include: { user: { select: { profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
   tutorials: { orderBy: { publishedAt: "desc" }, select: { id: true, slug: true, title: true, summary: true, state: true, difficulty: true, minutes: true, coverUrl: true, category: true, publishedAt: true, updatedAt: true, currentVersion: { select: { version: true, _count: { select: { steps: true } } } } } },
   products: {
-    where: { status: { in: ["ACTIVE", "SOLD_OUT"] } },
+    where: { ...publicProductWhere },
     orderBy: { publishedAt: "desc" },
     take: 12,
     select: { id: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, publishedAt: true, createdAt: true, shop: { select: { slug: true, name: true, status: true } } },

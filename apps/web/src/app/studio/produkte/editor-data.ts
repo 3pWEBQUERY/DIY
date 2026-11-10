@@ -3,6 +3,7 @@ import { getSetting } from "@/server/settings";
 import { getMyShop } from "@/server/commerce/shops";
 import { getProductForEdit, linkOptions } from "@/server/commerce/products";
 import { minorToInput } from "@/server/commerce/rules";
+import { listRestockRequests } from "@/server/commerce/restock";
 import type { ProductEditorInitial } from "@/components/commerce/product-editor";
 
 /** Lädt alles, was der Produkteditor braucht (neu oder bestehend). */
@@ -36,6 +37,8 @@ export async function loadEditor(userId: string, productId: string | null) {
     variants: [],
     digital: null,
     publishedAt: null,
+    hideWhenSoldOut: false,
+    restockRequests: [],
   };
   if (productId) {
     const p = await getProductForEdit({ id: userId }, productId);
@@ -73,6 +76,8 @@ export async function loadEditor(userId: string, productId: string | null) {
         ? { mediaId: p.digitalFile.id, label: `${p.digitalFile.mime === "application/zip" ? "ZIP" : "PDF"} · ${(p.digitalFile.bytes / 1024 / 1024).toFixed(1)} MB`, state: p.digitalFile.state }
         : null,
       publishedAt: p.publishedAt?.toISOString() ?? null,
+      hideWhenSoldOut: p.hideWhenSoldOut,
+      restockRequests: await listRestockRequests({ id: userId }, p.id),
     };
   }
   return { shop, links, feeBps, digitalEnabled, initial, slug };

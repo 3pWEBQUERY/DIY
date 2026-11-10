@@ -102,6 +102,20 @@ struct StudioProductsView: View {
                             Label(Fmt.number(p.sold), systemImage: "bag").labelStyle(.compact).accessibilityLabel("\(p.sold) verkauft")
                         }
                         .font(.wr(.caption)).foregroundStyle(Color.muted)
+                        if p.status == "SOLD_OUT" || (p.restockPendingCount ?? 0) > 0 {
+                            HStack(spacing: 10) {
+                                if p.status == "SOLD_OUT" {
+                                    Label(p.hideWhenSoldOut == true ? "Ausgeblendet" : "Sichtbar", systemImage: p.hideWhenSoldOut == true ? "eye.slash" : "eye")
+                                        .labelStyle(.compact).foregroundStyle(Color.muted)
+                                }
+                                if let n = p.restockPendingCount, n > 0 {
+                                    Label(n == 1 ? "1 Anfrage" : "\(n) Anfragen", systemImage: "bell.badge")
+                                        .labelStyle(.compact).foregroundStyle(Color.moss)
+                                        .accessibilityLabel(n == 1 ? "1 Anfrage zur Nachproduktion" : "\(n) Anfragen zur Nachproduktion")
+                                }
+                            }
+                            .font(.wr(.caption, .semibold))
+                        }
                     }
                 }
                 .contentShape(.rect)
@@ -116,6 +130,13 @@ struct StudioProductsView: View {
                     if p.status != "ACTIVE" && p.status != "SOLD_OUT" { Button("Aktivieren", systemImage: "play.circle") { Task { await setStatus(p, "ACTIVE") } } }
                     if p.status == "ACTIVE" || p.status == "SOLD_OUT" { Button("Pausieren", systemImage: "pause.circle") { Task { await setStatus(p, "PAUSED") } } }
                     if p.status != "DRAFT" { Button("Zum Entwurf machen", systemImage: "doc") { Task { await setStatus(p, "DRAFT") } } }
+                    if p.kind != "DIGITAL" {
+                        if p.hideWhenSoldOut == true {
+                            Button("Ausverkauft weiter anzeigen", systemImage: "eye") { Task { await setSoldOutVisibility(p, hide: false) } }
+                        } else {
+                            Button("Ausverkauft ausblenden", systemImage: "eye.slash") { Task { await setSoldOutVisibility(p, hide: true) } }
+                        }
+                    }
                 }
                 Divider()
                 Button("Löschen", systemImage: "trash", role: .destructive) { confirmDelete = p }
@@ -137,6 +158,13 @@ struct StudioProductsView: View {
         } catch {
             self.error = (error as? APIError)?.message ?? error.localizedDescription
         }
+    }
+
+    private func setSoldOutVisibility(_ p: MarketStudioProduct, hide: Bool) async {
+        await app.run(hide ? "Ausverkauft wird es nicht mehr angezeigt." : "Ausverkauft bleibt es sichtbar.") {
+            _ = try await APIClient.shared.post("/studio/products/\(p.id)/sold-out-visibility", ["hide": JSONValue.bool(hide)]) as JSONValue
+        }
+        await load()
     }
 
     private func setStatus(_ p: MarketStudioProduct, _ s: String) async {

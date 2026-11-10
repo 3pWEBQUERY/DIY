@@ -246,7 +246,12 @@ async function main() {
 
   const releaseReservations = await optional<unknown>("@/server/commerce/reservations", "releaseExpiredReservations");
   const publishScheduled = await optional<unknown>("@/server/blog/service", "publishScheduledArticles");
-  await boss.work(Q.reservations, guarded(Q.reservations, async () => void (await releaseReservations?.())));
+  const notifyBackInStock = await optional<unknown>("@/server/commerce/restock", "notifyBackInStock");
+  await boss.work(Q.reservations, guarded(Q.reservations, async () => {
+    await releaseReservations?.();
+    // Wieder Bestand (z. B. nach Stornierung) → Anfragen zur Nachproduktion beantworten
+    await notifyBackInStock?.();
+  }));
   await boss.work(Q.scheduled, guarded(Q.scheduled, async () => void (await publishScheduled?.())));
   await boss.work(Q.polls, guarded(Q.polls, async () => void (await notifyEndedPolls())));
   await boss.work(Q.posts, guarded(Q.posts, async () => {

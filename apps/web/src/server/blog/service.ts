@@ -11,6 +11,7 @@ import { createPost } from "@/server/social/posts";
 import type { SessionUser } from "@/server/auth/session";
 import { readingMinutes, slugify } from "@/lib/utils";
 import { stripInline } from "@/lib/inline-marks";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 /**
  * Blogs (PRD §14): blockbasierte Artikel mit Entwürfen, Revisionen, geplanter
@@ -144,7 +145,7 @@ async function normalizeBlocks(userId: string, blocks: ArticleBlock[]) {
   const [projects, tutorials, products] = await Promise.all([
     projectIds.length ? db.project.findMany({ where: { id: { in: projectIds }, state: { not: "REMOVED" }, OR: [{ ownerId: userId }, { visibility: "PUBLIC", state: "PUBLISHED" }] }, select: { id: true, title: true } }) : [],
     tutorialIds.length ? db.tutorial.findMany({ where: { id: { in: tutorialIds }, OR: [{ authorId: userId }, { state: "PUBLISHED" }] }, select: { id: true, title: true } }) : [],
-    productIds.length ? db.product.findMany({ where: { id: { in: productIds }, OR: [{ shop: { ownerId: userId } }, { status: { in: ["ACTIVE", "SOLD_OUT"] } }] }, select: { id: true, title: true } }) : [],
+    productIds.length ? db.product.findMany({ where: { id: { in: productIds }, OR: [{ shop: { ownerId: userId } }, { ...publicProductWhere }] }, select: { id: true, title: true } }) : [],
   ]);
   const titles = new Map<string, string>([...projects, ...tutorials, ...products].map((x) => [x.id, x.title]));
 
@@ -683,7 +684,7 @@ export async function resolveEmbeds(blocks: ArticleBlock[], viewerId: string | n
       : [],
     ids.product.length
       ? db.product.findMany({
-          where: { id: { in: ids.product }, OR: [{ status: { in: ["ACTIVE", "SOLD_OUT"] } }, ...(viewerId ? [{ shop: { ownerId: viewerId } }] : [])], shop: { ownerId: notBlocked } },
+          where: { id: { in: ids.product }, OR: [{ ...publicProductWhere }, ...(viewerId ? [{ shop: { ownerId: viewerId } }] : [])], shop: { ownerId: notBlocked } },
           select: { id: true, slug: true, title: true, priceMinor: true, currency: true, status: true, kind: true, coverUrl: true, category: true, shop: { select: { slug: true, name: true } } },
         })
       : [],

@@ -110,6 +110,12 @@ export default async function StudioProductsPage({ searchParams }: { searchParam
                     </td>
                     <td className="py-3 pr-4">
                       <Badge tone={STATUS_TONE[p.status] ?? "neutral"}>{PRODUCT_STATUS_LABEL[p.status]}</Badge>
+                      {p.status === "SOLD_OUT" && <span className="mt-1 block text-[11.5px] text-muted">{p.hideWhenSoldOut ? "Ausgeblendet" : "Sichtbar"}</span>}
+                      {p.restockPendingCount > 0 && (
+                        <Link href={`/studio/produkte/${p.id}`} className="mt-1 block text-[11.5px] font-semibold text-moss hover:underline">
+                          {p.restockPendingCount === 1 ? "1 Anfrage" : `${p.restockPendingCount} Anfragen`} zur Nachproduktion
+                        </Link>
+                      )}
                     </td>
                     <td className="num py-3 text-right">{formatMoney(p.priceMinor, p.currency as Currency)}</td>
                     <td className="num py-3 text-right">
@@ -121,7 +127,7 @@ export default async function StudioProductsPage({ searchParams }: { searchParam
                     </td>
                     <td className="num py-3 text-right">{p.orderItems.reduce((n, i) => n + i.quantity, 0)}</td>
                     <td className="py-3 text-right">
-                      <ProductRowActions id={p.id} status={p.status} href={`/markt/${shop.slug}/${p.slug}`} canDelete={p._count.orderItems === 0} shopActive={shopActive} />
+                      <ProductRowActions id={p.id} status={p.status} kind={p.kind} hideWhenSoldOut={p.hideWhenSoldOut} href={`/markt/${shop.slug}/${p.slug}`} canDelete={p._count.orderItems === 0} shopActive={shopActive} />
                     </td>
                   </tr>
                 );

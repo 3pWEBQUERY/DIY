@@ -9,6 +9,7 @@ import { hydratePosts, type PostView } from "@/server/social/posts";
 import { getProjectCards, type ProjectCardData } from "@/server/projects/service";
 import { getTutorialCards, type TutorialCardData } from "@/server/tutorials/service";
 import { slugify } from "@/lib/utils";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 /**
  * Gespeichertes & Sammlungen (PRD §10.7). Lesezeichen selbst verwaltet
@@ -30,7 +31,7 @@ export async function getProductMinis(ids: string[], viewerId: string | null = n
   const rows = await db.product.findMany({
     where: {
       id: { in: ids },
-      status: { in: ["ACTIVE", "SOLD_OUT"] },
+      ...publicProductWhere,
       // Wie Shop-/Produktseiten: keine Shops gesperrter/gelöschter oder blockierter Konten
       shop: { status: "ACTIVE", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) },
     },

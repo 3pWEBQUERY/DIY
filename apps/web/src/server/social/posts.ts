@@ -12,13 +12,14 @@ import { attachMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
 import { rankFeed, type Candidate } from "./ranking";
 import { assertCategoryAllowed } from "@/server/categories/settings";
+import { isPublicProduct } from "@/server/commerce/restock";
 
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
   media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, width: true, height: true, kind: true, state: true } } } },
   project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, difficulty: true, state: true, visibility: true, owner: { select: { profile: { select: { handle: true } } } } } },
   tutorial: { select: { id: true, slug: true, title: true, difficulty: true, minutes: true, coverUrl: true, category: true, state: true } },
-  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true, status: true } } } },
+  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, hideWhenSoldOut: true, shop: { select: { slug: true, name: true, status: true } } } },
   article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
   coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
@@ -85,7 +86,7 @@ function toView(p: PostRow, viewer: ViewerState) {
     // Deaktivieren eines Angebots darf der Beitrag Titel, Bild und Preis nicht weiter verbreiten)
     project: p.project && p.project.state === "PUBLISHED" && p.project.visibility === "PUBLIC" ? { ...p.project, ownerHandle: p.project.owner.profile?.handle ?? "" } : null,
     tutorial: p.tutorial && p.tutorial.state === "PUBLISHED" ? p.tutorial : null,
-    product: p.product && ["ACTIVE", "SOLD_OUT"].includes(p.product.status) && p.product.shop.status === "ACTIVE" ? p.product : null,
+    product: p.product && isPublicProduct(p.product) && p.product.shop.status === "ACTIVE" ? p.product : null,
     article: p.article && p.article.state === "PUBLISHED" ? { ...p.article, authorHandle: p.article.author.profile?.handle ?? "" } : null,
     community: p.community,
     repostOf:

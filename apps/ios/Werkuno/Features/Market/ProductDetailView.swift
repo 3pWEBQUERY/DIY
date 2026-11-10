@@ -18,6 +18,9 @@ struct ProductDetailView: View {
     /// Preis, wie Apple ihn abrechnet (Währung der App-Store-Region)
     @State private var storePrice: String?
     @State private var purchasePending = false
+    @State private var askRestock = false
+    @State private var restockNote = ""
+    @State private var confirmWithdraw = false
 
     var body: some View {
         Group {
@@ -75,6 +78,7 @@ struct ProductDetailView: View {
                 VStack(alignment: .leading, spacing: 26) {
                     titleBlock(p)
                     if p.isDigital && !(p.isOwner ?? false) { digitalNotice(p) }
+                    restockNotice(p)
                     if needsVariant(p) { variantPicker(p) }
                     if !p.isDigital && !(p.isOwner ?? false) && (p.purchasable ?? false) { quantityRow(p) }
                     if let d = p.description?.nilIfEmpty {
@@ -95,6 +99,18 @@ struct ProductDetailView: View {
             .padding(.bottom, 120)
         }
         .safeAreaInset(edge: .bottom) { buyBar(p) }
+        .alert("Nachproduktion anfragen", isPresented: $askRestock) {
+            TextField("Notiz (optional)", text: $restockNote)
+            Button("Anfrage senden") { Task { await requestRestock(p) } }
+            Button("Abbrechen", role: .cancel) { restockNote = "" }
+        } message: {
+            Text("\(p.shop.name) erfährt, dass du Interesse hast. Sobald das Produkt wieder verfügbar ist, bekommst du eine Benachrichtigung.")
+        }
+        .confirmationDialog("Anfrage zurückziehen?", isPresented: $confirmWithdraw, titleVisibility: .visible) {
+            Button("Anfrage zurückziehen", role: .destructive) { Task { await withdrawRestock(p) } }
+        } message: {
+            Text("Du wirst dann nicht benachrichtigt, wenn es wieder verfügbar ist.")
+        }
         .fullScreenCover(item: $viewerMedia) { m in MediaViewer(media: p.mediaItems, start: m) }
     }
 
@@ -417,7 +433,7 @@ struct ProductDetailView: View {
     private func barSubtitle(_ p: MarketProductPage) -> String {
         if p.isOwner ?? false { return "Dein Produkt" }
         if p.isDigital { return p.viewer?.entitlementId != nil ? "Bereits gekauft" : "Digital · Kauf über Apple" }
-        if soldOut(p) { return "Derzeit ausverkauft" }
+        if soldOut(p) { return canAskRestock(p) ? (p.viewer?.restockRequested == true ? "Ausverkauft · angefragt" : "Ausverkauft · Nachproduktion anfragen") : "Derzeit ausverkauft" }
         if quantity > 1 { return "\(quantity) × \(Fmt.money(unitPrice(p), currency: p.currency)), zzgl. Versand" }
         return (p.shippingMinor ?? 0) == 0 ? "inkl. Versand" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand"
     }
@@ -446,6 +462,16 @@ struct ProductDetailView: View {
                 .transition(.scale.combined(with: .opacity))
         } else if app.paymentsMode == "disabled" || p.payments?.mode == "disabled" {
             Button("Bald bestellbar") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
+        } else if canAskRestock(p) {
+            if p.viewer?.restockRequested == true {
+                Button { confirmWithdraw = true } label: { Label("Angefragt", systemImage: "checkmark") }
+                    .buttonStyle(.glass).controlSize(.large)
+                    .accessibilityHint("Anfrage zurückziehen")
+            } else {
+                Button { startRestockRequest() } label: { Label("Anfragen", systemImage: "bell.badge") }
+                    .buttonStyle(.glassProminent).tint(.action).controlSize(.large)
+                    .accessibilityHint("Beim Shop fragen, ob das Produkt nachproduziert wird")
+            }
         } else if soldOut(p) || !(p.purchasable ?? false) {
             Button(soldOut(p) ? "Ausverkauft" : "Nicht erhältlich") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
         } else if needsVariant(p) && (selectedVariant(p)?.available ?? 0) <= 0 {
@@ -471,6 +497,82 @@ struct ProductDetailView: View {
         } catch {
             app.show(error: error)
             if let e = error as? APIError, e.marketIsConflict { await load() }
+        }
+    }
+
+    // MARK: Nachproduktion (ausverkaufte Produkte)
+
+    /// Anfragen ist nur bei ausverkauften, physischen Produkten anderer möglich
+    private func canAskRestock(_ p: MarketProductPage) -> Bool {
+        p.status == "SOLD_OUT" && !p.isDigital && !(p.isOwner ?? false)
+    }
+
+    @ViewBuilder private func restockNotice(_ p: MarketProductPage) -> some View {
+        if canAskRestock(p) {
+            let requested = p.viewer?.restockRequested == true
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: requested ? "checkmark.circle.fill" : "bell.badge")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color.moss)
+                    .frame(width: 36, height: 36)
+                    .background(Color.mossSoft, in: .rect(cornerRadius: 10, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(requested ? "Nachproduktion angefragt" : "Wird das nachproduziert?").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    Text(requested
+                         ? "Sobald es wieder verfügbar ist, bekommst du eine Benachrichtigung."
+                         : "Frag \(p.shop.name) an. Du wirst benachrichtigt, sobald es wieder verfügbar ist.")
+                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(requested ? "Anfrage zurückziehen" : "Nachproduktion anfragen") {
+                        if requested { confirmWithdraw = true } else { startRestockRequest() }
+                    }
+                    .font(.wr(.footnote, .semibold))
+                    .foregroundStyle(requested ? Color.muted : Color.moss)
+                    .padding(.top, 2)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .cardSurface(radius: Radius.inner)
+        } else if p.isOwner ?? false, p.status == "SOLD_OUT" {
+            let n = p.restockPendingCount ?? 0
+            NoticeView(
+                tone: .info,
+                title: p.hideWhenSoldOut == true ? "Ausverkauft und ausgeblendet" : "Ausverkauft",
+                message: [
+                    p.hideWhenSoldOut == true ? "Nur du siehst diese Seite. Mit neuem Bestand ist es wieder sichtbar." : "Das Produkt bleibt sichtbar, Interessierte können eine Nachproduktion anfragen.",
+                    n > 0 ? (n == 1 ? "1 Person fragt nach einer Nachproduktion." : "\(n) Personen fragen nach einer Nachproduktion.") : nil,
+                ].compactMap { $0 }.joined(separator: " ")
+            )
+        }
+    }
+
+    private func startRestockRequest() {
+        guard app.isSignedIn else { app.show("Melde dich an, um eine Nachproduktion anzufragen.", style: .warning); return }
+        restockNote = ""
+        askRestock = true
+    }
+
+    private func requestRestock(_ p: MarketProductPage) async {
+        do {
+            let _: MarketRestockState = try await APIClient.shared.post("/market/products/\(p.id)/restock-request", ["note": JSONValue.string(restockNote)])
+            Haptics.success()
+            app.show("Anfrage gesendet. Wir melden uns, sobald es wieder verfügbar ist.")
+            restockNote = ""
+            await load()
+        } catch {
+            app.show(error: error)
+        }
+    }
+
+    private func withdrawRestock(_ p: MarketProductPage) async {
+        do {
+            let _: MarketRestockState = try await APIClient.shared.delete("/market/products/\(p.id)/restock-request")
+            app.show("Anfrage zurückgezogen.")
+            await load()
+        } catch {
+            app.show(error: error)
         }
     }
 

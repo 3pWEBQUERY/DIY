@@ -27,6 +27,7 @@ import { ProMark } from "@/components/pro/pro-mark";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
 import { cn, formatDate, compactNumber } from "@/lib/utils";
+import { publicProductWhere } from "@/server/commerce/restock";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string; art?: string }> };
 
@@ -90,7 +91,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
         listTutorials({ authorId: userId }, viewerId, { take: 12 }),
         byAuthorsWhere([userId]).then((or) => listPosts({ ...base, communityId: null, OR: or }, viewerId, { take: 12 })),
         profile.user.shop?.status === "ACTIVE"
-          ? db.product.findMany({ where: { shop: { ownerId: userId }, status: { in: ["ACTIVE", "SOLD_OUT"] } }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
+          ? db.product.findMany({ where: { shop: { ownerId: userId }, ...publicProductWhere }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
           : Promise.resolve([]),
         db.collection.findMany({ where: { ownerId: userId, ...(isSelf ? {} : { visibility: "PUBLIC" }) }, orderBy: { updatedAt: "desc" }, include: { _count: { select: { items: true } } } }),
         db.blogArticle.count({ where: { authorId: userId, state: "PUBLISHED" } }),

@@ -5,10 +5,26 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { MoreMenu, type MenuItem } from "@/components/social/actions";
 import { toast } from "@/components/ui/toast";
-import { deleteProductAction, setProductStatusAction } from "@/app/studio/produkte/actions";
+import { deleteProductAction, setProductStatusAction, setSoldOutVisibilityAction } from "@/app/studio/produkte/actions";
 
 /** Schnellaktionen in der Produkttabelle (Status, Ansehen, Löschen). */
-export function ProductRowActions({ id, status, href, canDelete, shopActive }: { id: string; status: string; href: string; canDelete: boolean; shopActive: boolean }) {
+export function ProductRowActions({
+  id,
+  status,
+  kind,
+  hideWhenSoldOut,
+  href,
+  canDelete,
+  shopActive,
+}: {
+  id: string;
+  status: string;
+  kind?: string;
+  hideWhenSoldOut?: boolean;
+  href: string;
+  canDelete: boolean;
+  shopActive: boolean;
+}) {
   const router = useRouter();
   const [, start] = useTransition();
   const run = (p: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
@@ -22,6 +38,12 @@ export function ProductRowActions({ id, status, href, canDelete, shopActive }: {
   const items: MenuItem[] = [{ label: "Bearbeiten", onSelect: () => router.push(`/studio/produkte/${id}`) }];
   if (status === "ACTIVE" || status === "SOLD_OUT") items.push({ label: "Im Marktplatz ansehen", onSelect: () => router.push(href) });
   if (status === "ACTIVE" || status === "SOLD_OUT") items.push({ label: "Pausieren", onSelect: () => run(() => setProductStatusAction(id, "PAUSED")) });
+  if (kind !== "DIGITAL" && status !== "DISABLED")
+    items.push(
+      hideWhenSoldOut
+        ? { label: "Ausverkauft weiter anzeigen", onSelect: () => run(() => setSoldOutVisibilityAction(id, false)) }
+        : { label: "Ausverkauft ausblenden", onSelect: () => run(() => setSoldOutVisibilityAction(id, true)) },
+    );
   if ((status === "PAUSED" || status === "DRAFT") && shopActive) items.push({ label: "Veröffentlichen", onSelect: () => run(() => setProductStatusAction(id, "ACTIVE")) });
   if (canDelete)
     items.push({

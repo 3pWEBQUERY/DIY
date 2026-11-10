@@ -17,6 +17,7 @@ import { getSetting } from "@/server/settings";
 import { getCustomerDetails, saveCustomerDetails } from "@/server/account/customer";
 import { z } from "zod";
 import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, str, takeParam, viewer, viewerId, zBool, zStr, type RouteDef } from "../router";
+import * as restock from "@/server/commerce/restock";
 
 /** Marktplatz, Warenkorb, Kasse, Bestellungen, Shop & Verkauf (PRD §13, §20.3). */
 
@@ -264,6 +265,14 @@ export const commerceRoutes: RouteDef[] = [
     const p = await products.setProductStatus(await me(), c.p.id!, status);
     return { status: p.status };
   }),
+  POST("/studio/products/:id/sold-out-visibility", async (c) => {
+    const { hide } = await c.body({ hide: z.boolean() });
+    return products.setSoldOutVisibility(await me(), c.p.id!, hide);
+  }),
+  GET("/studio/products/:id/restock-requests", async (c) => ({ items: await restock.listRestockRequests(await me(), c.p.id!) })),
+  // Nachproduktion anfragen bzw. Anfrage zurückziehen (ausverkaufte Produkte)
+  POST("/market/products/:id/restock-request", async (c) => restock.requestRestock(await me(), c.p.id!, await c.json<unknown>().catch(() => ({})))),
+  DELETE("/market/products/:id/restock-request", async (c) => restock.cancelRestock(await me(), c.p.id!)),
   DELETE("/studio/products/:id", async (c) => {
     await products.deleteProduct(await me(), c.p.id!);
     return { ok: true };

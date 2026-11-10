@@ -309,6 +309,7 @@ model User {
   reviews         Review[]
   entitlements    DigitalEntitlement[]
   appStorePurchases AppStorePurchase[]
+  restockRequests   RestockRequest[]
   shoppingLists   ShoppingList[]
   media           Media[]
   conversationMemberships ConversationMember[]
@@ -1369,6 +1370,8 @@ model Product {
   saveCount      Int           @default(0)
   viewCount      Int           @default(0)
   isFeatured     Boolean       @default(false)
+  /// Ausverkauft nicht mehr öffentlich zeigen (Marktplatz, Shop, Suche, Profile); mit neuem Bestand wieder sichtbar
+  hideWhenSoldOut Boolean      @default(false)
   publishedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -1382,6 +1385,7 @@ model Product {
   posts          Post[]
   entitlements   DigitalEntitlement[]
   appStorePurchases AppStorePurchase[]
+  restockRequests RestockRequest[]
 
   search         Unsupported("tsvector")? // generiert, siehe Migration init
   @@unique([shopId, slug])
@@ -1611,6 +1615,23 @@ model DigitalEntitlement {
 /// Kauf eines digitalen Produkts in der iOS-App über Apple (In-App-Kauf, §13.7).
 /// Apple ist dort Verkäufer gegenüber der Kundschaft; der Shop erhält denselben Anteil wie bei
 /// einem Web-Verkauf per Stripe-Überweisung aus dem Plattformguthaben.
+/// Anfrage „Wird das nachproduziert?“ zu einem ausverkauften Produkt. Pro Person und Produkt eine offene
+/// Anfrage; sobald das Produkt wieder Bestand hat, wird die Person benachrichtigt (notifiedAt).
+model RestockRequest {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note       String    @default("")
+  createdAt  DateTime  @default(now())
+  notifiedAt DateTime?
+
+  @@unique([productId, userId])
+  @@index([productId, notifiedAt])
+  @@index([notifiedAt])
+}
+
 model AppStorePurchase {
   id                    String                 @id @default(cuid())
   /// appAccountToken (UUID), den die App beim Kauf an Apple mitgibt

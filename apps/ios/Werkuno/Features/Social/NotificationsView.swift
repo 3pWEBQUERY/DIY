@@ -351,6 +351,7 @@ enum SocialNotificationIcon {
         case "users": return "person.3"
         case "book-open": return "book"
         case "key-round": return "key"
+        case "refresh-cw": return "arrow.triangle.2.circlepath"
         case "bell": return "bell"
         default: break
         }
@@ -370,6 +371,7 @@ enum SocialNotificationIcon {
         case "COMMUNITY_INVITE": return "person.3"
         case "TUTORIAL_UPDATED": return "book"
         case "SECURITY": return "key"
+        case "RESTOCK": return "arrow.triangle.2.circlepath"
         default: return "bell"
         }
     }
@@ -379,7 +381,7 @@ enum SocialNotificationIcon {
         case "LIKE": .clay
         case "FOLLOW", "NEW_POST_FROM_FOLLOWED": .moss
         case "COMMENT", "REPLY", "MENTION", "MESSAGE": .slate
-        case "ORDER_NEW", "ORDER_STATUS": .ochre
+        case "ORDER_NEW", "ORDER_STATUS", "RESTOCK": .ochre
         case "PROJECT_ACTIVITY", "REMIX", "TUTORIAL_UPDATED": .plum
         case "MODERATION", "SECURITY": .moss
         default: .ink

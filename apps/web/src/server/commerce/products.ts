@@ -15,6 +15,7 @@ import { available, isSoldOut } from "./rules";
 import { requireOwnShop } from "./shops";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { requireFlag } from "@/server/flags";
+import { publicProductWhere, publicProductSql, isPublicProduct, restockSummary, notifyBackInStock, pendingRestockCounts } from "@/server/commerce/restock";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -130,7 +131,7 @@ export function parseProductFilters(sp: Record<string, string | string[] | undef
 async function searchProductIds(q: string) {
   const rows = await db.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM "Product"
-    WHERE "status" IN ('ACTIVE', 'SOLD_OUT')
+    WHERE ${publicProductSql()}
       AND ("search" @@ websearch_to_tsquery('german', wr_unaccent(${q})) OR similarity("title", ${q}) > 0.25)
     ORDER BY ts_rank("search", websearch_to_tsquery('german', wr_unaccent(${q}))) DESC, similarity("title", ${q}) DESC
     LIMIT 500`;
@@ -170,7 +171,8 @@ export async function listProducts(
     and.push({ priceMinor: { ...(filters.minPriceMinor != null ? { gte: filters.minPriceMinor } : {}), ...(filters.maxPriceMinor != null ? { lte: filters.maxPriceMinor } : {}) } });
   }
   const where: Prisma.ProductWhereInput = {
-    status: filters.includeSoldOut ? { in: ["ACTIVE", "SOLD_OUT"] } : "ACTIVE",
+    // Ausverkaufte nur dort, wo gewünscht (Shopseite) – und nur, wenn der Shop sie nicht ausblendet
+    ...(filters.includeSoldOut ? publicProductWhere : { status: "ACTIVE" as const }),
     ...(filters.category ? { category: filters.category } : {}),
     ...(filters.shipsFrom ? { shipsFrom: filters.shipsFrom } : {}),
     ...(filters.shopId ? { shopId: filters.shopId } : {}),
@@ -209,7 +211,7 @@ export async function listProducts(
 export async function listMyProducts(user: Pick<SessionUser, "id">, opts: { status?: string } = {}) {
   const shop = await db.shop.findUnique({ where: { ownerId: user.id }, select: { id: true } });
   if (!shop) return [];
-  return db.product.findMany({
+  const rows = await db.product.findMany({
     where: { shopId: shop.id, ...(opts.status ? { status: opts.status as Prisma.EnumProductStatusFilter["equals"] } : {}) },
     orderBy: { updatedAt: "desc" },
     select: {
@@ -220,8 +222,11 @@ export async function listMyProducts(user: Pick<SessionUser, "id">, opts: { stat
       inventory: { select: { onHand: true, reserved: true } },
       orderItems: { where: { order: { paidAt: { not: null }, status: { notIn: ["CANCELLED", "REFUNDED"] } } }, select: { quantity: true } },
       _count: { select: { orderItems: true, variants: true } },
+      hideWhenSoldOut: true,
     },
   });
+  const restock = await pendingRestockCounts(rows.map((r) => r.id));
+  return rows.map((r) => ({ ...r, restockPendingCount: restock.get(r.id) ?? 0 }));
 }
 
 /** Produkt inkl. Varianten, Bestand und Medien für den Editor (nur Eigentümer). */
@@ -256,6 +261,8 @@ const extraSchema = z.object({
   digitalMediaId: z.string().min(1).nullable().optional(),
   announce: z.boolean().default(false),
   announceText: z.string().trim().max(1000).default(""),
+  /** Ausverkauft ausblenden (fehlt = unverändert lassen) */
+  hideWhenSoldOut: z.boolean().optional(),
 });
 
 async function uniqueSlug(tx: Tx, shopId: string, title: string, exceptId?: string) {
@@ -349,6 +356,7 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
       tutorialId: data.tutorialId ?? null,
       coverUrl: coverFrom(firstMedia?.variants),
       digitalKey: isDigital ? digitalMediaId : null,
+      ...(extra.hideWhenSoldOut !== undefined ? { hideWhenSoldOut: extra.hideWhenSoldOut } : {}),
     };
     const p = existing
       ? await tx.product.update({ where: { id: existing.id }, data: base })
@@ -410,6 +418,9 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
     });
   });
 
+  // Wieder Bestand → wer eine Nachproduktion angefragt hat, wird informiert
+  if (product.status === "ACTIVE") await notifyBackInStock([product.id]).catch(() => {});
+
   // „Im Feed ankündigen“ – als gekennzeichneter Verkaufsbeitrag (§9.6)
   let announced = false;
   if (extra.announce && product.status === "ACTIVE") {
@@ -432,6 +443,15 @@ export async function setProductStatus(user: SessionUser, productId: string, sta
   }
   const next = status === "ACTIVE" && p.kind !== "DIGITAL" && isSoldOut(p.inventory) ? "SOLD_OUT" : status;
   return db.product.update({ where: { id: p.id }, data: { status: next, publishedAt: next === "ACTIVE" ? (p.publishedAt ?? new Date()) : p.publishedAt } });
+}
+
+/** Sichtbarkeit nach Ausverkauf schnell umstellen (Studio-Liste). */
+export async function setSoldOutVisibility(user: SessionUser, productId: string, hide: boolean) {
+  const shop = await requireOwnShop(user, { writable: true });
+  const p = await db.product.findUnique({ where: { id: productId }, select: { shopId: true } });
+  if (!p || p.shopId !== shop.id) throw fail.notFound();
+  const r = await db.product.update({ where: { id: productId }, data: { hideWhenSoldOut: hide }, select: { id: true, hideWhenSoldOut: true, status: true } });
+  return r;
 }
 
 /** Löschen nur ohne Bestellhistorie – sonst pausieren (Belege bleiben nachvollziehbar). */
@@ -465,7 +485,7 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
   if (!p) return null;
   const isOwner = viewerId === p.shop.ownerId;
   if (!isOwner) {
-    if (!["ACTIVE", "SOLD_OUT"].includes(p.status)) return null;
+    if (!isPublicProduct(p)) return null;
     if (!["ACTIVE", "PAUSED"].includes(p.shop.status)) return null;
     if (!["ACTIVE", "SUSPENDED"].includes(p.shop.owner.status)) return null;
     if (viewerId && (await isBlockedBetween(viewerId, p.shop.ownerId))) return null;
@@ -478,6 +498,7 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
     : [];
   /** null = unbegrenzt (digitale Produkte) */
   const baseAvailable: number | null = p.kind === "DIGITAL" ? null : p.variants.length ? stock.reduce((s, v) => s + v.available, 0) : available(p.inventory[0]);
+  const restock = await restockSummary(p.id, viewerId);
   const [saved, entitled] = viewerId
     ? await Promise.all([
         db.bookmark.findUnique({ where: { userId_targetType_targetId: { userId: viewerId, targetType: "PRODUCT", targetId: p.id } }, select: { userId: true } }),
@@ -497,7 +518,9 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
     purchasable: p.status === "ACTIVE" && p.shop.status === "ACTIVE" && p.shop.owner.status === "ACTIVE" && (baseAvailable === null || baseAvailable > 0),
     available: baseAvailable,
     variantStock: stock,
-    viewer: { saved: !!saved, entitlementId: entitled && !entitled.revokedAt ? entitled.id : null },
+    viewer: { saved: !!saved, entitlementId: entitled && !entitled.revokedAt ? entitled.id : null, restockRequested: restock.requested },
+    // Offene Anfragen zur Nachproduktion – nur für den Shop selbst
+    restockPendingCount: isOwner ? restock.pendingCount : null,
   };
 }
 
