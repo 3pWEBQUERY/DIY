@@ -146,22 +146,82 @@ struct StudioProductsView: View {
     }
 }
 
-/// Hinweis + CTA, wenn noch kein Shop besteht
+/// Hinweis + CTA, wenn noch kein Shop besteht – ruhig und sachlich im Datenblatt-Stil:
+/// Konditionen als Kennzahlen, danach die drei Schritte bis zum ersten Verkauf.
 struct MarketNoShopCTA: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+
+    private let steps: [(title: String, detail: String)] = [
+        ("Shop anlegen", "Name, kurze Beschreibung und Versandregeln – in wenigen Minuten erledigt."),
+        ("Produkte einstellen", "Fertige Stücke, Material-Sets oder digitale Anleitungen."),
+        ("Auszahlung erhalten", "Erlöse gehen über Stripe direkt auf dein Bankkonto."),
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ThreadPlate(seed: "shop-cta", category: "haekeln-stricken", glyph: "loop", showLabel: false, animated: true)
-                .frame(height: 140)
-                .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
-            Text("Verkaufe, was du machst.").font(.display(24))
-            Text("Eröffne deinen Shop in wenigen Schritten. Du zahlst keine Grundgebühr – nur eine Provision von \(Fmt.percent(bps: app.feeBps)) auf den Warenwert, wenn etwas verkauft wird.")
-                .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
-            Button { router.present(.shopWizard) } label: { Label("Shop eröffnen", systemImage: "storefront") }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "storefront")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color.moss)
+                    .frame(width: 44, height: 44)
+                    .background(Color.mossSoft, in: .rect(cornerRadius: 12, style: .continuous))
+                    .accessibilityHidden(true)
+                SpecLabel("Dein Shop auf Werkuno", color: .moss)
+            }
+            .padding(.bottom, 16)
+
+            Text("Verkaufe, was du machst.")
+                .font(.display(26))
+                .foregroundStyle(Color.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Eröffne deinen Shop und verkaufe direkt an die Werkuno-Community.")
+                .font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+
+            HStack(spacing: 0) {
+                StatCell(value: "CHF 0", label: "Grundgebühr")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Rectangle().fill(Color.line).frame(width: 0.75)
+                StatCell(value: Fmt.percent(bps: app.feeBps), label: "Provision pro Verkauf")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 16)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 14)
+            .hairline(.top)
+            .hairline(.bottom)
+            .padding(.top, 20)
+
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(String(format: "%02d", i + 1))
+                            .font(.specLarge).monospacedDigit()
+                            .foregroundStyle(Color.moss)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(step.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                            Text(step.detail).font(.wr(.footnote)).foregroundStyle(Color.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(.top, 18)
+
+            Button { router.present(.shopWizard) } label: { Text("Shop eröffnen") }
                 .primaryButton()
+                .padding(.top, 22)
+
+            Text("Die Provision fällt nur an, wenn du etwas verkaufst – auf den Warenwert.")
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .padding(.top, 10)
         }
-        .padding(16)
+        .padding(20)
         .cardSurface()
     }
 }
