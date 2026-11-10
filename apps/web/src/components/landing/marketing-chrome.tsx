@@ -7,25 +7,32 @@ import { CATEGORIES, listCategories } from "@werkraum/shared";
 
 export function MarketingHeader() {
   return (
-    <header className="relative z-20 border-b border-line bg-paper">
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-8 px-5 sm:px-8">
-        <Link href="/" aria-label={`${BRAND.name} Startseite`}>
-          <Wordmark />
+    <header className="sticky top-0 z-30 border-b border-line bg-paper">
+      <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-4 px-4 sm:gap-8 sm:px-8">
+        <Link href="/" aria-label={`${BRAND.name} Startseite`} className="shrink-0 rounded-lg">
+          <Wordmark height={26} className="sm:hidden" />
+          <Wordmark height={30} className="hidden sm:block" />
         </Link>
-        <nav aria-label="Bereiche" className="hidden items-center gap-6 text-[14px] text-ink-2 md:flex">
-          <Link href="/entdecken" className="ink-link">Entdecken</Link>
-          <Link href="/projekte" className="ink-link">Projekte</Link>
-          <Link href="/anleitungen" className="ink-link">Anleitungen</Link>
-          <Link href="/communities" className="ink-link">Communities</Link>
-          <Link href="/markt" className="ink-link">Marktplatz</Link>
-          <Link href="/blogs" className="ink-link">Blogs</Link>
+        <nav aria-label="Bereiche" className="hidden items-center gap-1 text-[14px] font-medium text-ink-2 lg:flex">
+          {[
+            ["/entdecken", "Entdecken"],
+            ["/projekte", "Projekte"],
+            ["/anleitungen", "Anleitungen"],
+            ["/communities", "Communities"],
+            ["/markt", "Marktplatz"],
+            ["/blogs", "Blogs"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href} className="rounded-lg px-3 py-2 transition-colors hover:bg-ink/[0.05] hover:text-ink">
+              {label}
+            </Link>
+          ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <LinkButton href="/anmelden" variant="ghost" size="sm" className="hidden sm:inline-flex">
+        <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+          <LinkButton href="/anmelden" variant="ghost" size="sm" className="px-2.5 sm:px-3.5">
             Anmelden
           </LinkButton>
           <LinkButton href="/registrieren" size="sm">
-            Beitreten
+            Kostenlos starten
           </LinkButton>
         </div>
       </div>
@@ -35,9 +42,9 @@ export function MarketingHeader() {
 
 export function MarketingFooter() {
   return (
-    <footer className="border-t border-rule bg-paper">
-      <div className="mx-auto grid max-w-[1400px] gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div>
+    <footer className="bg-paper">
+      <div className="mx-auto grid max-w-[1240px] grid-cols-2 gap-x-6 gap-y-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="col-span-2 md:col-span-1">
           <Wordmark />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted">{BRAND.description}</p>
           <p className="mt-6 spec">Gemacht in der Schweiz · für D-A-CH</p>
@@ -72,9 +79,9 @@ export function MarketingFooter() {
         />
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-5 py-5 text-xs text-muted sm:px-8">
+        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-4 px-5 py-5 text-xs text-muted sm:px-8">
           <span>© {new Date().getFullYear()} {LEGAL_BRAND}</span>
-          <span className="font-mono uppercase tracking-[0.12em]">{BRAND.claim}</span>
+          <span className="font-semibold">{BRAND.claim}</span>
         </div>
       </div>
     </footer>
@@ -84,11 +91,11 @@ export function MarketingFooter() {
 function FooterCol({ title, links }: { title: string; links: [string, string][] }) {
   return (
     <div>
-      <p className="spec text-ink">{title}</p>
+      <p className="text-[13px] font-bold text-ink">{title}</p>
       <ul className="mt-4 space-y-2.5 text-sm">
         {links.map(([href, label]) => (
           <li key={href}>
-            <Link href={href} className="text-ink-2 hover:text-ink hover:underline underline-offset-4">
+            <Link href={href} className="text-muted transition-colors hover:text-ink hover:underline underline-offset-4">
               {label}
             </Link>
           </li>

@@ -1,5 +1,10 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+/** tailwind-merge kennt die eigene Typo-Skala (globals.css) – sonst hielte es `text-display` für eine Farbe. */
+const twMerge = extendTailwindMerge({
+  extend: { theme: { text: ["hero", "display", "headline", "title", "body-lg", "caption", "micro"] } },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

@@ -127,9 +127,9 @@ export function Cover({
   return (
     <div className={cn("relative overflow-hidden rounded-2xl bg-sunken", className)} style={{ aspectRatio: ratio }}>
       {url || variants?.md ? (
-        <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className="absolute inset-0" />
+        <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className="zoom-media absolute inset-0" />
       ) : (
-        <Plate seed={seed} category={category} label={label} number={plateNumber} />
+        <Plate seed={seed} category={category} label={label} number={plateNumber} className="zoom-media" />
       )}
     </div>
   );

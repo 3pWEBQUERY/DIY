@@ -56,6 +56,33 @@
   --text-micro: 0.6875rem;
   --text-micro--line-height: 1rem;
 
+  /* ── Ergänzungen „Werkbuch 2“ (Startseite) – neue Namen, wirken nur, wo sie verwendet werden ── */
+  --color-pine: #2d6a4f;       /* Zweitakzent Tanne (Vertrauen) – 6.0:1 auf paper */
+  --color-pine-soft: #e3efe8;
+  --text-hero: clamp(2.6rem, 1.55rem + 4.6vw, 5.25rem);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.04em;
+  --text-display: clamp(2rem, 1.45rem + 2.2vw, 3.25rem);
+  --text-display--line-height: 1.06;
+  --text-display--letter-spacing: -0.032em;
+  --text-headline: clamp(1.5rem, 1.25rem + 0.9vw, 2rem);
+  --text-headline--line-height: 1.15;
+  --text-headline--letter-spacing: -0.022em;
+  --text-title: 1.1875rem;
+  --text-title--line-height: 1.35;
+  --text-title--letter-spacing: -0.012em;
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.65;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.25rem;
+  --radius-3xl: 28px;
+  --shadow-xs: 0 1px 2px rgb(31 28 30 / 0.05);
+  --shadow-sm: 0 1px 2px rgb(31 28 30 / 0.04), 0 4px 12px -6px rgb(31 28 30 / 0.1);
+  --shadow-md: 0 2px 6px -2px rgb(31 28 30 / 0.06), 0 16px 32px -16px rgb(31 28 30 / 0.2);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-burst: burst 0.42s var(--ease-spring) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
 
@@ -92,6 +119,39 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+@keyframes burst {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+@keyframes marquee {
+  to { transform: translateX(calc(-50% - var(--marquee-gap, 1rem) / 2)); }
+}
+
+/* Startseite „Werkbuch 2“: tiefere Tinte, feinere Linien und Radien nur innerhalb von .landing –
+   der Rest der Seite behält seine Werte. Utilities lesen die Tokens über var(), daher genügt das Überschreiben. */
+.landing {
+  --color-rail: #f1ebe6;
+  --color-ink: #1f1c1e;
+  --color-ink-2: #3a3538;
+  --color-muted: #685f5b;
+  --color-moss-soft: #f7e6e1;
+  --color-clay-soft: #f7e6e1;
+  --color-line: #e9e3de;
+  --color-line-strong: #dad1cb;
+  --color-field: #8c827d;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-xl: 14px;
+  --shadow-float: 0 14px 36px -14px rgb(31 28 30 / 0.24), 0 2px 6px -2px rgb(31 28 30 / 0.06);
+}
+.landing :is(h1, h2, h3, h4) { text-wrap: balance; }
+.landing p { text-wrap: pretty; }
 
 @layer base {
   /* Horizontal scrollende Tabellen: unsichtbare Screenreader-Texte (sr-only, absolut positioniert)
@@ -228,6 +288,59 @@
     transition: background-size 0.35s var(--ease-out-quint);
   }
   .ink-link:hover, .ink-link:focus-visible { background-size: 100% 1px; }
+
+  /* ── „Werkbuch 2“-Bausteine (Startseite) ──────────────── */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-moss-ink);
+  }
+  .eyebrow::before { content: ""; width: 1.25rem; height: 2px; border-radius: 2px; background: currentColor; }
+  .surface { background: var(--color-card); border: 1px solid var(--color-line); border-radius: var(--radius-2xl); }
+  .lift { transition: transform 0.35s var(--ease-out-quint), box-shadow 0.35s var(--ease-out-quint), border-color 0.2s ease; }
+  @media (hover: hover) {
+    .lift:hover, .lift:has(:focus-visible) { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  }
+  .zoom-media { transition: transform 0.6s var(--ease-out-quint); }
+  @media (hover: hover) {
+    .zoom:hover .zoom-media, .zoom:has(:focus-visible) .zoom-media { transform: scale(1.04); }
+  }
+  .skeleton {
+    border-radius: var(--radius-md);
+    background-color: var(--color-sunken);
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.65) 50%, transparent 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: var(--animate-shimmer);
+  }
+  /* Scroll-Reveal: ohne JS bzw. bei reduzierter Bewegung bleibt alles sichtbar (RevealObserver setzt die Werte) */
+  [data-reveal="hidden"] { opacity: 0; transform: translateY(18px); }
+  [data-reveal="in"] {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.7s var(--ease-out-quint), transform 0.8s var(--ease-out-quint);
+    transition-delay: calc(var(--reveal-i, 0) * 70ms);
+  }
+  .draw-on-reveal { stroke-dasharray: 1; stroke-dashoffset: 0; }
+  [data-reveal="hidden"] .draw-on-reveal { stroke-dashoffset: 1; }
+  [data-reveal="in"] .draw-on-reveal { transition: stroke-dashoffset 1.8s var(--ease-out-quint) 0.25s; }
+  /* Laufband: pausiert bei Hover/Fokus/Knopf; bei reduzierter Bewegung kein Autoplay, sondern scrollbar */
+  .marquee { --marquee-gap: 1rem; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+  .marquee-track { display: flex; width: max-content; gap: var(--marquee-gap); animation: marquee var(--marquee-duration, 60s) linear infinite; }
+  .marquee:hover .marquee-track, .marquee:focus-within .marquee-track, .marquee[data-paused] .marquee-track { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) {
+    .marquee { overflow-x: auto; mask-image: none; scrollbar-width: thin; }
+    .marquee-track { animation: none; }
+    .marquee-track > [aria-hidden="true"] { display: none; }
+  }
+  :root:has([data-reduce-motion]) .marquee { overflow-x: auto; mask-image: none; }
+  :root:has([data-reduce-motion]) .marquee-track { animation: none; }
 
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
