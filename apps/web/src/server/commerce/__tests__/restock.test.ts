@@ -8,7 +8,7 @@ const state = {
   requests: [] as Req[],
   due: [] as { id: string; userId: string; product: { id: string; title: string; slug: string; shop: { slug: string } } }[],
 };
-const notify = vi.fn(async () => null);
+const notify = vi.fn(async (_input: Record<string, unknown>, _tx?: unknown) => null);
 
 vi.mock("@/server/db", async () => {
   const { Prisma } = await import("@/generated/prisma/client");
