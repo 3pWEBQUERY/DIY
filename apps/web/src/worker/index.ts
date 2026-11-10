@@ -32,6 +32,8 @@ import { retryCancelledRefunds } from "@/server/commerce/payments";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
+import { notifyTutorialReaders } from "@/server/tutorials/service";
+import { notifyProjectFollowers } from "@/server/projects/service";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -51,6 +53,7 @@ const warn = (msg: string, extra: Record<string, unknown> = {}) => console.warn(
 const Q = {
   media: "media.process",
   fanout: "notify.fanout",
+  contentNotify: "notify.content",
   emailInstant: "email.instant",
   emailDigest: "email.digest",
   reservations: "commerce.reservations",
@@ -66,6 +69,11 @@ const Q = {
   competitions: "competition.phases",
   accountPurge: "account.purge",
 } as const;
+
+/** Fan-out an Leser:innen einer Anleitung bzw. Follower:innen eines Projekts (aus der Outbox). */
+type ContentNotifyJob =
+  | { kind: "tutorial-readers"; tutorialId: string; authorId: string; version: number }
+  | { kind: "project-followers"; projectId: string; actorId: string; event: "completed" | "update"; excerpt?: string };
 
 /**
  * Kontolöschung (DSG): bis zu 1 Std. Laufzeit (Medien im Bucket, Stripe), danach mit Backoff
@@ -147,6 +155,7 @@ async function dispatchOutboxOnce(boss: PgBoss) {
     }
     try {
       const p = e.payload as Record<string, string>;
+      const raw = e.payload as Record<string, unknown>;
       // Feste Job-ID je Ereignis: pg-boss legt sie nur einmal an. Schlägt nach dem Einreihen das
       // Markieren als erledigt fehl, reiht die Wiederholung den Job nicht ein zweites Mal ein.
       switch (e.type) {
@@ -164,12 +173,16 @@ async function dispatchOutboxOnce(boss: PgBoss) {
         // North Star (§30.1): nur sinnvolle kreative Interaktionen zählen
         case "ProjectUpdated":
           if (p.updateId) await track("project_update", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId });
-          else {
-            const pr = await db.project.findUnique({ where: { id: p.projectId }, select: { createdAt: true, state: true, visibility: true } });
-            // Erstveröffentlichung = Ereignis in den ersten Sekunden nach Anlage
-            if (pr && pr.state === "PUBLISHED" && Date.now() - pr.createdAt.getTime() < 60_000) await track("project_published", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId });
-          }
           break;
+        // Erstveröffentlichung: wird genau einmal emittiert (markProjectPublished, publishedAt null → gesetzt)
+        case "ProjectPublished":
+          await track("project_published", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId });
+          break;
+        case "ProjectFollowersNotify": {
+          const job: ContentNotifyJob = { kind: "project-followers", projectId: p.projectId!, actorId: p.actorId!, event: p.event === "completed" ? "completed" : "update", ...(p.excerpt ? { excerpt: p.excerpt } : {}) };
+          await boss.send(Q.contentNotify, job, { id: stableUuid(e.id, Q.contentNotify), retryLimit: 3, retryDelay: 60 });
+          break;
+        }
         case "ProjectRemixed":
           await track("remix_shared", { userId: p.ownerId, ownerId: p.ownerId, targetType: "PROJECT", targetId: p.projectId, props: { originalId: p.originalId } });
           break;
@@ -179,8 +192,14 @@ async function dispatchOutboxOnce(boss: PgBoss) {
           break;
         }
         case "TutorialPublished":
+          if (raw.notifyReaders === true) {
+            const job: ContentNotifyJob = { kind: "tutorial-readers", tutorialId: p.tutorialId!, authorId: p.authorId!, version: Number(raw.version) };
+            await boss.send(Q.contentNotify, job, { id: stableUuid(e.id, Q.contentNotify), retryLimit: 3, retryDelay: 60 });
+          }
+          await track("tutorial_published", { userId: p.authorId, ownerId: p.authorId, targetType: "TUTORIAL", targetId: p.tutorialId });
+          break;
         case "ArticlePublished":
-          await track(e.type === "TutorialPublished" ? "tutorial_published" : "article_published", { userId: p.authorId, ownerId: p.authorId, targetType: e.type === "TutorialPublished" ? "TUTORIAL" : "ARTICLE", targetId: p.tutorialId ?? p.articleId });
+          await track("article_published", { userId: p.authorId, ownerId: p.authorId, targetType: "ARTICLE", targetId: p.articleId });
           break;
         default:
           break;
@@ -217,11 +236,15 @@ async function fanoutPost(postId: string, authorId: string) {
   }
 }
 
-/** Bereinigung gemäss Medienrichtlinie (§25.6 Nr. 8) und Datensparsamkeit (§23.1). */
+/**
+ * Bereinigung gemäss Medienrichtlinie (§25.6 Nr. 8) und Datensparsamkeit (§23.1).
+ * Unverknüpfte Medien erst 14 Tage nach der letzten Änderung – `releaseMedia` setzt attachedAt beim
+ * Löschen des Inhalts zurück (updatedAt = Beginn der Schonfrist).
+ */
 async function cleanup() {
   const day = 86400_000;
   const stale = await db.media.findMany({
-    where: { OR: [{ state: "PENDING", createdAt: { lt: new Date(Date.now() - day) } }, { state: "FAILED", createdAt: { lt: new Date(Date.now() - day) } }, { attachedAt: null, state: "READY", createdAt: { lt: new Date(Date.now() - 14 * day) }, isPrivate: false }] },
+    where: { OR: [{ state: "PENDING", createdAt: { lt: new Date(Date.now() - day) } }, { state: "FAILED", createdAt: { lt: new Date(Date.now() - day) } }, { attachedAt: null, state: "READY", createdAt: { lt: new Date(Date.now() - 14 * day) }, updatedAt: { lt: new Date(Date.now() - 14 * day) }, isPrivate: false }] },
     take: 500,
     select: { id: true, storageKey: true, variants: true, ownerId: true },
   });
@@ -321,6 +344,13 @@ async function main() {
   }));
   await boss.work<{ postId: string; authorId: string }>(Q.fanout, guarded(Q.fanout, async (jobs) => {
     for (const j of jobs) await fanoutPost(j.data.postId, j.data.authorId);
+  }));
+  await boss.work<ContentNotifyJob>(Q.contentNotify, guarded(Q.contentNotify, async (jobs) => {
+    for (const j of jobs) {
+      const d = j.data;
+      if (d.kind === "tutorial-readers") await notifyTutorialReaders(d.tutorialId, d.authorId, d.version);
+      else await notifyProjectFollowers(d.projectId, d.actorId, d.event, d.excerpt);
+    }
   }));
   await boss.work(Q.outbox, guarded(Q.outbox, async () => dispatchOutbox(boss)));
   await boss.work<{ userId: string }>(Q.accountPurge, guarded(Q.accountPurge, async (jobs) => {

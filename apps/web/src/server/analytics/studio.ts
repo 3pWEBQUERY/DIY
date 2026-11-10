@@ -2,6 +2,7 @@ import "server-only";
 import { db, Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import { storage } from "@/server/storage";
+import { mediaInUse } from "@/server/media/service";
 import { weekKeys, weeklySeries } from "@/server/admin/kpis";
 import { TZ, zurichDayKey, zurichWeekDays } from "@/lib/tz";
 
@@ -296,10 +297,16 @@ export async function listMedia(userId: string, filter: "all" | "unused" | "imag
     db.userProfile.findUnique({ where: { userId }, select: { avatarUrl: true, coverUrl: true } }),
   ]);
   const coverIds = new Set(covers.map((c) => c.coverMediaId));
+  const directUses = (m: (typeof rows)[number]) => m._count.postMedia + m._count.projectMedia + m._count.productMedia + m._count.tutorialMedia + (coverIds.has(m.id) ? 1 : 0);
+  const profileUse = (m: (typeof rows)[number]) => Object.values((m.variants ?? {}) as Record<string, string>).some((u) => u && (u === profile?.avatarUrl || u === profile?.coverUrl));
+  // `attachedAt` bleibt nach dem Löschen des Inhalts gesetzt → für Medien ohne direkte Verknüpfung die
+  // tatsächliche Verwendung (JSON-Felder, URL-Verweise) nachprüfen, statt sie für immer „verwendet“ zu zeigen
+  const indirect = await mediaInUse(rows.filter((m) => m.attachedAt && !directUses(m) && !profileUse(m)).map((m) => m.id));
   const items = rows.map((m) => {
     const v = (m.variants ?? {}) as Record<string, string>;
-    const uses = m._count.postMedia + m._count.projectMedia + m._count.productMedia + m._count.tutorialMedia + (coverIds.has(m.id) ? 1 : 0);
-    const isProfile = Object.values(v).some((u) => u && (u === profile?.avatarUrl || u === profile?.coverUrl));
+    const uses = directUses(m);
+    const isProfile = profileUse(m);
+    const linked = !!m.attachedAt && indirect.has(m.id);
     const usedIn = [
       m._count.postMedia && `${m._count.postMedia} Beitrag`,
       (m._count.projectMedia || coverIds.has(m.id)) && "Projekt",
@@ -319,9 +326,9 @@ export async function listMedia(userId: string, filter: "all" | "unused" | "imag
       isPrivate: m.isPrivate,
       alt: m.alt,
       createdAt: m.createdAt,
-      // attachedAt deckt auch Verwendungen in JSON-Feldern ab (Journal, Anleitungsschritte, Nachrichten)
-      attached: uses > 0 || isProfile || !!m.attachedAt,
-      usedIn: usedIn.length || !m.attachedAt ? usedIn : ["Verknüpft"],
+      // Verwendungen in JSON-Feldern (Journal, Anleitungsschritte, Nachrichten, Artikel) und per URL
+      attached: uses > 0 || isProfile || linked,
+      usedIn: usedIn.length || !linked ? usedIn : ["Verknüpft"],
     };
   });
   const filtered = filter === "unused" ? items.filter((i) => !i.attached) : items;
@@ -342,11 +349,10 @@ export async function updateMediaAlt(userId: string, mediaId: string, alt: strin
 }
 
 export async function deleteUnusedMedia(userId: string, mediaId: string) {
-  const { items } = await listMedia(userId, "all");
-  const m = items.find((i) => i.id === mediaId);
-  if (!m) throw fail.notFound();
-  if (m.attached) throw fail.conflict("Dieses Medium wird noch verwendet. Entferne es zuerst aus dem Inhalt.");
-  const row = await db.media.findUniqueOrThrow({ where: { id: mediaId }, select: { storageKey: true, variants: true } });
+  // Direkt über ID + Eigentümer:in (nicht nur unter den neuesten 300 der Bibliothek)
+  const row = await db.media.findFirst({ where: { id: mediaId, ownerId: userId }, select: { storageKey: true, variants: true } });
+  if (!row) throw fail.notFound();
+  if ((await mediaInUse([mediaId])).has(mediaId)) throw fail.conflict("Dieses Medium wird noch verwendet. Entferne es zuerst aus dem Inhalt.");
   const keys = new Set<string>([row.storageKey]);
   for (const url of Object.values((row.variants ?? {}) as Record<string, string>)) {
     if (typeof url === "string" && url.startsWith("/media/")) keys.add(url.slice("/media/".length));

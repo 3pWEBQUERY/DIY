@@ -125,8 +125,9 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
   if (type === "POST") {
     const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });
     if (post?.communityId) {
-      const { assertNotSilencedInCommunity } = await import("./posts");
-      await assertNotSilencedInCommunity(post.communityId, user.id);
+      // Gesperrt/stummgeschaltet → nein; REQUEST/PRIVATE nur aktive Mitglieder (Regel: `assertCanCommentInCommunity`)
+      const { assertCanCommentInCommunity } = await import("./posts");
+      await assertCanCommentInCommunity(post.communityId, user.id);
     }
   }
   let parentAuthor: string | null = null;

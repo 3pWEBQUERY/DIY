@@ -24,7 +24,7 @@ vi.mock("@/server/visibility", () => ({ canViewContent: m.canViewContent, isBloc
 vi.mock("@/server/authz", () => ({ assertOwnerOrMod: vi.fn() }));
 vi.mock("@/server/auth/adult", () => ({ requireAdult: vi.fn() }));
 vi.mock("@/server/moderation/cases", () => ({ openOrAttachCase: vi.fn() }));
-vi.mock("../posts", () => ({ canViewCommunityContentOf: vi.fn(async () => true), assertNotSilencedInCommunity: vi.fn() }));
+vi.mock("../posts", () => ({ canViewCommunityContentOf: vi.fn(async () => true), assertNotSilencedInCommunity: vi.fn(), assertCanCommentInCommunity: vi.fn() }));
 
 const ix = await import("../interactions");
 const user = { id: "u1", role: "MEMBER" } as never;

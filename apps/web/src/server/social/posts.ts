@@ -9,9 +9,9 @@ import { relationsFor, visibleContentWhere, canViewContent } from "@/server/visi
 import { assertOwnerOrMod, hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
-import { attachMedia } from "@/server/media/service";
+import { attachMedia, releaseMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
-import { rankFeed, type Candidate } from "./ranking";
+import { decodeFeedCursor, nextFeedPage, rankFeed, type Candidate } from "./ranking";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 
 export const postInclude = {
@@ -205,12 +205,10 @@ export async function getFeed(kind: FeedKind, viewer: { id: string; interests: s
     return listPosts({ ...base, ...communityFilter, visibility: "PUBLIC", ...(cats ? { category: { in: cats } } : {}) }, viewerId, { cursor });
   }
 
-  // Für dich: Kandidaten der letzten 21 Tage → Ranking → Offset-Cursor auf Snapshot
-  const [asOfRaw, offsetRaw] = (cursor ?? "").split("|");
-  // Ungültiger Cursor (manipuliert/alt) → von vorn beginnen statt Fehler
-  const asOfParsed = asOfRaw ? new Date(Number(asOfRaw)) : null;
-  const asOf = asOfParsed && !Number.isNaN(asOfParsed.getTime()) ? asOfParsed : new Date();
-  const offset = Math.max(0, Math.min(10_000, Math.floor(Number(offsetRaw ?? 0)) || 0));
+  // Für dich: Kandidaten der letzten 21 Tage bis `asOf` → Ranking → nächste Seite ohne bereits
+  // gesehene Beiträge (Cursor trägt sie, siehe `decodeFeedCursor`). Ungültiger Cursor → von vorn.
+  const feedCursor = decodeFeedCursor(cursor);
+  const asOf = feedCursor.asOf;
   const pageSize = 15;
   const rel = await relationsFor(viewerId);
   const pref = viewerId ? await db.userPreference.findUnique({ where: { userId: viewerId }, select: { hiddenCategories: true } }) : null;
@@ -252,10 +250,9 @@ export async function getFeed(kind: FeedKind, viewer: { id: string; interests: s
     { now: asOf, interests: viewer?.interests ?? [], following: new Set(rel.following), hiddenCategories: pref?.hiddenCategories },
     { authorCap: await getSetting("feed.authorCap"), pageSize },
   );
-  const ids = ranked.slice(offset, offset + pageSize);
+  const { ids, nextCursor } = nextFeedPage(ranked, feedCursor, pageSize);
   const items = await hydratePosts(ids, viewerId);
-  const next = offset + pageSize < ranked.length ? `${asOf.getTime()}|${offset + pageSize}` : null;
-  return { items, nextCursor: next };
+  return { items, nextCursor };
 }
 
 // ───────────────────────── Schreiben ─────────────────────────
@@ -429,8 +426,10 @@ export async function deletePost(user: SessionUser, postId: string) {
   if (!post || post.state === "REMOVED") throw fail.notFound();
   assertOwnerOrMod(user, post.authorId);
   if (post.state === "DRAFT") {
-    // Nie veröffentlicht → endgültig löschen
+    // Nie veröffentlicht → endgültig löschen, Medien danach freigeben, falls nirgends sonst verwendet
+    const media = await db.postMedia.findMany({ where: { postId }, select: { mediaId: true } });
     await db.post.delete({ where: { id: postId } });
+    await releaseMedia(media.map((m) => m.mediaId));
     return;
   }
   await db.$transaction([
@@ -460,6 +459,23 @@ export async function assertNotSilencedInCommunity(communityId: string, userId: 
   const m = await db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId } }, select: { state: true, mutedUntil: true } });
   if (m?.state === "BANNED") throw fail.forbidden("Du bist in dieser Community gesperrt.");
   if (m?.mutedUntil && m.mutedUntil > new Date()) throw fail.forbidden("Du bist in dieser Community derzeit stummgeschaltet.");
+}
+
+/**
+ * Kommentieren von Community-Beiträgen:
+ * - PUBLIC: offen für alle, die den Beitrag sehen dürfen (ausser gesperrt/stummgeschaltet).
+ * - REQUEST / PRIVATE: nur *aktive* Mitglieder. Wer (z. B. über einen geteilten Link oder weil eine
+ *   REQUEST-Community öffentlich lesbar ist) mitliest, aber nicht aufgenommen wurde, kann nicht mitreden –
+ *   sonst wäre die Beitrittsprüfung wirkungslos. Gilt auch für Antworten.
+ */
+export async function assertCanCommentInCommunity(communityId: string, userId: string) {
+  const [c, m] = await Promise.all([
+    db.community.findUnique({ where: { id: communityId }, select: { visibility: true } }),
+    db.communityMember.findUnique({ where: { communityId_userId: { communityId, userId } }, select: { state: true, mutedUntil: true } }),
+  ]);
+  if (m?.state === "BANNED") throw fail.forbidden("Du bist in dieser Community gesperrt.");
+  if (m?.mutedUntil && m.mutedUntil > new Date()) throw fail.forbidden("Du bist in dieser Community derzeit stummgeschaltet.");
+  if (c && c.visibility !== "PUBLIC" && m?.state !== "ACTIVE") throw fail.forbidden("Nur Mitglieder dieser Community können hier kommentieren.");
 }
 
 /**

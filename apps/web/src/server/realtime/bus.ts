@@ -51,15 +51,43 @@ function connect(): Promise<void> {
   return state.ready;
 }
 
-/** Ereignis an Nutzer:innen senden (fire-and-forget, Fehler werden geschluckt). */
+/**
+ * pg_notify nimmt höchstens 8000 Byte Nutzlast an (sonst „payload string too long“). Ein Fan-out an
+ * 500 Personen (≈ 14 KB IDs) ginge sonst komplett verloren → Empfänger:innen auf mehrere Nachrichten
+ * mit je höchstens `maxBytes` verteilen. IDs sind ASCII (cuid), Länge = Bytes.
+ */
+export const NOTIFY_MAX_BYTES = 7500;
+export function chunkPayloads(userIds: string[], e: LiveEvent, maxBytes = NOTIFY_MAX_BYTES): string[] {
+  const overhead = Buffer.byteLength(JSON.stringify({ u: [], e } satisfies Payload));
+  const out: string[] = [];
+  let cur: string[] = [];
+  let size = overhead;
+  for (const id of userIds) {
+    const len = Buffer.byteLength(JSON.stringify(id));
+    if (cur.length && size + 1 + len > maxBytes) {
+      out.push(JSON.stringify({ u: cur, e } satisfies Payload));
+      cur = [];
+      size = overhead;
+    }
+    size += len + (cur.length ? 1 : 0); // Komma zwischen Einträgen
+    cur.push(id);
+  }
+  if (cur.length) out.push(JSON.stringify({ u: cur, e } satisfies Payload));
+  return out;
+}
+
+/** Ereignis an Nutzer:innen senden (fire-and-forget; Fehler werden protokolliert, nicht geworfen). */
 export async function publish(userIds: string[], e: LiveEvent) {
   const u = [...new Set(userIds)].filter(Boolean);
   if (!u.length) return;
-  try {
-    // $executeRaw: pg_notify liefert void – $queryRaw kann diese Spalte nicht deserialisieren
-    await db.$executeRaw`SELECT pg_notify(${CHANNEL}, ${JSON.stringify({ u, e } satisfies Payload)})`;
-  } catch {
-    /* Echtzeit ist ein Komfort – Polling fängt es auf */
+  for (const payload of chunkPayloads(u, e)) {
+    try {
+      // $executeRaw: pg_notify liefert void – $queryRaw kann diese Spalte nicht deserialisieren
+      await db.$executeRaw`SELECT pg_notify(${CHANNEL}, ${payload})`;
+    } catch (err) {
+      // Echtzeit ist ein Komfort – Polling fängt es auf; trotzdem sichtbar machen (ohne IDs/PII)
+      console.warn(JSON.stringify({ level: "warn", msg: "realtime_publish_failed", event: e.t, bytes: Buffer.byteLength(payload), err: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200) }));
+    }
   }
 }
 

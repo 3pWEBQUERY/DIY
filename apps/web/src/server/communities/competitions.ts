@@ -265,13 +265,44 @@ async function announceResults(challengeId: string) {
   await db.communityChallenge.update({ where: { id: challengeId }, data: { notified: { push: "results" } } });
 }
 
-/** Abstimmung auswerten: Platz 1–3 nach Stimmen (Gleichstand: frühere Einreichung zuerst). */
+/**
+ * Platz 1–3 aus gültigen Stimmen (Gleichstand: frühere Einreichung zuerst). Reine Funktion → testbar.
+ * Nur Einreichungen mit mindestens einer gültigen Stimme kommen aufs Podest.
+ */
+export function podium(entries: { id: string; createdAt: Date }[], validVotes: Map<string, number>) {
+  return entries
+    .map((e) => ({ ...e, votes: validVotes.get(e.id) ?? 0 }))
+    .filter((e) => e.votes > 0)
+    .sort((a, b) => b.votes - a.votes || a.createdAt.getTime() - b.createdAt.getTime())
+    .slice(0, 3)
+    .map((e) => e.id);
+}
+
+/**
+ * Abstimmung auswerten.
+ *
+ * Gezählt werden nur Stimmen von Personen, die zum Auswertungszeitpunkt noch *aktive* Mitglieder der
+ * Community sind – wer gesperrt wurde oder ausgetreten ist, beeinflusst das Ergebnis nicht mehr.
+ * Die Stimmen selbst bleiben als Verlauf (Datenexport) erhalten; der zwischengespeicherte
+ * `voteCount` wird auf die gültigen Stimmen korrigiert, damit die angezeigten Zahlen zum Podest passen.
+ */
 export async function finalizeVotes(challengeId: string) {
+  const ch = await db.communityChallenge.findUnique({ where: { id: challengeId }, select: { communityId: true } });
+  if (!ch) return;
+  const valid = await db.challengeVote.groupBy({
+    by: ["entryId"],
+    where: { challengeId, user: { communityMemberships: { some: { communityId: ch.communityId, state: "ACTIVE" } } } },
+    _count: { _all: true },
+  });
+  const validVotes = new Map(valid.map((v) => [v.entryId, v._count._all]));
+  const active = await db.challengeEntry.findMany({ where: { challengeId, state: "ACTIVE" }, select: { id: true, createdAt: true, voteCount: true, project: { select: { state: true, visibility: true } } } });
   // Nur Einreichungen, deren Projekt noch veröffentlicht und öffentlich ist (sonst leerer Siegerplatz)
-  const top = await db.challengeEntry.findMany({ where: { challengeId, state: "ACTIVE", voteCount: { gt: 0 }, project: { state: "PUBLISHED", visibility: "PUBLIC" } }, orderBy: [{ voteCount: "desc" }, { createdAt: "asc" }], take: 3, select: { id: true } });
+  const eligible = active.filter((e) => e.project.state === "PUBLISHED" && e.project.visibility === "PUBLIC");
+  const top = podium(eligible, validVotes);
   await db.$transaction([
     db.challengeEntry.updateMany({ where: { challengeId }, data: { place: null } }),
-    ...top.map((e, i) => db.challengeEntry.update({ where: { id: e.id }, data: { place: i + 1 } })),
+    ...active.filter((e) => e.voteCount !== (validVotes.get(e.id) ?? 0)).map((e) => db.challengeEntry.update({ where: { id: e.id }, data: { voteCount: validVotes.get(e.id) ?? 0 } })),
+    ...top.map((id, i) => db.challengeEntry.update({ where: { id }, data: { place: i + 1 } })),
     db.communityChallenge.update({ where: { id: challengeId }, data: { resultsAt: new Date() } }),
   ]);
   await announceResults(challengeId);

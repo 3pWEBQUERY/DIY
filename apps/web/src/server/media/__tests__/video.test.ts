@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { VideoRejected, ffmpegAvailable, probe, transcode } from "../video";
+import { VideoRejected, allowedDemuxer, ffmpegAvailable, probe, transcode } from "../video";
 
 const hasFfmpeg = await ffmpegAvailable();
 const dir = mkdtempSync(join(tmpdir(), "vt-"));
@@ -63,4 +63,24 @@ describe.skipIf(!hasFfmpeg)("Video-Transkodierung", () => {
     writeFileSync(txt, "kein video, nur text".repeat(100));
     await expect(transcode(txt, { maxSeconds: 180 }, async () => undefined)).rejects.toBeInstanceOf(VideoRejected);
   }, 30_000);
+
+  it("lehnt HLS-Playlists und concat-Listen ab (keine Fremdzugriffe über ffmpeg)", async () => {
+    const real = make("seg.mp4", ["-f", "lavfi", "-i", "testsrc2=size=320x240:rate=10:duration=1", "-c:v", "libx264", "-preset", "ultrafast"]);
+    const hls = join(dir, "evil.m3u8");
+    writeFileSync(hls, `#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nhttp://127.0.0.1:9/x.ts\n#EXTINF:1,\nfile://${real}\n#EXT-X-ENDLIST\n`);
+    const concat = join(dir, "evil.txt");
+    writeFileSync(concat, `ffconcat version 1.0\nfile '${real}'\nfile '/etc/passwd'\n`);
+    const use = vi.fn(async () => undefined);
+    await expect(transcode(hls, { maxSeconds: 180 }, use)).rejects.toBeInstanceOf(VideoRejected);
+    await expect(transcode(concat, { maxSeconds: 180 }, use)).rejects.toBeInstanceOf(VideoRejected);
+    expect(use).not.toHaveBeenCalled();
+  }, 60_000);
+});
+
+describe("Erlaubte Container", () => {
+  it("nur MP4/MOV und Matroska/WebM", () => {
+    expect(allowedDemuxer("mov,mp4,m4a,3gp,3g2,mj2")).toBe("mov");
+    expect(allowedDemuxer("matroska,webm")).toBe("matroska");
+    for (const f of ["hls", "concat", "image2", "tty", "", null]) expect(allowedDemuxer(f)).toBeNull();
+  });
 });
