@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
 import { SettingsSection } from "./section";
+import { ShortcutsToggle, openShortcutsHelp } from "@/components/shell/shortcuts";
 import { updatePrivacyAction } from "@/app/(app)/einstellungen/actions";
 
 const DM_HINT: Record<(typeof DM_POLICIES)[number], string> = {
@@ -43,6 +44,12 @@ export function PrivacyForm({ dmPolicy, reduceMotion }: { dmPolicy: string; redu
 
       <SettingsSection n="02" title="Darstellung" description="Unabhängig von dieser Einstellung respektieren wir die Systemeinstellung „Bewegung reduzieren“ deines Geräts.">
         <Checkbox checked={rm} onChange={(e) => setRm(e.currentTarget.checked)} label={<><span className="font-semibold">Bewegung reduzieren</span><span className="block text-xs text-muted">Animationen, Zeichenlinien und automatische Übergänge werden ausgeschaltet.</span></>} />
+        <div className="mt-4 border-t border-line pt-4">
+          <ShortcutsToggle />
+          <button type="button" onClick={openShortcutsHelp} className="mt-2 ml-[30px] text-sm font-semibold text-moss underline-offset-2 hover:underline">
+            Alle Tastenkürzel anzeigen
+          </button>
+        </div>
       </SettingsSection>
 
       <div className="mb-12 flex justify-end border-t border-line pt-4">

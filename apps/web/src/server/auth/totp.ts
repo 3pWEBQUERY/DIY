@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { BRAND } from "@/config/brand";
 
 /**
  * Zeitbasierte Einmalcodes (TOTP, RFC 6238) für Authenticator-Apps
@@ -76,7 +77,7 @@ export function verifyTotp(secretB32: string, code: string, lastStep: number | n
   return null;
 }
 
-export function otpauthUri(secretB32: string, account: string, issuer = "Werkuno") {
+export function otpauthUri(secretB32: string, account: string, issuer: string = BRAND.name) {
   const label = encodeURIComponent(`${issuer}:${account}`);
   const q = new URLSearchParams({ secret: secretB32, issuer, algorithm: "SHA1", digits: String(TOTP_DIGITS), period: String(TOTP_PERIOD) });
   return `otpauth://totp/${label}?${q}`;

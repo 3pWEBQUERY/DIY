@@ -115,7 +115,7 @@ export function BuyBox({
                 >
                   {v.name}
                   {v.priceDeltaMinor !== 0 && (
-                    <span className={cn("ml-1.5 font-mono text-[11px]", active ? "text-paper/70" : "text-muted")}>
+                    <span className={cn("ml-1.5 font-mono text-[11px]", active ? "text-paper" : "text-muted")}>
                       {v.priceDeltaMinor > 0 ? "+" : "−"}
                       {formatMoney(Math.abs(v.priceDeltaMinor), currency)}
                     </span>

@@ -181,7 +181,7 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
         </section>
       )}
 
-      {error && <Notice tone="danger">{error}</Notice>}
+      {error && <Notice tone="danger" alert>{error}</Notice>}
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-paper px-4 py-4 sm:mx-0 sm:px-0">
         <Button variant="ghost" onClick={remove} disabled={deleting} className="text-danger hover:bg-danger-soft">

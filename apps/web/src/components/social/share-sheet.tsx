@@ -12,6 +12,7 @@ import { PeoplePicker, type Candidate } from "@/components/messages/people-picke
 import { groupCandidatesAction, startConversationAction } from "@/app/(app)/nachrichten/actions";
 import { cn } from "@/lib/utils";
 import { SHARE_LOGOS, type ShareLogo } from "./share-logos.data";
+import { BRAND } from "@/config/brand";
 
 /**
  * Eigenes Teilen-Menü (statt des System-Dialogs): Werkuno-Nachricht, WhatsApp, Nachrichten,
@@ -136,7 +137,7 @@ export function ShareSheet({ open, onClose, url, title, text, image }: { open: b
   };
 
   const own: Target[] = [
-    { key: "werkuno", label: "Werkuno", icon: <Image src="/brand/werkuno-icon-192.png" alt="" width={52} height={52} className="size-[52px] rounded-2xl" />, bg: "transparent", onSelect: () => setView("people") },
+    { key: "werkuno", label: BRAND.name, icon: <Image src="/brand/werkuno-icon-192.png" alt="" width={52} height={52} className="size-[52px] rounded-2xl" />, bg: "transparent", onSelect: () => setView("people") },
     { key: "instagram", label: "Instagram", logo: "instagram", onSelect: () => void copy(true).then((ok) => ok && setView("instagram")) },
   ];
   const targets = [own[0]!, ...LINK_TARGETS.slice(0, 3), own[1]!, ...LINK_TARGETS.slice(3)].filter((t) => !t.show || t.show(env));
@@ -264,7 +265,7 @@ function SendToPeople({ url, onDone }: { url: string; onDone: () => void }) {
   if (needsLogin)
     return (
       <div className="px-5 pt-5 text-[14px] text-muted">
-        <p>Melde dich an, um Inhalte per Werkuno-Nachricht zu teilen.</p>
+        <p>Melde dich an, um Inhalte per {BRAND.name}-Nachricht zu teilen.</p>
         <Link href={`/anmelden?weiter=${encodeURIComponent(location.pathname)}`} className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-xl bg-moss text-sm font-semibold text-paper">
           Anmelden
         </Link>

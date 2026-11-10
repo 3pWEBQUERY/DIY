@@ -66,7 +66,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
                   className={cn("inline-flex h-8 items-center gap-2 border px-3 text-[13px] rounded-xl", sp.kategorie === c.slug ? "border-moss bg-moss text-paper" : "border-line-strong hover:border-rule-strong")}
                 >
                   {c.short}
-                  <span className={cn("font-mono text-[10px]", sp.kategorie === c.slug ? "text-paper/70" : "text-muted")}>{counts.get(c.slug)}</span>
+                  <span className={cn("font-mono text-[10px]", sp.kategorie === c.slug ? "text-paper" : "text-muted")}>{counts.get(c.slug)}</span>
                 </Link>
               </li>
             ))}

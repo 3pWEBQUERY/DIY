@@ -81,7 +81,8 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
       const stitchGeo = new THREE.BufferGeometry();
       const stitchPos = new Float32Array(stitchCount * 3);
       stitchGeo.setAttribute("position", new THREE.BufferAttribute(stitchPos, 3));
-      const stitches = new THREE.Points(stitchGeo, new THREE.PointsMaterial({ color: 0xb64b3a, size: 4.2, sizeAttenuation: false, transparent: true }));
+      const stitchMat = new THREE.PointsMaterial({ color: 0xb64b3a, size: 4.2, sizeAttenuation: false, transparent: true });
+      const stitches = new THREE.Points(stitchGeo, stitchMat);
       stitches.frustumCulled = false;
       group.add(stitches);
 
@@ -108,15 +109,19 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
         material.resolution.set(width, height);
       };
       resize();
-      const ro = new ResizeObserver(resize);
+      const ro = new ResizeObserver(() => {
+        resize();
+        if (reduced) requestRender();
+      });
       ro.observe(host);
 
+      // Zeiger-Parallaxe nur ohne „Bewegung reduzieren“
       const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
       const onPointer = (e: PointerEvent) => {
         pointer.tx = (e.clientX / window.innerWidth - 0.5) * 2;
         pointer.ty = (e.clientY / window.innerHeight - 0.5) * 2;
       };
-      window.addEventListener("pointermove", onPointer, { passive: true });
+      if (!reduced) window.addEventListener("pointermove", onPointer, { passive: true });
 
       let visible = true;
       const io = new IntersectionObserver((entries) => (visible = entries[0]?.isIntersecting ?? true));
@@ -129,9 +134,15 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
       let raf = 0;
       const v = new THREE.Vector3();
 
+      // Mit „Bewegung reduzieren“ läuft keine Dauerschleife: gezeichnet wird nur, wenn sich
+      // Scrollposition oder Grösse ändern (Formen springen dann stufenweise, ohne Übergang).
+      const requestRender = () => {
+        if (!raf && !disposed) raf = requestAnimationFrame(frame);
+      };
       const frame = (now: number) => {
+        raf = 0;
         if (disposed) return;
-        raf = requestAnimationFrame(frame);
+        if (!reduced) raf = requestAnimationFrame(frame);
         if (!visible || document.hidden) {
           last = now;
           return;
@@ -180,7 +191,7 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
         // Einzeichnen beim Laden
         const draw = reduced ? 1 : easeInOut(clamp((now - start) / 2600));
         geometry.instanceCount = Math.max(1, Math.floor(draw * (N - 1)));
-        (stitches.material as InstanceType<typeof THREE.PointsMaterial>).opacity = clamp((now - start - 1400) / 900);
+        stitchMat.opacity = reduced ? 1 : clamp((now - start - 1400) / 900);
 
         // Rotation: frei drehend, beim Projektfaden frontal
         const fw = smoothstep(2.25, 3, f);
@@ -213,18 +224,24 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
           setShape(s);
         }
       };
-      raf = requestAnimationFrame(frame);
+      requestRender();
+      if (reduced) window.addEventListener("scroll", requestRender, { passive: true });
 
       cleanup = () => {
         cancelAnimationFrame(raf);
         ro.disconnect();
         io.disconnect();
         window.removeEventListener("pointermove", onPointer);
+        window.removeEventListener("scroll", requestRender);
         geometry.dispose();
         material.dispose();
         stitchGeo.dispose();
+        stitchMat.dispose();
         nodeGeo.dispose();
+        nodeMat.dispose();
         renderer.dispose();
+        // WebGL-Kontext sofort freigeben – Browser erlauben nur wenige gleichzeitig
+        renderer.forceContextLoss();
         renderer.domElement.remove();
       };
     })();
@@ -265,7 +282,8 @@ export function ThreadStory({ chapters, hero }: { chapters: ReactNode[]; hero: R
             </div>
           ))}
           {/* Datenblatt der aktuellen Form */}
-          <div className="absolute bottom-10 left-10 hidden lg:block lg:bottom-14 lg:left-14" aria-live="polite">
+          {/* Kein aria-live: würde bei jedem Scrollschritt vorgelesen; die Kapitel tragen denselben Inhalt als Text */}
+          <div className="absolute bottom-10 left-10 hidden lg:block lg:bottom-14 lg:left-14">
             <p className="spec text-ink">Fig. {String(shape + 1).padStart(2, "0")} — {spec.title}</p>
             <p className="mt-1 flex gap-3 spec">
               {spec.spec.map((s) => (

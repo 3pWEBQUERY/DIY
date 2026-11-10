@@ -11,6 +11,7 @@ import { ProductGrid } from "@/components/commerce/product-card";
 import { Avatar, Empty, Notice, SectionTitle, Stat } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { formatDate, relativeTime } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 type Params = { params: Promise<{ shopSlug: string }>; searchParams: Promise<{ cursor?: string }> };
 
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!shop) return { title: "Shop nicht gefunden", robots: { index: false } };
   return {
     title: `${shop.name} – Shop`,
-    description: shop.tagline || shop.description.slice(0, 160) || `Handgemachtes von ${shop.owner.profile?.displayName} auf Werkuno.`,
+    description: shop.tagline || shop.description.slice(0, 160) || `Handgemachtes von ${shop.owner.profile?.displayName} auf ${BRAND.name}.`,
     alternates: { canonical: `/markt/${shop.slug}` },
     openGraph: { title: shop.name, description: shop.tagline || undefined, type: "website", images: ["/opengraph-image.png"] },
   };
@@ -191,7 +192,7 @@ export default async function ShopPage({ params, searchParams }: Params) {
               ) : (
                 <p>Privatverkauf durch {profile.displayName}. Bei privaten Verkäufen gelten teilweise andere Rechte als beim Kauf im Handel – siehe Rückgabebedingungen.</p>
               )}
-              <p className="pt-2 text-[12.5px] text-muted">Auf Werkuno seit {formatDate(shop.createdAt, { month: "long", year: "numeric" })}</p>
+              <p className="pt-2 text-[12.5px] text-muted">Auf {BRAND.name} seit {formatDate(shop.createdAt, { month: "long", year: "numeric" })}</p>
             </div>
           </section>
         </aside>

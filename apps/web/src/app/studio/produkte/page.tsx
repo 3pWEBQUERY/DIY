@@ -12,6 +12,7 @@ import { Cover } from "@/components/ui/media";
 import { Badge, Empty, Notice } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Produkte" };
 
@@ -37,7 +38,7 @@ export default async function StudioProductsPage({ searchParams }: { searchParam
   return (
     <div>
       <PageHeader
-        kicker="Werkuno Studio · Marktplatz"
+        kicker={`${BRAND.name} Studio · Marktplatz`}
         title="Produkte"
         description="Deine Angebote im Marktplatz. Verknüpfe sie mit Projekten, damit Käufer:innen sehen, wie sie entstanden sind."
         actions={

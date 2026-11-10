@@ -12,6 +12,7 @@ import { Notice, SectionTitle } from "@/components/ui/misc";
 import { ProjectCard, ProjectGrid } from "@/components/projects/project-card";
 import { StockToggle } from "@/components/materials/stock";
 import { AddToShoppingList } from "@/components/materials/add-to-list";
+import { BRAND } from "@/config/brand";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!m) return { title: "Material nicht gefunden", robots: { index: false } };
   return {
     title: `${m.name} – Material`,
-    description: (m.notes || `${m.name} (${m.type}) in der Werkuno-Materialdatenbank: Eigenschaften, Bezugsquellen und Projekte, die es verwenden.`).slice(0, 158),
+    description: (m.notes || `${m.name} (${m.type}) in der ${BRAND.name}-Materialdatenbank: Eigenschaften, Bezugsquellen und Projekte, die es verwenden.`).slice(0, 158),
     alternates: { canonical: `/materialien/${m.slug}` },
   };
 }
@@ -81,7 +82,7 @@ export default async function MaterialPage({ params }: Params) {
                         <p className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
                           {o.retailer}
                           {o === best && offers.length > 1 && <span className="rounded-full bg-moss-soft px-2 py-0.5 text-[11px] font-semibold text-moss-ink">Günstigster</span>}
-                          {o.isAffiliate && <span className="rounded-full border border-line-strong px-2 py-0.5 text-[11px] font-medium text-muted" title="Werkuno erhält bei einem Kauf eine Provision. Für dich ändert sich der Preis nicht.">Partnerlink</span>}
+                          {o.isAffiliate && <span className="rounded-full border border-line-strong px-2 py-0.5 text-[11px] font-medium text-muted" title={`${BRAND.name} erhält bei einem Kauf eine Provision. Für dich ändert sich der Preis nicht.`}>Partnerlink</span>}
                         </p>
                         <p className="truncate text-[13px] text-muted">{[o.title, o.packLabel].filter(Boolean).join(" · ") || "–"}</p>
                       </div>
@@ -103,7 +104,7 @@ export default async function MaterialPage({ params }: Params) {
                 </ul>
                 <p className="mt-3 max-w-2xl text-[12.5px] leading-relaxed text-muted">
                   Preise sind Momentaufnahmen der Redaktion und können sich geändert haben (älter als {OFFER_STALE_DAYS} Tage: orange markiert). Die Reihenfolge richtet sich nur nach dem Preis.
-                  {hasAffiliate && " Mit „Partnerlink“ markierte Links sind Werbung: Kaufst du darüber, erhält Werkuno eine kleine Provision – der Preis bleibt für dich gleich."}
+                  {hasAffiliate && ` Mit „Partnerlink“ markierte Links sind Werbung: Kaufst du darüber, erhält ${BRAND.name} eine kleine Provision – der Preis bleibt für dich gleich.`}
                 </p>
               </>
             ) : (

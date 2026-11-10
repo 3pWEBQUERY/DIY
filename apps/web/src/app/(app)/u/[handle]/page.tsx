@@ -27,6 +27,7 @@ import { ProMark } from "@/components/pro/pro-mark";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
 import { cn, formatDate, compactNumber } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string; art?: string }> };
 
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!p) return { title: "Profil nicht gefunden" };
   return {
     title: `${p.displayName} (@${p.handle})`,
-    description: p.bio || `${p.displayName} auf Werkuno – Projekte, Anleitungen und mehr.`,
+    description: p.bio || `${p.displayName} auf ${BRAND.name} – Projekte, Anleitungen und mehr.`,
     alternates: { canonical: `/u/${p.handle}` },
     openGraph: { type: "profile", images: p.avatarUrl ? [p.avatarUrl] : ["/opengraph-image.png"] },
   };
@@ -170,7 +171,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             {isSelf ? (
               <>
                 <LinkButton href="/einstellungen/profil" variant="outline"><Settings size={15} /> Profil bearbeiten</LinkButton>
-                <LinkButton href="/studio" variant="primary"><LayoutDashboard size={15} /> Werkuno Studio</LinkButton>
+                <LinkButton href="/studio" variant="primary"><LayoutDashboard size={15} /> {BRAND.name} Studio</LinkButton>
               </>
             ) : viewer && !blocked ? (
               <>
@@ -182,7 +183,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : !viewer ? (
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
-            <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} image={profile.avatarUrl} />
+            <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf ${BRAND.name}`} image={profile.avatarUrl} />
             {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
           </div>
         </header>
@@ -205,7 +206,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                   </div>
                 </section>
               )}
-              <TabLinks active={tab} tabs={tabs.map((t) => ({ ...t, href: `/u/${profile.handle}?tab=${t.key}` }))} />
+              <TabLinks label="Profilbereiche" active={tab} tabs={tabs.map((t) => ({ ...t, href: `/u/${profile.handle}?tab=${t.key}` }))} />
               <div className="mt-6">
                 {tab === "beitraege" &&
                   (posts?.items.length ? (
@@ -244,7 +245,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                 {tab === "bewertungen" && (
                   <div>
                     {shop && reviewCounts.given > 0 && (
-                      <div className="mb-5 inline-flex rounded-xl bg-sunken p-1 text-[13px]" role="tablist" aria-label="Bewertungen">
+                      <div className="mb-5 inline-flex rounded-xl bg-sunken p-1 text-[13px]" role="group" aria-label="Bewertungen">
                         {(
                           [
                             ["erhalten", `Erhalten · ${reviewCounts.received}`],
@@ -253,8 +254,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                         ).map(([k, l]) => (
                           <Link
                             key={k}
-                            role="tab"
-                            aria-selected={reviewView === k}
+                            aria-current={reviewView === k ? "page" : undefined}
                             scroll={false}
                             href={`/u/${profile.handle}?tab=bewertungen${k === "abgegeben" ? "&art=abgegeben" : ""}`}
                             className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted transition-colors hover:text-ink", reviewView === k && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}

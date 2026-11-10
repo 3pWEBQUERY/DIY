@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { ViewTransition, useEffect, useRef, useState, type ReactNode } from "react";
+import { NAV_START_EVENT } from "@/lib/nav-progress";
 
 /**
  * Seitenwechsel ohne „Neuladen“-Gefühl: Navigation, Seitenleiste und Kopf bleiben stehen,
@@ -30,18 +31,15 @@ export function NavProgress() {
   const first = useRef(true);
 
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
-      const url = new URL(a.href, location.href);
-      if (url.origin !== location.origin) return;
-      if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) return;
-      if (url.pathname === location.pathname && url.search === location.search) return; // nur Anker / gleiche Seite
-      start();
-    };
+    // Navigationen meldet der Router selbst (instrumentation-client.ts → onRouterTransitionStart). Ein
+    // eigener Klick-Listener sähe dagegen auch abgebrochene Klicks (preventDefault), Modifikatortasten,
+    // target="_blank" oder Links auf die aktuelle Seite – die Leiste bliebe dann bis zu 12 s stehen.
+    const onNav = () => start();
+    // Native GET-Formulare mit action laden die Zielseite (z. B. Suche ohne JS-Handler)
     const onSubmit = (e: SubmitEvent) => {
+      if (e.defaultPrevented) return;
       const f = e.target as HTMLFormElement;
+      if (f.target && f.target !== "_self") return;
       if ((f.getAttribute("method") ?? "get").toLowerCase() === "get" && f.getAttribute("action") != null) start();
     };
     function start() {
@@ -49,10 +47,10 @@ export function NavProgress() {
       clearTimeout(safety.current);
       safety.current = setTimeout(() => setState("done"), 12000);
     }
-    document.addEventListener("click", onClick);
+    window.addEventListener(NAV_START_EVENT, onNav);
     document.addEventListener("submit", onSubmit);
     return () => {
-      document.removeEventListener("click", onClick);
+      window.removeEventListener(NAV_START_EVENT, onNav);
       document.removeEventListener("submit", onSubmit);
     };
   }, []);

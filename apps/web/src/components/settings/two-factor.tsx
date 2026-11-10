@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { confirmMfaSetupAction, disableMfaAction, regenerateRecoveryCodesAction, startMfaSetupAction, verifySessionMfaAction } from "@/app/(app)/einstellungen/actions";
 import { AppleReauthNotice } from "@/components/settings/apple-reauth";
+import { BRAND } from "@/config/brand";
 
 type Setup = { qrSvg: string; secret: string; uri: string };
 
@@ -37,7 +38,7 @@ function CodeInput({ value, onChange, error, label = "Code aus der App" }: { val
 
 function RecoveryCodes({ codes, email, onDone }: { codes: string[]; email: string; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
-  const text = `Werkuno – Wiederherstellungscodes\nKonto: ${email}\nErstellt: ${new Date().toLocaleString("de-CH")}\n\nJeder Code funktioniert genau einmal.\n\n${codes.join("\n")}\n`;
+  const text = `${BRAND.name} – Wiederherstellungscodes\nKonto: ${email}\nErstellt: ${new Date().toLocaleString("de-CH")}\n\nJeder Code funktioniert genau einmal.\n\n${codes.join("\n")}\n`;
   return (
     <div className="rounded-2xl border border-line bg-card p-5">
       <p className="flex items-center gap-2 text-sm font-semibold">

@@ -98,10 +98,10 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
                         <span className={cn("truncate text-[14.5px]", c.unread ? "font-bold" : "font-semibold")}>{c.group ? c.group.title : c.other.displayName}</span>
-                        <time dateTime={c.lastMessageAt} className={cn("shrink-0 font-mono text-[10px] num", active ? "text-paper/70" : c.unread ? "text-ink" : "text-muted")}>{stamp(c.lastMessageAt)}</time>
+                        <time dateTime={c.lastMessageAt} className={cn("shrink-0 font-mono text-[10px] num", active ? "text-paper" : c.unread ? "text-ink" : "text-muted")}>{stamp(c.lastMessageAt)}</time>
                       </span>
                       {(c.orderNumber || c.isProductInquiry) && (
-                        <span className={cn("spec block", active ? "text-paper/70" : "text-clay-ink")}>{c.orderNumber ? `Bestellung ${c.orderNumber}` : "Produktanfrage"}</span>
+                        <span className={cn("spec block", active ? "text-paper" : "text-clay-ink")}>{c.orderNumber ? `Bestellung ${c.orderNumber}` : "Produktanfrage"}</span>
                       )}
                       <span className={cn("mt-0.5 flex items-center gap-1.5 text-[13px]", active ? "text-paper/80" : c.unread ? "text-ink" : "text-muted")}>
                         {c.flagged && <ShieldAlert size={13} className={active ? "text-paper" : "text-warn"} aria-label="Warnhinweis" />}

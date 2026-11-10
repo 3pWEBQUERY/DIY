@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shell/page";
 import { ProductEditor } from "@/components/commerce/product-editor";
 import { categoryOptions } from "@/server/categories/settings";
 import { loadEditor } from "../editor-data";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Neues Produkt" };
 
@@ -19,7 +20,7 @@ export default async function NewProductPage() {
   const initial = categories.some((c) => c.slug === data.initial.category) ? data.initial : { ...data.initial, category: categories[0]?.slug ?? data.initial.category };
   return (
     <div>
-      <PageHeader kicker="Werkuno Studio · Produkte" title="Neues Produkt" description="Alles, was Käufer:innen wissen müssen – ehrlich, vollständig und mit dem Projekt dahinter." />
+      <PageHeader kicker={`${BRAND.name} Studio · Produkte`} title="Neues Produkt" description="Alles, was Käufer:innen wissen müssen – ehrlich, vollständig und mit dem Projekt dahinter." />
       <ProductEditor
         initial={initial}
         projects={data.links.projects}

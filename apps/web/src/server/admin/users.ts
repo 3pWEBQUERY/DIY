@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
+import { BRAND } from "@/config/brand";
 
 type Actor = Pick<SessionUser, "id" | "role">;
 const DAY = 86_400_000;
@@ -266,7 +267,7 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
       // Keine Adressen im Audit (Datensparsamkeit) – nur Grund und Art der Änderung
       await audit({ actorId: actor.id, action: "admin.email_changed", targetType: "USER", targetId: userId, meta: { reason: data.reason, markVerified: data.markVerified } }, tx);
       await notify(
-        { recipientId: userId, type: "SECURITY", bundle: false, data: { kind: "email_changed", message: "Deine E-Mail-Adresse wurde vom Werkuno-Support geändert.", href: "/einstellungen/konto" } },
+        { recipientId: userId, type: "SECURITY", bundle: false, data: { kind: "email_changed", message: `Deine E-Mail-Adresse wurde vom ${BRAND.name}-Support geändert.`, href: "/einstellungen/konto" } },
         tx,
       );
     });
@@ -282,12 +283,12 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
   const { sendVerification } = await import("@/server/identity/service");
   await sendMail(
     oldEmail,
-    "Deine E-Mail-Adresse bei Werkuno wurde geändert",
-    `Der Werkuno-Support hat die E-Mail-Adresse deines Kontos auf ${data.email.replace(/(.{2}).*@/, "$1…@")} geändert.\n\nWarst du das nicht oder hast du das nicht angefragt? Antworte bitte sofort auf diese E-Mail oder schreib uns über die Hilfe-Seite.`,
+    `Deine E-Mail-Adresse bei ${BRAND.name} wurde geändert`,
+    `Der ${BRAND.name}-Support hat die E-Mail-Adresse deines Kontos auf ${data.email.replace(/(.{2}).*@/, "$1…@")} geändert.\n\nWarst du das nicht oder hast du das nicht angefragt? Antworte bitte sofort auf diese E-Mail oder schreib uns über die Hilfe-Seite.`,
     { eyebrow: "Konto & Sicherheit", cta: { label: "Hilfe & Support", url: `${env().APP_URL}/hilfe` } },
   ).catch(() => {});
   if (data.markVerified) {
-    await sendMail(data.email, "Deine E-Mail-Adresse bei Werkuno", "Diese Adresse ist jetzt mit deinem Werkuno-Konto verknüpft. Du meldest dich ab sofort damit an.", { eyebrow: "Konto & Sicherheit", cta: { label: "Zu Werkuno", url: `${env().APP_URL}/anmelden` } }).catch(() => {});
+    await sendMail(data.email, `Deine E-Mail-Adresse bei ${BRAND.name}`, `Diese Adresse ist jetzt mit deinem ${BRAND.name}-Konto verknüpft. Du meldest dich ab sofort damit an.`, { eyebrow: "Konto & Sicherheit", cta: { label: `Zu ${BRAND.name}`, url: `${env().APP_URL}/anmelden` } }).catch(() => {});
   } else {
     await sendVerification(userId, data.email).catch(() => {});
   }

@@ -8,7 +8,7 @@ import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { addProjectUpdateAction, deleteProjectUpdateAction } from "@/app/(app)/projekte/actions";
 import { callAction } from "@/lib/use-action";
 
@@ -87,7 +87,7 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
     <form id="fortschritt" onSubmit={submit} className="border border-rule bg-card animate-fade rounded-2xl" aria-label="Neuer Journaleintrag">
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
         <span className="spec text-ink">Eintrag {String(entryNumber).padStart(2, "0")}</span>
-        <span className="spec">{new Date().toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}</span>
+        <span className="spec" suppressHydrationWarning>{formatDate(new Date(), { day: "numeric", month: "long", year: "numeric" })}</span>
       </div>
       <div className="space-y-4 p-4">
         <Field label="Was ist passiert?" error={fields.body}>

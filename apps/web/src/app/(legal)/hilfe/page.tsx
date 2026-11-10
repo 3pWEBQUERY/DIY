@@ -33,7 +33,7 @@ const GROUPS: { id: string; title: string; items: Q[] }[] = [
       { q: "Was ist ein Nachbau?", a: <>Wenn du ein Projekt nach dem Vorbild eines anderen machst, verknüpfst du es als Nachbau. Die ursprüngliche Person sieht, was aus ihrer Idee entstanden ist – und du beschreibst, was du anders gemacht hast.</> },
       { q: "Kann ich Anleitungen verkaufen?", a: <>Ja, als digitales Produkt in deinem Shop – wenn die Anleitung von dir stammt. Mehr in den <Link href="/richtlinien/marktplatz">Marktplatz-Richtlinien</Link>.</> },
       { q: "Was passiert mit meinem Fortschritt, wenn eine Anleitung aktualisiert wird?", a: <>Abgehakte Schritte bleiben erhalten. Bei wichtigen Änderungen benachrichtigen wir dich, damit du nichts verpasst.</> },
-      { q: "Wer sieht meine Zahlen im Werkuno Studio?", a: <>Nur du. „Aufrufe“ zählen Seitenaufrufe, nicht eindeutige Personen; wiederholte Aufrufe innerhalb von 30 Minuten zählen einmal, deine eigenen nie.</> },
+      { q: `Wer sieht meine Zahlen im ${BRAND.name} Studio?`, a: <>Nur du. „Aufrufe“ zählen Seitenaufrufe, nicht eindeutige Personen; wiederholte Aufrufe innerhalb von 30 Minuten zählen einmal, deine eigenen nie.</> },
     ],
   },
   {
@@ -132,7 +132,7 @@ export default function HelpPage() {
             <h2 id="kontakt-t" className="headline text-2xl">Noch Fragen?</h2>
             <p className="mt-2 text-[15px] text-ink-2">Wir antworten in der Regel innerhalb von zwei Werktagen.</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/einstellungen/hilfe-support" className="inline-flex h-10 items-center rounded-xl bg-moss px-4 text-sm font-semibold text-paper hover:bg-moss-ink">
+              <Link href="/kontakt" className="inline-flex h-10 items-center rounded-xl bg-moss px-4 text-sm font-semibold text-paper hover:bg-moss-ink">
                 Support kontaktieren
               </Link>
               <a href={`mailto:${BRAND.supportEmail}`} className="inline-flex h-10 items-center border border-line-strong px-4 text-sm font-semibold hover:border-rule-strong rounded-xl">

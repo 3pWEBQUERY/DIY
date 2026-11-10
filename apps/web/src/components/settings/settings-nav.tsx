@@ -29,7 +29,7 @@ export function SettingsNav() {
                   aria-current={active ? "page" : undefined}
                   className={cn("-ml-px flex h-9 items-center gap-3 border-l-2 border-transparent pl-4 text-[14px] text-muted hover:text-ink", active && "border-rule font-semibold text-ink")}
                 >
-                  <span className="font-mono text-[10px] text-muted/70">{pad(i + 1)}</span>
+                  <span className="font-mono text-[10px] text-muted">{pad(i + 1)}</span>
                   {item.label}
                 </Link>
               </li>

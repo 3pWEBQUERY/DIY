@@ -16,6 +16,7 @@ import { getSetting } from "@/server/settings";
 import { getCustomerDetails, saveCustomerDetails } from "@/server/account/customer";
 import { z } from "zod";
 import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, str, takeParam, viewer, viewerId, zBool, zStr, type RouteDef } from "../router";
+import { BRAND } from "@/config/brand";
 
 /** Marktplatz, Warenkorb, Kasse, Bestellungen, Shop & Verkauf (PRD §13, §20.3). */
 
@@ -217,7 +218,7 @@ export const commerceRoutes: RouteDef[] = [
       categoryOptions(),
       id ? products.getProductForEdit(u, id) : Promise.resolve(null),
     ]);
-    if (!shop) throw fail.forbidden("Eröffne zuerst deinen Shop im Werkuno Studio.");
+    if (!shop) throw fail.forbidden(`Eröffne zuerst deinen Shop im ${BRAND.name} Studio.`);
     if (id && !product) throw fail.notFound("Produkt nicht gefunden.");
     return { shop: { id: shop.id, slug: shop.slug, status: shop.status, name: shop.name }, links, feeBps, digitalEnabled, categories, product };
   }),

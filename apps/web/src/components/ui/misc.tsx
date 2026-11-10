@@ -23,7 +23,7 @@ export function Badge({ tone = "neutral", className, ...p }: ComponentProps<"spa
 }
 
 /* ───────── Avatar: Foto oder Monogramm (kein generisches Icon) ───────── */
-const monoPalette = ["#B64B3A", "#B64B3A", "#262427", "#C97A68", "#973B2C", "#5B4F52"];
+const monoPalette = ["#B64B3A", "#B64B3A", "#262427", "#A65A49", "#973B2C", "#5B4F52"];
 export function Avatar({
   src,
   name,
@@ -111,7 +111,11 @@ export function Stat({ label, value, note }: { label: string; value: ReactNode; 
 }
 
 /* ───────── Hinweisbox ───────── */
-export function Notice({ tone = "neutral", title, children, className }: { tone?: "neutral" | "warn" | "danger" | "moss"; title?: string; children: ReactNode; className?: string }) {
+/**
+ * Hinweisbox. `alert` nur für dynamisch eingeblendete Fehler (Live-Region, wird sofort vorgelesen) –
+ * statische Warnungen, auch im Ton „danger“, sind eine Notiz und werden nicht beim Laden angesagt.
+ */
+export function Notice({ tone = "neutral", title, children, className, alert }: { tone?: "neutral" | "warn" | "danger" | "moss"; title?: string; children: ReactNode; className?: string; alert?: boolean }) {
   const t = {
     neutral: "bg-sunken",
     warn: "bg-warn-soft",
@@ -119,7 +123,7 @@ export function Notice({ tone = "neutral", title, children, className }: { tone?
     moss: "bg-moss-soft",
   }[tone];
   return (
-    <div role={tone === "danger" ? "alert" : "note"} className={cn("rounded-2xl px-4 py-3.5 text-sm", t, className)}>
+    <div role={alert ? "alert" : "note"} className={cn("rounded-2xl px-4 py-3.5 text-sm", t, className)}>
       {title && <p className="font-semibold mb-0.5">{title}</p>}
       <div className="text-ink-2">{children}</div>
     </div>

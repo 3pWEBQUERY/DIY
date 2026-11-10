@@ -116,7 +116,7 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
                     className={cn("flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-[14px] transition-colors", active ? "bg-moss font-semibold text-paper" : "text-ink-2 hover:bg-sunken")}
                   >
                     <span className="truncate">{c.title}</span>
-                    <span className={cn("shrink-0 font-mono text-[10px]", active ? "text-paper/70" : "text-muted")}>
+                    <span className={cn("shrink-0 font-mono text-[10px]", active ? "text-paper" : "text-muted")}>
                       {c.vis && c.vis !== "PRIVATE" ? "↗ " : ""}
                       {c.count ?? ""}
                     </span>

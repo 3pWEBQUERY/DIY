@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { registerWebPushAction, unregisterWebPushAction, webPushKeyAction } from "@/app/(app)/einstellungen/actions";
 import { callAction } from "@/lib/use-action";
+import { BRAND } from "@/config/brand";
 
 type State = "loading" | "unsupported" | "ios-install" | "denied" | "off" | "on";
 
@@ -92,9 +93,9 @@ export function WebPushCard() {
   const text: Record<State, string> = {
     loading: "Wird geprüft …",
     unsupported: "Dieser Browser unterstützt keine Push-Benachrichtigungen.",
-    "ios-install": "Auf dem iPhone und iPad funktioniert Push, wenn du Werkuno zum Home-Bildschirm hinzufügst (Teilen → „Zum Home-Bildschirm“) und von dort öffnest.",
+    "ios-install": `Auf dem iPhone und iPad funktioniert Push, wenn du ${BRAND.name} zum Home-Bildschirm hinzufügst (Teilen → „Zum Home-Bildschirm“) und von dort öffnest.`,
     denied: "Benachrichtigungen sind für werkuno.ch im Browser blockiert. Erlaube sie in den Website-Einstellungen (Schloss-Symbol in der Adresszeile) und lade die Seite neu.",
-    off: "Erhalte Nachrichten, Bestellungen und Antworten sofort – auch wenn Werkuno nicht geöffnet ist. Gilt nur für dieses Gerät.",
+    off: `Erhalte Nachrichten, Bestellungen und Antworten sofort – auch wenn ${BRAND.name} nicht geöffnet ist. Gilt nur für dieses Gerät.`,
     on: "Aktiv auf diesem Gerät. Welche Ereignisse du bekommst, steuerst du unten unter „In der App“.",
   };
   return (

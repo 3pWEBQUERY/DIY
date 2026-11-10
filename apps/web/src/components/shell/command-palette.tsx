@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Search, CornerDownLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBackdropDismiss } from "@/components/ui/dialog";
+import { isTypingTarget, openShortcutsHelp, singleKeyShortcutsEnabled } from "./shortcuts";
+import { BRAND } from "@/config/brand";
 
 type Hit = { type: string; id: string; title: string; subtitle?: string; href: string };
 
@@ -25,7 +27,8 @@ const ACTIONS: Hit[] = [
   { type: "action", id: "a3", title: "Neue Anleitung", subtitle: "Schritt-für-Schritt-Tutorial", href: "/studio/anleitungen/neu" },
   { type: "action", id: "a4", title: "Neuer Artikel", subtitle: "Blogbeitrag schreiben", href: "/studio/blog/neu" },
   { type: "action", id: "a5", title: "Einkaufslisten", subtitle: "Materialien organisieren", href: "/einkaufslisten" },
-  { type: "action", id: "a6", title: "Werkuno Studio", subtitle: "Inhalte, Shop & Statistiken", href: "/studio" },
+  { type: "action", id: "a6", title: `${BRAND.name} Studio`, subtitle: "Inhalte, Shop & Statistiken", href: "/studio" },
+  { type: "action", id: "shortcuts", title: "Tastenkürzel", subtitle: "Übersicht & Einzeltasten-Kürzel abschalten", href: "/einstellungen/privatsphaere" },
 ];
 
 export function openCommandPalette() {
@@ -49,7 +52,8 @@ export function CommandPalette() {
         e.preventDefault();
         setOpen((o) => !o);
       }
-      if (e.key === "/" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement)?.isContentEditable)) {
+      // Einzeltasten-Kürzel „/“ – abschaltbar (WCAG 2.1.4), nie beim Tippen
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !isTypingTarget(e.target) && singleKeyShortcutsEnabled()) {
         e.preventDefault();
         setOpen(true);
       }
@@ -109,6 +113,7 @@ export function CommandPalette() {
   function go(h: Hit) {
     setOpen(false);
     setQ("");
+    if (h.id === "shortcuts") return openShortcutsHelp();
     router.push(h.href);
   }
 

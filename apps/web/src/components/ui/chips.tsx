@@ -19,7 +19,7 @@ export function ChipLink({ href, active, children, count, className }: { href: s
       )}
     >
       {children}
-      {count != null && <span className={cn("font-mono text-[10px]", active ? "text-paper/70" : "text-muted")}>{count}</span>}
+      {count != null && <span className={cn("font-mono text-[10px]", active ? "text-paper" : "text-muted")}>{count}</span>}
     </Link>
   );
 }

@@ -38,10 +38,10 @@ export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?
                 className={cn(
                   "flex h-9 items-center gap-3 px-3 text-[14px] text-ink-2 hover:bg-sunken rounded-xl",
                   active && "bg-moss text-paper hover:bg-moss-ink",
-                  disabled && "text-muted/70",
+                  disabled && "text-muted",
                 )}
               >
-                <span className={cn("font-mono text-[10px]", active ? "text-paper/60" : "text-muted/70")}>{pad(i + 1)}</span>
+                <span className={cn("font-mono text-[10px]", active ? "text-paper" : "text-muted")}>{pad(i + 1)}</span>
                 <span className="truncate">{item.label}</span>
                 {disabled && <span className="ml-auto spec">Shop</span>}
                 {"pro" in item && item.pro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label={isPro ? "Aktiv" : "Pro"} />}

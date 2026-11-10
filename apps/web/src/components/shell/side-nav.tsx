@@ -13,6 +13,8 @@ import { Avatar } from "@/components/ui/misc";
 import { openCommandPalette } from "./command-palette";
 import { Tip } from "@/components/ui/tooltip";
 import { badgeText, useLiveCounts } from "./live-counts";
+import { isTypingTarget, singleKeyShortcutsEnabled, useSingleKeyShortcuts } from "./shortcuts";
+import { BRAND } from "@/config/brand";
 
 export type ShellUser = {
   handle: string;
@@ -78,12 +80,12 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
     });
   }, []);
 
-  // Tastenkürzel „[“ zum Ein-/Ausklappen (nicht in Eingabefeldern)
+  // Tastenkürzel „[“ zum Ein-/Ausklappen (nicht in Eingabefeldern; abschaltbar, WCAG 2.1.4)
+  const shortcuts = useSingleKeyShortcuts();
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (e.key !== "[" || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (isTypingTarget(e.target) || !singleKeyShortcutsEnabled()) return;
       if (!window.matchMedia("(min-width: 80rem)").matches) return;
       e.preventDefault();
       toggle();
@@ -100,10 +102,10 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
     >
       <div className="relative flex h-full flex-col overflow-hidden rounded-[26px] bg-rail text-ink">
         <div className="flex h-[68px] shrink-0 items-center px-3 nav-open:px-5">
-          <Link href={user ? "/feed" : "/"} aria-label="Werkuno – Startseite" className="grid size-12 place-items-center rounded-2xl bg-card nav-open:hidden">
+          <Link href={user ? "/feed" : "/"} aria-label={`${BRAND.name} – Startseite`} className="grid size-12 place-items-center rounded-2xl bg-card nav-open:hidden">
             <Wordmark compact height={26} />
           </Link>
-          <Link href={user ? "/feed" : "/"} aria-label="Werkuno – Startseite" className="hidden whitespace-nowrap nav-open:block">
+          <Link href={user ? "/feed" : "/"} aria-label={`${BRAND.name} – Startseite`} className="hidden whitespace-nowrap nav-open:block">
             <Wordmark height={30} />
           </Link>
         </div>
@@ -144,7 +146,7 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
                     >
                       <Icon size={18} strokeWidth={1.8} className="shrink-0" />
                       <span className="hidden text-sm font-semibold nav-open:inline">Erstellen</span>
-                      <span className="ml-auto hidden font-mono text-[10px] opacity-60 nav-open:inline">{pad(i + 1)}</span>
+                      <span aria-hidden className="ml-auto hidden font-mono text-[10px] nav-open:inline">{pad(i + 1)}</span>
                     </Link>
                   </Tip>
                 </li>
@@ -155,7 +157,8 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
                 <Tip disabled={!rail} content={<TipBody label={item.label} hint={item.hint} count={count} />}>
                   <Link
                     href={item.href}
-                    aria-label={item.label}
+                    // Zähler gehören in den zugänglichen Namen – aria-label überschreibt den sichtbaren Text
+                    aria-label={count > 0 ? `${item.label}, ${count} ungelesen` : item.label}
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "group relative flex h-10 items-center gap-3 whitespace-nowrap rounded-xl px-[15px] text-[14px] text-ink-2 transition-colors hover:bg-paper hover:text-ink",
@@ -165,15 +168,15 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
                     <span className="relative shrink-0">
                       <Icon size={18} strokeWidth={active ? 2.1 : 1.7} className={cn(active && "text-moss")} />
                       {count > 0 && (
-                        <span className={cn("absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-bold ring-2 nav-open:hidden", "bg-moss text-paper", active ? "ring-card" : "ring-rail group-hover:ring-paper")}>
+                        <span aria-hidden className={cn("absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-bold ring-2 nav-open:hidden", "bg-moss text-paper", active ? "ring-card" : "ring-rail group-hover:ring-paper")}>
                           {count > 9 ? "9+" : count}
                         </span>
                       )}
                     </span>
                     <span className="hidden nav-open:inline">{item.label}</span>
-                    <span className="ml-auto hidden items-center gap-2 nav-open:flex">
+                    <span aria-hidden className="ml-auto hidden items-center gap-2 nav-open:flex">
                       {count > 0 && <span className={cn("grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[10.5px] font-bold num", "bg-moss text-paper")}>{count > 99 ? "99+" : count}</span>}
-                      <span className="font-mono text-[10px] text-muted/70">{pad(i + 1)}</span>
+                      <span className="font-mono text-[10px] text-muted">{pad(i + 1)}</span>
                     </span>
                   </Link>
                 </Tip>
@@ -225,7 +228,7 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
 
       {/* Griff zum Ein-/Ausklappen – sitzt auf der Kante, nur ab xl sinnvoll */}
       <Tip
-        content={<TipBody label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"} keys={["["]} />}
+        content={<TipBody label={collapsed ? "Seitenleiste ausklappen" : "Seitenleiste einklappen"} keys={shortcuts ? ["["] : undefined} />}
         className="absolute -right-3 top-[34px] z-10 hidden xl:block"
       >
         <button
@@ -300,10 +303,10 @@ export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUse
   useEffect(() => setOpen(false), [pathname]);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="grid size-10 place-items-center" aria-label="Mehr" aria-haspopup="dialog" aria-expanded={open}>
+      <button type="button" onClick={() => setOpen(true)} className="grid size-10 place-items-center" aria-label={messages > 0 ? `Mehr, ${messages} ungelesene Nachrichten` : "Mehr"} aria-haspopup="dialog" aria-expanded={open}>
         <span className="relative">
           <Menu size={20} strokeWidth={1.6} />
-          {messages > 0 && <span className="absolute -right-1.5 -top-1.5 size-2.5 rounded-full bg-clay ring-2 ring-paper" aria-label={`${messages} ungelesene Nachrichten`} />}
+          {messages > 0 && <span className="absolute -right-1.5 -top-1.5 size-2.5 rounded-full bg-clay ring-2 ring-paper" aria-hidden />}
         </span>
       </button>
       <Dialog open={open} onClose={() => setOpen(false)} title="Mehr">
@@ -314,7 +317,10 @@ export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUse
                 <span className="text-muted [&_svg]:size-[18px]">{l.icon}</span>
                 {l.label}
                 {l.href === "/nachrichten" && messages > 0 && (
-                  <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-clay px-1.5 text-[11px] font-bold text-paper">{badgeText(messages)}</span>
+                  <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-clay px-1.5 text-[11px] font-bold text-paper">
+                    <span aria-hidden>{badgeText(messages)}</span>
+                    <span className="sr-only">, {messages} ungelesen</span>
+                  </span>
                 )}
               </Link>
             </li>
@@ -362,9 +368,10 @@ export function BottomNav({ user, hide = [] }: { user: ShellUser; hide?: string[
                   <>
                     <span className="relative">
                       <Icon size={21} strokeWidth={active ? 2.1 : 1.6} />
-                      {item.href === "/profil" && counts.notifications > 0 && <span className="absolute -right-1 -top-0.5 size-2 rounded-full bg-clay" />}
+                      {item.href === "/profil" && counts.notifications > 0 && <span className="absolute -right-1 -top-0.5 size-2 rounded-full bg-clay" aria-hidden />}
                     </span>
                     {item.label === "Startseite" ? "Start" : item.label === "Marktplatz" ? "Markt" : item.label}
+                    {item.href === "/profil" && counts.notifications > 0 && <span className="sr-only">, {counts.notifications} ungelesene Benachrichtigungen</span>}
                   </>
                 )}
               </Link>

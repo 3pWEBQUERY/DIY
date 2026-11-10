@@ -27,7 +27,7 @@ export function AdminNav({ groups }: { groups: AdminNavGroup[] }) {
                     aria-current={active ? "page" : undefined}
                     className={cn("flex h-8 items-center gap-3 px-3 text-[13.5px] text-ink-2 hover:bg-sunken rounded-xl", active && "bg-moss text-paper hover:bg-moss-ink")}
                   >
-                    <span className={cn("font-mono text-[10px]", active ? "text-paper/60" : "text-muted/70")}>{pad(n)}</span>
+                    <span className={cn("font-mono text-[10px]", active ? "text-paper" : "text-muted")}>{pad(n)}</span>
                     <span className="truncate">{item.label}</span>
                     {!!item.badge && (
                       <span className={cn("ml-auto font-mono text-[11px] num", active ? "text-paper" : "text-clay-ink")} aria-label={`${item.badge} offen`}>

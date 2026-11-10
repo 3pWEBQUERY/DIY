@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import { notificationHref, notificationText } from "@/server/notifications-format";
 import { apnsConfigured, sendApns, type ApnsEnvironment } from "./apns";
+import { BRAND } from "@/config/brand";
 
 /** APNs-Gerätetoken: 64 Hex-Zeichen (heute), Apple kann längere ausgeben. */
 const TOKEN = /^[0-9a-f]{64,200}$/i;
@@ -90,7 +91,7 @@ async function deliver(limit: number) {
     const href = notificationHref(n);
     for (const d of targets) {
       if (d.platform === "WEB") {
-        const r = await sendWebPush(d, { title: "Werkuno", body, href, tag: n.groupKey ?? n.id, badge: unread.get(n.recipientId) ?? 1 });
+        const r = await sendWebPush(d, { title: BRAND.name, body, href, tag: n.groupKey ?? n.id, badge: unread.get(n.recipientId) ?? 1 });
         if (r.ok) sent++;
         else await db.pushDevice.update({ where: { id: d.id }, data: { lastError: r.error, ...(r.gone ? { disabledAt: now } : {}) } });
         continue;
@@ -98,7 +99,7 @@ async function deliver(limit: number) {
       const r = await sendApns(
         d.token,
         {
-          aps: { alert: { title: "Werkuno", body }, badge: unread.get(n.recipientId) ?? 1, sound: "default", "thread-id": n.type },
+          aps: { alert: { title: BRAND.name, body }, badge: unread.get(n.recipientId) ?? 1, sound: "default", "thread-id": n.type },
           href,
           notificationId: n.id,
         },

@@ -14,6 +14,7 @@ import { RichText } from "@/components/social/post-card";
 import { blockAction } from "@/app/(app)/social-actions";
 import { archiveConversationAction, loadOlderMessagesAction, markReadAction, respondToRequestAction, sendMessageAction } from "@/app/(app)/nachrichten/actions";
 import { cn, formatDate, smoothScroll } from "@/lib/utils";
+import { TZ, zurichDayKey } from "@/lib/tz";
 import { MessageComposer, type ComposerHandle } from "./composer";
 import { ContextCard } from "./context-card";
 import { GroupInfo } from "./group-info";
@@ -21,22 +22,23 @@ import { GroupAvatar } from "./inbox";
 import { leaveGroupAction } from "@/app/(app)/nachrichten/actions";
 import { LIVE_EVENT, refreshCounts, type LiveDetail } from "@/components/shell/live-counts";
 import { callAction } from "@/lib/use-action";
+import { BRAND } from "@/config/brand";
 
 const POLL_MS = 5000; // Rückfall, falls der Live-Kanal (SSE) nicht verfügbar ist
 
-function dayKey(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
+// Kalendertage und Uhrzeiten immer in Zürcher Zeit: Der Server rendert in UTC, der Browser in seiner
+// lokalen Zone – mit lokalen Gettern stimmten Uhrzeit und „Heute/Gestern“ nach der Hydration nicht.
+const dayKey = (iso: string) => zurichDayKey(new Date(iso));
 function dayLabel(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const y = new Date(today.getTime() - 86400_000);
-  if (dayKey(iso) === dayKey(today.toISOString())) return "Heute";
-  if (dayKey(iso) === dayKey(y.toISOString())) return "Gestern";
-  return formatDate(d, { weekday: "long", day: "numeric", month: "long", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+  const key = dayKey(iso);
+  const now = new Date();
+  // Kalendertag minus eins (UTC-Mitternacht, unabhängig von der Sommerzeit)
+  const yesterday = new Date(Date.parse(`${zurichDayKey(now)}T00:00:00Z`) - 86400_000).toISOString().slice(0, 10);
+  if (key === zurichDayKey(now)) return "Heute";
+  if (key === yesterday) return "Gestern";
+  return formatDate(iso, { weekday: "long", day: "numeric", month: "long", year: key.slice(0, 4) === zurichDayKey(now).slice(0, 4) ? undefined : "numeric" });
 }
-const time = (iso: string) => new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+const time = (iso: string) => new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 
 function merge(prev: MessageView[], next: MessageView[]) {
   if (!next.length) return prev;
@@ -50,7 +52,7 @@ function Warning() {
     <div role="note" className="rounded-2xl mb-1.5 flex max-w-[34rem] gap-2.5 bg-warn-soft px-3 py-2 text-[13px] leading-snug text-ink-2">
       <ShieldAlert size={16} className="mt-0.5 shrink-0 text-warn" aria-hidden />
       <span>
-        <strong className="font-semibold text-ink">Vorsicht:</strong> Diese Nachricht erwähnt eine Zahlung ausserhalb von Werkuno (z. B. TWINT, IBAN, PayPal-Link oder Kurzlink). Bezahle nur über den Checkout – nur dann bist du geschützt. Teile keine Zugangsdaten.
+        <strong className="font-semibold text-ink">Vorsicht:</strong> Diese Nachricht erwähnt eine Zahlung ausserhalb von {BRAND.name} (z. B. TWINT, IBAN, PayPal-Link oder Kurzlink). Bezahle nur über den Checkout – nur dann bist du geschützt. Teile keine Zugangsdaten.
       </span>
     </div>
   );
@@ -391,7 +393,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
             return (
               <li key={m.id}>
                 {sep && (
-                  <p className="my-5 flex items-center gap-3 spec" role="separator">
+                  <p className="my-5 flex items-center gap-3 spec" role="separator" suppressHydrationWarning>
                     <span className="h-px flex-1 bg-line" />
                     {dayLabel(m.createdAt)}
                     <span className="h-px flex-1 bg-line" />

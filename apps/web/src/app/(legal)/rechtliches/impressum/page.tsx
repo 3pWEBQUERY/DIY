@@ -41,7 +41,7 @@ export default function ImpressumPage() {
                 items={[
                   ["E-Mail", <a key="m" href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a>],
                   ...(LEGAL.phone ? [["Telefon", <a key="t" href={`tel:${LEGAL.phone.replace(/\s/g, "")}`}>{LEGAL.phone}</a>] as [string, ReactNode]] : []),
-                  ["Support", <Link key="s" href="/einstellungen/hilfe-support">Formular „Hilfe & Support“</Link>],
+                  ["Support", <Link key="s" href="/kontakt">Kontaktseite (auch ohne Konto)</Link>],
                 ]}
               />
               <p>Für Meldungen zu Inhalten nutze bitte die Funktion „Melden“ direkt beim Inhalt. So erhält dein Anliegen eine Fallnummer und wird priorisiert bearbeitet.</p>

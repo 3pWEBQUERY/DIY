@@ -12,6 +12,7 @@ import { Notice } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { startCheckoutAction } from "@/app/(app)/markt/actions";
 import { callAction } from "@/lib/use-action";
+import { BRAND } from "@/config/brand";
 
 type Address = { name: string; line1: string; line2: string; postalCode: string; city: string; country: string };
 export type Details = { firstName: string; lastName: string; line1: string; line2: string; postalCode: string; city: string; country: string; phone: string };
@@ -230,7 +231,7 @@ export function CheckoutForm({
           {pending ? "Einen Moment …" : `Zahlungspflichtig bestellen · ${formatMoney(totalMinor, currency)}`}
         </Button>
         <p className="text-center text-[12.5px] leading-relaxed text-muted">
-          {mode === "stripe" ? "Du bezahlst sicher über Stripe. Kartendaten werden nicht bei Werkuno gespeichert." : "Im Testmodus wird nichts belastet."} Mit der Bestellung akzeptierst du die{" "}
+          {mode === "stripe" ? `Du bezahlst sicher über Stripe. Kartendaten werden nicht bei ${BRAND.name} gespeichert.` : "Im Testmodus wird nichts belastet."} Mit der Bestellung akzeptierst du die{" "}
           <Link href="/richtlinien/marktplatz" className="underline underline-offset-2 hover:text-ink">Marktplatz-Richtlinien</Link> und die Rückgabebedingungen der Shops.
         </p>
       </div>

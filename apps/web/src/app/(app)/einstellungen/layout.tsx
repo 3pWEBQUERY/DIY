@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { currentUser } from "@/server/auth/session";
 import { SettingsNav } from "@/components/settings/settings-nav";
 
@@ -8,7 +7,9 @@ export const metadata: Metadata = { title: { default: "Einstellungen", template:
 /** Einstellungen (PRD §7, §8.3, §19.3, §23.1) – Unternavigation links, Inhalt rechts. */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
-  if (!user?.profile) redirect("/anmelden?weiter=/einstellungen");
+  // Nicht angemeldet: Die Seite selbst leitet weiter (requirePageUser mit ihrem eigenen Pfad) – so landet
+  // man nach der Anmeldung wieder auf der Unterseite statt auf /einstellungen. Jede Unterseite muss das tun.
+  if (!user?.profile) return children;
   return (
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
       <header className="mb-8">

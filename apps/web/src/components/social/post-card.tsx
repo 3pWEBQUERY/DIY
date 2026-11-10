@@ -13,7 +13,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
-import { cn, relativeTime, compactNumber, smoothScroll } from "@/lib/utils";
+import { cn, compactNumber, smoothScroll } from "@/lib/utils";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu, type MenuItem } from "./actions";
 import { Comments } from "./comments";
 import { PollBlock } from "./poll";
@@ -201,7 +202,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           </div>
           <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
             <Link href={`/beitrag/${post.id}`} className="hover:underline">
-              <time dateTime={post.publishedAt}>{relativeTime(post.publishedAt)}</time>
+              <RelativeTime date={post.publishedAt} />
             </Link>
             {post.editedAt && <span>· bearbeitet</span>}
             {cat && (

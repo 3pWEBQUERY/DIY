@@ -8,8 +8,9 @@ import { EventCard } from "@/components/events/event-card";
 import { Empty, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
-export const metadata: Metadata = { title: "Events", description: "Treffen, Workshops und Tauschbörsen aus den Werkuno-Communities – vor Ort und online." };
+export const metadata: Metadata = { title: "Events", description: `Treffen, Workshops und Tauschbörsen aus den ${BRAND.name}-Communities – vor Ort und online.` };
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage({ searchParams }: { searchParams: Promise<{ ort?: string; kategorie?: string }> }) {

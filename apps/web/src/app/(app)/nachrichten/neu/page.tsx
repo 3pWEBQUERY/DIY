@@ -9,6 +9,7 @@ import { InboxPane } from "@/components/messages/inbox";
 import { NewConversationComposer } from "@/components/messages/new-conversation";
 import { Avatar, Notice } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Neue Nachricht", robots: { index: false } };
 
@@ -68,7 +69,7 @@ export default async function NewMessagePage({ searchParams }: { searchParams: P
               {prep.recipient.displayName} folgt dir nicht. Deine Nachricht wird als <strong>Kontaktanfrage</strong> zugestellt – bis zur Annahme kannst du bis zu drei Nachrichten senden.
             </p>
           )}
-          <p className="mt-4 max-w-sm text-[11px] text-muted">Bleib freundlich und bezahle nie ausserhalb des Werkuno-Checkouts.</p>
+          <p className="mt-4 max-w-sm text-[11px] text-muted">Bleib freundlich und bezahle nie ausserhalb des {BRAND.name}-Checkouts.</p>
         </div>
         <NewConversationComposer handle={prep.recipient.handle} orderId={prep.context?.orderId} productId={prep.context?.productId} name={prep.recipient.displayName} />
       </div>

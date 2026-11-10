@@ -15,6 +15,7 @@ import { PauseShopButton, RefreshStripeButton, SimulateVerificationButton, Strip
 import { Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 import { describeStripeNote } from "@/lib/stripe-status";
+import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Shopverwaltung" };
 
@@ -64,7 +65,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
     return (
       <div>
         <PageHeader
-          kicker="Werkuno Studio · Shop"
+          kicker={`${BRAND.name} Studio · Shop`}
           title={shop ? "Shop fertig einrichten" : "Eröffne deinen Shop"}
           description="Verkaufe Einzelstücke, Kleinserien, Materialsets oder digitale Anleitungen – direkt neben deinen Projekten. Der Marktplatz ergänzt die Community, er ersetzt sie nicht."
         />
@@ -108,7 +109,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
   return (
     <div>
       <PageHeader
-        kicker="Werkuno Studio · Shop"
+        kicker={`${BRAND.name} Studio · Shop`}
         title={shop.name}
         description={shop.tagline || undefined}
         actions={
@@ -162,7 +163,7 @@ export default async function StudioShopPage({ searchParams }: { searchParams: P
                 done={connectDone}
                 active={!connectDone}
                 title="Auszahlungskonto verbinden"
-                body="Bei Stripe bestätigst du Identität und Bankverbindung. Werkuno sieht keine Kontodaten."
+                body={`Bei Stripe bestätigst du Identität und Bankverbindung. ${BRAND.name} sieht keine Kontodaten.`}
               >
                 {!connectDone && mode === "stripe" && <StripeOnboardingButton label={accountConnected ? "Angaben bei Stripe fortsetzen" : "Auszahlungskonto verbinden"} />}
                 {!verified && mode === "simulated" && <SimulateVerificationButton />}

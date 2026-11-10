@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,12 +44,32 @@ export function Dialog({
   const titleId = useId();
   const descId = useId();
   const backdrop = useBackdropDismiss(onClose);
+  // Fokus zurückgeben (WCAG 2.4.3): auch wenn der Dialog nicht geschlossen, sondern ausgehängt wird
+  // (`{x && <Dialog open … />}`) – dann greift die Fokus-Rückgabe des nativen <dialog> nicht.
+  const returnTo = useRef<{ el: HTMLElement; dialog: HTMLDialogElement } | null>(null);
+  const restoreFocus = useCallback(() => {
+    const saved = returnTo.current;
+    returnTo.current = null;
+    if (!saved?.el.isConnected) return;
+    const active = document.activeElement;
+    // Nur zurückholen, wenn der Fokus im Dialog lag oder verloren ging – nicht, wenn er bewusst woanders hin gewandert ist
+    if (active && active !== document.body && !saved.dialog.contains(active)) return;
+    saved.el.focus({ preventScroll: true });
+  }, []);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
-  }, [open]);
+    if (open && !d.open) {
+      const active = document.activeElement;
+      returnTo.current = active instanceof HTMLElement && active !== document.body ? { el: active, dialog: d } : null;
+      d.showModal();
+    }
+    if (!open) {
+      if (d.open) d.close();
+      restoreFocus();
+    }
+  }, [open, restoreFocus]);
+  useEffect(() => restoreFocus, [restoreFocus]);
   return (
     <dialog
       ref={ref}

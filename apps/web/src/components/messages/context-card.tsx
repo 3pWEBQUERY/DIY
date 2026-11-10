@@ -3,6 +3,7 @@ import { ArrowUpRight, Package } from "lucide-react";
 import { ORDER_STATUS_LABEL, formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
 import type { OrderContext } from "@/server/messaging/service";
 import { formatDate } from "@/lib/utils";
+import { BRAND } from "@/config/brand";
 
 /** Bestell- bzw. Produktkontext einer Käufer↔Verkäufer-Unterhaltung. */
 export function ContextCard({ ctx }: { ctx: OrderContext }) {
@@ -58,7 +59,7 @@ export function ContextCard({ ctx }: { ctx: OrderContext }) {
           </Link>
         )}
       </div>
-      <p className="border-t border-clay/20 px-3 py-1.5 text-[11px] text-clay-ink">Zahlungen nur über den Werkuno-Checkout – nur dann gilt der Käuferschutz.</p>
+      <p className="border-t border-clay/20 px-3 py-1.5 text-[11px] text-clay-ink">Zahlungen nur über den {BRAND.name}-Checkout – nur dann gilt der Käuferschutz.</p>
     </div>
   );
 }
