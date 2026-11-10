@@ -26,8 +26,9 @@ struct ConversationView: View {
     @State private var picks: [PhotosPickerItem] = []
     @State private var sending = false
     @State private var responding = false
-    @State private var viewerMedia: (items: [MediaItem], start: MediaItem)?
-    @State private var showViewer = false
+    /// Gewähltes Bild für die Vollbildansicht. Die Ansicht hängt direkt an diesem Wert (`item:`),
+    /// damit sie schon beim ersten Öffnen das Bild hat (mit `isPresented:` war sie beim ersten Mal leer).
+    @State private var viewerMedia: ViewerSelection?
     @State private var confirmBlock = false
     @State private var scrollTarget: String?
     @State private var showGroupInfo = false
@@ -83,9 +84,7 @@ struct ConversationView: View {
             picks = []
             Task { await ingest(batch) }
         }
-        .fullScreenCover(isPresented: $showViewer) {
-            if let v = viewerMedia { MediaViewer(media: v.items, start: v.start) }
-        }
+        .fullScreenCover(item: $viewerMedia) { v in MediaViewer(media: v.items, start: v.start) }
         .sheet(isPresented: $showGroupInfo) {
             if let g = thread?.group {
                 GroupInfoSheet(conversationId: id, group: g, reload: { await load(); return thread?.group }, onLeft: {
@@ -141,8 +140,7 @@ struct ConversationView: View {
                             showTime: showTime(i),
                             groupedWithPrevious: grouped(i),
                             onImage: { item in
-                                viewerMedia = (m.media.map(\.asMediaItem), item)
-                                showViewer = true
+                                viewerMedia = ViewerSelection(items: m.media.map(\.asMediaItem), start: item)
                             },
                             onReport: { router.present(.report(targetType: "MESSAGE", targetId: m.id, title: "Nachricht melden")) }
                         )
@@ -846,4 +844,10 @@ struct SocialThreadContextCard: View {
         CoverView(url: url, seed: seed, category: nil, showLabel: false)
             .clipShape(.rect(cornerRadius: 9, style: .continuous))
     }
+}
+
+private struct ViewerSelection: Identifiable {
+    let id = UUID()
+    var items: [MediaItem]
+    var start: MediaItem
 }

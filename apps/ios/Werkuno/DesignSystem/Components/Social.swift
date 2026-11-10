@@ -460,7 +460,14 @@ struct MediaViewer: View {
     var media: [MediaItem]
     var start: MediaItem
     @Environment(\.dismiss) private var dismiss
-    @State private var current: String = ""
+    @State private var current: String
+
+    init(media: [MediaItem], start: MediaItem) {
+        self.media = media
+        self.start = start
+        // Startbild sofort setzen (nicht erst in onAppear), sonst ist die erste Seite kurz leer
+        _current = State(initialValue: start.id)
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -482,6 +489,5 @@ struct MediaViewer: View {
                 .padding()
                 .accessibilityLabel("Schliessen")
         }
-        .onAppear { current = start.id }
     }
 }
