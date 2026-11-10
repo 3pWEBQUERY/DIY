@@ -563,7 +563,7 @@ struct ProjectDetailView: View {
     private func actionBar(_ p: ProjectPage) -> some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                HStack(spacing: 16) {
+                HStack(spacing: 10) {
                     LikeButton(type: "PROJECT", id: p.id, liked: p.viewer?.liked ?? false, count: p.counts?.likes ?? 0)
                     SaveButton(type: "PROJECT", id: p.id, saved: p.viewer?.saved ?? false)
                     if !p.isOwner {
@@ -586,7 +586,7 @@ struct ProjectDetailView: View {
                         .accessibilityLabel("Teilen")
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 14)
                 .frame(minHeight: 50)
                 .glassEffect(.regular.interactive(), in: Capsule())
                 .id(p.id + "\(p.viewer?.liked ?? false)\(p.viewer?.saved ?? false)")
@@ -594,20 +594,14 @@ struct ProjectDetailView: View {
                 Spacer(minLength: 0)
 
                 if p.isOwner {
-                    Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
-                        Label("Eintrag", systemImage: "plus").font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                    DockPrimaryButton(title: "Eintrag", systemImage: "plus") {
+                        router.present(.journalEntry(projectId: p.id, projectTitle: p.title))
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(.moss)
-                    .controlSize(.large)
                     .accessibilityLabel("Journal-Eintrag hinzufügen")
                 } else {
-                    Button { router.present(.projectEditor(remixOf: p.id)) } label: {
-                        Label("Nachbauen", systemImage: "arrow.triangle.branch").font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                    DockPrimaryButton(title: "Nachbauen", systemImage: "arrow.triangle.branch") {
+                        router.present(.projectEditor(remixOf: p.id))
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(.moss)
-                    .controlSize(.large)
                 }
             }
         }

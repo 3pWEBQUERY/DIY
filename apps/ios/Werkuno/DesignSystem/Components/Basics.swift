@@ -446,3 +446,32 @@ struct LoadMoreTrigger: View {
         }
     }
 }
+
+
+// MARK: - Hauptknopf der schwebenden Aktionsleiste
+
+/// Gefüllter Knopf rechts in der schwebenden Leiste (Projekt, Anleitung) – exakt so hoch wie die
+/// Glas-Kapsel daneben (50 pt), statt der höheren Standardgrösse `.controlSize(.large)`.
+struct DockPrimaryButton: View {
+    var title: String
+    var systemImage: String
+    var height: CGFloat = 50
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.wr(.subheadline, .semibold))
+                .lineLimit(1)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .frame(height: height)
+                .background(Color.moss, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.pressable)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        // Der Text wird nicht gekürzt: der Abstand zur Glas-Kapsel gibt zuerst nach
+        .layoutPriority(1)
+    }
+}

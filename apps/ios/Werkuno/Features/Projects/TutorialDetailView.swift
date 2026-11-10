@@ -378,7 +378,7 @@ struct TutorialDetailView: View {
         let next = t.steps.firstIndex { !done.contains($0.stableKey) }
         return GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                HStack(spacing: 16) {
+                HStack(spacing: 10) {
                     LikeButton(type: "TUTORIAL", id: t.id, liked: t.viewer?.liked ?? false, count: t.counts?.likes ?? 0)
                     SaveButton(type: "TUTORIAL", id: t.id, saved: t.viewer?.saved ?? false)
                     if let url = AppConfig.resolve(t.href ?? "/anleitungen/\(t.slug)") {
@@ -388,19 +388,16 @@ struct TutorialDetailView: View {
                         .accessibilityLabel("Teilen")
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 14)
                 .frame(minHeight: 50)
                 .glassEffect(.regular.interactive(), in: Capsule())
                 .id(t.id)
                 Spacer(minLength: 0)
-                Button { reader = TutorialReaderStart(index: next ?? 0) } label: {
-                    Label(next == nil || next == 0 ? "Lesen" : "Schritt \((next ?? 0) + 1)", systemImage: "book.pages")
-                        .font(.wr(.subheadline, .semibold)).padding(.horizontal, 4).frame(minHeight: 36)
+                DockPrimaryButton(title: next == nil || next == 0 ? "Lesen" : "Schritt \((next ?? 0) + 1)", systemImage: "book.pages") {
+                    reader = TutorialReaderStart(index: next ?? 0)
                 }
-                .buttonStyle(.glassProminent)
-                .tint(.moss)
-                .controlSize(.large)
                 .disabled(t.steps.isEmpty)
+                .opacity(t.steps.isEmpty ? 0.5 : 1)
                 .accessibilityLabel("Schritt-für-Schritt-Lesemodus öffnen")
             }
         }
