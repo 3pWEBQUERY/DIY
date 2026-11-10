@@ -75,7 +75,9 @@ if (repoRoot) {
     const order = added.get(m) ?? Number.POSITIVE_INFINITY;
     if (latest && order < latest.order && !reported.has(latest.name)) {
       reported.add(latest.name);
-      errors.push(`${latest.name} wurde nach ${m} hinzugefügt, sortiert aber davor. Neue Migrationen immer mit einem Zeitstempel nach der letzten benennen.`);
+      // Nur Hinweis: Parallel entstandene Branches werden nicht in Zeitstempel-Reihenfolge zusammengeführt.
+      // Massgeblich für die Datenbank ist der Basisvergleich (3.): neue Migrationen nach der letzten ausgerollten.
+      notes.push(`${latest.name} wurde nach ${m} hinzugefügt, sortiert aber davor. Neue Migrationen immer mit einem Zeitstempel nach der letzten benennen.`);
     }
     if (!latest || order >= latest.order) latest = { name: m, order };
   }
