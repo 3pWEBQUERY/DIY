@@ -7,7 +7,11 @@ export const SETTING_DEFAULTS = {
   "commerce.feeBps": 600, // 6 % Plattformprovision (§22.2)
   "commerce.reservationMinutes": 30,
   "commerce.digitalEnabledWeb": true,
-  "commerce.digitalEnabledIos": false, // §13.7 – erst nach Klärung der Apple-Regeln
+  "commerce.digitalEnabledIos": false,
+  // Haltefrist (§13.6): Erlös wird so viele Tage nach Abschluss der Bestellung auszahlbar
+  "commerce.payoutHoldDays": 3,
+  // Versendete Bestellungen ohne Erhaltsbestätigung gelten nach so vielen Tagen als abgeschlossen
+  "commerce.autoCompleteDays": 14, // §13.7 – erst nach Klärung der Apple-Regeln
   "media.maxImageMb": 15,
   "media.maxVideoMb": 200,
   "media.maxVideoSeconds": 180,

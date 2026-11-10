@@ -1323,6 +1323,17 @@ model Shop {
   processingDays   Int               @default(3)
   stripeAccountId  String?           @unique
   payoutsEnabled   Boolean           @default(false)
+  /// Auszahlungsplan, den Werkuno ausführt (manual | daily | weekly | monthly). Bei Stripe steht jedes
+  /// Konto auf „manuell“ – so wird nur freigegebenes Guthaben ausgezahlt (Haltefrist, src/server/commerce/escrow.ts)
+  payoutInterval      String        @default("manual")
+  payoutWeeklyAnchor  String?
+  payoutMonthlyAnchor Int?
+  /// Letzte automatische Auszahlung durch Werkuno (höchstens eine pro Tag)
+  lastAutoPayoutAt    DateTime?
+  /// Bisheriger Stripe-Auszahlungsplan übernommen und Stripe auf „manuell“ gestellt
+  payoutScheduleMigratedAt DateTime?
+  /// Von der Administration erlassene Haltefrist (vertrauenswürdige Shops): Guthaben sofort auszahlbar
+  payoutHoldWaived    Boolean       @default(false)
   chargesEnabled   Boolean           @default(false)
   ratingAvg        Float             @default(0)
   ratingCount      Int               @default(0)
@@ -1569,6 +1580,10 @@ model Payment {
   amountMinor      Int
   currency         String
   applicationFeeMinor Int        @default(0)
+  /// Gutschrift auf dem Verkäuferkonto in dessen Währung (Stripe-Saldobuchung; bei Bankkonto in EUR
+  /// umgerechnet) – für die Haltefrist. Wird bei Bedarf nachgeladen.
+  sellerAmountMinor   Int?
+  sellerCurrency      String?
   failureReason    String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

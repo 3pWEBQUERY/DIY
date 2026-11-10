@@ -27,7 +27,8 @@ import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { liftExpiredSuspensions } from "@/server/moderation/expiry";
 import { sendEventReminders } from "@/server/communities/events";
 import { syncPendingConnectAccounts } from "@/server/commerce/shops";
-import { syncPayouts } from "@/server/commerce/payouts";
+import { migrateStripePayoutSchedules, runScheduledPayouts, syncPayouts } from "@/server/commerce/payouts";
+import { autoCompleteShippedOrders } from "@/server/commerce/orders";
 import { retryCancelledRefunds } from "@/server/commerce/payments";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
@@ -67,6 +68,7 @@ const Q = {
   competitions: "competition.phases",
   accountPurge: "account.purge",
   auditCheckpoint: "audit.checkpoint",
+  payouts: "payouts.run",
 } as const;
 
 /**
@@ -348,6 +350,13 @@ async function main() {
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
   // Audit-Kette prüfen und Prüfpunkt schreiben (DB + Log-Zeile „audit_checkpoint“ ausserhalb der DB)
   await boss.work(Q.auditCheckpoint, guarded(Q.auditCheckpoint, async () => void (await auditCheckpointJob())));
+  // Haltefrist: bisherige Stripe-Pläne übernehmen, versendete Bestellungen automatisch abschliessen,
+  // fällige Auszahlungen nach Plan (nur freigegebenes Guthaben)
+  await boss.work(Q.payouts, guarded(Q.payouts, async () => {
+    await migrateStripePayoutSchedules();
+    await autoCompleteShippedOrders();
+    await runScheduledPayouts();
+  }));
   await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => {
       await syncPendingConnectAccounts();
       // Auszahlungen abgleichen (Benachrichtigung auch, falls ein Webhook ausbleibt) – halbstündlich
@@ -369,6 +378,7 @@ async function main() {
   await boss.schedule(Q.posts, "* * * * *");
   await boss.schedule(Q.events, "*/5 * * * *");
   await boss.schedule(Q.stripeSync, "*/10 * * * *");
+  await boss.schedule(Q.payouts, "20 * * * *", null, { tz: "Europe/Zurich" });
   await boss.schedule(Q.auditCheckpoint, "45 2 * * *", null, { tz: "Europe/Zurich" });
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)

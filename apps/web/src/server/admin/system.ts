@@ -21,6 +21,8 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; gro
   "commerce.reservationMinutes": { label: "Reservierungsdauer im Checkout", help: "So lange bleibt Ware während der Zahlung reserviert.", group: "Marktplatz", unit: "Min.", min: 5, max: 120 },
   "commerce.digitalEnabledWeb": { label: "Digitale Produkte im Web", help: "Verkauf digitaler Anleitungen über die Website.", group: "Marktplatz" },
   "commerce.digitalEnabledIos": { label: "Digitale Produkte in iOS", help: "Erst nach Klärung der App-Store-Regeln aktivieren (§13.7).", group: "Marktplatz" },
+  "commerce.payoutHoldDays": { label: "Haltefrist für Verkäufererlöse", help: "Erlös wird so viele Tage nach Abschluss der Bestellung auszahlbar (Schutz bei Reklamationen und Erstattungen). Einzelnen Shops lässt sie sich im Marktplatz-Bereich erlassen.", group: "Marktplatz", unit: "Tage", min: 0, max: 60 },
+  "commerce.autoCompleteDays": { label: "Automatischer Abschluss", help: "Versendete Bestellungen ohne Erhaltsbestätigung gelten nach so vielen Tagen als abgeschlossen.", group: "Marktplatz", unit: "Tage", min: 3, max: 60 },
   "media.maxImageMb": { label: "Max. Bildgrösse", help: "Pro Datei.", group: "Medien", unit: "MB", min: 1, max: 50 },
   "media.maxVideoMb": { label: "Max. Videogrösse", help: "Pro Datei.", group: "Medien", unit: "MB", min: 10, max: 2000 },
   "media.maxVideoSeconds": { label: "Max. Videolänge", help: "Längere Videos werden abgelehnt.", group: "Medien", unit: "Sek.", min: 10, max: 1800 },

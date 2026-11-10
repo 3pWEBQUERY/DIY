@@ -8,6 +8,7 @@ import {
   decideProduct,
   rejectShopVerificationAdmin,
   setProductFeaturedAdmin,
+  setPayoutHoldWaivedAdmin,
   setReviewHiddenAdmin,
   updateProductAdmin,
   updateShopAdmin,
@@ -84,4 +85,14 @@ export async function setReviewHiddenAction(reviewId: string, hidden: boolean, i
     refresh();
     return null;
   }, hidden ? "Bewertung ausgeblendet." : "Bewertung wieder sichtbar.");
+}
+
+/** Nur ADMIN: Haltefrist für Verkäufererlöse erlassen bzw. wieder einführen. */
+export async function setPayoutHoldWaivedAction(shopId: string, waived: boolean, input: ReasonInput) {
+  return act(async () => {
+    const u = await requireRole("ADMIN");
+    await setPayoutHoldWaivedAdmin(u, shopId, waived, { reason: input.reason });
+    refresh();
+    return null;
+  }, waived ? "Haltefrist erlassen." : "Haltefrist gilt wieder.");
 }

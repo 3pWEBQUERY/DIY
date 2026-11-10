@@ -13,7 +13,7 @@ import { EmptyRow, Table, Td, Th, Tr } from "@/components/admin/ui";
 import { dateTime, dec, num, shortDate } from "@/components/admin/format";
 import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
-import { decideProductAction, decideShopAction, rejectShopVerificationAction, setProductFeaturedAction, updateShopAction } from "../actions";
+import { decideProductAction, decideShopAction, rejectShopVerificationAction, setPayoutHoldWaivedAction, setProductFeaturedAction, updateShopAction } from "../actions";
 import { AuditList, CasesTable, NameLink, ReviewsTable, SHOP_STATUS, StatGrid, Thumb, VERIF, kindLabel, money, orderLabel, orderTone, paymentLabel, productTone, shopTone, stockOf, verifTone } from "../shared";
 import { describeStripeNote } from "@/lib/stripe-status";
 
@@ -290,7 +290,19 @@ export default async function ShopDetailPage({ params }: { params: Promise<{ id:
                 <li className="flex justify-between"><span>Zahlungen</span><span className={s.chargesEnabled ? "font-semibold text-moss" : "text-muted"}>{s.chargesEnabled ? "aktiv" : "inaktiv"}</span></li>
                 <li className="flex justify-between"><span>Auszahlungen</span><span className={s.payoutsEnabled ? "font-semibold text-moss" : "text-muted"}>{s.payoutsEnabled ? "aktiv" : "inaktiv"}</span></li>
                 <li className="flex justify-between gap-3"><span>Konto</span><span className="truncate font-mono text-[12px] text-muted">{s.stripeAccountId ?? "–"}</span></li>
+                <li className="flex justify-between"><span>Auszahlungsplan</span><span className="text-muted">{{ manual: "auf Anfrage", daily: "täglich", weekly: "wöchentlich", monthly: "monatlich" }[s.payoutInterval] ?? s.payoutInterval}</span></li>
+                <li className="flex justify-between"><span>Haltefrist</span><span className={s.payoutHoldWaived ? "font-semibold text-warn" : "text-muted"}>{s.payoutHoldWaived ? "erlassen" : "gilt"}</span></li>
               </ul>
+              <div className="mt-3">
+                <ReasonButton
+                  action={setPayoutHoldWaivedAction.bind(null, s.id, !s.payoutHoldWaived)}
+                  label={s.payoutHoldWaived ? "Haltefrist wieder einführen" : "Haltefrist erlassen"}
+                  variant="outline"
+                  title={s.payoutHoldWaived ? "Haltefrist wieder einführen" : "Haltefrist erlassen"}
+                  description={s.payoutHoldWaived ? "Erlöse werden wieder erst nach Abschluss der Bestellung plus Haltefrist auszahlbar." : "Für vertrauenswürdige Shops: Erlöse sind direkt nach Zahlungseingang auszahlbar. Problemfälle und angefochtene Zahlungen bleiben zurückgehalten. Das Risiko von Erstattungen nach der Auszahlung trägt die Plattform."}
+                  confirmLabel={s.payoutHoldWaived ? "Wieder einführen" : "Erlassen"}
+                />
+              </div>
             </section>
           )}
 

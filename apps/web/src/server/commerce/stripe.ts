@@ -329,6 +329,24 @@ export async function reverseTransferForDispute(input: { paymentIntentId: string
   return { reversedMinor: amount, reason: "reversed" as const };
 }
 
+/**
+ * Gutschrift einer Destination Charge auf dem Verkäuferkonto – in dessen Saldowährung (bei einem
+ * EUR-Bankkonto rechnet Stripe den CHF-Transfer um). Grundlage, um zurückgehaltene Beträge vom
+ * Stripe-Guthaben abzuziehen.
+ */
+export async function sellerSettlement(paymentIntentId: string, accountId: string): Promise<{ amountMinor: number; currency: string } | null> {
+  const pi = await stripe().paymentIntents.retrieve(paymentIntentId, { expand: ["latest_charge"] });
+  const charge = typeof pi.latest_charge === "object" ? pi.latest_charge : null;
+  const transferId = charge ? (typeof charge.transfer === "string" ? charge.transfer : charge.transfer?.id) : null;
+  if (!transferId) return null;
+  const transfer = await stripe().transfers.retrieve(transferId);
+  const destPayment = typeof transfer.destination_payment === "string" ? transfer.destination_payment : transfer.destination_payment?.id;
+  if (!destPayment) return { amountMinor: transfer.amount, currency: transfer.currency.toUpperCase() };
+  const py = await stripe().charges.retrieve(destPayment, { expand: ["balance_transaction"] }, { stripeAccount: accountId });
+  const bt = typeof py.balance_transaction === "object" ? py.balance_transaction : null;
+  return bt ? { amountMinor: bt.amount, currency: bt.currency.toUpperCase() } : { amountMinor: py.amount, currency: py.currency.toUpperCase() };
+}
+
 export async function listRefunds(paymentIntentId: string) {
   const res = await stripe().refunds.list({ payment_intent: paymentIntentId, limit: 100 });
   return res.data;

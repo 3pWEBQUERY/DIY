@@ -44,8 +44,9 @@ export async function purgeDeletedAccount(userId: string) {
 
   // 3. Shop-Guthaben: manuelle Auszahlung auf automatisch stellen, damit Restguthaben ausbezahlt wird
   if (user.shop?.stripeAccountId && paymentsMode() === "stripe") {
-    const { updatePayoutSchedule } = await import("@/server/commerce/stripe");
-    await updatePayoutSchedule(user.shop.stripeAccountId, { interval: "daily" }).catch(() => {});
+    // Werkuno zahlt nach Plan aus (Stripe bleibt „manuell“) – so wird freigegebenes Guthaben täglich
+    // ausgezahlt, Erlöse in der Haltefrist erst nach deren Ablauf
+    await db.shop.updateMany({ where: { stripeAccountId: user.shop.stripeAccountId }, data: { payoutInterval: "daily", payoutWeeklyAnchor: null, payoutMonthlyAnchor: null } });
   }
 
   // 4. Persönliche Daten ohne Aufbewahrungspflicht entfernen (Reihenfolge ohne Transaktion – idempotent)

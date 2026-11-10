@@ -150,6 +150,8 @@ export async function getShopAdminDetail(actor: Actor, shopId: string) {
       chargesEnabled: true,
       payoutsEnabled: true,
       stripeAccountId: true,
+      payoutHoldWaived: true,
+      payoutInterval: true,
       ratingAvg: true,
       ratingCount: true,
       salesCount: true,
@@ -413,6 +415,30 @@ export async function updateShopAdmin(actor: Actor, shopId: string, input: unkno
     },
   });
   return { changed: changed.length };
+}
+
+/**
+ * Haltefrist für einen Shop erlassen oder wieder einführen (nur ADMIN, begründet, protokolliert).
+ * Ohne Frist ist der Erlös sofort nach Zahlungseingang auszahlbar – Problemfälle und angefochtene
+ * Zahlungen bleiben trotzdem zurückgehalten.
+ */
+export async function setPayoutHoldWaivedAdmin(actor: Actor, shopId: string, waived: boolean, input: { reason: string }) {
+  if (!hasRole(actor, "ADMIN")) throw fail.forbidden("Die Haltefrist verwaltet nur die Administration.");
+  const reason = z.string().trim().min(5, "Bitte begründe die Entscheidung").max(1000).parse(input.reason);
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, ownerId: true, name: true, payoutHoldWaived: true } });
+  if (!shop) throw fail.notFound();
+  assertNotOwn(actor, shop.ownerId);
+  if (shop.payoutHoldWaived === waived) throw fail.conflict(waived ? "Die Haltefrist ist für diesen Shop bereits erlassen." : "Für diesen Shop gilt die Haltefrist bereits.");
+  await db.$transaction(async (tx) => {
+    await tx.shop.update({ where: { id: shopId }, data: { payoutHoldWaived: waived } });
+    await audit({ actorId: actor.id, action: waived ? "admin.shop_payout_hold_waived" : "admin.shop_payout_hold_restored", targetType: "SHOP", targetId: shopId, meta: { reason } }, tx);
+  });
+  await notify({
+    recipientId: shop.ownerId,
+    type: "MODERATION",
+    bundle: false,
+    data: { kind: "ACCOUNT", message: waived ? `Für deinen Shop „${shop.name}“ entfällt die Haltefrist: Erlöse sind ab jetzt direkt nach Zahlungseingang auszahlbar.` : `Für deinen Shop „${shop.name}“ gilt wieder die Haltefrist: Erlöse werden nach Abschluss der Bestellung frei.`, href: "/studio/einnahmen" },
+  });
 }
 
 /** Verifizierungsantrag ablehnen: zurück in den Entwurf, Verkäufer:in kann nachbessern. */

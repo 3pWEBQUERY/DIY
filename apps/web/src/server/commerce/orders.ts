@@ -124,8 +124,35 @@ export async function confirmReceipt(user: SessionUser, orderId: string) {
     await tx.shipment.updateMany({ where: { orderId, deliveredAt: null }, data: { deliveredAt: new Date() } });
     await tx.orderEvent.create({ data: { orderId, actorId: user.id, from: "SHIPPED", to: "COMPLETED", note: "Erhalt durch Käufer:in bestätigt" } });
     await emit({ type: "OrderStatusChanged", orderId, to: "COMPLETED" }, tx);
-    await notifySeller(tx, o, o.shop.ownerId, "COMPLETED", "Erhalt bestätigt", user.id);
+    await notifySeller(tx, o, o.shop.ownerId, "COMPLETED", "Erhalt bestätigt – der Erlös wird nach der Haltefrist auszahlbar.", user.id);
   });
+}
+
+/**
+ * Worker: Versendete Bestellungen ohne Erhaltsbestätigung nach `commerce.autoCompleteDays` abschliessen.
+ * Ab dem Abschluss läuft die Haltefrist für den Erlös (escrow-rules.ts) – ohne automatischen Abschluss
+ * bekäme ein Shop sein Geld nie, wenn die Käuferin den Erhalt nicht bestätigt.
+ */
+export async function autoCompleteShippedOrders(now: Date = new Date()) {
+  const { getSetting } = await import("@/server/settings");
+  const days = await getSetting("commerce.autoCompleteDays");
+  const due = await db.order.findMany({ where: { status: "SHIPPED", shippedAt: { lt: new Date(now.getTime() - days * 86_400_000) } }, select: { id: true }, orderBy: { shippedAt: "asc" }, take: 200 });
+  let n = 0;
+  for (const { id } of due) {
+    const done = await db.$transaction(async (tx) => {
+      await lockOrder(tx, id);
+      const o = await tx.order.findUnique({ where: { id }, include: { shop: { select: { ownerId: true } } } });
+      if (!o || o.status !== "SHIPPED") return false;
+      await tx.order.update({ where: { id }, data: { status: "COMPLETED", completedAt: now } });
+      await tx.orderEvent.create({ data: { orderId: id, from: "SHIPPED", to: "COMPLETED", note: `Automatisch abgeschlossen (${days} Tage nach Versand ohne Rückmeldung)` } });
+      await emit({ type: "OrderStatusChanged", orderId: id, to: "COMPLETED" }, tx);
+      await notifyBuyer(tx, o, "COMPLETED", "Die Bestellung wurde automatisch abgeschlossen. Gibt es ein Problem, melde es über die Bestellung.");
+      await notifySeller(tx, o, o.shop.ownerId, "COMPLETED", "Automatisch abgeschlossen – der Erlös wird nach der Haltefrist auszahlbar.");
+      return true;
+    });
+    if (done) n++;
+  }
+  return n;
 }
 
 /* ───────────────────────── Verkäufer ───────────────────────── */
