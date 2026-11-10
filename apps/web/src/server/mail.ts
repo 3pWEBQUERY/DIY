@@ -192,7 +192,7 @@ export function renderMail(subject: string, text: string, opts: MailOptions = {}
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.paper}"><tr><td align="center" style="padding:36px 16px 40px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px">
-<tr><td style="padding:0 4px 22px"><a href="${app}" style="text-decoration:none"><img src="${app}/brand/werkuno-logo-email.png" width="150" height="37" alt="${BRAND.name}" style="display:block;border:0;width:150px;height:auto"></a></td></tr>
+<tr><td style="padding:0 4px 22px"><a href="${app}" style="text-decoration:none"><img src="${app}/brand/werkuno-wordmark-email.png" width="140" height="22" alt="${BRAND.name}" style="display:block;border:0;width:140px;height:auto"></a></td></tr>
 <tr><td style="background:${C.card};border:1px solid ${C.line};border-radius:16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="wk-pad" style="padding:40px 40px 34px;font-family:${FONT}">
 ${eyebrow}<h1 class="wk-h1" style="margin:0 0 18px;font-family:${FONT};font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em;color:${C.ink}">${esc(heading)}</h1>
