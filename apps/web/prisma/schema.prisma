@@ -1327,6 +1327,9 @@ model Shop {
   ratingAvg        Float             @default(0)
   ratingCount      Int               @default(0)
   salesCount       Int               @default(0)
+  /// Letzter Abgleich des Connect-Kontos bzw. der Auszahlungen im Worker (Reihum-Auswahl, auch bei Fehlern gesetzt)
+  connectSyncAt    DateTime?
+  payoutsSyncAt    DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -1506,6 +1509,10 @@ model Order {
   shippedAt       DateTime?
   completedAt     DateTime?
   cancelledAt     DateTime?
+  /// Bestand dieser Bestellung zurückgebucht (Storno bzw. Vollerstattung vor Versand) – verhindert doppeltes Zurückbuchen
+  restockedAt     DateTime?
+  /// Letzter automatischer Erstattungsversuch des Workers (Reihum-Auswahl)
+  refundRetryAt   DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

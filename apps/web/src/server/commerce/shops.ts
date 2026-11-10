@@ -156,13 +156,17 @@ export async function refreshStripeStatus(user: SessionUser) {
 /**
  * Worker (alle 10 Min.): Konten, deren Prüfung bei Stripe noch läuft, abgleichen – so wird ein
  * Shop auch aktiv, wenn die Person nach dem Onboarding nicht zurück auf die Seite kommt.
+ * Reihum nach letztem Versuch (`connectSyncAt`, auch bei Fehlern gesetzt): Konten, die nie fertig werden
+ * (abgebrochenes Onboarding), verdrängen neue nicht. `connectSyncAt = null` (noch nie abgeglichen bzw. der
+ * Webhook konnte den Status nicht abrufen) kommt zuerst dran – auch bei bereits freigeschalteten Shops.
  */
-export async function syncPendingConnectAccounts() {
+export async function syncPendingConnectAccounts(take = 50) {
   if (paymentsMode() !== "stripe") return 0;
   const shops = await db.shop.findMany({
-    where: { stripeAccountId: { not: null }, OR: [{ chargesEnabled: false }, { payoutsEnabled: false }, { status: "PENDING_VERIFICATION" }], status: { not: "SUSPENDED" } },
-    take: 50,
-    select: { stripeAccountId: true },
+    where: { stripeAccountId: { not: null }, OR: [{ chargesEnabled: false }, { payoutsEnabled: false }, { status: "PENDING_VERIFICATION" }, { connectSyncAt: null }], status: { not: "SUSPENDED" } },
+    orderBy: [{ connectSyncAt: { sort: "asc", nulls: "first" } }, { id: "asc" }],
+    take,
+    select: { id: true, stripeAccountId: true },
   });
   let n = 0;
   for (const s of shops) {
@@ -173,6 +177,8 @@ export async function syncPendingConnectAccounts() {
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "stripe.sync" });
     }
+    // Per Roh-SQL: updatedAt („zuletzt bearbeitet“) bleibt unberührt
+    await db.$executeRaw`UPDATE "Shop" SET "connectSyncAt" = now() WHERE "id" = ${s.id}`.catch(() => {});
   }
   return n;
 }

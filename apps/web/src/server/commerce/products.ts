@@ -142,13 +142,6 @@ async function searchProductIds(q: string) {
  * Nur aktive Produkte aktiver Shops, keine Produkte blockierter Konten,
  * digitale Produkte nur wenn im Web freigeschaltet. Cursor = letzte Produkt-ID.
  */
-/** Aktueller Bestand einer Variante – innerhalb der Transaktion gelesen (FOR UPDATE), damit parallele Verkäufe zählen. */
-async function currentOnHand(tx: Tx, variantId: string | null) {
-  if (!variantId) return null;
-  const rows = await tx.$queryRaw<{ onHand: number }[]>`SELECT "onHand" FROM "InventoryItem" WHERE "variantId" = ${variantId} FOR UPDATE`;
-  return rows[0]?.onHand ?? null;
-}
-
 export async function listProducts(
   filters: ProductFilters = {},
   cursor?: string | null,
@@ -360,20 +353,31 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
     await tx.productMedia.createMany({ data: data.media.map((m, i) => ({ productId: p.id, mediaId: m.id, position: i, alt: m.alt })) });
 
     // ── Varianten & Bestand ──
+    // Alle Bestandszeilen sperren und die Reservierungen erst jetzt lesen: ein gleichzeitiger Checkout
+    // wartet bzw. ist mitgezählt. Strukturänderungen, die reservierte Zeilen löschen würden (Umstellung auf
+    // digital, auf Varianten oder ohne Varianten, Variante entfernen), sind während offener Zahlungen
+    // gesperrt – sonst scheitert der Verkauf beim Zahlungseingang und die Käuferin erhält eine Erstattung.
+    const locked = existing
+      ? await tx.$queryRaw<{ id: string; variantId: string | null; onHand: number; reserved: number }[]>`SELECT id, "variantId", "onHand", reserved FROM "InventoryItem" WHERE "productId" = ${p.id} ORDER BY id FOR UPDATE`
+      : [];
+    const reservedOf = (variantId: string | null) => locked.filter((r) => r.variantId === variantId).reduce((s, r) => s + r.reserved, 0);
+    const busy = "Für dieses Angebot laufen gerade Zahlungen – Artikel sind in offenen Bestellungen reserviert.";
     const stockLevels: number[] = [];
     if (isDigital) {
+      if (locked.some((r) => r.reserved > 0)) throw fail.conflict(`${busy} Du kannst es erst in ein digitales Produkt umwandeln, wenn diese Zahlungen abgeschlossen oder abgelaufen sind.`);
       await tx.productVariant.deleteMany({ where: { productId: p.id } });
       await tx.inventoryItem.deleteMany({ where: { productId: p.id } });
     } else if (data.variants.length) {
+      if (reservedOf(null) > 0) throw fail.conflict(`${busy} Varianten kannst du erst einführen, wenn diese Zahlungen abgeschlossen oder abgelaufen sind.`);
       const old = existing?.variants ?? [];
       const keep = new Set<string>();
       for (const [i, v] of data.variants.entries()) {
         const match = old.find((o) => o.name.toLowerCase() === v.name.toLowerCase());
         // Mit stockBase nur die Änderung anwenden: Verkäufe seit dem Laden des Editors bleiben erhalten
         // (sonst setzt ein alter Tab ein verkauftes Einzelstück wieder auf „verfügbar“)
-        const current = await currentOnHand(tx, match?.id ?? null);
+        const current = match ? (locked.find((r) => r.variantId === match.id)?.onHand ?? null) : null;
         const stock = clampStock(v.stockBase != null && match && current != null ? current + (v.stock - v.stockBase) : v.stock);
-        const reserved = match?.inventory?.reserved ?? 0;
+        const reserved = match ? reservedOf(match.id) : 0;
         if (stock < reserved) throw fail.invalid(`„${v.name}“: ${reserved} Stück sind in offenen Bestellungen reserviert. Der Bestand kann nicht tiefer sein.`, { variants: "Bestand unter Reservierung" });
         const variant = match
           ? await tx.productVariant.update({ where: { id: match.id }, data: { name: v.name, priceDeltaMinor: v.priceDeltaMinor, position: i } })
@@ -387,14 +391,13 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
         stockLevels.push(stock);
       }
       const remove = old.filter((o) => !keep.has(o.id));
-      if (remove.some((o) => (o.inventory?.reserved ?? 0) > 0)) throw fail.conflict("Eine Variante mit offenen Reservierungen kann nicht entfernt werden.");
+      if (remove.some((o) => reservedOf(o.id) > 0)) throw fail.conflict("Eine Variante mit offenen Reservierungen kann nicht entfernt werden.");
       if (remove.length) await tx.productVariant.deleteMany({ where: { id: { in: remove.map((o) => o.id) } } });
       await tx.inventoryItem.deleteMany({ where: { productId: p.id, variantId: null } });
     } else {
-      if (existing?.variants.some((v) => (v.inventory?.reserved ?? 0) > 0)) throw fail.conflict("Varianten mit offenen Reservierungen können nicht entfernt werden.");
+      if (locked.some((r) => r.variantId !== null && r.reserved > 0)) throw fail.conflict("Varianten mit offenen Reservierungen können nicht entfernt werden.");
       await tx.productVariant.deleteMany({ where: { productId: p.id } });
-      // Zeile sperren: ein gleichzeitiger Verkauf wartet bzw. wird mitgezählt
-      const inv = (await tx.$queryRaw<{ id: string; onHand: number; reserved: number }[]>`SELECT id, "onHand", reserved FROM "InventoryItem" WHERE "productId" = ${p.id} AND "variantId" IS NULL FOR UPDATE`)[0];
+      const inv = locked.find((r) => r.variantId === null);
       const stock = clampStock(data.stockBase != null && inv ? inv.onHand + (data.stock - data.stockBase) : data.stock);
       if (inv && stock < inv.reserved) throw fail.invalid(`${inv.reserved} Stück sind in offenen Bestellungen reserviert. Der Bestand kann nicht tiefer sein.`, { stock: "Bestand unter Reservierung" });
       if (inv) await tx.inventoryItem.update({ where: { id: inv.id }, data: { onHand: stock } });

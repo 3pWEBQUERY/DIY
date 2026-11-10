@@ -114,10 +114,19 @@ async function savePayout(shop: { id: string; ownerId: string }, p: ProviderPayo
   return rec;
 }
 
-/** Worker: Auszahlungen aller verbundenen Shops abgleichen (falls ein Webhook fehlt). */
+/**
+ * Worker: Auszahlungen aller verbundenen Shops abgleichen (falls ein Webhook fehlt). Reihum nach dem
+ * letzten Abgleich (`payoutsSyncAt`, auch bei Fehlern gesetzt) – bei mehr Shops als `limitShops` kommen
+ * alle der Reihe nach dran, statt dass immer dieselben (z. B. dauerhaft fehlerhafte) gewählt werden.
+ */
 export async function syncPayouts(limitShops = 200) {
   if (paymentsMode() !== "stripe") return 0;
-  const shops = await db.shop.findMany({ where: { stripeAccountId: { not: null }, payoutsEnabled: true }, take: limitShops, select: { id: true, ownerId: true, stripeAccountId: true } });
+  const shops = await db.shop.findMany({
+    where: { stripeAccountId: { not: null }, payoutsEnabled: true },
+    orderBy: [{ payoutsSyncAt: { sort: "asc", nulls: "first" } }, { id: "asc" }],
+    take: limitShops,
+    select: { id: true, ownerId: true, stripeAccountId: true },
+  });
   let n = 0;
   for (const s of shops) {
     try {
@@ -128,6 +137,8 @@ export async function syncPayouts(limitShops = 200) {
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "stripe.payouts" });
     }
+    // Per Roh-SQL: updatedAt („zuletzt bearbeitet“) bleibt unberührt
+    await db.$executeRaw`UPDATE "Shop" SET "payoutsSyncAt" = now() WHERE "id" = ${s.id}`.catch(() => {});
   }
   return n;
 }

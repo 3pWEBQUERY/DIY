@@ -6,10 +6,10 @@ import { emit } from "@/server/events";
 import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { token } from "@/server/crypto";
-import { commitSale, lockOrder, OutOfStockError, refreshSoldOut } from "./inventory";
+import { commitSale, lockOrder, OutOfStockError, refreshSoldOut, restock, retakeSale, type StockLine } from "./inventory";
 import { cancelPendingOrderTx } from "./reservations";
-import { paymentStatusAfterRefund, refundableAmount } from "./rules";
-import { createRefund, expireCheckoutSession, isStripeError, listRefunds, reverseTransferForDispute, type Stripe, accountStatus, retrieveConnectStatus } from "./stripe";
+import { paymentStatusAfterRefund, refundableAmount, refundEffects, statusBeforeRefunded } from "./rules";
+import { createRefund, expireCheckoutSession, isStripeError, listRefunds, reverseTransferForDispute, type Stripe, retrieveConnectStatus } from "./stripe";
 import { applyAccountStatus } from "./shops";
 import { captureError } from "@/server/monitoring";
 
@@ -149,6 +149,31 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
   }
 }
 
+/**
+ * Digitale Berechtigungen nachträglich freischalten, die bei der Zahlung zurückgehalten wurden
+ * (Betrag wich ab → Problemfall). Läuft, wenn der Shop den Problemfall löst („Zahlung geprüft“).
+ * Bestehende Lizenzen dieser Bestellung bleiben unverändert (Downloadzähler bleibt). Nur bei
+ * tatsächlich eingegangener, nicht voll erstatteter Zahlung. Gibt die Zahl neu freigeschalteter Lizenzen zurück.
+ */
+export async function grantMissingEntitlementsTx(tx: Tx, orderId: string) {
+  const order = await tx.order.findUnique({ where: { id: orderId }, select: { buyerId: true, paidAt: true } });
+  if (!order?.paidAt) return 0;
+  const payment = await tx.payment.findFirst({ where: { orderId }, orderBy: { createdAt: "desc" }, select: { status: true } });
+  if (!payment || !["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status)) return 0;
+  const items = await tx.orderItem.findMany({ where: { orderId, isDigital: true }, select: { id: true, productId: true } });
+  let granted = 0;
+  for (const it of items) {
+    const e = await tx.digitalEntitlement.findUnique({ where: { userId_productId: { userId: order.buyerId, productId: it.productId } }, select: { id: true, orderItemId: true, revokedAt: true } });
+    if (e && e.orderItemId === it.id) continue;
+    // Gültige Lizenz aus einem anderen Kauf: nichts zu tun – die Person hat das Produkt bereits
+    if (e && !e.revokedAt) continue;
+    if (e) await tx.digitalEntitlement.update({ where: { id: e.id }, data: { revokedAt: null, orderItemId: it.id, downloadCount: 0 } });
+    else await tx.digitalEntitlement.create({ data: { userId: order.buyerId, productId: it.productId, orderItemId: it.id } });
+    granted++;
+  }
+  return granted;
+}
+
 class SellerUnavailableError extends Error {
   constructor() {
     super("Shop nicht mehr aktiv");
@@ -273,67 +298,152 @@ export async function initiateRefund(orderId: string, input: { amountMinor: numb
 
 type RefundUpdate = { providerRef: string; amountMinor: number; status: "PENDING" | "SUCCEEDED" | "FAILED"; refundRowId?: string | null };
 
+/**
+ * Bestand einer Bestellung zurückbuchen (Storno bzw. Vollerstattung vor dem Versand) und den Verkaufszähler
+ * senken – genau einmal je Bestellung (`restockedAt`), gleich über welchen Weg (Shop-Storno, Plattform,
+ * Erstattung). Erwartet eine gesperrte Bestellung (lockOrder).
+ */
+export async function restockOrderTx(tx: Tx, order: { id: string; shopId: string; items: StockLine[] }) {
+  const claimed = await tx.order.updateMany({ where: { id: order.id, restockedAt: null }, data: { restockedAt: new Date() } });
+  if (claimed.count === 0) return false;
+  for (const it of order.items) await restock(tx, it);
+  await refreshSoldOut(tx, order.items.map((i) => i.productId));
+  await tx.shop.update({ where: { id: order.shopId }, data: { salesCount: { decrement: order.items.reduce((s, i) => s + i.quantity, 0) } } });
+  return true;
+}
+
 /** Erstattungsstand vom Anbieter übernehmen – idempotent, auch für im Stripe-Dashboard ausgelöste Erstattungen. */
 export async function applyRefunds(orderId: string, updates: RefundUpdate[]) {
-  await db.$transaction(async (tx) => {
+  const reverted = await db.$transaction(async (tx) => {
     await lockOrder(tx, orderId);
     const order = await orderWith(tx, orderId);
-    if (!order) return;
+    if (!order) return null;
+    let changed = false;
     const newlySucceeded: number[] = [];
+    // Bereits als erfolgreich verbuchte Erstattungen, die der Anbieter nachträglich als gescheitert meldet
+    // (refund.failed nach succeeded): Das Geld ist nicht bei der Käuferin angekommen.
+    const revertedAmounts: number[] = [];
     for (const u of updates) {
       const row = order.refunds.find((r) => r.providerRef === u.providerRef) ?? (u.refundRowId ? order.refunds.find((r) => r.id === u.refundRowId) : undefined);
       if (row) {
         if (row.status !== u.status || row.providerRef !== u.providerRef) {
           await tx.refund.update({ where: { id: row.id }, data: { status: u.status, providerRef: u.providerRef } });
           if (u.status === "SUCCEEDED" && row.status !== "SUCCEEDED") newlySucceeded.push(u.amountMinor);
+          if (row.status === "SUCCEEDED" && u.status !== "SUCCEEDED") revertedAmounts.push(row.amountMinor);
           row.status = u.status;
+          row.providerRef = u.providerRef;
+          changed = true;
         }
       } else {
         const created = await tx.refund.create({ data: { orderId, providerRef: u.providerRef, amountMinor: u.amountMinor, status: u.status, reason: "Beim Zahlungsanbieter ausgelöst" } });
         order.refunds.push(created);
         if (u.status === "SUCCEEDED") newlySucceeded.push(u.amountMinor);
+        changed = true;
         await audit({ action: "payment.refund.external", targetType: "Order", targetId: orderId, meta: { amountMinor: u.amountMinor } }, tx);
       }
     }
     const payment = order.payments[0];
-    if (!payment || !newlySucceeded.length) return;
+    if (!payment || !changed || (!newlySucceeded.length && !revertedAmounts.length)) return null;
+
+    // Zahlungs- und Bestellstatus immer aus den tatsächlich erfolgreichen Erstattungen ableiten
     const refunded = order.refunds.filter((r) => r.status === "SUCCEEDED").reduce((s, r) => s + r.amountMinor, 0);
-    const payStatus = paymentStatusAfterRefund(payment.amountMinor, refunded);
-    if (payment.status !== "DISPUTED") await tx.payment.update({ where: { id: payment.id }, data: { status: payStatus } });
-    const full = payStatus === "REFUNDED";
-    // Vollständig erstattet → digitale Lizenzen dieser Bestellung widerrufen (§13.7)
-    const digitalItems = order.items.filter((i) => i.isDigital).map((i) => i.id);
-    if (full && digitalItems.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digitalItems }, revokedAt: null }, data: { revokedAt: new Date() } });
-    const toRefunded = full && order.status !== "CANCELLED" && order.status !== "REFUNDED";
-    const amount = newlySucceeded.reduce((s, n) => s + n, 0);
-    await tx.orderEvent.create({
-      data: {
-        orderId,
-        from: order.status,
-        to: toRefunded ? "REFUNDED" : order.status,
-        note: full ? `Vollständig erstattet (${money(refunded, order.currency)})` : `Teilerstattung über ${money(amount, order.currency)} ausgezahlt`,
-      },
-    });
-    if (toRefunded) {
-      await tx.order.update({ where: { id: orderId }, data: { status: "REFUNDED" } });
-      await emit({ type: "OrderStatusChanged", orderId, to: "REFUNDED" }, tx);
+    const shipped = (await tx.shipment.count({ where: { orderId } })) > 0;
+    const fx = refundEffects({ orderStatus: order.status, paymentMinor: payment.amountMinor, refundedMinor: refunded, shipped, restocked: !!order.restockedAt });
+    if (["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"].includes(payment.status) && payment.status !== fx.payStatus) {
+      await tx.payment.update({ where: { id: payment.id }, data: { status: fx.payStatus } });
     }
+    const digitalItems = order.items.filter((i) => i.isDigital).map((i) => i.id);
+    let cur = order.status;
+    const title = itemsTitle(order.items);
+
+    if (newlySucceeded.length) {
+      // Vollständig erstattet → digitale Lizenzen dieser Bestellung widerrufen (§13.7)
+      if (fx.full && digitalItems.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digitalItems }, revokedAt: null }, data: { revokedAt: new Date() } });
+      // Vollerstattung vor dem Versand wirkt wie ein Storno: Ware geht zurück ins Lager (sonst bliebe ein
+      // Einzelstück für immer ausverkauft), Verkaufszähler sinkt – genau einmal (restockedAt)
+      if (fx.restock) await restockOrderTx(tx, order);
+      const amount = newlySucceeded.reduce((s, n) => s + n, 0);
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          from: cur,
+          to: fx.toRefunded ? "REFUNDED" : cur,
+          note: fx.full ? `Vollständig erstattet (${money(refunded, order.currency)})` : `Teilerstattung über ${money(amount, order.currency)} ausgezahlt`,
+        },
+      });
+      if (fx.toRefunded) {
+        await tx.order.update({ where: { id: orderId }, data: { status: "REFUNDED" } });
+        await emit({ type: "OrderStatusChanged", orderId, to: "REFUNDED" }, tx);
+        cur = "REFUNDED";
+      }
+      await notify(
+        {
+          recipientId: order.buyerId,
+          type: "ORDER_STATUS",
+          bundle: false,
+          data: {
+            number: order.number,
+            title,
+            status: cur,
+            note: `${money(amount, order.currency)} wurden erstattet. Die Gutschrift kann je nach Bank einige Tage dauern.`,
+            href: `/bestellungen/${orderId}`,
+          },
+        },
+        tx,
+      );
+    }
+
+    if (!revertedAmounts.length) return null;
+    const amount = revertedAmounts.reduce((s, n) => s + n, 0);
+    let to = cur;
+    let note = `Erstattung über ${money(amount, order.currency)} beim Zahlungsanbieter nachträglich fehlgeschlagen – der Betrag wurde nicht ausgezahlt`;
+    if (fx.reopen) {
+      // Nicht mehr vollständig erstattet → zurück in den Status vor der Erstattung. Wurde die Ware dabei
+      // bereits zurückgebucht und ist inzwischen anderweitig verkauft, muss der Shop den Fall klären.
+      to = statusBeforeRefunded(await tx.orderEvent.findMany({ where: { orderId }, orderBy: { createdAt: "asc" }, select: { from: true, to: true } })) ?? "PROBLEM";
+      if (order.restockedAt) {
+        if (await retakeSale(tx, order.items)) {
+          await refreshSoldOut(tx, order.items.map((i) => i.productId));
+          await tx.shop.update({ where: { id: order.shopId }, data: { salesCount: { increment: order.items.reduce((s, i) => s + i.quantity, 0) } } });
+          await tx.order.update({ where: { id: orderId }, data: { restockedAt: null } });
+        } else {
+          to = "PROBLEM";
+          note += "; die Ware wurde bereits zurückgebucht und ist nicht mehr verfügbar";
+        }
+      }
+    }
+    // Wieder nicht (voll) erstattet → Lizenzen der noch gültigen Bestellung wiederherstellen
+    if (!fx.full && to !== "CANCELLED" && digitalItems.length) {
+      await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digitalItems }, revokedAt: { not: null } }, data: { revokedAt: null } });
+    }
+    await tx.orderEvent.create({ data: { orderId, from: cur, to, note } });
+    if (to !== cur) {
+      await tx.order.update({ where: { id: orderId }, data: { status: to } });
+      await emit({ type: "OrderStatusChanged", orderId, to }, tx);
+    }
+    await audit({ action: "payment.refund.reverted", targetType: "Order", targetId: orderId, meta: { amountMinor: amount, refundedMinor: refunded, from: cur, to } }, tx);
     await notify(
       {
-        recipientId: order.buyerId,
+        recipientId: order.shop.ownerId,
         type: "ORDER_STATUS",
         bundle: false,
         data: {
           number: order.number,
-          title: itemsTitle(order.items),
-          status: toRefunded ? "REFUNDED" : order.status,
-          note: `${money(amount, order.currency)} wurden erstattet. Die Gutschrift kann je nach Bank einige Tage dauern.`,
-          href: `/bestellungen/${orderId}`,
+          title,
+          status: to,
+          note: `Eine Erstattung über ${money(amount, order.currency)} ist beim Zahlungsanbieter fehlgeschlagen. Bitte prüfe die Bestellung und erstatte bei Bedarf erneut.`,
+          href: `/studio/bestellungen/${orderId}`,
         },
       },
       tx,
     );
+    return { amountMinor: amount, from: cur, to };
   });
+  if (reverted) {
+    log("error", "refund_failed_after_success", { orderId, ...reverted });
+    // Zur manuellen Nachverfolgung (Geld liegt noch beim Shop, Käuferin wartet auf die Erstattung)
+    await captureError(new Error("Erstattung nach Erfolg fehlgeschlagen"), { source: "SERVER", path: "payments.refund_reverted", meta: { orderId, ...reverted } }).catch(() => {});
+  }
 }
 
 function mapRefundStatus(s: string | null | undefined): RefundUpdate["status"] {
@@ -467,13 +577,26 @@ async function reconcileUncertainRefunds() {
   }
 }
 
-export async function retryCancelledRefunds() {
+/** Markierung „automatische Wiederholung beendet“ (Refund-Zeile über 0, FAILED) – solche Bestellungen sind erschöpft. */
+const RETRY_EXHAUSTED = { amountMinor: 0, status: "FAILED" } as const;
+
+export async function retryCancelledRefunds(take = 50) {
   await reconcileUncertainRefunds().catch((e) => log("error", "refund_reconcile_error", { err: e instanceof Error ? e.message : String(e) }));
   const orders = await db.order.findMany({
-    where: { status: "CANCELLED", updatedAt: { gt: new Date(Date.now() - 30 * 86400_000) }, payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, provider: { not: "simulated" } } } },
+    where: {
+      status: "CANCELLED",
+      updatedAt: { gt: new Date(Date.now() - 30 * 86400_000) },
+      payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, provider: { not: "simulated" } } },
+      // Erschöpfte Fälle (zur manuellen Klärung gemeldet) nicht mehr auswählen
+      refunds: { none: RETRY_EXHAUSTED },
+    },
+    // Reihum nach letztem Versuch: Fälle, die gerade warten oder nicht erstattbar sind, verdrängen neue nicht
+    orderBy: [{ refundRetryAt: { sort: "asc", nulls: "first" } }, { id: "asc" }],
     select: { id: true, payments: { orderBy: { createdAt: "desc" }, take: 1, select: { amountMinor: true, status: true } }, refunds: { select: { amountMinor: true, status: true, createdAt: true } } },
-    take: 50,
+    take,
   });
+  // Per Roh-SQL: updatedAt (Grundlage des 30-Tage-Fensters) bleibt unberührt
+  if (orders.length) await db.$executeRaw`UPDATE "Order" SET "refundRetryAt" = now() WHERE "id" = ANY(${orders.map((o) => o.id)})`;
   let retried = 0;
   for (const o of orders) {
     const p = o.payments[0];
@@ -484,7 +607,7 @@ export async function retryCancelledRefunds() {
     if (failed.length >= 5) {
       if (failed.length === 5) {
         await captureError(new Error("Erstattung nach 5 Versuchen fehlgeschlagen"), { source: "WORKER", path: "refund_retry", meta: { orderId: o.id, openMinor: open } });
-        await db.refund.create({ data: { orderId: o.id, amountMinor: 0, reason: "Automatische Wiederholung beendet – bitte manuell erstatten", status: "FAILED" } });
+        await db.refund.create({ data: { orderId: o.id, ...RETRY_EXHAUSTED, reason: "Automatische Wiederholung beendet – bitte manuell erstatten" } });
       }
       continue;
     }
@@ -604,9 +727,18 @@ export async function handleStripeEvent(event: Stripe.Event) {
       // Unsere Konten sind v2-Empfängerkonten: das v1-Feld charges_enabled bleibt dort false
       // (keine Kartenzahlungs-Fähigkeit) und würde den Shop sonst wieder „nicht zahlungsbereit“
       // schalten. Massgeblich ist der v2-Status (stripe_transfers) – das Ereignis ist nur der Anstoss.
+      // Ist der v2-Status gerade nicht abrufbar, bleiben die bisherigen Werte stehen (der v1-Status würde
+      // den Shop fälschlich sperren) – der Abgleich im Worker holt das Konto beim nächsten Lauf vorrangig nach.
       const acc = event.data.object;
-      const status = await retrieveConnectStatus(acc.id).catch(() => null);
-      await applyAccountStatus(status ?? accountStatus(acc));
+      const status = await retrieveConnectStatus(acc.id).catch((e) => {
+        log("warn", "connect_status_unavailable", { account: acc.id, err: e instanceof Error ? e.message : String(e) });
+        return null;
+      });
+      if (!status) {
+        await db.$executeRaw`UPDATE "Shop" SET "connectSyncAt" = NULL WHERE "stripeAccountId" = ${acc.id}`;
+        return;
+      }
+      await applyAccountStatus(status);
       return;
     }
     case "payout.created":

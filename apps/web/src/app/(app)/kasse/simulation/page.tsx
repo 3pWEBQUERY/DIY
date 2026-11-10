@@ -10,11 +10,14 @@ import { LinkButton } from "@/components/ui/button";
 export const metadata: Metadata = { title: "Testzahlung", robots: { index: false } };
 
 /**
- * Simulierter Zahlungsanbieter – existiert nur, wenn kein Stripe-Key gesetzt ist und
- * NODE_ENV nicht „production“ ist. In allen anderen Fällen 404.
+ * Simulierter Zahlungsanbieter – existiert nur im Testmodus (`paymentsMode() === "simulated"`: kein
+ * Stripe-Key und NODE_ENV zur Laufzeit nicht „production“). In allen anderen Fällen 404.
+ * Bewusst kein `process.env.NODE_ENV` hier: Next ersetzt es beim Build fest durch „production“, die Seite
+ * wäre dann auch in Testläufen gegen einen Build (NODE_ENV=test) nie erreichbar. paymentsMode() liest die
+ * Laufzeitumgebung und liefert in Produktion ohne Key „disabled“.
  */
 export default async function SimulationPage({ searchParams }: { searchParams: Promise<{ bestellung?: string }> }) {
-  if (paymentsMode() !== "simulated" || process.env.NODE_ENV === "production") notFound();
+  if (paymentsMode() !== "simulated") notFound();
   const [{ bestellung }, user] = await Promise.all([searchParams, currentUser()]);
   if (!user) redirect("/anmelden");
   const order = bestellung ? await getBuyerOrder(user.id, bestellung) : null;
