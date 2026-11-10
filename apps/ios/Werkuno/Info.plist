@@ -54,10 +54,12 @@
 		<string>Manrope-Bold.ttf</string>
 		<string>Manrope-ExtraBold.ttf</string>
 	</array>
+	<!-- Nur ein Fenster: Router und AppState sind App-weit (WerkunoApp), ein zweites iPad-Fenster
+	     würde Navigationsstapel, Sheets, Toasts und Live-Verbindung teilen. Split View/Slide Over bleiben möglich. -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
-		<true/>
+		<false/>
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict>

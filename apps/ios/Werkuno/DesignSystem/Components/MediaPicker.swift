@@ -39,10 +39,20 @@ enum MediaUpload {
         return (r.id, r.result)
     }
 
+    /// Video aus der (temporären) Datei hochladen – gestreamt, nicht im Arbeitsspeicher. Die Länge geht als
+    /// `durationSec` mit: Ist das Video länger als erlaubt (Standard bzw. Creator Pro, siehe Server
+    /// `videoLimits`), lehnt der Server schon das Anfordern mit 422 und klarer Meldung ab, bevor hochgeladen wird.
     static func uploadVideo(_ url: URL) async throws -> String {
-        let data = try Data(contentsOf: url)
         let mime = url.pathExtension.lowercased() == "mov" ? "video/quicktime" : "video/mp4"
-        return try await APIClient.shared.upload(data: data, mime: mime).id
+        let duration = await videoDuration(url)
+        return try await APIClient.shared.upload(file: url, mime: mime, durationSec: duration).id
+    }
+
+    /// Länge in Sekunden (`nil`, wenn sie sich nicht lesen lässt – dann prüft verbindlich der Worker).
+    static func videoDuration(_ url: URL) async -> Double? {
+        guard let d = try? await AVURLAsset(url: url).load(.duration) else { return nil }
+        let s = d.seconds
+        return s.isFinite && s > 0 ? s : nil
     }
 }
 
@@ -167,7 +177,13 @@ struct MediaPickerField: View {
                 do {
                     let mid = try await MediaUpload.uploadVideo(movie.url)
                     update(did) { $0.mediaId = mid; $0.state = .ready }
+                } catch let e as APIError where e.status == 422 {
+                    // Abgelehnt, bevor hochgeladen wurde (z. B. zu lang oder zu gross): Kachel entfernen, Meldung zeigen
+                    withAnimation(.snappy) { items.removeAll { $0.id == did } }
+                    app.show(error: e)
                 } catch { update(did) { $0.state = .failed(error.localizedDescription) }; app.show(error: error) }
+                // Temporäre Kopie aus der Fotomediathek wird nicht mehr gebraucht
+                try? FileManager.default.removeItem(at: movie.url)
                 continue
             }
             guard let data = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: data) else { continue }

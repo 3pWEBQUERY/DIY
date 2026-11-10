@@ -334,7 +334,7 @@ private struct MeAccountSettings: View {
                     .disabled(next.count < 10 || next != confirm || (a.hasPassword && current.isEmpty))
             } header: { Text(a.hasPassword ? "Passwort ändern" : "Passwort festlegen") } footer: {
                 Text(a.hasPassword ? "Mindestens 10 Zeichen, mit Buchstaben und einer Ziffer oder einem Sonderzeichen. Alle anderen Sitzungen werden danach beendet."
-                                   : "Du meldest dich bisher nur mit Apple an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden.")
+                                   : "Du meldest dich bisher nur mit Apple an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden. Mindestens 10 Zeichen, mit Buchstaben und einer Ziffer oder einem Sonderzeichen. Zur Sicherheit bestätigst du das Festlegen gleich noch einmal mit „Mit Apple anmelden“.")
             }
 
             Section {
@@ -363,15 +363,27 @@ private struct MeAccountSettings: View {
         catch { if data == nil { self.error = MeErr.text(error) } else { app.show(error: error) } }
     }
 
+    /// Mit Passwort: aktuelles Passwort als Nachweis. Ohne Passwort (nur Apple): vor dem Absenden
+    /// frisch mit Apple bestätigen und das identityToken als `appleIdentityToken` mitschicken.
     private func changePassword(_ a: MeAccountOverview) async {
+        let firstPassword = !a.hasPassword
         do {
-            let r: MeCountResult = try await APIClient.shared.post("/settings/password", ["current": JSONValue.string(current), "next": .string(next), "confirm": .string(confirm)])
+            let r: MeCountResult = try await AppleReauth.perform(appleFirst: firstPassword, appleAvailable: app.appleNative) { appleToken in
+                var body: [String: JSONValue] = ["current": .string(firstPassword ? "" : current), "next": .string(next), "confirm": .string(confirm)]
+                if let appleToken { body["appleIdentityToken"] = .string(appleToken) }
+                return try await APIClient.shared.post("/settings/password", body) as MeCountResult
+            }
             let n = r.revoked ?? 0
-            app.show(n > 0 ? "Passwort geändert – \(Fmt.plural(n, "andere Sitzung", "andere Sitzungen")) beendet." : "Passwort geändert.")
+            let done = firstPassword ? "Passwort festgelegt. Du kannst dich jetzt auch mit E-Mail und Passwort anmelden." : "Passwort geändert."
+            app.show(n > 0 ? "\(done) \(Fmt.plural(n, "andere Sitzung", "andere Sitzungen")) beendet." : done)
             current = ""; next = ""; confirm = ""; pwErrors = [:]
             await load()
+        } catch is CancellationError {
+            // Apple-Dialog abgebrochen: nichts gesendet, Eingaben bleiben stehen
         } catch {
-            pwErrors = (error as? APIError)?.fields ?? [:]
+            var f = (error as? APIError)?.fields ?? [:]
+            f["reauth"] = nil
+            pwErrors = f
             app.show(error: error)
         }
     }
@@ -424,7 +436,10 @@ private struct MeDeleteAccountSheet: View {
                     TextField("Tippe LÖSCHEN", text: $confirmText)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
-                } header: { Text("Bestätigen") } footer: { Text("Zur Sicherheit: \(hasPassword ? "dein Passwort und " : "")das Wort LÖSCHEN in Grossbuchstaben.") }
+                } header: { Text("Bestätigen") } footer: {
+                    Text(hasPassword ? "Zur Sicherheit: dein Passwort und das Wort LÖSCHEN in Grossbuchstaben."
+                                     : "Zur Sicherheit: das Wort LÖSCHEN in Grossbuchstaben. Weil dein Konto kein Passwort hat, bestätigst du die Löschung danach noch einmal mit „Mit Apple anmelden“.")
+                }
                 Section {
                     Button(role: .destructive) { finalConfirm = true } label: {
                         Text("Konto endgültig löschen").fontWeight(.semibold).frame(maxWidth: .infinity)
@@ -438,7 +453,7 @@ private struct MeDeleteAccountSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
             .confirmationDialog("Wirklich löschen?", isPresented: $finalConfirm, titleVisibility: .visible) {
                 Button("Ja, Konto löschen", role: .destructive) { Task { await delete() } }
-            } message: { Text("Danach wirst du abgemeldet.") }
+            } message: { Text(hasPassword ? "Danach wirst du abgemeldet." : "Als Nächstes bestätigst du mit Apple. Danach wirst du abgemeldet.") }
         }
     }
 
@@ -446,10 +461,21 @@ private struct MeDeleteAccountSheet: View {
         Label(t, systemImage: "circle.fill").labelStyle(MeBulletStyle()).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
     }
 
+    /// Mit Passwort: Passwort als Nachweis. Ohne Passwort (nur Apple): frisches identityToken
+    /// (`appleIdentityToken`); fehlt es, antwortet der Server mit 403 `fields.reauth == "apple"`.
     private func delete() async {
-        let body: [String: JSONValue] = ["password": hasPassword ? .string(password) : .null, "confirm": .string(confirmText.trimmed)]
+        let usePassword = hasPassword
+        let pw = password
+        let confirm = confirmText.trimmed
         do {
-            _ = try await APIClient.shared.post("/settings/delete-account", body) as JSONValue
+            let _: JSONValue = try await AppleReauth.perform(appleFirst: !usePassword, appleAvailable: app.appleNative) { appleToken in
+                var body: [String: JSONValue] = ["password": usePassword ? .string(pw) : .null, "confirm": .string(confirm)]
+                if let appleToken { body["appleIdentityToken"] = .string(appleToken) }
+                return try await APIClient.shared.post("/settings/delete-account", body) as JSONValue
+            }
+        } catch is CancellationError {
+            app.show("Löschen abgebrochen – dein Konto bleibt bestehen.", style: .info)
+            return
         } catch {
             app.show(error: error)
             return

@@ -179,6 +179,88 @@ enum AppleNonce {
     }
 }
 
+/// Erneute Bestätigung mit Apple für Konten ohne Passwort (NEUE-FUNKTIONEN §11): Erstes Passwort
+/// festlegen und Konto löschen verlangen ein frisches identityToken derselben Apple-ID
+/// (höchstens 10 Minuten alt) als `appleIdentityToken`. Ohne Nachweis antwortet der Server mit
+/// 403 und `fields.reauth == "apple"`.
+final class AppleReauth: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<String, Error>?
+    /// Der Controller hält seinen Delegate nur schwach – beide leben, solange `run()` wartet.
+    private var controller: ASAuthorizationController?
+
+    /// Verlangt der Server für diesen Schritt eine erneute Anmeldung mit Apple?
+    static func isRequired(_ error: Error) -> Bool { (error as? APIError)?.fields?["reauth"] == "apple" }
+
+    /// Zeigt den Apple-Dialog (ohne Scopes) und liefert das frische identityToken.
+    /// Abbruch durch die Person → `CancellationError`.
+    @MainActor
+    static func identityToken() async throws -> String {
+        try await AppleReauth().run()
+    }
+
+    /// Führt `send` mit dem passenden Nachweis aus: `appleFirst` holt das Apple-Token vor dem Absenden
+    /// (Konto ohne Passwort). Antwortet der Server trotzdem mit `fields.reauth == "apple"` (z. B. weil
+    /// `hasPassword` veraltet war), wird einmal mit Apple bestätigt und wiederholt – sofern
+    /// `appleAvailable` (Sign in with Apple in der App eingerichtet).
+    @MainActor
+    static func perform<T>(appleFirst: Bool, appleAvailable: Bool, _ send: (String?) async throws -> T) async throws -> T {
+        var token: String?
+        if appleFirst && appleAvailable { token = try await identityToken() }
+        do {
+            return try await send(token)
+        } catch {
+            guard token == nil, appleAvailable, isRequired(error) else { throw error }
+            let fresh = try await identityToken()
+            return try await send(fresh)
+        }
+    }
+
+    @MainActor
+    private func run() async throws -> String {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = []
+        // Der Server prüft die Nonce hier nicht; sie bindet das Token trotzdem an genau diese Anfrage.
+        request.nonce = AppleNonce.sha256(AppleNonce.random())
+        let c = ASAuthorizationController(authorizationRequests: [request])
+        c.delegate = self
+        c.presentationContextProvider = self
+        controller = c
+        return try await withCheckedThrowingContinuation { cont in
+            continuation = cont
+            c.performRequests()
+        }
+    }
+
+    private func finish(_ result: Result<String, Error>) {
+        guard let cont = continuation else { return }
+        continuation = nil
+        controller = nil
+        cont.resume(with: result)
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let cred = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let data = cred.identityToken, let token = String(data: data, encoding: .utf8) else {
+            finish(.failure(APIError(code: "APPLE", message: "Die Bestätigung mit Apple ist fehlgeschlagen. Bitte versuche es erneut.", fields: nil, status: 0)))
+            return
+        }
+        finish(.success(token))
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        if (error as? ASAuthorizationError)?.code == .canceled { finish(.failure(CancellationError())); return }
+        finish(.failure(APIError(code: "APPLE", message: "Die Bestätigung mit Apple ist fehlgeschlagen. Bitte versuche es erneut.", fields: nil, status: 0)))
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first else { return ASPresentationAnchor() }
+            return scene.keyWindow ?? scene.windows.first ?? UIWindow(windowScene: scene)
+        }
+    }
+}
+
 /// Feines Punktraster als Werkbuch-Hintergrund
 struct DotGrid: View {
     var body: some View {
