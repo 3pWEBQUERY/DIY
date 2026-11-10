@@ -77,6 +77,7 @@ enum PushRegistration {
 struct WerkunoApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var app = AppState()
+    /// App-weit, nicht je Fenster: Deshalb ist `UIApplicationSupportsMultipleScenes` in der Info.plist aus.
     @State private var router = Router()
 
     var body: some Scene {

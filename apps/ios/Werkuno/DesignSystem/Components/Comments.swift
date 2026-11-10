@@ -13,6 +13,11 @@ struct CommentsSection: View {
     @Environment(Router.self) private var router
     @State private var comments: [CommentItem] = []
     @State private var loaded = false
+    /// Cursor zu den nächstälteren Kommentaren (`nil` = alles geladen)
+    @State private var nextCursor: String?
+    /// Wurden schon ältere Seiten nachgeladen? Dann behält ein Neuladen der ersten Seite sie bei.
+    @State private var loadedOlder = false
+    @State private var loadingOlder = false
     @State private var text = ""
     @State private var replyTo: CommentItem?
     @FocusState private var focused: Bool
@@ -27,16 +32,10 @@ struct CommentsSection: View {
                 Text("Noch keine Kommentare. Stell die erste Frage oder teile deine Erfahrung.").font(.wr(.subheadline)).foregroundStyle(Color.muted).padding(.vertical, 8)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
-                    ForEach(comments) { c in
-                        CommentRow(comment: c, type: type, onReply: { replyTo = c; focused = true }, onDeleted: { Task { await load() } })
-                        if let replies = c.replies, !replies.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                ForEach(replies) { r in CommentRow(comment: r, type: type, isReply: true, onReply: { replyTo = c; focused = true }, onDeleted: { Task { await load() } }) }
-                            }
-                            .padding(.leading, 34)
-                            .overlay(alignment: .leading) { Rectangle().fill(Color.line).frame(width: 1).padding(.leading, 16) }
-                        }
-                    }
+                    // Als Lösung markierte Antworten stehen oben, dann chronologisch – ältere Seiten davor
+                    ForEach(comments.filter { $0.isAnswer == true }) { c in thread(c) }
+                    if nextCursor != nil { olderButton }
+                    ForEach(comments.filter { $0.isAnswer != true }) { c in thread(c) }
                 }
             }
         }
@@ -44,6 +43,33 @@ struct CommentsSection: View {
             if let initial, !loaded { comments = initial; loaded = true }
             await load()
         }
+    }
+
+    @ViewBuilder
+    private func thread(_ c: CommentItem) -> some View {
+        CommentRow(comment: c, type: type, onReply: { replyTo = c; focused = true }, onDeleted: { removed(c.id) })
+        if let replies = c.replies, !replies.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(replies) { r in CommentRow(comment: r, type: type, isReply: true, onReply: { replyTo = c; focused = true }, onDeleted: { removed(r.id) }) }
+            }
+            .padding(.leading, 34)
+            .overlay(alignment: .leading) { Rectangle().fill(Color.line).frame(width: 1).padding(.leading, 16) }
+        }
+    }
+
+    private var olderButton: some View {
+        Button { Task { await loadOlder() } } label: {
+            HStack(spacing: 8) {
+                if loadingOlder { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.up.circle") }
+                Text("Ältere Kommentare laden")
+            }
+            .font(.wr(.footnote, .semibold))
+            .foregroundStyle(Color.moss)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .disabled(loadingOlder)
     }
 
     private var total: Int { comments.reduce(0) { $0 + 1 + ($1.replies?.count ?? 0) } }
@@ -77,23 +103,81 @@ struct CommentsSection: View {
         }
     }
 
+    /// Erste Seite (neueste Kommentare + markierte Antworten) mit `paged=1` → `{ items, nextCursor }`.
     private func load() async {
         do {
-            let list: [CommentItem] = try await APIClient.shared.get("/comments", query: ["type": type, "id": id])
-            withAnimation(.snappy) { comments = list; loaded = true }
+            let page: Page<CommentItem> = try await APIClient.shared.get("/comments", query: ["type": type, "id": id, "paged": "1"])
+            withAnimation(.snappy) {
+                comments = merged(firstPage: page.items)
+                // Nach dem Nachladen älterer Seiten gilt deren Cursor weiter
+                if !loadedOlder { nextCursor = page.nextCursor }
+                loaded = true
+            }
         } catch { loaded = true }
+    }
+
+    /// Ältere Seite vor die bisher geladenen Kommentare setzen (innerhalb der Seite chronologisch).
+    private func loadOlder() async {
+        guard let cursor = nextCursor, !loadingOlder else { return }
+        loadingOlder = true
+        defer { loadingOlder = false }
+        do {
+            let page: Page<CommentItem> = try await APIClient.shared.get("/comments", query: ["type": type, "id": id, "cursor": cursor])
+            let known = Set(comments.map(\.id))
+            let older = page.items.filter { !known.contains($0.id) && $0.isAnswer != true }
+            withAnimation(.snappy) {
+                comments = comments.filter { $0.isAnswer == true } + older + comments.filter { $0.isAnswer != true }
+                nextCursor = page.nextCursor
+                loadedOlder = true
+            }
+        } catch { app.show(error: error) }
+    }
+
+    /// Neu geladene erste Seite mit bereits nachgeladenen älteren Kommentaren zusammenführen: Ältere als
+    /// der älteste Kommentar der neuen ersten Seite bleiben stehen (auch die, die durch neue Kommentare
+    /// aus der ersten Seite gerutscht sind), damit keine Lücke entsteht.
+    private func merged(firstPage: [CommentItem]) -> [CommentItem] {
+        guard loadedOlder else { return firstPage }
+        let answers = firstPage.filter { $0.isAnswer == true }
+        let latest = firstPage.filter { $0.isAnswer != true }
+        guard let oldest = latest.compactMap(\.createdAt).min() else { return firstPage }
+        let fresh = Set(firstPage.map(\.id))
+        let keep = comments.filter { c in
+            guard c.isAnswer != true, !fresh.contains(c.id), let at = c.createdAt else { return false }
+            return at <= oldest
+        }
+        return answers + keep + latest
+    }
+
+    /// Gelöschten Kommentar bzw. gelöschte Antwort sofort entfernen, dann die erste Seite neu laden.
+    private func removed(_ commentId: String) {
+        withAnimation(.snappy) {
+            comments.removeAll { $0.id == commentId }
+            for i in comments.indices { comments[i].replies?.removeAll { $0.id == commentId } }
+        }
+        Task { await load() }
     }
 
     private func send() async {
         let body = text.trimmed
         guard !body.isEmpty else { return }
+        let parentId = replyTo?.id
         do {
-            _ = try await APIClient.shared.post("/comments", ["type": JSONValue.string(type), "id": .string(id), "body": .string(body), "parentId": .from(replyTo?.id)]) as JSONValue
+            let r: JSONValue = try await APIClient.shared.post("/comments", ["type": JSONValue.string(type), "id": .string(id), "body": .string(body), "parentId": .from(parentId)])
             text = ""
             replyTo = nil
             focused = false
             Haptics.success()
             await load()
+            // Antwort auf einen nachgeladenen älteren Kommentar: Der steht nicht in der neu geladenen
+            // ersten Seite – die Antwort lokal anhängen, bis die Liste das nächste Mal ganz neu lädt.
+            if let parentId, let newId = r["id"]?.string, let me = app.me, let p = me.profile,
+               let i = comments.firstIndex(where: { $0.id == parentId }),
+               comments[i].replies?.contains(where: { $0.id == newId }) != true {
+                let reply = CommentItem(id: newId, body: body, createdAt: Date(), editedAt: nil, likeCount: 0, liked: false, isQuestion: false, isAnswer: false,
+                                        author: UserMini(id: me.id, handle: p.handle, displayName: p.displayName, avatarUrl: p.avatarUrl), replies: nil)
+                withAnimation(.snappy) { comments[i].replies = (comments[i].replies ?? []) + [reply] }
+            }
         } catch { app.show(error: error) }
     }
 }

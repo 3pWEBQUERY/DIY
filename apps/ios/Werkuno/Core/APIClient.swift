@@ -412,7 +412,27 @@ final class APIClient: @unchecked Sendable {
     struct UploadResult: Decodable { let state: String; let variants: MediaVariants?; let width: Int?; let height: Int? }
 
     func upload(data: Data, mime: String, purpose: String = "public") async throws -> (id: String, result: UploadResult) {
-        let ticket: UploadTicket = try await send("POST", "/media", body: ["mime": JSONValue.string(mime), "bytes": .number(Double(data.count)), "purpose": .string(purpose)], root: "/api/v1")
+        try await upload(mime: mime, bytes: data.count, purpose: purpose, durationSec: nil) { [session] req in
+            try await session.upload(for: req, from: data)
+        }
+    }
+
+    /// Upload direkt aus einer Datei (Videos): Die Datei wird gestreamt statt ganz in den Arbeitsspeicher
+    /// geladen. `durationSec` (Länge in Sekunden) prüft der Server schon beim Anfordern gegen die
+    /// Videogrenze (Standard bzw. Creator Pro) – ein zu langes Video wird abgelehnt, bevor ein Byte fliesst.
+    func upload(file: URL, mime: String, purpose: String = "public", durationSec: Double? = nil) async throws -> (id: String, result: UploadResult) {
+        let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+        guard size > 0 else { throw APIError(code: "UPLOAD", message: "Die Datei konnte nicht gelesen werden.", fields: nil, status: 0) }
+        return try await upload(mime: mime, bytes: size, purpose: purpose, durationSec: durationSec) { [session] req in
+            try await session.upload(for: req, fromFile: file)
+        }
+    }
+
+    /// Anfordern (`POST /api/v1/media`) → hochladen (vorab signierte URL, sonst Server-Fallback) → abschliessen.
+    private func upload(mime: String, bytes: Int, purpose: String, durationSec: Double?, transfer: (URLRequest) async throws -> (Data, URLResponse)) async throws -> (id: String, result: UploadResult) {
+        var body: [String: JSONValue] = ["mime": .string(mime), "bytes": .number(Double(bytes)), "purpose": .string(purpose)]
+        if let durationSec, durationSec.isFinite, durationSec > 0 { body["durationSec"] = .number(durationSec) }
+        let ticket: UploadTicket = try await send("POST", "/media", body: body, root: "/api/v1")
         guard let target = AppConfig.resolve(ticket.uploadUrl) else { throw APIError.offline }
         var put = URLRequest(url: target)
         put.httpMethod = "PUT"
@@ -420,14 +440,22 @@ final class APIClient: @unchecked Sendable {
         // Presigned-URLs (S3) ohne Authorization senden; eigener Server erhält das Token
         let sameHost = AppConfig.isOwnHost(target.host)
         if sameHost, let token { put.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        // Nach dem letzten Byte kann die Antwort bei grossen Videos länger als die üblichen 30 s dauern
+        put.timeoutInterval = 300
         var ok = false
-        if let (_, r) = try? await session.upload(for: put, from: data), let code = (r as? HTTPURLResponse)?.statusCode, code < 300 { ok = true }
+        if let (_, r) = try? await transfer(put), let code = (r as? HTTPURLResponse)?.statusCode, code < 300 { ok = true }
+        try Task.checkCancellation()
         if !ok, let fb = AppConfig.resolve(ticket.fallbackUrl) {
             var req = URLRequest(url: fb)
             req.httpMethod = "PUT"
             req.setValue(mime, forHTTPHeaderField: "Content-Type")
+            req.timeoutInterval = 300
             if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-            let (_, r) = try await session.upload(for: req, from: data)
+            let r: URLResponse
+            do { (_, r) = try await transfer(req) } catch {
+                if (error as? URLError)?.code == .cancelled { throw CancellationError() }
+                throw APIError(code: "UPLOAD", message: "Der Upload ist fehlgeschlagen. Bitte versuche es erneut.", fields: nil, status: 0)
+            }
             guard let code = (r as? HTTPURLResponse)?.statusCode, code < 300 else {
                 throw APIError(code: "UPLOAD", message: "Der Upload ist fehlgeschlagen. Bitte versuche es erneut.", fields: nil, status: 0)
             }
