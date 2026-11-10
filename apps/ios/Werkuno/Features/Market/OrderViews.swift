@@ -69,12 +69,12 @@ struct MarketOrderRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(seller ? (order.buyer?.profile?.displayName ?? "Käufer:in") : (order.shop?.name ?? "Shop"))
-                            .font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            .font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                         Spacer(minLength: 6)
                         Text(Fmt.money(order.totalMinor, currency: order.currency)).font(.wr(.subheadline, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                     }
                     Text((order.items ?? []).map { "\($0.quantity) × \($0.title)\($0.variantName.map { " (\($0))" } ?? "")" }.joined(separator: ", "))
-                        .font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                        .font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2).multilineTextAlignment(.leading)
                     HStack(spacing: 8) {
                         MarketStatusPill.order(order.status)
                         SpecLabel("\(order.number) · \(Fmt.date(order.createdAt))")
@@ -305,7 +305,7 @@ struct OrderDetailView: View {
                     MarketStars(rating: Double(r.productRating), size: 10)
                     Text("Deine Bewertung").font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(3) }
+                if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(3) }
                 if let reply = r.sellerReply?.nilIfEmpty { Text("Antwort des Shops: \(reply)").font(.wr(.caption)).foregroundStyle(Color.muted) }
             } else if o.canReview {
                 Button { reviewItem = i } label: { Label("Bewerten", systemImage: "star") }

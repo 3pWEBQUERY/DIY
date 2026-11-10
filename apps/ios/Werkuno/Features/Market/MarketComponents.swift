@@ -343,12 +343,12 @@ struct MarketShopCardView: View {
                 HStack(spacing: 8) {
                     AvatarView(url: shop.owner?.avatarUrl, name: shop.owner?.displayName ?? shop.name, size: 26)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(shop.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text(shop.owner?.displayName ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(shop.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                        Text(shop.owner?.displayName ?? "").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
                 if let t = shop.tagline?.nilIfEmpty {
-                    Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2).multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer(minLength: 0)

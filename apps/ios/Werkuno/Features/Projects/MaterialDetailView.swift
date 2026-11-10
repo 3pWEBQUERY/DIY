@@ -181,7 +181,7 @@ struct MaterialDetailView: View {
                     Text(detail.isEmpty ? "–" : detail)
                         .font(.wr(.footnote))
                         .foregroundStyle(Color.muted)
-                        .lineLimit(2)
+                        .a11yLineLimit(2)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {

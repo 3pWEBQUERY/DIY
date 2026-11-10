@@ -87,7 +87,7 @@ struct StudioProductsView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 8) {
                             MarketStatusPill.product(p.status)
                             Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink2)

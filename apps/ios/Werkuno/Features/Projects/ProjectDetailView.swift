@@ -210,7 +210,7 @@ struct ProjectDetailView: View {
                             SpecLabel("Gebaut von")
                             Text(p.owner.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                             if let c = p.contributors, !c.isEmpty {
-                                Text("mit " + c.map(\.displayName).joined(separator: ", ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                Text("mit " + c.map(\.displayName).joined(separator: ", ")).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                             }
                         }
                     }
@@ -537,7 +537,7 @@ struct ProjectDetailView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ProjectCardView(project: r.card, style: .tile)
                                 if let d = r.deviations?.nilIfEmpty {
-                                    Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3)
+                                    Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(3)
                                 }
                             }
                             .frame(width: 168)

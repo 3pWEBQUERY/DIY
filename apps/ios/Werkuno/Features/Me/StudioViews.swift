@@ -51,7 +51,7 @@ struct StudioView: View {
                     SectionHeader("Reichweite & Resonanz", number: "01") {
                         Button("Je Inhalt") { router.open(.studioSection(.stats)) }.font(.wr(.subheadline))
                     }
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                         MeKPI(label: "Profilaufrufe", value: Fmt.number(o.profileViews.cur), cur: o.profileViews.cur, prev: o.profileViews.prev, symbol: "person.crop.circle")
                         MeKPI(label: "Projektaufrufe", value: Fmt.number(o.projectViews.cur), cur: o.projectViews.cur, prev: o.projectViews.prev, symbol: "hammer")
                         MeKPI(label: "Anleitungsaufrufe", value: Fmt.number(o.tutorialViews.cur), cur: o.tutorialViews.cur, prev: o.tutorialViews.prev, symbol: "list.number")
@@ -198,7 +198,7 @@ struct StudioView: View {
                 .cardSurface(radius: Radius.inner + 4)
                 .accessibilityLabel("Umsatz pro Woche")
             }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                 MeKPI(label: "Bestellungen", value: Fmt.number(r.orders), caption: "bezahlt")
                 MeKPI(label: "Provision", value: Fmt.money(r.fees, currency: r.currency), caption: "auf Warenwert")
             }
@@ -275,11 +275,11 @@ struct StudioContentView: View {
                         .frame(width: 34, height: 34)
                         .background(Color.mossSoft, in: .rect(cornerRadius: 10, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(r.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(r.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             MeStatePill(text: r.stateLabel ?? r.state, tone: r.state == "published" ? .moss : r.state == "draft" ? .warn : .neutral)
                             Text([t.label, r.meta, Fmt.relative(r.updatedAt)].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                                .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                         }
                     }
                     Spacer(minLength: 0)
@@ -361,7 +361,7 @@ struct StudioProjectsView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(p.title).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             StatusBadge(status: p.status)
                             if let v = p.visibility { MeStatePill(text: L.visibility(v), tone: v == "PUBLIC" ? .moss : .neutral) }
@@ -464,7 +464,7 @@ struct StudioTutorialsView: View {
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(t.title).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(t.title).font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             MeStatePill(text: MeLabels.tutorialState(t.state), tone: t.state == "PUBLISHED" ? .moss : t.state == "HIDDEN" ? .danger : .warn)
                             if let v = t.currentVersion?.version { MeStatePill(text: "Version \(v)", tone: .slate) }
@@ -571,8 +571,8 @@ struct StudioArticlesView: View {
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {
                         SpecLabel([a.category?.name, a.readingMinutes.map { "\($0) Min." }].compactMap { $0 }.joined(separator: " · "), color: .clay)
-                        Text(a.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                        if let d = a.dek?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                        Text(a.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
+                        if let d = a.dek?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2).multilineTextAlignment(.leading) }
                     }
                     Spacer(minLength: 0)
                 }
@@ -844,7 +844,7 @@ struct StudioStatsView: View {
                     ForEach(rows) { r in
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(alignment: .firstTextBaseline) {
-                                Text(r.label).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2)
+                                Text(r.label).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2)
                                 Spacer(minLength: 8)
                                 if let p = r.publishedAt { Text(Fmt.date(p)).font(.wr(.caption)).foregroundStyle(Color.muted) }
                             }

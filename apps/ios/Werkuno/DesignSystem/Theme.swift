@@ -23,7 +23,7 @@ extension Color {
     static let ink = Color.dynamic(light: 0x262427, dark: 0xEEEAE6)
     static let ink2 = Color.dynamic(light: 0x3D393C, dark: 0xD6D0CB)
     /// Sekundärtext – web --color-muted
-    static let muted = Color.dynamic(light: 0x77706D, dark: 0xA39B96)
+    static let muted = Color.dynamic(light: 0x66605C, dark: 0xA39B96) // hell abgedunkelt: ≥ 4.5:1 auch auf Glas/Sunken
     /// Primärfarbe (Coral) – web --color-moss
     static let moss = Color.dynamic(light: 0xB64B3A, dark: 0xE47F6B)
     /// Primär, gedrückt/Hover – web --color-moss-ink
@@ -218,5 +218,34 @@ enum CategoryPalette {
         case "kite": "wind"
         default: "sparkles"
         }
+    }
+}
+
+
+// MARK: - Bedienungshilfen: grosse Schrift
+
+/// Zeilenbegrenzung, die bei Bedienungshilfen-Schriftgrössen aufgehoben wird – sonst wird Text abgeschnitten.
+private struct AccessibleLineLimit: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var size
+    let limit: Int
+    func body(content: Content) -> some View {
+        content.lineLimit(size.isAccessibilitySize ? nil : limit)
+    }
+}
+
+extension View {
+    func a11yLineLimit(_ limit: Int) -> some View { modifier(AccessibleLineLimit(limit: limit)) }
+}
+
+/// Zweispaltiges Raster, das bei Bedienungshilfen-Schriftgrössen einspaltig wird.
+struct AdaptiveGrid<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var size
+    var spacing: CGFloat = 12
+    var rowSpacing: CGFloat = 12
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        let count = size.isAccessibilitySize ? 1 : 2
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: count), spacing: rowSpacing, content: content)
     }
 }

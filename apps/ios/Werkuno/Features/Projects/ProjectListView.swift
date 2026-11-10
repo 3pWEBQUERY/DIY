@@ -29,7 +29,6 @@ struct ProjectListView: View {
         _sortKey = State(initialValue: ProjectsSorts.normalize(sort))
     }
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     private var filterKey: String { [cat, sortKey, "\(difficulty)", status, "\(withTutorial)", query.trimmed].joined(separator: "|") }
     private var activeFilterCount: Int { (difficulty > 0 ? 1 : 0) + (status.isEmpty ? 0 : 1) + (withTutorial ? 1 : 0) }
@@ -93,7 +92,7 @@ struct ProjectListView: View {
                 }
             )
         } else {
-            LazyVGrid(columns: columns, spacing: 14) {
+            AdaptiveGrid(spacing: 12, rowSpacing: 14) {
                 ForEach(items) { p in ProjectCardView(project: p, style: .tile) }
             }
             .padding(.horizontal, Space.gutter)

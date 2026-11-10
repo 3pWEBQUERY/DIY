@@ -59,7 +59,7 @@ struct MeSavedEntryCard: View {
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
                         SpecLabel("Produkt\(p.shopName.map { " · \($0)" } ?? "")", color: .clay)
-                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
                             if p.soldOut == true { MeStatePill(text: "Ausverkauft", tone: .neutral) }
@@ -80,7 +80,7 @@ struct MeSavedEntryCard: View {
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
                         SpecLabel(["Artikel", a.readingMinutes.map { "\($0) Min." }].compactMap { $0 }.joined(separator: " · "), color: .clay)
-                        Text(a.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(a.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         if let n = a.authorName?.nilIfEmpty { Text(n).font(.wr(.caption)).foregroundStyle(Color.muted) }
                     }
                     Spacer(minLength: 0)
@@ -218,7 +218,7 @@ struct SavedView: View {
                             .padding(6).background(Color.card.opacity(0.9), in: Circle()).padding(6)
                             .accessibilityLabel(L.visibility(c.visibility))
                     }
-                Text(c.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(c.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                 Text(Fmt.plural(c.count ?? 0, "Eintrag", "Einträge")).font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .frame(width: 150, alignment: .leading)
@@ -267,7 +267,7 @@ struct SavedView: View {
         let m = meta[e.id]
         return HStack(spacing: 8) {
             Label(collectionName(m?.collectionId) ?? "Ohne Sammlung", systemImage: m?.collectionId == nil ? "tray" : "folder")
-                .font(.wr(.caption)).foregroundStyle(Color.muted).labelStyle(.compact).lineLimit(1)
+                .font(.wr(.caption)).foregroundStyle(Color.muted).labelStyle(.compact).a11yLineLimit(1)
             if let d = m?.savedAt { Text("· \(Fmt.relative(d))").font(.wr(.caption)).foregroundStyle(Color.muted) }
             Spacer()
             Menu {

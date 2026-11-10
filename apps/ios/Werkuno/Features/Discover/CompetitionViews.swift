@@ -98,12 +98,12 @@ struct CompetitionCardView: View {
                 Text(c.title).font(.titleSerif).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 if let d = c.description?.nilIfEmpty {
-                    Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(2).multilineTextAlignment(.leading)
                 }
                 HStack(spacing: 14) {
                     Label(Fmt.plural(c.entryCount ?? 0, "Einreichung", "Einreichungen"), systemImage: "square.stack")
                     Label(c.judging == "JURY" ? "Jury" : "Abstimmung", systemImage: c.judging == "JURY" ? "person.3" : "hand.raised")
-                    if let p = c.prize?.nilIfEmpty { Label(p, systemImage: "gift").lineLimit(1) }
+                    if let p = c.prize?.nilIfEmpty { Label(p, systemImage: "gift").a11yLineLimit(1) }
                 }
                 .font(.wr(.caption)).foregroundStyle(Color.ink2).labelStyle(.compact)
                 if showCommunity {
@@ -175,7 +175,7 @@ struct CompetitionBanner: View {
                     SpecLabel(CompetitionFmt.bannerStatus(phase: phase, startsAt: ch.startsAt, endsAt: ch.endsAt, votingEndsAt: ch.votingEndsAt), color: .clayInk)
                     Text(ch.title).font(.wr(.headline)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                     if let d = ch.description?.nilIfEmpty {
-                        Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(d).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(2).multilineTextAlignment(.leading)
                     }
                     Text(CompetitionFmt.cta(phase))
                         .font(.wr(.subheadline, .semibold))
@@ -474,7 +474,7 @@ struct CompetitionDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 ProjectCardView(project: project, style: .wide)
                 if let n = e.note?.nilIfEmpty {
-                    Text("„\(n)“").font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(3)
+                    Text("„\(n)“").font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(3)
                 }
                 FlowLayout(spacing: 8) {
                     if let p = e.place { CompetitionPlaceBadge(place: p) }
@@ -650,7 +650,7 @@ struct CompetitionEntrySheet: View {
         VStack(alignment: .leading, spacing: 8) {
             SpecLabel("Projekt")
             if let e = fields["projectId"] { Text(e).font(.wr(.caption, .semibold)).foregroundStyle(Color.danger) }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+            AdaptiveGrid(spacing: 12, rowSpacing: 14) {
                 ForEach(options) { p in
                     let on = p.id == projectId
                     Button {
@@ -668,7 +668,7 @@ struct CompetitionEntrySheet: View {
                                             .frame(width: 24, height: 24).background(Color.moss, in: Circle()).padding(8)
                                     }
                                 }
-                            Text(p.title).font(.wr(.footnote, .medium)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                            Text(p.title).font(.wr(.footnote, .medium)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         }
                         .contentShape(.rect)
                     }

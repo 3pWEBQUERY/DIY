@@ -7,6 +7,7 @@ struct ProductDetailView: View {
 
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var page: MarketProductPage?
     @State private var error: String?
@@ -320,7 +321,7 @@ struct ProductDetailView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.name).font(.wr(.headline)).foregroundStyle(Color.ink)
                             Text([s.owner?.displayName, s.owner?.profile?.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted)
-                            if let t = s.tagline?.nilIfEmpty { Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2) }
+                            if let t = s.tagline?.nilIfEmpty { Text(t).font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2) }
                         }
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.muted)
@@ -413,18 +414,35 @@ struct ProductDetailView: View {
 
     @ViewBuilder private func buyBar(_ p: MarketProductPage) -> some View {
         let price = unitPrice(p) * (p.isDigital ? 1 : quantity)
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(p.isDigital && !(p.isOwner ?? false) ? (storePrice ?? Fmt.money(price, currency: p.currency)) : Fmt.money(price, currency: p.currency))
-                    .font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
-                Text(barSubtitle(p)).font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(2)
-            }
-            .layoutPriority(1)
-            Spacer(minLength: 4)
-            barAction(p)
+        let priceBlock = VStack(alignment: .leading, spacing: 1) {
+            Text(p.isDigital && !(p.isOwner ?? false) ? (storePrice ?? Fmt.money(price, currency: p.currency)) : Fmt.money(price, currency: p.currency))
+                .font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+            Text(barSubtitle(p)).font(.wr(.caption2)).foregroundStyle(Color.muted)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
         }
-        .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 8)
-        .glassEffect(.regular, in: Capsule())
+        Group {
+            if typeSize.isAccessibilitySize {
+                // Sehr grosse Schrift: Preis oben, Knopf darunter in voller Breite – sonst bricht
+                // der Knopftext Buchstabe für Buchstabe um und die Leiste verdeckt die Seite
+                VStack(alignment: .leading, spacing: 10) {
+                    priceBlock
+                    barAction(p).frame(maxWidth: .infinity)
+                }
+                .padding(14)
+                .glassEffect(.regular, in: .rect(cornerRadius: 26, style: .continuous))
+            } else {
+                HStack(spacing: 12) {
+                    priceBlock.layoutPriority(1)
+                    Spacer(minLength: 4)
+                    barAction(p)
+                }
+                .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 8)
+                .glassEffect(.regular, in: Capsule())
+            }
+        }
+        // Die schwebende Leiste wächst nur bis zur ersten Bedienungshilfen-Stufe, damit die Seite sichtbar bleibt
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .padding(.horizontal, 14)
         .padding(.bottom, 6)
         .animation(.snappy, value: justAdded)

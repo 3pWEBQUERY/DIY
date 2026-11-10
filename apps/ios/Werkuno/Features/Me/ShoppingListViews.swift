@@ -88,7 +88,7 @@ struct ShoppingListsView: View {
                 HStack(spacing: 6) {
                     if let s = l.sources, !s.isEmpty {
                         Image(systemName: "point.3.connected.trianglepath.dotted").font(.wr(.caption2))
-                        Text(s.joined(separator: " · ")).lineLimit(1)
+                        Text(s.joined(separator: " · ")).a11yLineLimit(1)
                     } else {
                         Text(Fmt.plural(total, "Position", "Positionen"))
                     }
@@ -286,7 +286,7 @@ struct ShoppingListView: View {
                     .strikethrough(it.isDone, color: Color.muted)
                     .foregroundStyle(it.isDone ? Color.muted : Color.ink)
                 let sub = [it.haveIt ? "Habe ich schon" : nil, it.category, it.sourceTitle].compactMap { $0?.nilIfEmpty }
-                if !sub.isEmpty { Text(sub.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1) }
+                if !sub.isEmpty { Text(sub.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1) }
             }
             Spacer(minLength: 8)
             if it.purchased {

@@ -183,7 +183,7 @@ struct StudioProView: View {
             if projects.isEmpty {
                 Text("Veröffentliche ein öffentliches Projekt, um es hier hervorzuheben.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
             } else {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+                AdaptiveGrid(spacing: 12, rowSpacing: 14) {
                     ForEach(projects) { p in showcaseTile(p, max: max) }
                 }
                 HStack(spacing: 12) {
@@ -220,7 +220,7 @@ struct StudioProView: View {
                             .background(on ? Color.moss : Color.card.opacity(0.85), in: Circle())
                             .padding(8)
                     }
-                Text(p.title).font(.wr(.footnote, .medium)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(p.title).font(.wr(.footnote, .medium)).foregroundStyle(Color.ink).a11yLineLimit(1)
             }
             .opacity(blocked ? 0.45 : 1)
             .contentShape(.rect)

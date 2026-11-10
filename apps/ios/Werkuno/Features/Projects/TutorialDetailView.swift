@@ -180,7 +180,7 @@ struct TutorialDetailView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         SpecLabel("Version \(v.number)", color: .moss)
                         Text([v.changeNote?.nilIfEmpty, Fmt.date(v.publishedAt)].compactMap { $0 }.joined(separator: " · "))
-                            .font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading)
+                            .font(.wr(.footnote)).foregroundStyle(Color.muted).a11yLineLimit(2).multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                         if (t.versions?.count ?? 0) > 1 {
                             Image(systemName: "chevron.down").font(.wr(.caption2, .bold)).foregroundStyle(Color.muted).rotationEffect(.degrees(showVersions ? 180 : 0))

@@ -151,10 +151,10 @@ struct CommunityEventRow: View {
                     Text(EventFmt.cardLine(e.startsAt, e.endsAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                     HStack(spacing: 12) {
                         Label(e.isOnline ? "Online" : (e.locationName?.nilIfEmpty ?? "Vor Ort"), systemImage: e.isOnline ? "video" : "mappin")
-                            .lineLimit(1)
+                            .a11yLineLimit(1)
                         Label("\(e.goingCount)\(e.capacity.map { " / \($0)" } ?? "") dabei", systemImage: "person.2")
                             .monospacedDigit()
-                        if showCommunity { Text(e.community.name).foregroundStyle(Color.muted).lineLimit(1) }
+                        if showCommunity { Text(e.community.name).foregroundStyle(Color.muted).a11yLineLimit(1) }
                     }
                     .font(.wr(.caption))
                     .foregroundStyle(Color.ink2)
@@ -353,7 +353,7 @@ struct EventDetailView: View {
                     Text("in").foregroundStyle(Color.muted)
                     Button(e.community.name) { router.open(.community(slug: e.community.slug)) }
                         .fontWeight(.semibold).foregroundStyle(Color.ink)
-                        .lineLimit(1)
+                        .a11yLineLimit(1)
                 }
                 .font(.wr(.footnote))
                 .buttonStyle(.plain)
@@ -371,7 +371,7 @@ struct EventDetailView: View {
                         Text("Online").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         if let u = e.onlineUrl?.nilIfEmpty, let url = URL(string: u) {
                             Link(u.replacingOccurrences(of: "https://", with: ""), destination: url)
-                                .font(.wr(.footnote)).tint(.moss).lineLimit(1)
+                                .font(.wr(.footnote)).tint(.moss).a11yLineLimit(1)
                         } else {
                             Label("Link nach Zusage sichtbar", systemImage: "lock").font(.wr(.footnote)).foregroundStyle(Color.muted).labelStyle(.compact)
                         }
@@ -471,7 +471,7 @@ struct EventDetailView: View {
                         Button { if let h = a.handle?.nilIfEmpty { router.open(.profile(handle: h)) } } label: {
                             HStack(spacing: 8) {
                                 AvatarView(url: a.avatarUrl, name: a.name, size: 28)
-                                Text(a.name).font(.wr(.footnote, .medium)).foregroundStyle(Color.ink).lineLimit(1)
+                                Text(a.name).font(.wr(.footnote, .medium)).foregroundStyle(Color.ink).a11yLineLimit(1)
                             }
                             .padding(.leading, 3).padding(.trailing, 12).padding(.vertical, 3)
                             .background(Color.card, in: Capsule())

@@ -202,11 +202,11 @@ struct SocialProfileReviews: View {
         let font: Font = prominent ? .wr(.subheadline, .semibold) : .wr(.footnote)
         if r.productIsPublic, let shop = r.product?.shop?.slug, let slug = r.product?.slug {
             Button { router.open(.product(shopSlug: shop, productSlug: slug)) } label: {
-                Text(title).font(font).foregroundStyle(prominent ? Color.ink : Color.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                Text(title).font(font).foregroundStyle(prominent ? Color.ink : Color.ink2).a11yLineLimit(2).multilineTextAlignment(.leading)
             }
             .buttonStyle(.plain)
         } else {
-            Text(title).font(font).foregroundStyle(prominent ? Color.ink : Color.muted).lineLimit(2)
+            Text(title).font(font).foregroundStyle(prominent ? Color.ink : Color.muted).a11yLineLimit(2)
         }
     }
 
@@ -250,9 +250,9 @@ struct SocialAwardsList: View {
                                 .background(color(a.place), in: Circle())
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("\(a.place). Platz · \(a.title)").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                                Text("\(a.place). Platz · \(a.title)").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                                 Text([a.community, a.date.map { $0.formatted(.dateTime.month(.abbreviated).year().locale(Fmt.locale)) }].compactMap { $0 }.joined(separator: " · "))
-                                    .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                    .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)

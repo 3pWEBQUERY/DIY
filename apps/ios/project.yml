@@ -41,11 +41,33 @@ targets:
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
         SWIFT_STRICT_CONCURRENCY: minimal
+  # Bedienungshilfen-Prüfung (Apple Accessibility Audit) über die wichtigsten Bildschirme
+  WerkunoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: WerkunoUITests
+    dependencies:
+      - target: Werkuno
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.werkuno.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_IDENTITY: "-"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_TARGET_NAME: Werkuno
 schemes:
   Werkuno:
     build:
       targets:
         Werkuno: all
+        WerkunoUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - WerkunoUITests
     run:
       config: Debug
       # Lokaler Test der In-App-Käufe (digitale Produkte) ohne App Store Connect

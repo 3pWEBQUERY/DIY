@@ -182,7 +182,7 @@ private struct ConversationRow: View {
                         Text(title)
                             .font(.wr(.subheadline).weight(unread ? .bold : .semibold))
                             .foregroundStyle(Color.ink)
-                            .lineLimit(1)
+                            .a11yLineLimit(1)
                         Spacer(minLength: 4)
                         Text(Fmt.relative(item.lastMessageAt))
                             .font(.wr(.caption))
@@ -203,7 +203,7 @@ private struct ConversationRow: View {
                         Text(previewText)
                             .font(.wr(.subheadline))
                             .foregroundStyle(unread ? Color.ink : Color.muted)
-                            .lineLimit(2)
+                            .a11yLineLimit(2)
                             .multilineTextAlignment(.leading)
                     }
                 }

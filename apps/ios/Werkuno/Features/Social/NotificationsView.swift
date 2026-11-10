@@ -250,7 +250,7 @@ private struct NotificationRow: View {
                         Text(ex)
                             .font(.wr(.subheadline))
                             .foregroundStyle(Color.muted)
-                            .lineLimit(2)
+                            .a11yLineLimit(2)
                             .multilineTextAlignment(.leading)
                             .padding(.leading, 10)
                             .overlay(alignment: .leading) { Rectangle().fill(Color.lineStrong).frame(width: 1) }

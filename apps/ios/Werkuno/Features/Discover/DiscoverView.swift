@@ -295,7 +295,7 @@ private struct DiscoverPageContent: View {
                     .font(.wr(.title3)).foregroundStyle(Color.moss)
                     .frame(height: 28, alignment: .leading) // Symbole unterschiedlich hoch → feste Zeile
                 Spacer(minLength: 10)
-                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
             }
             .padding(14)
             .frame(minWidth: 116, alignment: .leading)

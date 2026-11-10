@@ -306,7 +306,7 @@ struct StudioRevenueView: View {
                             Text("· Brutto \(Fmt.money(row.totalMinor, currency: row.currency ?? cur)) · Gebühr \(Fmt.money(row.fee, currency: row.currency ?? cur))\(row.refunded > 0 ? " · Erstattet \(Fmt.money(row.refunded, currency: row.currency ?? cur))" : "")")
                                 .foregroundStyle(Color.muted)
                         }
-                        .font(.wr(.caption)).monospacedDigit().lineLimit(2)
+                        .font(.wr(.caption)).monospacedDigit().a11yLineLimit(2)
                         MarketStatusPill.order(row.status)
                     }
                     .padding(.vertical, 10)

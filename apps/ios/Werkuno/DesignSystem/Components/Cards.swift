@@ -29,7 +29,7 @@ struct ProjectCardView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     HStack(spacing: 6) {
                         AvatarView(url: project.owner.avatarUrl, name: project.owner.displayName, size: 18)
-                        Text(project.owner.displayName).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(project.owner.displayName).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                     HStack(spacing: 10) {
                         if let d = project.difficulty { DifficultyMeter(level: d, showLabel: false) }
@@ -58,7 +58,7 @@ struct ProjectCardView: View {
                     }
                 VStack(alignment: .leading, spacing: 8) {
                     SpecLabel(categoryLine)
-                    Text(project.title).font(.titleSerif).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(project.title).font(.titleSerif).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                     HStack(spacing: 8) {
                         AvatarView(url: project.owner.avatarUrl, name: project.owner.displayName, size: 22)
                         Text(project.owner.displayName).font(.wr(.footnote)).foregroundStyle(Color.ink2)
@@ -78,8 +78,8 @@ struct ProjectCardView: View {
                     .frame(width: 64, height: 64)
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(project.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    Text("\(L.projectStatus(project.status)) · \(project.owner.displayName)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                    Text(project.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
+                    Text("\(L.projectStatus(project.status)) · \(project.owner.displayName)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     if let d = project.difficulty { DifficultyMeter(level: d, showLabel: false) }
                 }
                 Spacer(minLength: 0)
@@ -128,8 +128,8 @@ struct TutorialCardView: View {
                     }
                 VStack(alignment: .leading, spacing: 6) {
                     SpecLabel("Anleitung · \(app.categoryShort(tutorial.category))", color: .moss)
-                    Text(tutorial.title).font(compact ? .wr(.subheadline, .semibold) : .wr(.headline)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    if !compact, let s = tutorial.summary?.nilIfEmpty { Text(s).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                    Text(tutorial.title).font(compact ? .wr(.subheadline, .semibold) : .wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
+                    if !compact, let s = tutorial.summary?.nilIfEmpty { Text(s).font(.wr(.footnote)).foregroundStyle(Color.muted).a11yLineLimit(2).multilineTextAlignment(.leading) }
                     HStack(spacing: 10) {
                         if let d = tutorial.difficulty { DifficultyMeter(level: d, showLabel: false) }
                         Label(Fmt.minutes(tutorial.minutes), systemImage: "clock").font(.wr(.caption2)).foregroundStyle(Color.muted).labelStyle(.compact)
@@ -164,8 +164,8 @@ struct ProductCardView: View {
                         else if product.kind == "UNIQUE" { Pill(text: "Einzelstück", tint: .clay, filled: true).padding(8) }
                     }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(product.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
-                    if let shop = product.shop?.name { Text(shop).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1) }
+                    Text(product.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
+                    if let shop = product.shop?.name { Text(shop).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1) }
                     HStack {
                         Text(Fmt.money(product.priceMinor, currency: product.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
                         Spacer()
@@ -199,11 +199,11 @@ struct CommunityCardView: View {
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(community.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                        Text(community.name).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                         if community.visibility == "PRIVATE" { Image(systemName: "lock.fill").font(.wr(.caption2)).foregroundStyle(Color.muted) }
                         if community.visibility == "REQUEST" { Image(systemName: "person.badge.clock").font(.wr(.caption2)).foregroundStyle(Color.muted) }
                     }
-                    Text([app.categoryShort(community.category), community.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                    Text([app.categoryShort(community.category), community.region].compactMap { $0?.nilIfEmpty }.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     Text(Fmt.plural(community.memberCount ?? 0, "Mitglied", "Mitglieder")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                 }
                 Spacer(minLength: 0)
@@ -234,7 +234,7 @@ struct ArticleCardView: View {
                     .frame(height: large ? 200 : 130)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 SpecLabel([article.category?.name, article.readingMinutes.map { "\($0) Min. Lesezeit" }].compactMap { $0 }.joined(separator: " · "), color: .clay)
-                Text(article.title).font(large ? .display(24) : .titleSerif).foregroundStyle(Color.ink).lineLimit(3).multilineTextAlignment(.leading)
+                Text(article.title).font(large ? .display(24) : .titleSerif).foregroundStyle(Color.ink).a11yLineLimit(3).multilineTextAlignment(.leading)
                 if let dek = article.dek?.nilIfEmpty { Text(dek).font(.wr(.subheadline)).foregroundStyle(Color.muted).lineLimit(large ? 3 : 2).multilineTextAlignment(.leading) }
                 if let a = article.author {
                     HStack(spacing: 8) {
@@ -266,7 +266,7 @@ struct CreatorRowView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(creator.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         Text((creator.categories ?? []).prefix(2).map { app.categoryShort($0) }.joined(separator: " · ") + " · \(Fmt.plural(creator.projectCount ?? 0, "Projekt", "Projekte"))")
-                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
             }

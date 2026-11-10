@@ -153,7 +153,7 @@ struct SocialPostEditor: View {
             Image(systemName: symbol).font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 20)
             Text(label).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
             Spacer(minLength: 8)
-            if let value { Text(value).font(.wr(.subheadline)).foregroundStyle(Color.ink).lineLimit(1) }
+            if let value { Text(value).font(.wr(.subheadline)).foregroundStyle(Color.ink).a11yLineLimit(1) }
             Image(systemName: chevron ? "chevron.right" : "plus").font(.wr(.caption, .semibold)).foregroundStyle(Color.muted)
         }
         .frame(minHeight: 44)

@@ -133,7 +133,7 @@ struct MeAdminContentList: View {
         HStack(alignment: .top, spacing: 10) {
             Button { open(r) } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(r.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(r.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
                         MeStatePill(text: MeContentStateLabels.label(r.state), tone: MeContentStateLabels.tone(r.state))
                         if r.isFeatured == true { MeStatePill(text: "Hervorgehoben", tone: .clay) }
@@ -141,7 +141,7 @@ struct MeAdminContentList: View {
                     }
                     Text([r.handle.map { "@\($0)" }, r.category.map { app.categoryShort($0) }, r.isPaid == true ? "kostenpflichtig" : nil, r.updatedAt.map { Fmt.date($0) }]
                         .compactMap { $0 }.joined(separator: " · "))
-                        .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(.rect)

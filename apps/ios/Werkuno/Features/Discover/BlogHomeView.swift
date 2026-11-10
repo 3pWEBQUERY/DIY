@@ -223,7 +223,7 @@ struct BlogHomeView: View {
                     .frame(maxWidth: .infinity)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 if let c = a.category?.name { SpecLabel(c, color: .clay) }
-                Text(a.title).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(4).multilineTextAlignment(.leading)
+                Text(a.title).font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(4).multilineTextAlignment(.leading)
                 if let au = a.author { Text(au.displayName).font(.wr(.caption)).foregroundStyle(Color.muted) }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -237,7 +237,7 @@ struct BlogHomeView: View {
             VStack(alignment: .leading, spacing: 8) {
                 AvatarView(url: a.avatarUrl, name: a.displayName, size: 48)
                 Text(a.displayName).font(.wr(.headline)).foregroundStyle(Color.ink)
-                if let b = a.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3).multilineTextAlignment(.leading) }
+                if let b = a.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(3).multilineTextAlignment(.leading) }
                 Spacer(minLength: 0)
                 SpecLabel(Fmt.plural(a.articles ?? 0, "Artikel", "Artikel"), color: .moss)
             }

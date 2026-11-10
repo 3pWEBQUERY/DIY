@@ -197,7 +197,7 @@ struct CommunityManageView: View {
                 ForEach(m.requests) { r in
                     VStack(alignment: .leading, spacing: 8) {
                         CommunityMemberLine(member: r)
-                        if let b = r.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
+                        if let b = r.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2) }
                         HStack {
                             AsyncButton { await decide(r, approve: true) } label: { Text("Annehmen").frame(maxWidth: .infinity) }
                                 .buttonStyle(.glassProminent).tint(.moss)
@@ -275,7 +275,7 @@ struct CommunityManageView: View {
                             Text(post.author.displayName).font(.wr(.subheadline, .semibold))
                             Text(Fmt.relative(post.publishedAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
-                        Text(post.body.nilIfEmpty ?? "Medienbeitrag").font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(4)
+                        Text(post.body.nilIfEmpty ?? "Medienbeitrag").font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(4)
                         AsyncButton("Wiederherstellen") { await restore(post) }.buttonStyle(.glass)
                     }
                 }
@@ -292,7 +292,7 @@ struct CommunityManageView: View {
                             }
                             Text("\(Fmt.date(c.startsAt)) – \(Fmt.date(c.endsAt)) · \(c.judging == "JURY" ? "Jury" : "Abstimmung") · \(Fmt.plural(c.entryCount ?? 0, "Einreichung", "Einreichungen"))")
                                 .font(.wr(.caption)).foregroundStyle(Color.muted)
-                            if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
+                            if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(2) }
                         }
                         .contentShape(.rect)
                     }
@@ -316,7 +316,7 @@ struct CommunityManageView: View {
                             Spacer()
                             Text(Fmt.relative(e.at)).font(.wr(.caption)).foregroundStyle(Color.muted)
                         }
-                        if let t = e.target?.nilIfEmpty { Text(t).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
+                        if let t = e.target?.nilIfEmpty { Text(t).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(2) }
                         HStack(spacing: 4) {
                             if let mod = e.moderator?.displayName { Text("von \(mod)") }
                             if let r = e.reason?.nilIfEmpty { Text("· „\(r)“") }

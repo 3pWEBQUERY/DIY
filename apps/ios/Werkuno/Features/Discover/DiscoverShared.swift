@@ -114,7 +114,7 @@ struct DiscoverCategoryTile: View {
             Text(category.name)
                 .font(.wr(.subheadline, .semibold))
                 .foregroundStyle(Color.ink)
-                .lineLimit(2)
+                .a11yLineLimit(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             SpecLabel(Fmt.plural(category.projectCount ?? 0, "Projekt", "Projekte"), color: color)
@@ -190,9 +190,9 @@ struct BlogMagazineRow: View {
                         .font(.wr(.headline))
                         .foregroundStyle(Color.ink)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(3)
+                        .a11yLineLimit(3)
                     if let dek = article.dek?.nilIfEmpty {
-                        Text(dek).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(dek).font(.wr(.footnote)).foregroundStyle(Color.muted).a11yLineLimit(2).multilineTextAlignment(.leading)
                     }
                     HStack(spacing: 6) {
                         if showAuthor, let a = article.author { Text(a.displayName).foregroundStyle(Color.ink2) }

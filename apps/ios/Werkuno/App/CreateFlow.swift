@@ -35,7 +35,7 @@ struct WorkbenchAccessory: View {
                         Circle().fill(CategoryPalette.color(for: p.category)).frame(width: 7, height: 7)
                         VStack(alignment: .leading, spacing: 0) {
                             if placement != .inline { Text("Auf der Werkbank").font(.wr(size: 9, weight: .semibold)).textCase(.uppercase).foregroundStyle(Color.muted) }
-                            Text(p.title).font(.wr(.footnote, .semibold)).lineLimit(1)
+                            Text(p.title).font(.wr(.footnote, .semibold)).a11yLineLimit(1)
                         }
                     }
                 }
@@ -97,7 +97,7 @@ struct CreateMenuSheet: View {
                     }
                     .padding(.top, 4)
                     GlassEffectContainer(spacing: 12) {
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        AdaptiveGrid(spacing: 12, rowSpacing: 12) {
                             ForEach(items) { item in
                                 Button {
                                     Haptics.tap()
@@ -109,7 +109,7 @@ struct CreateMenuSheet: View {
                                             .frame(width: 44, height: 44)
                                             .background(item.tint.opacity(0.12), in: .rect(cornerRadius: 12, style: .continuous))
                                         Text(item.title).font(.wr(.headline)).foregroundStyle(Color.ink)
-                                        Text(item.subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.leading).lineLimit(2)
+                                        Text(item.subtitle).font(.wr(.caption)).foregroundStyle(Color.muted).multilineTextAlignment(.leading).a11yLineLimit(2)
                                     }
                                     .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
                                     .padding(14)

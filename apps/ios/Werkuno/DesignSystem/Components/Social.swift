@@ -281,14 +281,14 @@ struct PostCardView: View {
                     AvatarView(url: post.author.avatarUrl, name: post.author.displayName, size: 38, category: post.category)
                         .overlay(alignment: .bottomTrailing) { SocialCoauthorBadge(coauthors: post.coauthors ?? []) }
                     VStack(alignment: .leading, spacing: 1) {
-                        SocialAuthors.names(post).lineLimit(2)
+                        SocialAuthors.names(post).a11yLineLimit(2)
                         HStack(spacing: 4) {
                             Text("@\(post.author.handle)")
                             Text("·")
                             Text(Fmt.relative(post.publishedAt))
                             if post.editedAt != nil { Text("· bearbeitet") }
                         }
-                        .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
             }
@@ -335,7 +335,7 @@ struct PostCardView: View {
                     Text(Fmt.relative(r.publishedAt)).font(.wr(.caption))
                 }.foregroundStyle(Color.muted)
             }
-            if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(5) }
+            if let b = r.body?.nilIfEmpty { Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(5) }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -390,7 +390,7 @@ struct LinkedThreadRow: View {
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     SpecLabel(kicker, color: .moss)
-                    Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.muted)

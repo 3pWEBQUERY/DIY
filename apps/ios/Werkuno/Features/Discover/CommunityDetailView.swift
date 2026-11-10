@@ -256,9 +256,10 @@ struct CommunityDetailView: View {
                 .clipped()
                 .overlay(alignment: .bottomLeading) {
                     HStack(spacing: 6) {
-                        Image(systemName: visibilitySymbol(c.visibility))
+                        Image(systemName: visibilitySymbol(c.visibility)).accessibilityHidden(true)
                         Text(L.communityVisibility.first { $0.key == c.visibility }?.label ?? c.visibility)
                     }
+                    .accessibilityElement(children: .combine)
                     .font(.wr(.caption, .semibold))
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .glassEffect(.regular, in: Capsule())
@@ -588,10 +589,10 @@ struct CommunityMemberLine: View {
                     AvatarView(url: member.avatarUrl, name: member.displayName, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(member.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            Text(member.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                             if member.isMuted { Image(systemName: "speaker.slash.fill").font(.wr(.caption2)).foregroundStyle(Color.warn).accessibilityLabel("Stummgeschaltet") }
                         }
-                        Text("@\(member.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text("@\(member.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
                 .contentShape(.rect)

@@ -523,8 +523,8 @@ struct SocialCoauthorSheet: View {
                             HStack(spacing: 12) {
                                 AvatarView(url: r.avatarUrl, name: r.displayName, size: 34)
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(r.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                                    Text("@\(r.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                    Text(r.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                                    Text("@\(r.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                                 }
                                 Spacer(minLength: 4)
                                 MeStatePill(text: r.statusLabel, tone: r.status == "ACCEPTED" ? .moss : .warn)
@@ -646,7 +646,7 @@ struct SocialCoauthorInviteCard: View {
                         .foregroundStyle(Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     if showExcerpt, let e = invite.excerpt?.nilIfEmpty {
-                        Text("„\(e)“").font(.wr(.footnote)).foregroundStyle(Color.ink2).lineLimit(2)
+                        Text("„\(e)“").font(.wr(.footnote)).foregroundStyle(Color.ink2).a11yLineLimit(2)
                     }
                     if let d = invite.createdAt { Text(Fmt.relative(d)).font(.wr(.caption)).foregroundStyle(Color.muted) }
                 }

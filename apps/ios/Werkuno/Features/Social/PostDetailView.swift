@@ -151,7 +151,7 @@ struct PostDetailView: View {
                     .foregroundStyle(Color.muted)
                 }
                 if let b = r.body?.nilIfEmpty {
-                    Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(6).multilineTextAlignment(.leading)
+                    Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(6).multilineTextAlignment(.leading)
                 }
                 if let m = r.media, !m.isEmpty {
                     SpecLabel(Fmt.plural(m.count, "Bild", "Bilder"))

@@ -93,7 +93,7 @@ struct NewConversationSheet: View {
                                     Text(h.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                                     Text("@\(h.handle)").font(.wr(.caption)).foregroundStyle(Color.muted)
                                     if let bio = h.meta?.bio?.nilIfEmpty {
-                                        Text(bio).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(1)
+                                        Text(bio).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(1)
                                     }
                                 }
                                 Spacer(minLength: 0)
@@ -161,7 +161,7 @@ struct NewConversationSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.displayName).font(.wr(.headline)).foregroundStyle(Color.ink)
                         Text("@\(r.handle)").font(.wr(.caption)).foregroundStyle(Color.muted)
-                        if let bio = r.bio?.nilIfEmpty { Text(bio).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
+                        if let bio = r.bio?.nilIfEmpty { Text(bio).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(2) }
                     }
                 } else if preparing {
                     YarnSpinner(size: 24)

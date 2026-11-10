@@ -111,7 +111,7 @@ struct SocialDraftsView: View {
                     Text(p.body.nilIfEmpty ?? "Ohne Text")
                         .font(.wr(.body))
                         .foregroundStyle(p.body.isEmpty ? Color.muted : Color.ink)
-                        .lineLimit(4)
+                        .a11yLineLimit(4)
                         .multilineTextAlignment(.leading)
                     let meta = [
                         p.media.isEmpty ? nil : Fmt.plural(p.media.count, "Medium", "Medien"),
@@ -119,7 +119,7 @@ struct SocialDraftsView: View {
                         p.project.map { "Projekt: \($0.title)" },
                         p.visibility.map { L.visibility($0) },
                     ].compactMap { $0 }
-                    if !meta.isEmpty { Text(meta.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1) }
+                    if !meta.isEmpty { Text(meta.joined(separator: " · ")).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(.rect)

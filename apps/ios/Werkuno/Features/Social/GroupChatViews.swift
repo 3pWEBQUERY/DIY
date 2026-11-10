@@ -60,7 +60,7 @@ struct GroupMemberPicker: View {
                         Button { toggle(h) } label: {
                             HStack(spacing: 6) {
                                 AvatarView(url: c?.avatarUrl, name: c?.displayName ?? h, size: 22)
-                                Text(c?.displayName ?? "@\(h)").font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                                Text(c?.displayName ?? "@\(h)").font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                                 Image(systemName: "xmark").font(.wr(size: 9, weight: .bold)).foregroundStyle(Color.muted)
                             }
                             .padding(.leading, 3).padding(.trailing, 10).padding(.vertical, 3)
@@ -107,8 +107,8 @@ struct GroupMemberPicker: View {
                         HStack(spacing: 12) {
                             AvatarView(url: c.avatarUrl, name: c.displayName, size: 36)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(c.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                                Text("@\(c.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                Text(c.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                                Text("@\(c.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: on ? "checkmark.circle.fill" : "circle")
@@ -413,11 +413,11 @@ struct GroupInfoSheet: View {
                     AvatarView(url: m.avatarUrl, name: m.displayName, size: 38)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(m.isMe ? "Du" : m.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                            Text(m.isMe ? "Du" : m.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                             if m.isAdmin { Pill(text: "Admin", tint: .moss) }
                             if m.isPending { Pill(text: "Eingeladen", tint: .muted) }
                         }
-                        Text("@\(m.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text("@\(m.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                 }
                 .contentShape(.rect)

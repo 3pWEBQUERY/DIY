@@ -102,7 +102,7 @@ struct MeView: View {
                 HStack(spacing: 14) {
                     AvatarView(url: p?.avatarUrl, name: p?.displayName ?? "?", size: 68, category: p?.categories?.first)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(p?.displayName ?? "Mein Profil").font(.display(26)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(p?.displayName ?? "Mein Profil").font(.display(26)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             Text("@\(p?.handle ?? "")").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                             if p?.isCreatorPro == true { Pill(text: "Creator Pro", symbol: "seal.fill", tint: .moss) }
@@ -161,7 +161,7 @@ struct MeView: View {
 
     private var quickTiles: some View {
         GlassEffectContainer(spacing: 10) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                 tile("Benachrichtigungen", symbol: "bell", badge: app.unreadNotifications, tint: .clay) { router.open(.notifications) }
                 tile("Nachrichten", symbol: "bubble.left.and.bubble.right", badge: app.unreadMessages, tint: .slate) { router.open(.conversations) }
                 tile("Gespeichert", symbol: "bookmark", badge: 0, tint: .moss) { router.open(.saved) }
@@ -184,7 +184,7 @@ struct MeView: View {
                             .background(Color.clay, in: Capsule())
                     }
                 }
-                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.8)
+                Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1).minimumScaleFactor(0.8)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)

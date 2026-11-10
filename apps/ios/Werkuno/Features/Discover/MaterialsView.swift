@@ -110,7 +110,7 @@ struct MaterialsView: View {
                             }
                         }
                         Text([m.type, m.brand, m.category?.name].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
-                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2)
+                            .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2)
                         HStack(spacing: 10) {
                             if let u = m.unit?.nilIfEmpty { SpecLabel("Einheit \(u)") }
                             if let n = m.usedIn, n > 0 { SpecLabel("in \(Fmt.plural(n, "Projekt", "Projekten"))", color: .moss) }

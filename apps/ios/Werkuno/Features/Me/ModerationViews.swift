@@ -231,7 +231,7 @@ private struct MeModOverview: View {
     private func grid(_ title: String, _ items: [(String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SpecLabel(title)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            AdaptiveGrid(spacing: 10, rowSpacing: 10) {
                 ForEach(items, id: \.0) { MeKPI(label: $0.0, value: $0.1) }
             }
         }
@@ -354,7 +354,7 @@ private struct MeCaseRow: View {
                     Spacer()
                     Text(Fmt.relative(c.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                 }
-                Text(c.title ?? MeLabels.targetType(c.targetType)).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(c.title ?? MeLabels.targetType(c.targetType)).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
                     Text([MeLabels.targetType(c.targetType), MeLabels.reason(c.primaryReason), Fmt.plural(c._count?.reports ?? c.reportCount ?? 1, "Meldung", "Meldungen")].joined(separator: " · "))
                     Spacer(minLength: 0)
@@ -422,10 +422,10 @@ private struct MeModAppealsList: View {
                 Spacer()
                 Text(Fmt.relative(a.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
             }
-            if let t = a.case?.title { Text(t).font(.wr(.subheadline, .semibold)).lineLimit(2) }
+            if let t = a.case?.title { Text(t).font(.wr(.subheadline, .semibold)).a11yLineLimit(2) }
             Text([a.user?.handle.map { "@\($0)" }, MeLabels.targetType(a.case?.targetType), original.map { "Massnahme: \(MeLabels.action($0.action))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
                 .font(.wr(.caption)).foregroundStyle(Color.muted)
-            Text(a.statement).font(.wr(.subheadline)).foregroundStyle(Color.ink2).lineLimit(6).padding(10).frame(maxWidth: .infinity, alignment: .leading).sunkenSurface()
+            Text(a.statement).font(.wr(.subheadline)).foregroundStyle(Color.ink2).a11yLineLimit(6).padding(10).frame(maxWidth: .infinity, alignment: .leading).sunkenSurface()
             if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.wr(.caption)).foregroundStyle(Color.ink2) }
             HStack {
                 if let cid = a.case?.id ?? a.caseId {
@@ -530,7 +530,7 @@ private struct MeModReportsList: View {
                                     }
                                     Text([MeLabels.targetType(r.targetType), r.reporter?.handle.map { "von @\($0)" }, r.case.map { "Fall Nº \($0.number ?? 0) · \(MeLabels.caseStatus($0.status ?? ""))" }].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
                                         .font(.wr(.caption)).foregroundStyle(Color.muted)
-                                    if let d = r.details?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(3) }
+                                    if let d = r.details?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(3) }
                                 }
                                 .padding(14)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -634,7 +634,7 @@ private struct MeAdminUsersList: View {
                                             if u.status != "ACTIVE" { MeStatePill(text: MeLabels.accountStatus(u.status), tone: .danger) }
                                         }
                                         Text([u.profile?.handle.map { "@\($0)" }, u.email, (u._count?.moderationSubject ?? 0) > 0 ? "\(u._count?.moderationSubject ?? 0) Fälle" : nil].compactMap { $0 }.joined(separator: " · "))
-                                            .font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                                            .font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                                     }
                                     Spacer(minLength: 0)
                                     Image(systemName: "chevron.right").font(.wr(.caption)).foregroundStyle(Color.lineStrong)
@@ -848,7 +848,7 @@ struct ModerationCaseView: View {
                 ForEach(c.appeals ?? []) { a in
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Einspruch · \(MeLabels.appealStatus(a.status))").font(.wr(.subheadline, .semibold))
-                        if let s = a.statement { Text(s).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(5) }
+                        if let s = a.statement { Text(s).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(5) }
                         if let d = a.decision?.nilIfEmpty { Text("Entscheid: \(d)").font(.wr(.caption)).foregroundStyle(Color.muted) }
                         Text(Fmt.dateTime(a.createdAt)).specStyle()
                     }

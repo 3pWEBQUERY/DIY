@@ -195,7 +195,7 @@ struct TutorialEditorSheet: View {
                 } label: {
                     HStack {
                         Image(systemName: "point.3.connected.trianglepath.dotted").foregroundStyle(Color.moss)
-                        Text(projectOptions.first { $0.id == projectId }?.title ?? "Kein Projekt").foregroundStyle(Color.ink).lineLimit(1)
+                        Text(projectOptions.first { $0.id == projectId }?.title ?? "Kein Projekt").foregroundStyle(Color.ink).a11yLineLimit(1)
                         Spacer()
                         Image(systemName: "chevron.up.chevron.down").font(.wr(.caption)).foregroundStyle(Color.muted)
                     }
@@ -287,7 +287,7 @@ struct TutorialEditorSheet: View {
             Button { editingStep = TutorialStepEditTarget(id: s.id) } label: {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(s.title.nilIfEmpty ?? "Ohne Titel").font(.wr(.subheadline, .semibold)).foregroundStyle(s.title.isEmpty ? Color.muted : Color.ink).multilineTextAlignment(.leading)
-                    if let b = s.body.nilIfEmpty { Text(b).font(.wr(.footnote)).foregroundStyle(Color.muted).lineLimit(2).multilineTextAlignment(.leading) }
+                    if let b = s.body.nilIfEmpty { Text(b).font(.wr(.footnote)).foregroundStyle(Color.muted).a11yLineLimit(2).multilineTextAlignment(.leading) }
                     HStack(spacing: 10) {
                         if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
                         if !s.media.isEmpty { Label("\(s.media.count)", systemImage: "photo").labelStyle(.compact) }

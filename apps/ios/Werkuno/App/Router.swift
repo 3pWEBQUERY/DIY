@@ -284,8 +284,27 @@ final class Router {
     }
 
     func open(href: String?) {
-        guard let href, let r = Route.from(href: href) else { return }
+        guard let href else { return }
+        // Bereiche, die ein Tab sind (Start, Entdecken, Markt): Tab wechseln statt Webansicht
+        if let t = Self.tab(for: href) {
+            tab = t
+            popToRoot()
+            return
+        }
+        guard let r = Route.from(href: href) else { return }
         open(r)
+    }
+
+    private static func tab(for href: String) -> AppTab? {
+        guard let c = URLComponents(string: href) else { return nil }
+        let path = c.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let hasCategory = c.queryItems?.contains { $0.name == "kategorie" } ?? false
+        switch path {
+        case "": return .workbench
+        case "markt" where (c.queryItems ?? []).isEmpty: return .market
+        case "entdecken" where !hasCategory: return .discover
+        default: return nil
+        }
     }
 
     func present(_ s: SheetRoute) { sheet = s }

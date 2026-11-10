@@ -56,7 +56,6 @@ struct MarketView: View {
     @State private var error: String?
     @State private var showFilters = false
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     private var categories: [Category] { homeCategories.isEmpty ? app.activeCategories : homeCategories.filter { $0.isActive != false } }
     private var activeCategory: Category? { categories.first { $0.slug == filters.category } ?? app.category(filters.category.nilIfEmpty) }
@@ -204,7 +203,7 @@ struct MarketView: View {
             )
             .cardSurface()
         } else {
-            LazyVGrid(columns: columns, spacing: 12) {
+            AdaptiveGrid(spacing: 12, rowSpacing: 12) {
                 ForEach(products) { p in ProductCardView(product: p) }
             }
             LoadMoreTrigger(hasMore: cursor != nil) { await loadProducts(reset: false) }

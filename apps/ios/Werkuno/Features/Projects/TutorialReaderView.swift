@@ -60,7 +60,7 @@ struct TutorialReaderView: View {
                 .accessibilityLabel("Lesemodus schliessen")
                 VStack(alignment: .leading, spacing: 1) {
                     SpecLabel(index < steps.count ? "Schritt \(index + 1) von \(steps.count)" : "Abschluss", color: .moss)
-                    Text(page.title).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                    Text(page.title).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Text("\(steps.filter { done.contains($0.stableKey) }.count)/\(steps.count)")

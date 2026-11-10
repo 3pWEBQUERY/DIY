@@ -220,10 +220,10 @@ struct ProfileView: View {
         let web = prof.website?.nilIfEmpty
         if !place.isEmpty || web != nil {
             HStack(spacing: 14) {
-                if !place.isEmpty { Label(place, systemImage: "mappin.and.ellipse").lineLimit(1) }
+                if !place.isEmpty { Label(place, systemImage: "mappin.and.ellipse").a11yLineLimit(1) }
                 if let web, let url = URL(string: web) {
                     Link(destination: url) {
-                        Label(web.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""), systemImage: "link").lineLimit(1)
+                        Label(web.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""), systemImage: "link").a11yLineLimit(1)
                     }
                     .foregroundStyle(Color.moss)
                 }
@@ -318,7 +318,7 @@ struct ProfileView: View {
                 EmptyStateView(symbol: "hammer", title: "Noch keine Projekte", message: p.viewer?.isSelf == true ? "Lege dein erstes Projekt an und dokumentiere den Weg." : nil,
                                actionTitle: p.viewer?.isSelf == true ? "Projekt anlegen" : nil) { router.present(.projectEditor()) }
             } else {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+                AdaptiveGrid(spacing: 12, rowSpacing: 14) {
                     ForEach(items) { ProjectCardView(project: $0, style: .tile) }
                 }
             }
@@ -328,7 +328,7 @@ struct ProfileView: View {
             }
         case .shop:
             VStack(alignment: .leading, spacing: 14) {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 14) {
+                AdaptiveGrid(spacing: 12, rowSpacing: 14) {
                     ForEach(p.products ?? []) { ProductCardView(product: $0) }
                 }
                 if let shop = prof.shop {
@@ -355,7 +355,7 @@ struct ProfileView: View {
                                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(c.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
-                                if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(2) }
+                                if let d = c.description?.nilIfEmpty { Text(d).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(2) }
                                 Text([Fmt.plural(c.itemCount ?? 0, "Eintrag", "Einträge"), L.visibility(c.visibility)].joined(separator: " · ")).font(.wr(.caption2)).foregroundStyle(Color.muted)
                             }
                             Spacer(minLength: 0)
@@ -473,7 +473,7 @@ struct FollowListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(u.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         Text("@\(u.handle)").font(.wr(.caption)).foregroundStyle(Color.muted)
-                        if let b = u.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.ink2).lineLimit(2) }
+                        if let b = u.bio?.nilIfEmpty { Text(b).font(.wr(.caption)).foregroundStyle(Color.ink2).a11yLineLimit(2) }
                     }
                     Spacer(minLength: 0)
                 }

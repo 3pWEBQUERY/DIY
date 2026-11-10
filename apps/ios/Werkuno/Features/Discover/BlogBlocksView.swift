@@ -227,7 +227,7 @@ struct BlogGallery: View {
                             .onTapGesture { selected = items.first { $0.id == img.mediaId } }
                             .accessibilityLabel(img.alt?.nilIfEmpty ?? "Bild")
                             .accessibilityAddTraits(.isImage)
-                        if let c = img.caption?.nilIfEmpty { Text(c).font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(3) }
+                        if let c = img.caption?.nilIfEmpty { Text(c).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(3) }
                     }
                     .containerRelativeFrame(.horizontal, count: 6, span: 5, spacing: 10)
                 }

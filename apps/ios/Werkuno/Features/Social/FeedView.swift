@@ -363,10 +363,10 @@ private struct FeedWorkbenchStrip: View {
                 Text(p.title)
                     .font(.wr(.subheadline, .semibold))
                     .foregroundStyle(Color.ink)
-                    .lineLimit(2)
+                    .a11yLineLimit(2)
                     .multilineTextAlignment(.leading)
                 SpecLabel("\(L.projectStatus(p.status)) · \(Fmt.plural(p.updates, "Eintrag", "Einträge"))")
-                    .lineLimit(1)
+                    .a11yLineLimit(1)
                 Text(Fmt.relative(p.updatedAt)).font(.wr(.caption2)).foregroundStyle(Color.muted)
             }
             Spacer(minLength: 0)
@@ -431,8 +431,8 @@ private struct FeedCreatorCarousel: View {
                         SpecLabel(Fmt.plural(c.projectCount ?? 0, "Projekt", "Projekte"), color: tint)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(c.displayName).font(.wr(.headline)).foregroundStyle(Color.ink).lineLimit(1)
-                        Text("@\(c.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                        Text(c.displayName).font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                        Text("@\(c.handle)").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                     }
                     Text(c.bio?.nilIfEmpty ?? (c.categories ?? []).map { app.categoryName($0) }.joined(separator: " · "))
                         .font(.wr(.footnote))
@@ -482,8 +482,8 @@ private struct FeedTrendingCard: View {
                             .foregroundStyle(Color.moss)
                             .frame(width: 24, alignment: .leading)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                            Text("von \(p.owner?.displayName ?? p.ownerHandle ?? "")").font(.wr(.caption)).foregroundStyle(Color.muted).lineLimit(1)
+                            Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                            Text("von \(p.owner?.displayName ?? p.ownerHandle ?? "")").font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1)
                         }
                         Spacer(minLength: 0)
                         CoverView(url: p.coverUrl, seed: p.id, category: p.category, showLabel: false)

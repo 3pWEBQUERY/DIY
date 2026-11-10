@@ -60,9 +60,9 @@ struct ConversationView: View {
                         HStack(spacing: 8) {
                             AvatarView(url: other.avatarUrl, name: other.displayName, size: 28)
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(other.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                                Text(other.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
                                 Text(thread?.kind == "ORDER" ? "@\(other.handle) · Bestellung" : "@\(other.handle)")
-                                    .font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(1)
+                                    .font(.wr(.caption2)).foregroundStyle(Color.muted).a11yLineLimit(1)
                             }
                         }
                     }
@@ -214,8 +214,8 @@ struct ConversationView: View {
             HStack(spacing: 8) {
                 SocialGroupAvatar(avatars: g.others.prefix(2).map { ($0.displayName, $0.avatarUrl) }, size: 30)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(g.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
-                    Text(groupSubtitle(g)).font(.wr(.caption2)).foregroundStyle(Color.muted).lineLimit(1)
+                    Text(g.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
+                    Text(groupSubtitle(g)).font(.wr(.caption2)).foregroundStyle(Color.muted).a11yLineLimit(1)
                 }
             }
         }
@@ -631,7 +631,7 @@ private struct SocialMessageBubble: View {
             if let sender {
                 HStack(spacing: 6) {
                     AvatarView(url: sender.avatarUrl, name: sender.displayName, size: 18)
-                    Text(sender.displayName).font(.wr(.caption, .semibold)).foregroundStyle(Color.ink2).lineLimit(1)
+                    Text(sender.displayName).font(.wr(.caption, .semibold)).foregroundStyle(Color.ink2).a11yLineLimit(1)
                 }
                 .padding(.leading, 4)
                 .accessibilityHidden(true)
@@ -806,7 +806,7 @@ struct SocialThreadContextCard: View {
                             .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.paper, lineWidth: 1.5))
                     }
                 }
-                Text(itemsLine).font(.wr(.footnote)).foregroundStyle(Color.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(itemsLine).font(.wr(.footnote)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(Fmt.money(context.totalMinor, currency: context.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
@@ -824,7 +824,7 @@ struct SocialThreadContextCard: View {
             thumb(context.coverUrl, seed: context.title ?? "p").frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
                 SpecLabel("Anfrage zu Produkt · \(context.shop?.name ?? "")", color: .clayInk)
-                Text(context.title ?? "Produkt").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1)
+                Text(context.title ?? "Produkt").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
             }
             Spacer(minLength: 4)
             Text(Fmt.money(context.priceMinor, currency: context.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
