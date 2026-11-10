@@ -95,3 +95,18 @@ jobs:
             apps/web/playwright-report
             apps/web/test-results
           retention-days: 7
+
+  docker:
+    name: Docker-Image
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image bauen (wie Railway)
+        run: docker build -t werkuno-ci --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(openssl rand -base64 32)" .
+      - name: Smoke-Start (ffmpeg, Prisma-Client und Server-Module im Image)
+        run: |
+          docker run --rm werkuno-ci ffmpeg -version
+          docker run --rm werkuno-ci test -d /app/apps/web/src/generated/prisma
+          docker run --rm -w /app/apps/web werkuno-ci node --conditions=react-server --import tsx -e 'import("./src/server/env").then(() => console.log("ok"))'

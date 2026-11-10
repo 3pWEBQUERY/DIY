@@ -36,7 +36,7 @@ Demo-Login: `lena-haekelt@demo.werkraum.local` / `Werkraum-Demo-2026!` · Admin:
 ## iOS-App
 
 ```bash
-cd apps/ios && xcodegen generate && open Werkraum.xcodeproj
+cd apps/ios && xcodegen generate && open Werkuno.xcodeproj
 ```
 Details: [`apps/ios/README.md`](apps/ios/README.md) · Mobile-API: `apps/web/src/server/mobile/`
 

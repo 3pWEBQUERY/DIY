@@ -53,7 +53,8 @@ const TOOLS = ["Häkelnadel 4 mm", "Häkelnadel 3,5 mm", "Rundstricknadel 4 mm",
 
 async function baseData() {
   for (const [cslug, name, mats] of MATERIAL_CATS) {
-    const cat = await db.materialCategory.upsert({ where: { slug: cslug }, create: { slug: cslug, name }, update: { name } });
+    // Nur anlegen – Umbenennungen durch die Administration bleiben bei jedem Deploy erhalten
+    const cat = await db.materialCategory.upsert({ where: { slug: cslug }, create: { slug: cslug, name }, update: {} });
     for (const [mname, type, unit] of mats) {
       await db.material.upsert({
         where: { slug: slug(mname) },

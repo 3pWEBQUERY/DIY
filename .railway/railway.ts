@@ -74,6 +74,13 @@ export default defineRailway((ctx) => {
       APP_URL: "https://${{web.RAILWAY_PUBLIC_DOMAIN}}",
       SESSION_SECRET: ctx.shared.SESSION_SECRET,
       DB_POOL_MAX: "4",
+      // Widerruf der Apple-Tokens bei Kontolöschung (Aufräumjob, App-Store-Regel 5.1.1(v)) –
+      // dieselben Werte wie im Service „web“
+      APPLE_CLIENT_ID: preserve(),
+      APPLE_TEAM_ID: preserve(),
+      APPLE_KEY_ID: preserve(),
+      APPLE_PRIVATE_KEY: preserve(),
+      APPLE_IOS_CLIENT_ID: preserve(),
       // Der Worker wartet beim Herunterfahren bis zu 30 s auf laufende Jobs (src/worker/index.ts) – Railway
       // muss ihm mehr Zeit geben, bevor SIGKILL kommt
       RAILWAY_DEPLOYMENT_DRAINING_SECONDS: "45",

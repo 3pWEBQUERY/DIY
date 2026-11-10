@@ -54,7 +54,7 @@ SESSION_SECRET=<zufällig, 48+ Zeichen>
 
 Optional: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET` (Marktplatz),
 `RESEND_API_KEY`, `MAIL_FROM` (E-Mail – in web **und** worker), `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`,
-`APPLE_PRIVATE_KEY` (Anmelden mit Apple, web), `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (web, zufällig 32 Byte base64,
+`APPLE_PRIVATE_KEY` (Anmelden mit Apple – web; zusätzlich worker für den Token-Widerruf bei Kontolöschung, siehe „Apple-Schlüssel“), `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (web, zufällig 32 Byte base64,
 z. B. `openssl rand -base64 32` – hält Server-Action-IDs über Deploys stabil; wird als Build-Argument gebraucht).
 In `.railway/railway.ts` stehen sie als `preserve()`: Werte im Dashboard setzen, IaC überschreibt sie nicht.
 VAPID-Schlüssel (Browser-Push) erzeugt die App selbst und speichert sie in der Datenbank; `VAPID_PUBLIC_KEY`/
@@ -79,12 +79,10 @@ Ohne diese Variablen laufen die betroffenen Funktionen in einem klar gekennzeich
 ## Erstinbetriebnahme
 
 1. Services `web` und `worker` deployen (Migration läuft automatisch im Pre-Deploy von `web`).
-2. Seed ausführen (einmalig, z. B. per Railway-Shell im `web`-Service):
-   ```bash
-   ADMIN_EMAIL=… ADMIN_PASSWORD=… pnpm db:seed
-   # Demo-Community zusätzlich:
-   SEED_DEMO=true pnpm db:seed
-   ```
+2. Der Seed läuft automatisch bei jedem Deploy im Pre-Deploy von `web` (`pnpm predeploy` = Migration + Seed)
+   und ist idempotent. Vor dem ersten Deploy `ADMIN_EMAIL` und `ADMIN_PASSWORD` setzen – ohne
+   `ADMIN_PASSWORD` bricht der Seed in Produktion ab (kein Standardpasswort). Demo-Inhalte nur ausserhalb der
+   Produktion (`SEED_DEMO=true`, siehe `.railway/railway.ts`).
 3. Stripe-Webhook auf `https://<domain>/api/webhooks/stripe` mit den Events
    `checkout.session.completed`, `checkout.session.expired`, `payment_intent.succeeded`,
    `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `account.updated` einrichten.
@@ -150,3 +148,25 @@ Eigene Lösung ohne Fremddienst (`src/server/monitoring.ts`): unerwartete Fehler
 Rendern), Browser (`/api/v1/errors`) und Worker werden gruppiert gespeichert → Admin → Fehler. Neue Fehler und
 Rückfälle erledigter Fehler erzeugen eine Benachrichtigung an Administration (max. 1×/h je Fehler; per E-Mail,
 sobald `RESEND_API_KEY` gesetzt ist). Einzelvorkommen werden nach 30 Tagen gelöscht.
+
+
+## Apple-Schlüssel (Anmelden mit Apple, Push)
+
+Alles unter developer.apple.com → Account (Apple Developer Program, kostenpflichtig) → **Certificates, Identifiers & Profiles**:
+
+1. **Team-ID** (`APPLE_TEAM_ID`, `APNS_TEAM_ID`): oben rechts im Account bzw. unter *Membership details* (10 Zeichen).
+2. **App-ID** `ch.werkuno.app` (*Identifiers*) mit der Fähigkeit *Sign in with Apple* (und *Push Notifications*).
+   Das ist `APPLE_IOS_CLIENT_ID` bzw. `APNS_BUNDLE_ID`.
+3. **Services-ID** für das Web (*Identifiers* → *Services IDs*, z. B. `ch.werkuno.web`) mit *Sign in with Apple*,
+   primäre App-ID von Schritt 2, Domain `werkuno.ch` und Return-URL `https://<domain>/api/auth/apple/callback`.
+   Das ist `APPLE_CLIENT_ID`.
+4. **Schlüssel** (*Keys* → *+*): Name vergeben, *Sign in with Apple* aktivieren (→ *Configure* → primäre App-ID
+   wählen) und – falls derselbe Schlüssel auch für Push dienen soll – *Apple Push Notifications service (APNs)*.
+   Nach *Register* die `.p8`-Datei herunterladen: **das geht nur ein einziges Mal**. Die angezeigte *Key ID* ist
+   `APPLE_KEY_ID` (bzw. `APNS_KEY_ID`).
+5. Inhalt der `.p8`-Datei (beginnt mit `-----BEGIN PRIVATE KEY-----`) als `APPLE_PRIVATE_KEY` (bzw.
+   `APNS_PRIVATE_KEY`) in Railway eintragen – in **web und worker**. Mehrzeilig einfügen oder Zeilenumbrüche
+   als `\n` schreiben; beides wird gelesen.
+
+Die `.p8`-Datei ist ein Geheimnis: nie ins Repository, nur in Railway bzw. einem Passwortmanager aufbewahren.
+Bei Verlust in Apple einen neuen Schlüssel erstellen, den alten widerrufen und die Variablen ersetzen.
