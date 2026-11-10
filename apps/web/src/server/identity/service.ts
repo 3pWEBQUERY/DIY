@@ -3,7 +3,7 @@ import { assertAccountDeletable } from "@/server/account/deletion";
 import { RESERVED_HANDLES, handleSchema, signUpSchema, signInSchema, passwordSchema } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { hashPassword, verifyPassword, sha256, token } from "@/server/crypto";
-import { fail } from "@/server/errors";
+import { fail, uniqueViolation } from "@/server/errors";
 import { createSession, clientIpHash } from "@/server/auth/session";
 import { isLimited, limit, rateLimit, releaseLimit } from "@/server/ratelimit";
 import { securityReset } from "@/server/auth/security";
@@ -11,6 +11,8 @@ import { assertReauthenticated, type ReauthProof } from "@/server/auth/reauth";
 import { warnNewDevice } from "@/server/auth/new-device";
 import { APPLE_REVOKE_PROVIDER } from "@/server/identity/apple-token";
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { randomInt } from "node:crypto";
 import { sendMail } from "@/server/mail";
 import { audit } from "@/server/audit";
 import { env } from "@/server/env";
@@ -62,17 +64,25 @@ export async function signUp(input: unknown) {
 
   const passwordHash = await hashPassword(data.password);
   const now = new Date();
-  const user = await db.user.create({
-    data: {
-      email: data.email,
-      passwordHash,
-      adultConfirmedAt: now,
-      termsAcceptedAt: now,
-      profile: { create: { handle: avail.handle, displayName: data.displayName } },
-      preference: { create: {} },
-    },
-    select: { id: true, email: true },
-  });
+  const user = await db.user
+    .create({
+      data: {
+        email: data.email,
+        passwordHash,
+        adultConfirmedAt: now,
+        termsAcceptedAt: now,
+        profile: { create: { handle: avail.handle, displayName: data.displayName } },
+        preference: { create: {} },
+      },
+      select: { id: true, email: true },
+    })
+    .catch((e: unknown) => {
+      // Wettlauf: Adresse oder Handle wurde zwischen Prüfung und Anlage von einer parallelen Anfrage belegt
+      const target = uniqueViolation(e);
+      if (target?.includes("email")) throw fail.invalid("Mit dieser E-Mail-Adresse besteht bereits ein Konto.", { email: "Bereits registriert – melde dich an." });
+      if (target?.includes("handle")) throw fail.invalid("Bereits vergeben", { handle: "Bereits vergeben" });
+      throw e;
+    });
   await sendVerification(user.id, user.email);
   const s = await createSession(user.id);
   // Token für Bearer-Clients (iOS-App); Web nutzt das gesetzte httpOnly-Cookie
@@ -133,14 +143,34 @@ export async function signIn(input: unknown) {
 export async function verifyEmail(raw: string) {
   const t = await db.verificationToken.findUnique({ where: { id: sha256(raw) } });
   if (!t || t.purpose !== "EMAIL_VERIFY" || t.usedAt || t.expiresAt < new Date()) return false;
-  await db.$transaction([
-    db.verificationToken.update({ where: { id: t.id }, data: { usedAt: new Date() } }),
-    db.user.update({ where: { id: t.userId }, data: { emailVerifiedAt: new Date() } }),
-  ]);
-  return true;
+  return db.$transaction(async (tx) => {
+    // Einmal-Link: nur wer ihn zuerst einlöst (usedAt noch leer, nicht abgelaufen), bestätigt
+    const now = new Date();
+    const claimed = await tx.verificationToken.updateMany({ where: { id: t.id, purpose: "EMAIL_VERIFY", usedAt: null, expiresAt: { gt: now } }, data: { usedAt: now } });
+    if (claimed.count !== 1) return false;
+    await tx.user.update({ where: { id: t.userId }, data: { emailVerifiedAt: now } });
+    return true;
+  });
 }
 
-/** Antwortet immer gleich – keine User-Enumeration. */
+/**
+ * Arbeit nach der Antwort erledigen (Next.js `after`): Die Antwortzeit verrät so nicht, ob dabei eine Mail
+ * verschickt wurde. Ausserhalb eines Requests (Skripte, Tests) läuft sie einfach im Hintergrund.
+ */
+function afterResponse(task: () => Promise<unknown>) {
+  const run = () => task().catch((err) => console.error(JSON.stringify({ level: "error", msg: "after_response_failed", error: String(err).slice(0, 200) })));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
+/**
+ * Antwortet immer gleich – keine User-Enumeration, auch nicht über die Antwortzeit: Token und Mail (Resend)
+ * entstehen erst nach der Antwort; vorher läuft für alle Adressen dieselbe Arbeit (Limits, eine Abfrage)
+ * plus eine kleine zufällige Verzögerung, die Restunterschiede überdeckt.
+ */
 export async function requestPasswordReset(email: string) {
   const normalized = email.trim().toLowerCase();
   const ipHash = await clientIpHash();
@@ -155,12 +185,16 @@ export async function requestPasswordReset(email: string) {
     return;
   }
   const user = await db.user.findUnique({ where: { email: normalized }, select: { id: true, email: true, status: true } });
-  if (!user || user.status === "DELETED" || user.status === "BANNED") return;
-  const raw = await issueToken(user.id, "PASSWORD_RESET", RESET_MINUTES);
-  await sendMail(user.email, "Passwort zurücksetzen", "Du hast ein neues Passwort angefordert. Der Link ist 60 Minuten gültig.\n\nFalls du das nicht warst, kannst du diese E-Mail ignorieren.", {
-    eyebrow: "Konto & Sicherheit",
-    cta: { label: "Neues Passwort festlegen", url: `${env().APP_URL}/passwort-zuruecksetzen/${raw}` },
+  const recipient = user && user.status !== "DELETED" && user.status !== "BANNED" ? user : null;
+  afterResponse(async () => {
+    if (!recipient) return;
+    const raw = await issueToken(recipient.id, "PASSWORD_RESET", RESET_MINUTES);
+    await sendMail(recipient.email, "Passwort zurücksetzen", "Du hast ein neues Passwort angefordert. Der Link ist 60 Minuten gültig.\n\nFalls du das nicht warst, kannst du diese E-Mail ignorieren.", {
+      eyebrow: "Konto & Sicherheit",
+      cta: { label: "Neues Passwort festlegen", url: `${env().APP_URL}/passwort-zuruecksetzen/${raw}` },
+    });
   });
+  await new Promise((r) => setTimeout(r, randomInt(20, 80)));
 }
 
 export async function resetPassword(raw: string, password: string) {

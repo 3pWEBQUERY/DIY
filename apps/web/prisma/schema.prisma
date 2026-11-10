@@ -1868,10 +1868,31 @@ model AuditEvent {
   meta       Json     @default("{}")
   prevHash   String?
   hash       String
+  /// Verfahren des Hashes: "sha256" (ältere Einträge, ohne Schlüssel) oder "hmac-sha256-v1" (mit AUDIT_HMAC_KEY)
+  alg        String   @default("sha256")
   createdAt  DateTime @default(now())
 
   @@index([action, createdAt])
   @@index([targetType, targetId])
+}
+
+/// Prüfpunkte der Audit-Kette ({seq, hash, at}): täglich vom Worker und nach jeder erfolgreichen Prüfung
+/// geschrieben, zusätzlich als Log-Zeile `audit_checkpoint` ausserhalb der Datenbank. Unveränderlich (Trigger).
+model AuditCheckpoint {
+  id         String    @id @default(cuid())
+  /// AuditEvent.seq des Kettenkopfs zum Zeitpunkt des Prüfpunkts
+  seq        Int
+  /// AuditEvent.hash dieses Eintrags
+  hash       String
+  /// HMAC über seq/hash/createdAt (AUDIT_HMAC_KEY) – ohne Schlüssel null
+  mac        String?
+  /// Gesetzt, wenn die Kette bis hier lückenlos geprüft wurde (Startpunkt der nächsten inkrementellen Prüfung)
+  verifiedAt DateTime?
+  /// "worker" (täglicher Prüfpunkt) oder "verify" (Prüfung in der Administration)
+  source     String
+  createdAt  DateTime  @default(now())
+
+  @@index([seq])
 }
 
 model FeatureFlag {

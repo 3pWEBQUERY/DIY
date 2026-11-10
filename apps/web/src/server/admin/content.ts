@@ -296,7 +296,10 @@ export async function decideShop(actor: Actor, shopId: string, decision: ShopDec
   if (!allowed[decision].includes(shop.status)) throw fail.conflict("Diese Entscheidung passt nicht zum aktuellen Status.");
   if (decision === "REACTIVATE" && shop.status === "SUSPENDED" && !hasRole(actor, "ADMIN")) throw fail.forbidden("Gesperrte Shops reaktiviert nur die Administration.");
   await db.$transaction(async (tx) => {
-    await tx.shop.update({ where: { id: shopId }, data: { status: next[decision] } });
+    // Nur umstellen, wenn der Status noch der geprüfte ist – sonst überschreibt z. B. eine gleichzeitige
+    // Freigabe eine eben verhängte Sperre (Prüfung oben liegt ausserhalb der Transaktion)
+    const updated = await tx.shop.updateMany({ where: { id: shopId, status: shop.status }, data: { status: next[decision] } });
+    if (updated.count !== 1) throw fail.conflict("Der Shop wurde inzwischen von jemand anderem bearbeitet. Bitte lade die Seite neu.");
     if (decision === "APPROVE") {
       await tx.sellerVerification.upsert({
         where: { shopId },

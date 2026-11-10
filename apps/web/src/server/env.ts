@@ -32,6 +32,8 @@ const schema = z.object({
   APNS_TEAM_ID: z.string().optional(),
   APNS_PRIVATE_KEY: z.string().optional(),
   APNS_BUNDLE_ID: z.string().optional(),
+  // Schlüssel der Audit-Kette (HMAC, mind. 32 Zeichen) – web und worker identisch, nie wechseln
+  AUDIT_HMAC_KEY: z.string().optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;
@@ -66,6 +68,8 @@ export function configWarnings(e: z.infer<typeof schema> = env()) {
   if (e.STRIPE_SECRET_KEY && !e.STRIPE_WEBHOOK_SECRET) w.push("STRIPE_WEBHOOK_SECRET fehlt – Zahlungsbestätigungen von Stripe können nicht geprüft werden.");
   if (e.STRIPE_SECRET_KEY && !e.STRIPE_CONNECT_WEBHOOK_SECRET) w.push("STRIPE_CONNECT_WEBHOOK_SECRET fehlt – Ereignisse der Verkäuferkonten (Verifizierung, Auszahlungen) kommen nur über den Abgleich an.");
   if (!e.RESEND_API_KEY) w.push("RESEND_API_KEY fehlt – es werden keine E-Mails verschickt.");
+  if (!e.AUDIT_HMAC_KEY) w.push("AUDIT_HMAC_KEY fehlt – das Audit-Protokoll wird nur mit einfachem SHA-256 verkettet (mit DB-Schreibzugriff neu berechenbar).");
+  else if (e.AUDIT_HMAC_KEY.trim().length < 32) w.push("AUDIT_HMAC_KEY ist kürzer als 32 Zeichen und wird ignoriert – das Audit-Protokoll läuft ohne Schlüssel.");
   if (!(e.S3_BUCKET && e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY)) w.push("S3-Speicher ist nicht eingerichtet – Uploads landen auf dem flüchtigen Dateisystem.");
   return w;
 }

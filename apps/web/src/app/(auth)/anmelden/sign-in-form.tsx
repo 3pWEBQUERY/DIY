@@ -13,6 +13,8 @@ export function SignInForm({ next, apple, error }: { next?: string; apple: boole
   return (
     <div className="mt-8">
       {error === "apple" && <Notice tone="danger" className="mb-6">Die Anmeldung mit Apple ist fehlgeschlagen. Bitte versuche es erneut.</Notice>}
+      {error === "gesperrt" && <Notice tone="danger" className="mb-6">Dieses Konto wurde dauerhaft gesperrt. Eine Anmeldung ist nicht möglich.</Notice>}
+      {error === "geloescht" && <Notice tone="danger" className="mb-6">Dieses Konto wurde gelöscht. Eine Anmeldung ist nicht möglich.</Notice>}
       {apple && (
         <>
           <AppleButton />

@@ -31,7 +31,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       <AdminHeader
         n="15"
         title="Audit-Protokoll"
-        description="Unveränderliches Protokoll aller kritischen Aktionen. Jeder Eintrag enthält den Hash seines Vorgängers – eine nachträgliche Änderung bricht die Kette und wird bei der Prüfung erkannt."
+        description="Unveränderliches Protokoll aller kritischen Aktionen. Jeder Eintrag enthält den Hash seines Vorgängers (mit AUDIT_HMAC_KEY als HMAC), tägliche Prüfpunkte verankern die Kette zusätzlich in den Logs – eine nachträgliche Änderung bricht die Kette und wird bei der Prüfung erkannt."
         actions={<AuditVerifyButton action={verifyAuditAction} />}
       />
 

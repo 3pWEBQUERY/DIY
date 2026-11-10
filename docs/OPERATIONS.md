@@ -66,6 +66,28 @@ VAPID-Schlüssel (Browser-Push) erzeugt die App selbst und speichert sie in der 
 > Wiederherstellungscodes bzw. manuelles Zurücksetzen von 2FA). Ausserdem werden signierte Links ungültig
 > (Abmeldelinks in E-Mails, Einspruchslinks, signierte Medien-URLs). web und worker brauchen denselben Wert.
 
+### Audit-Protokoll verankern (`AUDIT_HMAC_KEY`)
+
+`AUDIT_HMAC_KEY` (web **und** worker, identisch, mind. 32 Zeichen, z. B. `openssl rand -base64 48`; in
+`.railway/railway.ts` als `preserve()`) ist der Schlüssel der Audit-Kette (`src/server/audit.ts`):
+
+- Neue Einträge werden mit HMAC-SHA256 verkettet (`AuditEvent.alg = "hmac-sha256-v1"`). Wer nur Schreibzugriff
+  auf die Datenbank hat (und den Trigger `AuditEvent_immutable` abschaltet), kann die Kette ohne den Schlüssel
+  nicht neu berechnen. Ältere Einträge (`alg = "sha256"`) bleiben prüfbar; nach dem ersten HMAC-Eintrag wird
+  eine Rückstufung auf SHA-256 als Bruch gemeldet.
+- Ohne Schlüssel läuft die alte, schlüssellose Verkettung weiter (Startwarnung in Produktion, Hinweis bei der Prüfung).
+- **Nie wechseln oder entfernen**: HMAC-Einträge sind sonst nicht mehr prüfbar (die Prüfung meldet „AUDIT_HMAC_KEY fehlt“).
+  Den Wert sicher ausserhalb von Railway aufbewahren (Passwortmanager), getrennt von DB-Backups.
+- **Prüfpunkte**: Der Worker prüft täglich um 02:45 (Europe/Zurich, Job `audit.checkpoint`) die Kette inkrementell
+  und schreibt einen Prüfpunkt `{seq, hash, at}` in `AuditCheckpoint` (mit HMAC beglaubigt, Trigger
+  `AuditCheckpoint_immutable`) **und** als Log-Zeile `{"msg":"audit_checkpoint","seq":…,"hash":…,"at":…,"verified":…}`.
+  Die Log-Zeilen liegen ausserhalb der Datenbank: Bei Verdacht den Hash eines alten Prüfpunkts aus den Logs mit
+  `SELECT hash FROM "AuditEvent" WHERE seq = <seq>` vergleichen. Ein Bruch wird zusätzlich als Fehler
+  `AuditChainBroken` (Admin → Fehler) gemeldet und als `level: "error"` geloggt.
+- **Prüfung**: Admin → Audit-Protokoll → „Integrität prüfen“ prüft ab dem letzten geprüften Prüfpunkt bis zum
+  aktuellen Eintrag (erkennt auch abgeschnittene Enden über spätere Prüfpunkte); „Vollständig prüfen“ prüft die
+  ganze Kette vom ersten Eintrag an.
+
 ### iOS-App (`apps/ios`)
 | Variable | Service | Zweck |
 |---|---|---|
@@ -92,7 +114,8 @@ Ohne diese Variablen laufen die betroffenen Funktionen in einem klar gekennzeich
 - Healthcheck: `GET /api/health` (DB-Latenz, Storage-Modus, Version). Railway nutzt ihn beim Deploy.
 - Logs sind strukturiertes JSON ohne personenbezogene Daten (`level`, `msg`, `svc`).
 - Worker loggt `worker_started`, `worker_stopping`/`worker_stopped`, `cleanup`, `outbox_failed`, `email_failed`,
-  `optional_job_failed` (ein Job-Modul liess sich nicht laden – auch unter Admin → Fehler).
+  `optional_job_failed` (ein Job-Modul liess sich nicht laden – auch unter Admin → Fehler) und täglich
+  `audit_checkpoint` (Prüfpunkt der Audit-Kette, siehe oben – diese Zeilen aufbewahren).
 - Kennzahlen: Admin → Dashboard (PRD §30).
 
 ## Backup & Restore (PRD §31.4 Nr. 13)
@@ -109,7 +132,7 @@ Restore in eine leere Datenbank:
 pg_restore --no-owner --clean --if-exists --dbname="$TARGET_DATABASE_URL" werkraum-YYYY-MM-DD.dump
 ```
 
-Danach `pnpm db:migrate` (idempotent) und Healthcheck prüfen. Der Audit-Trigger (`AuditEvent_immutable`)
+Danach `pnpm db:migrate` (idempotent) und Healthcheck prüfen. Der Audit-Trigger (`AuditEvent_immutable`, ebenso `AuditCheckpoint_immutable`)
 wird mit dem Schema wiederhergestellt; die Hash-Kette lässt sich in Admin → Audit-Protokoll prüfen.
 
 **Bucket** – Objekte mit einem S3-Client spiegeln, z. B.:

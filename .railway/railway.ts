@@ -57,6 +57,8 @@ export default defineRailway((ctx) => {
       APPLE_KEY_ID: preserve(),
       APPLE_PRIVATE_KEY: preserve(),
       APPLE_IOS_CLIENT_ID: preserve(),
+      // Schlüssel der Audit-Kette (HMAC) – in web UND worker identisch, nie wechseln (docs/OPERATIONS.md)
+      AUDIT_HMAC_KEY: preserve(),
       // VAPID (Browser-Push) bewusst nicht: die Schlüssel werden beim ersten Bedarf erzeugt und in der DB
       // gespeichert (src/server/push/web.ts). Wer sie per Variable setzt, muss sie in web UND worker setzen.
       ...storageEnv,
@@ -94,6 +96,8 @@ export default defineRailway((ctx) => {
       APNS_TEAM_ID: preserve(),
       APNS_PRIVATE_KEY: preserve(),
       APNS_BUNDLE_ID: preserve(),
+      // Audit-Einträge des Workers und täglicher Prüfpunkt der Audit-Kette – derselbe Wert wie in web
+      AUDIT_HMAC_KEY: preserve(),
       ...storageEnv,
     },
   });

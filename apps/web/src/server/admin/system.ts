@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db, type Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
-import { audit, verifyAuditChain } from "@/server/audit";
+import { audit, auditKey, verifyAuditChain } from "@/server/audit";
 import { hasRole } from "@/server/authz";
 import { SETTING_DEFAULTS, type SettingKey } from "@/server/settings";
 import { FLAGS, FLAG_KEYS, type FlagKey } from "@/server/flags";
@@ -132,9 +132,19 @@ export async function listAudit(actor: Actor, opts: { action?: string | null; ac
   return { rows, total, page, pages: Math.max(1, Math.ceil(total / 50)), prefixes: prefixes.map((p) => ({ prefix: p.prefix, n: Number(p.n) })) };
 }
 
-export async function checkAuditIntegrity(actor: Actor) {
+/**
+ * „Integrität prüfen“: inkrementell ab dem letzten geprüften Prüfpunkt bis zum Kopf (bzw. `full` vom ersten
+ * Eintrag an). Ein unvollständiger Lauf (Zeilenbudget) setzt beim nächsten Klick dort fort.
+ */
+export async function checkAuditIntegrity(actor: Actor, opts: { full?: boolean } = {}) {
   admin(actor);
-  const r = await verifyAuditChain(50_000);
-  await audit({ actorId: actor.id, action: "admin.audit_verified", targetType: "AUDIT", meta: { ok: r.ok, checked: r.checked, brokenAt: r.ok ? null : r.brokenAt } });
-  return r;
+  const r = await verifyAuditChain({ full: !!opts.full, maxRows: 200_000, source: "verify" });
+  const last = await db.auditCheckpoint.findFirst({ where: { verifiedAt: { not: null } }, orderBy: [{ seq: "desc" }, { createdAt: "desc" }], select: { seq: true, createdAt: true } });
+  await audit({
+    actorId: actor.id,
+    action: "admin.audit_verified",
+    targetType: "AUDIT",
+    meta: r.ok ? { ok: true, full: !!opts.full, checked: r.checked, from: r.from, through: r.through, complete: r.complete } : { ok: false, full: !!opts.full, checked: r.checked, from: r.from, brokenAt: r.brokenAt, reason: r.reason },
+  });
+  return { ...r, hmac: !!auditKey(), lastCheckpoint: last ? { seq: last.seq, at: last.createdAt.toISOString() } : null };
 }

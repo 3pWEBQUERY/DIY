@@ -32,6 +32,7 @@ import { retryCancelledRefunds } from "@/server/commerce/payments";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
+import { auditCheckpointJob } from "@/server/audit";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -65,6 +66,7 @@ const Q = {
   proSync: "pro.sync",
   competitions: "competition.phases",
   accountPurge: "account.purge",
+  auditCheckpoint: "audit.checkpoint",
 } as const;
 
 /**
@@ -344,6 +346,8 @@ async function main() {
     await publishScheduledPosts();
   }));
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
+  // Audit-Kette prüfen und Prüfpunkt schreiben (DB + Log-Zeile „audit_checkpoint“ ausserhalb der DB)
+  await boss.work(Q.auditCheckpoint, guarded(Q.auditCheckpoint, async () => void (await auditCheckpointJob())));
   await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => {
       await syncPendingConnectAccounts();
       // Auszahlungen abgleichen (Benachrichtigung auch, falls ein Webhook ausbleibt) – halbstündlich
@@ -365,6 +369,7 @@ async function main() {
   await boss.schedule(Q.posts, "* * * * *");
   await boss.schedule(Q.events, "*/5 * * * *");
   await boss.schedule(Q.stripeSync, "*/10 * * * *");
+  await boss.schedule(Q.auditCheckpoint, "45 2 * * *", null, { tz: "Europe/Zurich" });
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => void dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);
