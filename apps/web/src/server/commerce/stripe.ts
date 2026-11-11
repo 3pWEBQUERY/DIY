@@ -100,13 +100,40 @@ export async function createOnboardingLink(accountId: string) {
   return link.url;
 }
 
-/** Bankkonto/Angaben ändern – Stripe-gehostetes Formular, Rückkehr zu Werkuno. */
+/**
+ * Bankkonto/Angaben ändern – Stripe-gehostetes Formular, Rückkehr zu Werkuno.
+ *
+ * Konten mit Express-Dashboard erlauben keine `account_update`-Links (nur `account_onboarding`): Dort wird
+ * das Bankkonto im Express-Dashboard geändert (Login-Link). Ist das Onboarding noch nicht abgeschlossen,
+ * gibt es noch keinen Dashboard-Zugang – dann führt der Onboarding-Link zum Hinterlegen des Bankkontos.
+ */
 export async function createAccountUpdateLink(accountId: string, returnPath = "/studio/einnahmen") {
+  try {
+    const link = await stripe().v2.core.accountLinks.create({
+      account: accountId,
+      use_case: {
+        type: "account_update",
+        account_update: {
+          refresh_url: appUrl(`${returnPath}?stripe=erneut`),
+          return_url: appUrl(`${returnPath}?stripe=bank`),
+          collection_options: { fields: "eventually_due" },
+        },
+      },
+    });
+    return link.url;
+  } catch (e) {
+    if (!isUpdateLinkUnsupported(e)) throw e;
+  }
+  try {
+    return await createDashboardLink(accountId);
+  } catch (e) {
+    if (!isStripeError(e) || isOutcomeUncertain(e)) throw e;
+  }
   const link = await stripe().v2.core.accountLinks.create({
     account: accountId,
     use_case: {
-      type: "account_update",
-      account_update: {
+      type: "account_onboarding",
+      account_onboarding: {
         refresh_url: appUrl(`${returnPath}?stripe=erneut`),
         return_url: appUrl(`${returnPath}?stripe=bank`),
         collection_options: { fields: "eventually_due" },
@@ -114,6 +141,18 @@ export async function createAccountUpdateLink(accountId: string, returnPath = "/
     },
   });
   return link.url;
+}
+
+/** Stripe lehnt `account_update`-Links für dieses Konto ab (z. B. Express-Dashboard). */
+export function isUpdateLinkUnsupported(e: unknown) {
+  return isStripeError(e) && /cannot create .?account_update.? type Account Links/i.test(e.message);
+}
+
+/** Netzwerk-/Serverfehler bei Stripe – kein Grund, auf einen anderen Weg auszuweichen. */
+function isOutcomeUncertain(e: unknown) {
+  const t = (e as { type?: string }).type ?? "";
+  const status = (e as { statusCode?: number }).statusCode ?? 0;
+  return t === "StripeConnectionError" || t === "StripeAPIError" || status >= 500;
 }
 
 /* ───────────────────────── Connect: Guthaben & Auszahlungen ───────────────────────── */

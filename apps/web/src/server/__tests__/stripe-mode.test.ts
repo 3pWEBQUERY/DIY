@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 const state = { key: "" as string | undefined };
 vi.mock("@/server/env", () => ({ env: () => ({ STRIPE_SECRET_KEY: state.key, NODE_ENV: "test" }), features: { payments: () => !!state.key } }));
 
-const { stripeKeyMode, isForeignAccountError } = await import("../commerce/stripe");
+const { stripeKeyMode, isForeignAccountError, isUpdateLinkUnsupported } = await import("../commerce/stripe");
 const { notificationParts } = await import("../notifications-format");
 
 describe("Stripe-Modus des Schlüssels", () => {
@@ -34,5 +34,12 @@ describe("Benachrichtigung zum Neuverbinden", () => {
   it("zeigt den Hinweistext", () => {
     const p = notificationParts({ type: "ORDER_STATUS", count: 1, data: { kind: "shop_reconnect", note: "Bitte neu verbinden.", href: "/studio/shop" }, actor: null, targetType: null } as never);
     expect(p.text).toBe("Bitte neu verbinden.");
+  });
+});
+
+describe("Bankkonto ändern bei Express-Konten", () => {
+  it("erkennt die Ablehnung von account_update-Links", () => {
+    expect(isUpdateLinkUnsupported({ type: "StripeInvalidRequestError", message: 'You cannot create `account_update` type Account Links for this account. Valid types for this account are ["account_onboarding"].' })).toBe(true);
+    expect(isUpdateLinkUnsupported({ type: "StripeConnectionError", message: "timeout" })).toBe(false);
   });
 });
