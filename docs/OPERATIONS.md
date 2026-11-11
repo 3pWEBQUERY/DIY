@@ -105,9 +105,32 @@ Ohne diese Variablen laufen die betroffenen Funktionen in einem klar gekennzeich
    und ist idempotent. Vor dem ersten Deploy `ADMIN_EMAIL` und `ADMIN_PASSWORD` setzen – ohne
    `ADMIN_PASSWORD` bricht der Seed in Produktion ab (kein Standardpasswort). Demo-Inhalte nur ausserhalb der
    Produktion (`SEED_DEMO=true`, siehe `.railway/railway.ts`).
-3. Stripe-Webhook auf `https://<domain>/api/webhooks/stripe` mit den Events
-   `checkout.session.completed`, `checkout.session.expired`, `payment_intent.succeeded`,
-   `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `account.updated` einrichten.
+3. Stripe-Webhooks einrichten (siehe „Stripe live schalten“).
+
+## Stripe live schalten (Test → Live)
+
+1. **Connect-Plattformprofil** im Live-Modus ausfüllen (Dashboard → Connect → Einstellungen).
+2. **Zwei Webhook-Ziele** im Live-Modus auf `https://werkuno.ch/api/webhooks/stripe`:
+   - „Ihr Konto“ – Events: `checkout.session.completed`, `checkout.session.expired`,
+     `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+     `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.payment_failed`,
+     `charge.refunded`, `charge.refund.updated`, `refund.created`, `refund.updated`, `refund.failed`,
+     `charge.dispute.created`, `charge.dispute.closed`, `customer.subscription.created`,
+     `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`,
+     `customer.subscription.resumed`, `invoice.payment_failed`.
+     Signatur-Secret → `STRIPE_WEBHOOK_SECRET` (Service `web`).
+   - „Verbundene Konten“ – Events: `account.updated`, `payout.created`, `payout.updated`, `payout.paid`,
+     `payout.failed`, `payout.canceled`. Signatur-Secret → `STRIPE_CONNECT_WEBHOOK_SECRET` (Service `web`).
+3. `STRIPE_SECRET_KEY` im Service `web` auf den Live-Schlüssel (`sk_live_…` bzw. eingeschränkt `rk_live_…`)
+   setzen, im `worker` als Referenz `${{web.STRIPE_SECRET_KEY}}` – beide Services müssen denselben Modus haben.
+4. Automatisch nach dem Deploy (Worker-Job `stripe.sync`, alle paar Minuten):
+   - Verkäuferkonten aus dem Testmodus sind mit dem Live-Schlüssel nicht erreichbar. Sie werden getrennt
+     (`shop.stripe_account_disconnected` im Audit), der Shop bleibt sichtbar, ist aber bis zur Neuverbindung
+     nicht kaufbar; der Verkäufer erhält eine Benachrichtigung mit Link auf `/studio/shop`.
+   - Pro-Abos aus dem Testmodus (nie echt bezahlt) werden beendet; Test-Kunden werden beim nächsten
+     Checkout durch Live-Kunden ersetzt.
+   - Der Modus erreichbarer Konten wird gespeichert (`Shop.stripeAccountMode`, `Subscription.stripeMode`),
+     damit nur einmal geprüft wird.
 
 ## Digitale Produkte in der iOS-App (Apple In-App-Kauf)
 

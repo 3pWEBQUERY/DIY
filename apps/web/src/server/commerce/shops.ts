@@ -6,7 +6,8 @@ import { audit } from "@/server/audit";
 import { hasRole } from "@/server/authz";
 import { isBlockedBetween } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
-import { appUrl, createConnectedAccount, createDashboardLink, createOnboardingLink, isStripeError, paymentsMode, retrieveConnectStatus, type ConnectStatus } from "./stripe";
+import { appUrl, createConnectedAccount, createDashboardLink, createOnboardingLink, isForeignAccountError, isStripeError, paymentsMode, retrieveConnectStatus, stripeKeyMode, type ConnectStatus } from "./stripe";
+import { notify } from "@/server/notifications";
 import { requireFlag } from "@/server/flags";
 import { publicProductWhere } from "@/server/commerce/restock";
 
@@ -114,6 +115,15 @@ export async function startStripeOnboarding(user: SessionUser) {
   if (shop.status === "DRAFT") throw fail.invalid("Bitte reiche zuerst deine Shop-Angaben ein.");
   let accountId = shop.stripeAccountId;
   try {
+    // Konto aus dem Testmodus (bzw. mit diesem Schlüssel nicht erreichbar): lösen und neu anlegen
+    if (accountId && shop.stripeAccountMode !== stripeKeyMode()) {
+      const reachable = await retrieveConnectStatus(accountId).then(() => true, (e) => (isForeignAccountError(e) ? false : Promise.reject(e)));
+      if (reachable) await db.shop.update({ where: { id: shop.id }, data: { stripeAccountMode: stripeKeyMode() } });
+      else {
+        await disconnectForeignStripeAccount(shop.id, { notify: false });
+        accountId = null;
+      }
+    }
     if (!accountId) {
       const account = await createConnectedAccount({
         shopId: shop.id,
@@ -124,7 +134,7 @@ export async function startStripeOnboarding(user: SessionUser) {
         shopName: shop.name,
       });
       accountId = account.id;
-      await db.shop.update({ where: { id: shop.id }, data: { stripeAccountId: accountId } });
+      await db.shop.update({ where: { id: shop.id }, data: { stripeAccountId: accountId, stripeAccountMode: stripeKeyMode() } });
       await db.sellerVerification.update({ where: { shopId: shop.id }, data: { providerRef: accountId, state: "PENDING" } });
     }
     return await createOnboardingLink(accountId);
@@ -150,7 +160,12 @@ export async function refreshStripeStatus(user: SessionUser) {
   if (paymentsMode() !== "stripe") return getMyShop(user.id);
   const shop = await requireOwnShop(user);
   if (!shop.stripeAccountId) return getMyShop(user.id);
-  await applyAccountStatus(await retrieveConnectStatus(shop.stripeAccountId));
+  try {
+    await applyAccountStatus(await retrieveConnectStatus(shop.stripeAccountId));
+  } catch (e) {
+    if (!isForeignAccountError(e)) throw e;
+    await disconnectForeignStripeAccount(shop.id);
+  }
   return getMyShop(user.id);
 }
 
@@ -175,6 +190,10 @@ export async function syncPendingConnectAccounts(take = 50) {
       await applyAccountStatus(await retrieveConnectStatus(s.stripeAccountId!));
       n++;
     } catch (e) {
+      if (isForeignAccountError(e)) {
+        await disconnectForeignStripeAccount(s.id);
+        continue;
+      }
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "stripe.sync" });
     }
@@ -182,6 +201,73 @@ export async function syncPendingConnectAccounts(take = 50) {
     await db.$executeRaw`UPDATE "Shop" SET "connectSyncAt" = now() WHERE "id" = ${s.id}`.catch(() => {});
   }
   return n;
+}
+
+/**
+ * Wechsel der Plattform von Stripe-Test auf Live (oder umgekehrt): Verkäuferkonten aus dem anderen Modus
+ * sind mit dem neuen Schlüssel nicht erreichbar. Worker (stripe.sync): alle Konten, deren Modus nicht dem
+ * aktuellen Schlüssel entspricht, prüfen – erreichbare werden markiert, fremde gelöst (Shop muss neu verbinden).
+ */
+export async function reconcileStripeAccountModes(take = 100) {
+  if (paymentsMode() !== "stripe") return { checked: 0, disconnected: 0 };
+  const mode = stripeKeyMode();
+  if (!mode) return { checked: 0, disconnected: 0 };
+  const shops = await db.shop.findMany({
+    where: { stripeAccountId: { not: null }, OR: [{ stripeAccountMode: null }, { stripeAccountMode: { not: mode } }] },
+    select: { id: true, stripeAccountId: true },
+    take,
+  });
+  let disconnected = 0;
+  for (const s of shops) {
+    try {
+      await retrieveConnectStatus(s.stripeAccountId!);
+      await db.$executeRaw`UPDATE "Shop" SET "stripeAccountMode" = ${mode} WHERE "id" = ${s.id}`;
+    } catch (e) {
+      if (isForeignAccountError(e)) {
+        await disconnectForeignStripeAccount(s.id);
+        disconnected++;
+      } else {
+        const { captureError } = await import("@/server/monitoring");
+        await captureError(e, { source: "WORKER", path: "stripe.account_mode" });
+      }
+    }
+  }
+  return { checked: shops.length, disconnected };
+}
+
+/**
+ * Nicht erreichbares Verkäuferkonto lösen: Shop bleibt bestehen und sichtbar, ist aber erst nach dem
+ * erneuten Verbinden (Studio → Shopverwaltung) wieder kaufbar (cart.ts: Konto + Zahlungen aktiv nötig).
+ */
+export async function disconnectForeignStripeAccount(shopId: string, opts: { notify?: boolean } = {}) {
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, ownerId: true, name: true, stripeAccountId: true } });
+  if (!shop?.stripeAccountId) return false;
+  const old = shop.stripeAccountId;
+  const done = await db.$transaction(async (tx) => {
+    // Bedingt: läuft der Worker parallel, löst nur einer
+    const r = await tx.shop.updateMany({
+      where: { id: shopId, stripeAccountId: old },
+      data: { stripeAccountId: null, stripeAccountMode: null, chargesEnabled: false, payoutsEnabled: false, connectSyncAt: null, payoutScheduleMigratedAt: null },
+    });
+    if (r.count !== 1) return false;
+    await tx.sellerVerification.updateMany({ where: { shopId }, data: { providerRef: null, notes: "Auszahlungskonto aus dem Stripe-Testmodus gelöst – bitte neu verbinden" } });
+    await audit({ action: "shop.stripe_account_disconnected", targetType: "SHOP", targetId: shopId, meta: { accountId: old, mode: stripeKeyMode() } }, tx);
+    return true;
+  });
+  if (done && opts.notify !== false) {
+    await notify({
+      recipientId: shop.ownerId,
+      type: "ORDER_STATUS",
+      bundle: false,
+      data: {
+        kind: "shop_reconnect",
+        title: shop.name,
+        note: `Werkuno wickelt Zahlungen jetzt live ab. Bitte verbinde das Auszahlungskonto deines Shops „${shop.name}“ neu (Studio → Shopverwaltung), damit wieder gekauft werden kann.`,
+        href: "/studio/shop",
+      },
+    }).catch(() => {});
+  }
+  return done;
 }
 
 /** Webhook `account.updated` bzw. manuelle Aktualisierung: Verifizierungsstatus übernehmen. */

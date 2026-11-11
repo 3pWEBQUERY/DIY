@@ -205,6 +205,25 @@ export function accountStatus(a: Pick<Stripe.Account, "id" | "charges_enabled" |
   };
 }
 
+/** Modus des konfigurierten Schlüssels: live (sk_live_/rk_live_) oder test (sk_test_/rk_test_). */
+export function stripeKeyMode(): "live" | "test" | null {
+  const key = env().STRIPE_SECRET_KEY ?? "";
+  if (/^(sk|rk)_live_/.test(key)) return "live";
+  if (/^(sk|rk)_test_/.test(key)) return "test";
+  return null;
+}
+
+/**
+ * Das verbundene Konto ist mit diesem Schlüssel nicht erreichbar – typischerweise ein Konto aus dem
+ * Testmodus nach dem Wechsel auf Live (oder umgekehrt), bzw. ein gelöschtes Konto. Eindeutig, kein
+ * vorübergehender Fehler.
+ */
+export function isForeignAccountError(e: unknown) {
+  if (!isStripeError(e)) return false;
+  const code = (e as { code?: string }).code ?? "";
+  return code === "account_invalid" || /does not have access to account|No such account|does not have permission to access account/i.test(e.message);
+}
+
 /** Verständliche Meldung für Stripe-Fehler (Details landen in der Fehlerüberwachung). */
 export function isStripeError(e: unknown): e is { type: string; message: string; code?: string } {
   return !!e && typeof e === "object" && typeof (e as { type?: unknown }).type === "string" && String((e as { type: string }).type).startsWith("Stripe");

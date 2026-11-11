@@ -11,13 +11,14 @@ import {
   connectedPayoutSettings,
   createAccountUpdateLink,
   createConnectedPayout,
+  isForeignAccountError,
   isStripeError,
   listConnectedPayouts,
   paymentsMode,
   updatePayoutSchedule,
   type PayoutSchedule,
 } from "./stripe";
-import { requireOwnShop } from "./shops";
+import { disconnectForeignStripeAccount, requireOwnShop } from "./shops";
 import { shopRevenue } from "./revenue";
 import { heldAmount, payableFrom } from "./escrow";
 import { isPayoutDue } from "./escrow-rules";
@@ -138,6 +139,10 @@ export async function syncPayouts(limitShops = 200) {
       for (const p of list) await savePayout(s, p);
       n += list.length;
     } catch (e) {
+      if (isForeignAccountError(e)) {
+        await disconnectForeignStripeAccount(s.id);
+        continue;
+      }
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "stripe.payouts" });
     }
@@ -223,6 +228,11 @@ export async function getPayoutOverview(user: Pick<SessionUser, "id">): Promise<
     const b = await balanceOf(shop);
     return { ...base, currency: b.currency, available: b.available, pending: b.pending, held: b.held, nextReleaseAt: b.nextReleaseAt, bank: b.settings?.bank ?? null };
   } catch (e) {
+    if (isForeignAccountError(e)) {
+      // Konto aus dem Testmodus: lösen – die Seite zeigt danach „Auszahlungskonto verbinden“
+      await disconnectForeignStripeAccount(shop.id);
+      return { ...base, ...empty, connected: false, payoutsEnabled: false };
+    }
     const { captureError } = await import("@/server/monitoring");
     await captureError(e, { source: "SERVER", path: "/studio/einnahmen", userId: user.id, meta: { stripe: "payout-overview" } });
     return { ...base, ...empty, unavailable: true };
@@ -339,6 +349,10 @@ export async function migrateStripePayoutSchedules(limit = 50) {
       });
       n++;
     } catch (e) {
+      if (isForeignAccountError(e)) {
+        await disconnectForeignStripeAccount(s.id);
+        continue;
+      }
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "payouts.migrate_schedule", meta: { shopId: s.id } });
     }
@@ -371,6 +385,10 @@ export async function runScheduledPayouts(now: Date = new Date()) {
       await createPayout(s, b.available, b.currency, `auto-payout:${s.id}:${zurichDayKey(now)}`, true);
       n++;
     } catch (e) {
+      if (isForeignAccountError(e)) {
+        await disconnectForeignStripeAccount(s.id);
+        continue;
+      }
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "payouts.scheduled", meta: { shopId: s.id } });
     }

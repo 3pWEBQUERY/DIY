@@ -1341,6 +1341,9 @@ model Shop {
   returnPolicy     String            @default("")
   processingDays   Int               @default(3)
   stripeAccountId  String?           @unique
+  /// Modus des Stripe-Schlüssels, mit dem das Konto angelegt bzw. zuletzt erreicht wurde (live | test).
+  /// Wechselt die Plattform von Test auf Live, werden Testkonten erkannt und gelöst (shops.ts).
+  stripeAccountMode String?
   payoutsEnabled   Boolean           @default(false)
   /// Auszahlungsplan, den Werkuno ausführt (manual | daily | weekly | monthly). Bei Stripe steht jedes
   /// Konto auf „manuell“ – so wird nur freigegebenes Guthaben ausgezahlt (Haltefrist, src/server/commerce/escrow.ts)
@@ -2247,6 +2250,8 @@ model Subscription {
   provider          String
   customerId        String?
   subscriptionId    String?   @unique
+  /// Stripe-Modus, in dem das Abo zuletzt erreichbar war (live | test) – nach Wechsel Test → Live geprüft
+  stripeMode        String?
   priceMinor        Int?
   currency          String    @default("CHF")
   currentPeriodEnd  DateTime?

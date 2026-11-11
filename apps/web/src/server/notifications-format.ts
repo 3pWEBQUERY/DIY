@@ -197,6 +197,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
             return { lead: null, text: `Automatische Auszahlung von ${amount} ist unterwegs${day ? ` – voraussichtlich am ${day} auf deinem Konto` : ""}.`, excerpt: null };
         }
       }
+      if (str(data.kind) === "shop_reconnect") return { lead: null, text: str(data.note) ?? "Bitte verbinde das Auszahlungskonto deines Shops neu.", excerpt: null };
       if (str(data.kind) === "review") return { lead: name ?? "Jemand", text: `hat${title ? ` ${title}` : " deinen Artikel"} bewertet${str(data.stars) ? ` (${str(data.stars)} von 5)` : ""}.`, excerpt };
       const number = str(data.number);
       const status = str(data.status) as OrderStatus | null;

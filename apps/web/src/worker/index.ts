@@ -26,7 +26,7 @@ import { env } from "@/server/env";
 import { notifyEndedPolls, publishScheduledPosts } from "@/server/social/posts";
 import { liftExpiredSuspensions } from "@/server/moderation/expiry";
 import { sendEventReminders } from "@/server/communities/events";
-import { syncPendingConnectAccounts } from "@/server/commerce/shops";
+import { reconcileStripeAccountModes, syncPendingConnectAccounts } from "@/server/commerce/shops";
 import { migrateStripePayoutSchedules, runScheduledPayouts, syncPayouts } from "@/server/commerce/payouts";
 import { autoCompleteShippedOrders } from "@/server/commerce/orders";
 import { retryCancelledRefunds } from "@/server/commerce/payments";
@@ -394,6 +394,8 @@ async function main() {
     await runScheduledPayouts();
   }));
   await boss.work(Q.stripeSync, guarded(Q.stripeSync, async () => {
+      // Nach einem Wechsel Test → Live: Verkäuferkonten aus dem anderen Modus erkennen und lösen
+      await reconcileStripeAccountModes();
       await syncPendingConnectAccounts();
       // Auszahlungen abgleichen (Benachrichtigung auch, falls ein Webhook ausbleibt) – halbstündlich
       if (new Date().getMinutes() % 30 < 10) await syncPayouts();

@@ -11,7 +11,7 @@ import { getSetting } from "@/server/settings";
 import { requireFlag } from "@/server/flags";
 import { audit } from "@/server/audit";
 import { hasRole } from "@/server/authz";
-import { appUrl, isStripeError, paymentsMode, stripe } from "@/server/commerce/stripe";
+import { appUrl, isStripeError, paymentsMode, stripe, stripeKeyMode } from "@/server/commerce/stripe";
 import type { SessionUser } from "@/server/auth/session";
 import { BRAND } from "@/config/brand";
 
@@ -189,10 +189,15 @@ export async function startProCheckout(user: Pick<SessionUser, "id" | "email">, 
   try {
     await ensureProduct();
     let customerId = current?.customerId ?? null;
+    // Kundenkonto aus dem Stripe-Testmodus (nach dem Wechsel auf Live) ist nicht erreichbar → neu anlegen
+    if (customerId) {
+      const ok = await stripe().customers.retrieve(customerId).then((c) => !("deleted" in c && c.deleted), (e) => (isStripeError(e) && (e as { code?: string }).code === "resource_missing" ? false : Promise.reject(e)));
+      if (!ok) customerId = null;
+    }
     if (!customerId) {
-      const c = await stripe().customers.create({ email: user.email, metadata: { userId: user.id } }, { idempotencyKey: `pro-customer:${user.id}` });
+      const c = await stripe().customers.create({ email: user.email, metadata: { userId: user.id } }, { idempotencyKey: `pro-customer:${user.id}:${stripeKeyMode() ?? "x"}` });
       customerId = c.id;
-      if (current) await db.subscription.update({ where: { userId: user.id }, data: { customerId } });
+      if (current) await db.subscription.update({ where: { userId: user.id }, data: { customerId, ...(current.provider === "stripe" && !isActiveSubscription(current) ? { subscriptionId: null } : {}) } });
       else await db.subscription.create({ data: { userId: user.id, interval, status: "incomplete", provider: "stripe", customerId, priceMinor: amount } });
     }
     // Kein zweites Abo: läuft bei Stripe bereits eines (Webhook evtl. noch unterwegs), übernehmen statt
@@ -349,6 +354,23 @@ export async function syncProSubscriptions() {
     await tell(s.userId, `Dein geschenkter ${PRO_NAME}-Zugang ist abgelaufen.`);
   }
   if (paymentsMode() !== "stripe") return;
+  // Wechsel Test → Live: laufende Abos, die im aktuellen Modus noch nicht bestätigt sind, einmal prüfen –
+  // Test-Abos (nie echt bezahlt) gibt es mit dem Live-Schlüssel nicht und werden beendet
+  const mode = stripeKeyMode();
+  if (mode) {
+    const unchecked = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, OR: [{ stripeMode: null }, { stripeMode: { not: mode } }] }, select: { id: true, userId: true, subscriptionId: true }, take: 200 });
+    for (const s of unchecked) {
+      try {
+        await stripe().subscriptions.retrieve(s.subscriptionId!);
+        await db.subscription.update({ where: { id: s.id }, data: { stripeMode: mode } });
+      } catch (e) {
+        if (isStripeError(e) && (e as { code?: string }).code === "resource_missing") {
+          await db.subscription.update({ where: { id: s.id }, data: { status: "canceled", cancelAtPeriodEnd: false, stripeMode: mode } });
+          await syncProFlag(s.userId);
+        }
+      }
+    }
+  }
   // Gelöschte Konten mit noch laufendem Stripe-Abo (Kündigung beim Löschen nicht möglich gewesen) nachholen
   const orphaned = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, user: { status: "DELETED" } }, select: { userId: true }, take: 200 });
   for (const s of orphaned) {
@@ -364,6 +386,13 @@ export async function syncProSubscriptions() {
     try {
       await syncStripeSubscription(await stripe().subscriptions.retrieve(s.subscriptionId!));
     } catch (e) {
+      // Abo aus dem Stripe-Testmodus (nach dem Wechsel auf Live) gibt es mit dem Live-Schlüssel nicht –
+      // es wurde nie echt bezahlt: als beendet markieren
+      if (isStripeError(e) && (e as { code?: string }).code === "resource_missing") {
+        await db.subscription.update({ where: { id: s.id }, data: { status: "canceled", cancelAtPeriodEnd: false } });
+        await syncProFlag(s.userId);
+        continue;
+      }
       const { captureError } = await import("@/server/monitoring");
       await captureError(e, { source: "WORKER", path: "pro.sync" });
     }
