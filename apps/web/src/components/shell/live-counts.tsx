@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { PRESENCE_PING_MS } from "@/lib/presence";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 export type LiveCounts = { notifications: number; messages: number; requests: number; cart: number };
@@ -61,6 +62,33 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
 
   // Server-Werte übernehmen, wenn die Shell neu gerendert wurde
   useEffect(() => setCounts(initial), [initial]);
+
+  // Online-Status: Herzschlag, solange der Tab sichtbar ist; beim Verbergen/Schliessen sofort offline
+  useEffect(() => {
+    if (!enabled) return;
+    const url = "/api/v1/me/presence";
+    const ping = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetch(url, { method: "POST", credentials: "same-origin" }).catch(() => {});
+    };
+    const offline = () => {
+      try {
+        navigator.sendBeacon?.(`${url}?state=offline`);
+      } catch {
+        /* Browser ohne sendBeacon – Status läuft nach kurzer Zeit von selbst ab */
+      }
+    };
+    const onVis = () => (document.visibilityState === "visible" ? ping() : offline());
+    ping();
+    const id = window.setInterval(ping, PRESENCE_PING_MS);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", offline);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", offline);
+    };
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;

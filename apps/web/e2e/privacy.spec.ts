@@ -44,7 +44,8 @@ test("Handy: kein seitliches Scrollen auf Listen- und Tabellenseiten", async ({ 
   const page = await loginAs(browser, "lena", { viewport: { width: 390, height: 844 }, mobile: true });
   for (const path of ["/entdecken", "/materialien", "/suche?q=holz", "/studio/produkte", "/studio/bestellungen", "/materialien/merinowolle"]) {
     await page.goto(path);
-    await page.waitForLoadState("networkidle").catch(() => {});
+    // Begrenzt: Live-Stream und Abmelde-Beacon (Online-Status) halten das Netz nie ganz ruhig
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const { sw, cw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
     expect(sw, `${path} ist breiter als der Bildschirm`).toBeLessThanOrEqual(cw + 1);
   }

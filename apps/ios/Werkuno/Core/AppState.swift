@@ -198,6 +198,10 @@ final class AppState {
             if isActive { LiveStream.shared.start() }
         } else {
             LiveStream.shared.stop()
+            // Online-Status sofort beenden (ohne Herzschlag liefe er nach gut 2 Minuten ab)
+            if me != nil {
+                Task { _ = try? await api.send("POST", "/me/presence", query: ["state": "offline"], body: Optional<Int>.none, root: "/api/v1") as JSONValue }
+            }
         }
     }
 

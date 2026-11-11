@@ -264,8 +264,14 @@ export async function getPrivacySettings(userId: string) {
       select: { createdAt: true, blocked: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } },
     }),
   ]);
-  return { dmPolicy: profile?.dmPolicy ?? "FOLLOWING", reduceMotion: pref.reduceMotion, readReceipts: pref.readReceipts, blocked };
+  return { dmPolicy: profile?.dmPolicy ?? "FOLLOWING", reduceMotion: pref.reduceMotion, readReceipts: pref.readReceipts, showOnline: pref.showOnline, blocked };
 }
+
+/** Felder, die ältere App-Versionen nicht mitschicken – nur übernehmen, wenn vorhanden */
+const optionalPrivacy = (d: { readReceipts?: boolean; showOnline?: boolean }) => ({
+  ...(d.readReceipts !== undefined ? { readReceipts: d.readReceipts } : {}),
+  ...(d.showOnline !== undefined ? { showOnline: d.showOnline } : {}),
+});
 
 export async function updatePrivacySettings(user: U, input: unknown) {
   const d = privacyPrefsSchema.parse(input);
@@ -273,8 +279,8 @@ export async function updatePrivacySettings(user: U, input: unknown) {
     db.userProfile.update({ where: { userId: user.id }, data: { dmPolicy: d.dmPolicy } }),
     db.userPreference.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, reduceMotion: d.reduceMotion, ...(d.readReceipts !== undefined ? { readReceipts: d.readReceipts } : {}) },
-      update: { reduceMotion: d.reduceMotion, ...(d.readReceipts !== undefined ? { readReceipts: d.readReceipts } : {}) },
+      create: { userId: user.id, reduceMotion: d.reduceMotion, ...optionalPrivacy(d) },
+      update: { reduceMotion: d.reduceMotion, ...optionalPrivacy(d) },
     }),
   ]);
 }

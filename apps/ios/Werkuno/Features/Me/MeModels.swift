@@ -510,6 +510,8 @@ struct MePrivacySettings: Decodable, Sendable {
     var reduceMotion: Bool
     /// Lesebestätigungen in Einzelchats (ältere Server: fehlt)
     var readReceipts: Bool?
+    /// Online-Status zeigen (ältere Server: fehlt)
+    var showOnline: Bool?
     var blocked: [MeRelationEntry]?
 }
 

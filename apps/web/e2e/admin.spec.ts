@@ -159,3 +159,23 @@ test("Admin: Nutzerliste zeigt, wie registriert wurde (Symbol + Filter)", async 
     await restore();
   }
 });
+
+test("Admin: „Jetzt online“ im Dashboard und als Filter der Nutzerliste", async ({ browser }) => {
+  const mira = await userId("mira");
+  const until = new Date(Date.now() + 120_000);
+  await sql(`UPDATE "User" SET "onlineUntil" = $2, "lastOnlineAt" = $3 WHERE id = $1`, [mira, until, new Date()]);
+  const { page, restore } = await adminPage(browser);
+  try {
+    await page.goto("/admin");
+    await expect(page.getByText("Jetzt online", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: new RegExp(USERS.mira.name) })).toBeVisible();
+    await page.goto("/admin/nutzer?online=1");
+    const row = page.getByRole("row", { name: new RegExp(USERS.mira.name) });
+    await expect(row.getByText("Online", { exact: true })).toBeVisible();
+    await page.goto(`/admin/nutzer/${mira}`);
+    await expect(page.getByText("Jetzt online")).toBeVisible();
+  } finally {
+    await sql(`UPDATE "User" SET "onlineUntil" = NULL WHERE id = $1`, [mira]);
+    await restore();
+  }
+});

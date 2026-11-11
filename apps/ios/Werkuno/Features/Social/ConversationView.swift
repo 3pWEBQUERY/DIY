@@ -19,6 +19,7 @@ struct ConversationView: View {
     @State private var archived = false
     @State private var otherRead: Date?
     @State private var receipts: [SocialReceipt]?
+    @State private var presence: SocialPresence?
     @State private var otherPending = false
     @State private var lastAt: Date?
 
@@ -60,15 +61,31 @@ struct ConversationView: View {
                     Button { router.open(.profile(handle: other.handle)) } label: {
                         HStack(spacing: 8) {
                             AvatarView(url: other.avatarUrl, name: other.displayName, size: 28)
+                                .overlay(alignment: .bottomTrailing) {
+                                    if presence?.online == true {
+                                        Circle().fill(Color(red: 0.13, green: 0.64, blue: 0.35))
+                                            .frame(width: 9, height: 9)
+                                            .overlay(Circle().stroke(Color.paper, lineWidth: 1.5))
+                                            .accessibilityHidden(true)
+                                    }
+                                }
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(other.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
-                                Text(thread?.kind == "ORDER" ? "@\(other.handle) · Bestellung" : "@\(other.handle)")
-                                    .font(.wr(.caption2)).foregroundStyle(Color.muted).a11yLineLimit(1)
+                                if let label = presence?.label {
+                                    Text(label)
+                                        .font(.wr(.caption2))
+                                        .foregroundStyle(presence?.online == true ? Color(red: 0.09, green: 0.44, blue: 0.24) : Color.muted)
+                                        .a11yLineLimit(1)
+                                        .contentTransition(.opacity)
+                                } else {
+                                    Text(thread?.kind == "ORDER" ? "@\(other.handle) · Bestellung" : "@\(other.handle)")
+                                        .font(.wr(.caption2)).foregroundStyle(Color.muted).a11yLineLimit(1)
+                                }
                             }
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Profil von \(other.displayName)")
+                    .accessibilityLabel("Profil von \(other.displayName)\(presence?.label.map { ", \($0)" } ?? "")")
                 }
                 ToolbarItem(placement: .topBarTrailing) { menu(other) }
             }
@@ -462,6 +479,7 @@ struct ConversationView: View {
                 archived = t.me.archived
                 otherRead = t.other?.lastReadAt
                 receipts = t.receipts
+                presence = t.other?.presence
                 otherPending = t.other?.pendingRequest ?? false
                 lastAt = t.messages.last?.createdAt
                 error = nil
@@ -505,6 +523,7 @@ struct ConversationView: View {
             withAnimation(.snappy) {
                 otherRead = r.otherLastReadAt
                 receipts = r.receipts
+                presence = r.otherPresence
                 otherPending = r.otherPendingRequest ?? false
             }
             guard !r.messages.isEmpty else { return }

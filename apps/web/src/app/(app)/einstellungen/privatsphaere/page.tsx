@@ -15,7 +15,7 @@ export default async function PrivacySettingsPage() {
   const s = await getPrivacySettings(user.id);
   return (
     <div>
-      <PrivacyForm dmPolicy={s.dmPolicy} reduceMotion={s.reduceMotion} readReceipts={s.readReceipts} />
+      <PrivacyForm dmPolicy={s.dmPolicy} reduceMotion={s.reduceMotion} readReceipts={s.readReceipts} showOnline={s.showOnline} />
       <SettingsSection n="04" title="Blockierte Profile" description="Blockieren wirkt in beide Richtungen: Ihr seht keine Inhalte voneinander, könnt euch nicht folgen und nicht schreiben. Die Person wird nicht benachrichtigt.">
         {s.blocked.length ? (
           <ul className="divide-y divide-line border-y border-line">

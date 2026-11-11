@@ -14,7 +14,7 @@ type Actor = Pick<SessionUser, "id" | "role">;
 const DAY = 86_400_000;
 const RANK: Record<PlatformRole, number> = { MEMBER: 0, PLATFORM_MODERATOR: 1, ADMIN: 2, SUPERADMIN: 3 };
 
-export async function listUsers(actor: Actor, opts: { q?: string | null; status?: string | null; role?: string | null; signup?: string | null; page?: number }) {
+export async function listUsers(actor: Actor, opts: { q?: string | null; status?: string | null; role?: string | null; signup?: string | null; online?: boolean; page?: number }) {
   if (!hasRole(actor, "PLATFORM_MODERATOR")) throw fail.forbidden();
   const page = Math.max(1, opts.page ?? 1);
   const q = opts.q?.trim().toLowerCase();
@@ -22,6 +22,7 @@ export async function listUsers(actor: Actor, opts: { q?: string | null; status?
     ...(opts.status && ["ACTIVE", "SUSPENDED", "BANNED", "DELETED"].includes(opts.status) ? { status: opts.status as AccountStatus } : {}),
     ...(opts.role && (ROLES as readonly string[]).includes(opts.role) ? { role: opts.role as PlatformRole } : {}),
     ...(signupMethodOf(opts.signup) ? { signupMethod: signupMethodOf(opts.signup) } : {}),
+    ...(opts.online ? { onlineUntil: { gt: new Date() } } : {}),
     ...(q
       ? {
           OR: [
@@ -48,6 +49,8 @@ export async function listUsers(actor: Actor, opts: { q?: string | null; status?
         emailVerifiedAt: true,
         signupMethod: true,
         lastSeenAt: true,
+        onlineUntil: true,
+        lastOnlineAt: true,
         createdAt: true,
         profile: { select: { handle: true, displayName: true, avatarUrl: true, followerCount: true, projectCount: true } },
         shop: { select: { status: true } },
@@ -76,6 +79,8 @@ export async function getUserDetail(actor: Actor, userId: string) {
       onboardedAt: true,
       signupMethod: true,
       passwordHash: true,
+      onlineUntil: true,
+      lastOnlineAt: true,
       lastSeenAt: true,
       createdAt: true,
       deletedAt: true,

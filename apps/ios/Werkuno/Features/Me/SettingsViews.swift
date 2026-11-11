@@ -872,6 +872,7 @@ private struct MePrivacySettingsView: View {
     @State private var dmPolicy = "FOLLOWING"
     @State private var reduceMotion = false
     @State private var readReceipts = true
+    @State private var showOnline = true
     @State private var revision = 0
 
     var body: some View {
@@ -903,6 +904,13 @@ private struct MePrivacySettingsView: View {
                     Text("✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen. Ausgeschaltet sehen andere in Einzelchats nicht, ob du gelesen hast – und du siehst es bei ihnen auch nicht. In Gruppen werden Lesebestätigungen immer angezeigt.")
                 }
             }
+            if d.showOnline != nil {
+                Section {
+                    Toggle("Online-Status zeigen", isOn: Binding(get: { showOnline }, set: { showOnline = $0; revision += 1 })).tint(.moss)
+                } footer: {
+                    Text("Personen, mit denen du schreibst, sehen „Online“ bzw. „Zuletzt online …“. Ausgeschaltet siehst du es bei anderen auch nicht. Das Werkuno-Team sieht den Status zur Sicherheit der Plattform immer.")
+                }
+            }
             Section {
                 Toggle("Bewegung reduzieren", isOn: Binding(get: { reduceMotion }, set: { reduceMotion = $0; revision += 1 })).tint(.moss)
             } footer: { Text("Weniger Animationen und keine automatisch drehenden 3D-Szenen im Web. In der App gilt zusätzlich die iOS-Einstellung „Bewegung reduzieren“.") }
@@ -931,14 +939,14 @@ private struct MePrivacySettingsView: View {
     private func load() async {
         do {
             let d: MePrivacySettings = try await APIClient.shared.get("/settings/privacy")
-            dmPolicy = d.dmPolicy; reduceMotion = d.reduceMotion; readReceipts = d.readReceipts ?? true
+            dmPolicy = d.dmPolicy; reduceMotion = d.reduceMotion; readReceipts = d.readReceipts ?? true; showOnline = d.showOnline ?? true
             data = d
             error = nil
         } catch { if data == nil { self.error = MeErr.text(error) } else { app.show(error: error) } }
     }
 
     private func save() async {
-        do { _ = try await APIClient.shared.put("/settings/privacy", ["dmPolicy": JSONValue.string(dmPolicy), "reduceMotion": .bool(reduceMotion), "readReceipts": .bool(readReceipts)]) as JSONValue; app.show("Gesichert.") }
+        do { _ = try await APIClient.shared.put("/settings/privacy", ["dmPolicy": JSONValue.string(dmPolicy), "reduceMotion": .bool(reduceMotion), "readReceipts": .bool(readReceipts), "showOnline": .bool(showOnline)]) as JSONValue; app.show("Gesichert.") }
         catch { app.show(error: error); await load() }
     }
 }

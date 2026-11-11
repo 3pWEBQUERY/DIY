@@ -90,6 +90,8 @@ export const privacyPrefsSchema = z.object({
   reduceMotion: z.boolean().default(false),
   /** Lesebestätigungen in Einzelchats (fehlt bei älteren App-Versionen → unverändert) */
   readReceipts: z.boolean().optional(),
+  /** Online-Status zeigen (fehlt bei älteren App-Versionen → unverändert) */
+  showOnline: z.boolean().optional(),
 });
 
 export const SUPPORT_TOPICS = ["GENERAL", "ACCOUNT", "ORDER", "SELLING", "SAFETY", "PRIVACY", "BUG"] as const;

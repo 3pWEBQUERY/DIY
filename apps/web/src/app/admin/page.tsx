@@ -8,6 +8,10 @@ import { AdminHeader, Kpi, KpiGrid } from "@/components/admin/ui";
 import { Sparkline } from "@/components/admin/sparkline";
 import { SectionTitle } from "@/components/ui/misc";
 import { dec, delta, duration, num, pct, weekLabel } from "@/components/admin/format";
+import { onlineNow } from "@/server/presence";
+import { Avatar } from "@/components/ui/misc";
+import { OnlineDot } from "@/components/ui/online-dot";
+import { SignupMethodIcon } from "@/components/admin/signup-method";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
@@ -16,7 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminDashboard() {
   const user = await adminPage("PLATFORM_MODERATOR");
   const isAdmin = hasRole(user, "ADMIN");
-  const k = await dashboardKpis({ includeMoney: isAdmin });
+  const [k, online] = await Promise.all([dashboardKpis({ includeMoney: isAdmin }), onlineNow(24)]);
   const labels = k.weeks.map(weekLabel);
   const spark = (values: number[], label: string, variant: "line" | "bars" = "line") => <Sparkline values={values} labels={labels} label={label} variant={variant} />;
 
@@ -35,6 +39,7 @@ export default async function AdminDashboard() {
       <section aria-labelledby="k1" className="mb-10">
         <SectionTitle n="01" title={<span id="k1">Aktivität</span>} />
         <KpiGrid className="mt-4">
+          <Kpi label="Jetzt online" value={num(online.count)} note="Web oder App in den letzten 2½ Minuten aktiv" />
           <Kpi
             label="Kreative mit bedeutsamer Aktivität · 7 T."
             value={num(k.activity.meaningfulCreators7)}
@@ -45,6 +50,32 @@ export default async function AdminDashboard() {
           <Kpi label="WAU / MAU" value={pct(k.activity.stickiness)} note="Anteil der Monatsaktiven, die wöchentlich zurückkehren" />
           <Kpi label="Neue Konten · 7 T." value={num(k.activity.newUsers7)} note={`${num(k.activity.users)} Konten gesamt`} chart={spark(k.activity.seriesUsers, "Neue Konten pro Woche", "bars")} />
         </KpiGrid>
+        <div className="mt-4 rounded-2xl border border-line bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-[13px] font-semibold">
+              <span className="size-2.5 rounded-full bg-online" aria-hidden /> Gerade online ({num(online.count)})
+            </p>
+            <Link href="/admin/nutzer?online=1" className="text-xs text-muted hover:text-ink">Alle anzeigen →</Link>
+          </div>
+          {online.users.length ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {online.users.map((u) => (
+                <li key={u.id}>
+                  <Link href={`/admin/nutzer/${u.id}`} className="flex items-center gap-2 rounded-full border border-line py-1 pl-1 pr-3 text-[13px] hover:border-rule-strong">
+                    <span className="relative inline-block">
+                      <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? "?"} size={24} />
+                      <OnlineDot size={8} decorative />
+                    </span>
+                    <span className="font-medium">{u.profile?.displayName ?? "Ohne Profil"}</span>
+                    <SignupMethodIcon method={u.signupMethod} size={12} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted">Gerade ist niemand online.</p>
+          )}
+        </div>
       </section>
 
       <section aria-labelledby="k2" className="mb-10">

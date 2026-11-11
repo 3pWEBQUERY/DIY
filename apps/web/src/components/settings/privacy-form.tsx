@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BRAND } from "@/config/brand";
 import { DM_POLICIES, DM_POLICY_LABEL } from "@werkraum/shared";
 import { useAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
@@ -16,8 +17,9 @@ const DM_HINT: Record<(typeof DM_POLICIES)[number], string> = {
   NOBODY: "Neue Unterhaltungen sind nur im Zusammenhang mit einer Bestellung möglich.",
 };
 
-export function PrivacyForm({ dmPolicy, reduceMotion, readReceipts }: { dmPolicy: string; reduceMotion: boolean; readReceipts: boolean }) {
+export function PrivacyForm({ dmPolicy, reduceMotion, readReceipts, showOnline }: { dmPolicy: string; reduceMotion: boolean; readReceipts: boolean; showOnline: boolean }) {
   const [rr, setRr] = useState(readReceipts);
+  const [so, setSo] = useState(showOnline);
   const [dm, setDm] = useState((DM_POLICIES as readonly string[]).includes(dmPolicy) ? dmPolicy : "FOLLOWING");
   const [rm, setRm] = useState(reduceMotion);
   const { run, pending } = useAction(updatePrivacyAction);
@@ -25,7 +27,7 @@ export function PrivacyForm({ dmPolicy, reduceMotion, readReceipts }: { dmPolicy
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        run({ dmPolicy: dm, reduceMotion: rm, readReceipts: rr });
+        run({ dmPolicy: dm, reduceMotion: rm, readReceipts: rr, showOnline: so });
       }}
     >
       <SettingsSection n="01" title="Wer darf dir schreiben?">
@@ -43,7 +45,7 @@ export function PrivacyForm({ dmPolicy, reduceMotion, readReceipts }: { dmPolicy
         </fieldset>
       </SettingsSection>
 
-      <SettingsSection n="02" title="Lesebestätigungen" description="✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen.">
+      <SettingsSection n="02" title="Lesebestätigungen & Online-Status" description="✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen.">
         <Checkbox
           checked={rr}
           onChange={(e) => setRr(e.currentTarget.checked)}
@@ -54,6 +56,18 @@ export function PrivacyForm({ dmPolicy, reduceMotion, readReceipts }: { dmPolicy
             </>
           }
         />
+        <div className="mt-4 border-t border-line pt-4">
+          <Checkbox
+            checked={so}
+            onChange={(e) => setSo(e.currentTarget.checked)}
+            label={
+              <>
+                <span className="font-semibold">Online-Status zeigen</span>
+                <span className="block text-xs text-muted">Personen, mit denen du schreibst, sehen „Online“ bzw. „Zuletzt online …“. Ausgeschaltet siehst du es bei anderen auch nicht. Das Team von {BRAND.name} sieht den Status zur Sicherheit der Plattform immer.</span>
+              </>
+            }
+          />
+        </div>
       </SettingsSection>
 
       <SettingsSection n="03" title="Darstellung" description="Unabhängig von dieser Einstellung respektieren wir die Systemeinstellung „Bewegung reduzieren“ deines Geräts.">

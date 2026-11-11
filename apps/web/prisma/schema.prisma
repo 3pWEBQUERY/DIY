@@ -271,6 +271,10 @@ model User {
   /// Wie das Konto registriert wurde: EMAIL | APPLE | PINTEREST | ANDROID (Admin-Anzeige)
   signupMethod    String?
   lastSeenAt      DateTime?
+  /// Online-Status: online, solange onlineUntil in der Zukunft liegt (Herzschlag aus Web/App verlängert)
+  onlineUntil     DateTime?
+  /// Letzter Herzschlag – „zuletzt online“
+  lastOnlineAt    DateTime?
   deletedAt       DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -332,6 +336,7 @@ model User {
 
   @@index([status])
   @@index([createdAt])
+  @@index([onlineUntil])
   pollVotes       PollVote[]
   organizedEvents CommunityEvent[] @relation("eventOrganizer")
   eventAttendance EventAttendee[]
@@ -455,6 +460,8 @@ model UserPreference {
   reduceMotion      Boolean  @default(false)
   /// Lesebestätigungen in Einzelchats senden und sehen (gegenseitig wie bei WhatsApp; Gruppen immer)
   readReceipts      Boolean  @default(true)
+  /// Online-Status und „zuletzt online“ zeigen (gegenseitig wie bei WhatsApp)
+  showOnline        Boolean  @default(true)
   hiddenCategories  String[] @default([])
   updatedAt         DateTime @updatedAt
 }

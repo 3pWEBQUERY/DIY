@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ReceiptTicks } from "./receipt-ticks";
+import { OnlineDot } from "@/components/ui/online-dot";
 import { PenSquare, ShieldAlert, UsersRound } from "lucide-react";
 import type { ConversationListItem, InboxBox } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
@@ -93,7 +94,14 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                     className={cn("flex gap-3 rounded-2xl px-3 py-3 transition-colors", active ? "bg-moss text-paper" : c.unread ? "bg-card hover:bg-moss-soft/50" : "hover:bg-card")}
                   >
                     <span className="relative shrink-0">
-                      {c.group ? <GroupAvatar avatars={c.group.avatars} /> : <Avatar src={c.other.avatarUrl} name={c.other.displayName} size={42} />}
+                      {c.group ? (
+                        <GroupAvatar avatars={c.group.avatars} />
+                      ) : (
+                        <span className="relative inline-block">
+                          <Avatar src={c.other.avatarUrl} name={c.other.displayName} size={42} />
+                          {c.online && <OnlineDot />}
+                        </span>
+                      )}
                       {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-moss" : "border-paper")} aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1">

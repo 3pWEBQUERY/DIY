@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignupMethodIcon } from "@/components/admin/signup-method";
+import { presenceLabel } from "@/lib/presence";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -226,6 +227,18 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <dt className="spec">E-Mail</dt>
                 <dd className="font-mono">{isAdmin ? u.email : maskEmail(u.email)}</dd>
                 <dd className="text-muted">{u.emailVerifiedAt ? `bestätigt ${shortDate(u.emailVerifiedAt)}` : "nicht bestätigt"}</dd>
+              </div>
+              <div>
+                <dt className="spec">Online-Status</dt>
+                <dd>
+                  {u.onlineUntil && u.onlineUntil > new Date() ? (
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-online-ink">
+                      <span className="size-2 rounded-full bg-online" aria-hidden /> Jetzt online
+                    </span>
+                  ) : (
+                    <span className="text-muted">{presenceLabel({ online: false, lastOnlineAt: u.lastOnlineAt?.toISOString() ?? null }) ?? "Noch nie online (seit Einführung)"}</span>
+                  )}
+                </dd>
               </div>
               <div>
                 <dt className="spec">Registriert über</dt>

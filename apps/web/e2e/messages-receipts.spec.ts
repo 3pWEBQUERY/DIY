@@ -18,7 +18,7 @@ async function directConversation() {
     await sql(`INSERT INTO "ConversationMember" ("conversationId", "userId", "joinedAt") VALUES ($1, $2, now() - interval '1 day'), ($1, $3, now() - interval '1 day')`, [id, lena, mattia]);
   }
   await sql(`UPDATE "ConversationMember" SET "isRequest" = false, "archivedAt" = NULL WHERE "conversationId" = $1`, [id]);
-  await sql(`UPDATE "UserPreference" SET "readReceipts" = true WHERE "userId" IN ($1, $2)`, [lena, mattia]);
+  await sql(`UPDATE "UserPreference" SET "readReceipts" = true, "showOnline" = true WHERE "userId" IN ($1, $2)`, [lena, mattia]);
   return { id, lena, mattia };
 }
 
@@ -71,4 +71,27 @@ test("Pinterest ohne Konfiguration: kein Button, Start führt mit Hinweis zurüc
   await expect(p.getByText("Mit Pinterest fortfahren")).toHaveCount(0);
   await p.goto("/registrieren/pinterest");
   await expect(p.getByText("abgelaufen oder wurde nicht gestartet")).toBeVisible();
+});
+
+test("Online-Status: im Chat „Online“, im Admin-Dashboard gelistet, ausgeschaltet verborgen", async ({ browser }) => {
+  const { id, mattia } = await directConversation();
+  const page = await loginAs(browser, "lena");
+  // Mattia ist online (Herzschlag)
+  const m = await loginAs(browser, "mattia");
+  await m.request.post("/api/v1/me/presence");
+  await page.goto(`/nachrichten/${id}`);
+  const header = page.getByRole("region", { name: /Unterhaltung mit/ });
+  await expect(header.getByText("Online", { exact: true })).toBeVisible();
+  // Offline (Tab geschlossen) → „Zuletzt online …“
+  await m.request.post("/api/v1/me/presence?state=offline");
+  await expect(header.getByText(/^Zuletzt online/)).toBeVisible({ timeout: 15_000 });
+  // Ausgeschaltet: gegenseitig verborgen
+  await sql(`UPDATE "UserPreference" SET "showOnline" = false WHERE "userId" = $1`, [mattia]);
+  try {
+    await m.request.post("/api/v1/me/presence");
+    await page.reload();
+    await expect(header.getByText(/^(Online|Zuletzt online)/)).toHaveCount(0);
+  } finally {
+    await sql(`UPDATE "UserPreference" SET "showOnline" = true WHERE "userId" = $1`, [mattia]);
+  }
 });

@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Flag, Info, LogOut, ShieldAlert } from "lucide-react";
 import { messageStatus, type MessageStatus, type Receipt } from "@/lib/message-status";
 import { ReceiptTicks } from "./receipt-ticks";
+import { presenceLabel, type Presence } from "@/lib/presence";
+import { OnlineDot } from "@/components/ui/online-dot";
 import type { MessageView, ThreadData } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
@@ -130,6 +132,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
   const [messages, setMessages] = useState(thread.messages);
   const [hasMore, setHasMore] = useState(thread.hasMore);
   const [receipts, setReceipts] = useState<Receipt[]>(thread.receipts);
+  const [presence, setPresence] = useState<Presence | null>(thread.other?.presence ?? null);
   const [otherPending, setOtherPending] = useState(!!thread.other?.pendingRequest);
   const [isRequest, setIsRequest] = useState(thread.me.isRequest);
   const [archived, setArchived] = useState(thread.me.archived);
@@ -189,8 +192,9 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
     try {
       const res = await fetch(`/api/v1/conversations/${thread.id}/messages${lastAt.current ? `?after=${encodeURIComponent(lastAt.current)}` : ""}`, { cache: "no-store" });
       if (!res.ok) return;
-      const { data } = (await res.json()) as { data: { messages: MessageView[]; otherPendingRequest: boolean; receipts: Receipt[] } };
+      const { data } = (await res.json()) as { data: { messages: MessageView[]; otherPendingRequest: boolean; receipts: Receipt[]; otherPresence?: Presence | null } };
       setReceipts(data.receipts);
+      setPresence(data.otherPresence ?? null);
       setOtherPending(data.otherPendingRequest);
       if (data.messages.length) {
         lastAt.current = data.messages.at(-1)!.createdAt;
@@ -354,10 +358,19 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           </button>
         ) : thread.other ? (
           <Link href={`/u/${thread.other.handle}`} className="flex min-w-0 flex-1 items-center gap-3">
-            <Avatar src={thread.other.avatarUrl} name={otherName} size={36} />
+            <span className="relative inline-block shrink-0">
+              <Avatar src={thread.other.avatarUrl} name={otherName} size={36} />
+              {presence?.online && <OnlineDot size={10} decorative />}
+            </span>
             <span className="min-w-0">
               <span className="block truncate font-semibold hover:underline">{otherName}</span>
-              <span className="block truncate text-xs text-muted">@{thread.other.handle}{thread.kind === "ORDER" ? " · Käufer↔Verkäufer" : ""}</span>
+              {presenceLabel(presence) ? (
+                <span className={cn("block truncate text-xs", presence?.online ? "font-medium text-online-ink" : "text-muted")} suppressHydrationWarning>
+                  {presenceLabel(presence)}
+                </span>
+              ) : (
+                <span className="block truncate text-xs text-muted">@{thread.other.handle}{thread.kind === "ORDER" ? " · Käufer↔Verkäufer" : ""}</span>
+              )}
             </span>
           </Link>
         ) : (

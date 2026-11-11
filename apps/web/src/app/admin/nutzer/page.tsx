@@ -9,17 +9,19 @@ import { num, shortDate } from "@/components/admin/format";
 import { relativeTime } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
 import { SignupMethodIcon } from "@/components/admin/signup-method";
+import { OnlineDot } from "@/components/ui/online-dot";
 import { SIGNUP_METHODS, SIGNUP_METHOD_LABEL } from "@/config/signup-methods";
 
 export const metadata: Metadata = { title: "Nutzer" };
 
-type SP = { q?: string; status?: string; rolle?: string; ueber?: string; seite?: string };
+type SP = { q?: string; status?: string; rolle?: string; ueber?: string; online?: string; seite?: string };
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await adminPage("PLATFORM_MODERATOR", "/admin/nutzer");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.seite) || 1);
-  const r = await listUsers(user, { q: sp.q, status: sp.status, role: sp.rolle, signup: sp.ueber, page });
+  const r = await listUsers(user, { q: sp.q, status: sp.status, role: sp.rolle, signup: sp.ueber, online: sp.online === "1", page });
+  const now = new Date();
   const qs = (p: number) => `/admin/nutzer?${new URLSearchParams(Object.entries({ ...sp, seite: String(p) }).filter(([, v]) => v) as [string, string][])}`;
 
   return (
@@ -63,6 +65,12 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             ))}
           </Select>
         </FilterField>
+        <FilterField label="Aktivität">
+          <Select name="online" defaultValue={sp.online ?? ""} className="h-9 w-auto min-w-[140px] text-[13.5px]">
+            <option value="">Alle</option>
+            <option value="1">Jetzt online</option>
+          </Select>
+        </FilterField>
       </FilterBar>
 
       <Table caption="Nutzerkonten">
@@ -86,7 +94,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             <Tr key={u.id}>
               <Td>
                 <Link href={`/admin/nutzer/${u.id}`} className="flex items-center gap-2.5 hover:underline">
-                  <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? "?"} size={26} />
+                  <span className="relative inline-block shrink-0">
+                    <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? "?"} size={26} />
+                    {u.onlineUntil && u.onlineUntil > now && <OnlineDot size={9} decorative />}
+                  </span>
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{u.profile?.displayName ?? "Ohne Profil"}</span>
                     <span className="block text-xs text-muted">@{u.profile?.handle ?? "–"}</span>
@@ -110,7 +121,16 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               <Td align="right" className={u._count.moderationSubject ? "text-clay-ink" : "text-muted"}>
                 {u._count.moderationSubject}
               </Td>
-              <Td className="whitespace-nowrap text-muted">{u.lastSeenAt ? relativeTime(u.lastSeenAt) : "–"}</Td>
+              <Td className="whitespace-nowrap text-muted">
+                {u.onlineUntil && u.onlineUntil > now ? (
+                  <span className="font-semibold text-online-ink">Online</span>
+                ) : (
+                  (() => {
+                    const last = [u.lastOnlineAt, u.lastSeenAt].filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0];
+                    return last ? relativeTime(last) : "–";
+                  })()
+                )}
+              </Td>
               <Td className="whitespace-nowrap text-muted">{shortDate(u.createdAt)}</Td>
             </Tr>
           ))}

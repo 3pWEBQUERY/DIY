@@ -143,6 +143,11 @@ export default async function PrivacyPage() {
                   ✓✓ blau (gelesen). „Gelesen“ kannst du für Einzelchats in den Einstellungen unter „Privatsphäre“ ausschalten; dann siehst du es bei anderen auch nicht. In Gruppen wird es immer angezeigt.
                 </li>
                 <li>
+                  <strong>Online-Status:</strong> Solange {BRAND.name} im Browser sichtbar bzw. die App im Vordergrund geöffnet ist, speichern wir etwa jede Minute, dass du online bist, und den Zeitpunkt, zu dem du
+                  zuletzt online warst. Personen, mit denen du ein angenommenes Einzelgespräch führst, sehen „Online“ bzw. „Zuletzt online …“. Unter „Privatsphäre“ kannst du das ausschalten (dann siehst du es bei
+                  anderen auch nicht). Das Moderationsteam sieht den Status zur Sicherheit der Plattform immer.
+                </li>
+                <li>
                   <strong>Sitzungen:</strong> Für jede Anmeldung speichern wir eine Sitzung mit Gerätebezeichnung (z. B. „Safari auf macOS“), Browser-Kennung, Zeitpunkt der Anmeldung und letzten Nutzung sowie einem Hashwert der
                   IP-Adresse. Unter <Link href="/einstellungen/sicherheit">Einstellungen → Sicherheit</Link> siehst du alle Sitzungen und kannst sie beenden. Bei einer Anmeldung von einem unbekannten Gerät informieren wir dich per
                   E-Mail.

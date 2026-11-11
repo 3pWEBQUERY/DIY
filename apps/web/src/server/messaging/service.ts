@@ -14,6 +14,14 @@ import { publish } from "@/server/realtime/bus";
 import { requireFlag } from "@/server/flags";
 import { detectSuspiciousPayment } from "./suspicious";
 import { messageStatus, type Receipt } from "@/lib/message-status";
+import { presenceFor } from "@/server/presence";
+import type { Presence } from "@/lib/presence";
+
+/** Online-Status nur in angenommenen Einzelgesprächen mit aktiven Konten (und wenn beide ihn zeigen). */
+async function otherPresence(viewerId: string, me: { isRequest: boolean }, other: { isRequest: boolean; user: { id: string; status: string; onlineUntil: Date | null; lastOnlineAt: Date | null } } | undefined): Promise<Presence | null> {
+  if (!other || other.isRequest || me.isRequest || other.user.status !== "ACTIVE") return null;
+  return (await presenceFor(viewerId, [other.user])).get(other.user.id) ?? null;
+}
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -36,7 +44,7 @@ function flagsFor(body: string) {
 
 // ───────────────────────── Helfer ─────────────────────────
 
-const profileSelect = { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } as const;
+const profileSelect = { id: true, status: true, onlineUntil: true, lastOnlineAt: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } as const;
 
 type MediaItem = { id: string; url: string; thumb: string; alt: string; width: number | null; height: number | null };
 
@@ -172,7 +180,14 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
   const orders = orderIds.length ? await db.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, number: true } }) : [];
   const onum = new Map(orders.map((o) => [o.id, o.number]));
   // Häkchen an der Vorschau, wenn die letzte Nachricht von mir ist
-  const off = await readReceiptsOff([userId, ...rows.filter((r) => r.conversation.kind !== "GROUP").flatMap((r) => r.conversation.members.map((m) => m.userId))]);
+  const directOthers = rows.filter((r) => r.conversation.kind !== "GROUP").flatMap((r) => r.conversation.members);
+  const [off, presence] = await Promise.all([
+    readReceiptsOff([userId, ...directOthers.map((m) => m.userId)]),
+    presenceFor(
+      userId,
+      directOthers.filter((m) => !m.isRequest && m.user.status === "ACTIVE").map((m) => m.user),
+    ),
+  ]);
   return rows.map((r) => {
     const c = r.conversation;
     const other = c.members[0]?.user;
@@ -196,6 +211,8 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
       lastStatus: last?.senderId === userId && last.kind !== "SYSTEM" ? messageStatus(last.createdAt.toISOString(), buildReceipts(userId, isGroup, c.members, off)) : null,
       flagged: !!last?.flags.includes("SUSPICIOUS_PAYMENT_LINK") && last.senderId !== userId,
       unread,
+      /** Einzelgespräch: Gegenüber gerade online (grüner Punkt) */
+      online: !isGroup && !r.isRequest && !!other && !!presence.get(other.id)?.online,
       other: other
         ? { id: other.id, handle: other.profile?.handle ?? "", displayName: other.status === "DELETED" ? "Gelöschtes Konto" : other.profile?.displayName ?? "Unbekannt", avatarUrl: other.profile?.avatarUrl ?? null }
         : { id: "", handle: "", displayName: "Unbekannt", avatarUrl: null },
@@ -289,7 +306,11 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   });
   const hasMore = rows.length > PAGE;
   const messages = rows.slice(0, PAGE).reverse().map((m) => messageView(m, user.id));
-  const [ownCount, receipts] = await Promise.all([db.message.count({ where: { conversationId, senderId: user.id } }), receiptsFor(user.id, isGroup, others)]);
+  const [ownCount, receipts, presence] = await Promise.all([
+    db.message.count({ where: { conversationId, senderId: user.id } }),
+    receiptsFor(user.id, isGroup, others),
+    otherPresence(user.id, me, other),
+  ]);
   const group = isGroup
     ? {
         title: conv.title ?? "Gruppe",
@@ -331,6 +352,8 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
           lastReadAt: receipts[0]?.readAt ?? null,
           pendingRequest: other.isRequest && !other.archivedAt,
           declined: isDeclined(other),
+          /** Online bzw. zuletzt online (null: verborgen oder nicht freigegeben) */
+          presence,
         }
       : null,
     context: await orderContext(conv, user.id),
@@ -359,13 +382,14 @@ export async function messagesSince(user: SessionUser, conversationId: string, a
   // Gruppen: keine Blockier-Sperre
   const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound();
-  const receipts = await receiptsFor(user.id, isGroup, others);
+  const [receipts, presence] = await Promise.all([receiptsFor(user.id, isGroup, others), otherPresence(user.id, me, other)]);
   return {
     messages: rows.map((m) => messageView(m, user.id)),
     /** Einzelchat (ältere App-Versionen): Lesestand der Gegenseite */
     otherLastReadAt: other ? receipts[0]?.readAt ?? null : null,
     otherPendingRequest: !!other && other.isRequest && !other.archivedAt,
     receipts,
+    otherPresence: presence,
   };
 }
 

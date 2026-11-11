@@ -200,6 +200,23 @@ enum SocialMessageStatus: Equatable {
     }
 }
 
+/// Online-Status des Gegenübers (wie WhatsApp: „Online“ bzw. „Zuletzt online …“)
+struct SocialPresence: Decodable, Sendable, Equatable {
+    var online: Bool
+    var lastOnlineAt: Date?
+
+    var label: String? {
+        if online { return "Online" }
+        guard let t = lastOnlineAt else { return nil }
+        let mins = max(1, Int(Date().timeIntervalSince(t) / 60))
+        if mins < 60 { return "Zuletzt online vor \(mins) Min." }
+        let time = t.formatted(date: .omitted, time: .shortened)
+        if Calendar.current.isDateInToday(t) { return "Zuletzt online heute um \(time)" }
+        if Calendar.current.isDateInYesterday(t) { return "Zuletzt online gestern um \(time)" }
+        return "Zuletzt online am \(t.formatted(.dateTime.day().month(.wide)))"
+    }
+}
+
 /// `GET /conversations/:id`
 struct SocialThread: Decodable, Sendable {
     struct Me: Decodable, Sendable { var isRequest: Bool; var archived: Bool; var lastReadAt: Date? }
@@ -212,6 +229,8 @@ struct SocialThread: Decodable, Sendable {
         var lastReadAt: Date?
         var pendingRequest: Bool?
         var declined: Bool?
+        /// Online bzw. zuletzt online (fehlt: verborgen oder ältere Server)
+        var presence: SocialPresence?
     }
     var id: String
     var kind: String?
@@ -235,6 +254,7 @@ struct SocialMessagesSince: Decodable, Sendable {
     var otherLastReadAt: Date?
     var otherPendingRequest: Bool?
     var receipts: [SocialReceipt]?
+    var otherPresence: SocialPresence?
 }
 
 /// `GET /conversations/prepare`
