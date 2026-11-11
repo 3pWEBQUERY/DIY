@@ -22,6 +22,9 @@ const schema = z.object({
   MAIL_FROM: z.string().default("Werkuno <hallo@werkuno.ch>"),
   // Apple
   APPLE_CLIENT_ID: z.string().optional(),
+  // Anmelden mit Pinterest (OAuth v5, developers.pinterest.com → Apps): App-ID und App-Secret-Key
+  PINTEREST_CLIENT_ID: z.string().optional(),
+  PINTEREST_CLIENT_SECRET: z.string().optional(),
   APPLE_TEAM_ID: z.string().optional(),
   APPLE_KEY_ID: z.string().optional(),
   APPLE_PRIVATE_KEY: z.string().optional(),
@@ -82,4 +85,5 @@ export const features = {
   payments: () => Boolean(env().STRIPE_SECRET_KEY),
   apple: () => Boolean(env().APPLE_CLIENT_ID && env().APPLE_TEAM_ID && env().APPLE_KEY_ID && env().APPLE_PRIVATE_KEY),
   email: () => Boolean(env().RESEND_API_KEY),
+  pinterest: () => Boolean(env().PINTEREST_CLIENT_ID && env().PINTEREST_CLIENT_SECRET),
 };

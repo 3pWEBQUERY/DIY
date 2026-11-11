@@ -16,7 +16,8 @@ const DM_HINT: Record<(typeof DM_POLICIES)[number], string> = {
   NOBODY: "Neue Unterhaltungen sind nur im Zusammenhang mit einer Bestellung möglich.",
 };
 
-export function PrivacyForm({ dmPolicy, reduceMotion }: { dmPolicy: string; reduceMotion: boolean }) {
+export function PrivacyForm({ dmPolicy, reduceMotion, readReceipts }: { dmPolicy: string; reduceMotion: boolean; readReceipts: boolean }) {
+  const [rr, setRr] = useState(readReceipts);
   const [dm, setDm] = useState((DM_POLICIES as readonly string[]).includes(dmPolicy) ? dmPolicy : "FOLLOWING");
   const [rm, setRm] = useState(reduceMotion);
   const { run, pending } = useAction(updatePrivacyAction);
@@ -24,7 +25,7 @@ export function PrivacyForm({ dmPolicy, reduceMotion }: { dmPolicy: string; redu
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        run({ dmPolicy: dm, reduceMotion: rm });
+        run({ dmPolicy: dm, reduceMotion: rm, readReceipts: rr });
       }}
     >
       <SettingsSection n="01" title="Wer darf dir schreiben?">
@@ -42,7 +43,20 @@ export function PrivacyForm({ dmPolicy, reduceMotion }: { dmPolicy: string; redu
         </fieldset>
       </SettingsSection>
 
-      <SettingsSection n="02" title="Darstellung" description="Unabhängig von dieser Einstellung respektieren wir die Systemeinstellung „Bewegung reduzieren“ deines Geräts.">
+      <SettingsSection n="02" title="Lesebestätigungen" description="✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen.">
+        <Checkbox
+          checked={rr}
+          onChange={(e) => setRr(e.currentTarget.checked)}
+          label={
+            <>
+              <span className="font-semibold">Lesebestätigungen senden</span>
+              <span className="block text-xs text-muted">Wenn du sie ausschaltest, sehen andere in Einzelchats nicht, ob du ihre Nachrichten gelesen hast – und du siehst es bei ihnen auch nicht. In Gruppen werden Lesebestätigungen immer angezeigt.</span>
+            </>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection n="03" title="Darstellung" description="Unabhängig von dieser Einstellung respektieren wir die Systemeinstellung „Bewegung reduzieren“ deines Geräts.">
         <Checkbox checked={rm} onChange={(e) => setRm(e.currentTarget.checked)} label={<><span className="font-semibold">Bewegung reduzieren</span><span className="block text-xs text-muted">Animationen, Zeichenlinien und automatische Übergänge werden ausgeschaltet.</span></>} />
         <div className="mt-4 border-t border-line pt-4">
           <ShortcutsToggle />

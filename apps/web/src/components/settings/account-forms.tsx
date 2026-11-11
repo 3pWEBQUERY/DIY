@@ -52,7 +52,7 @@ export function ChangeEmailButton({ hasPassword }: { hasPassword: boolean }) {
             </div>
           </form>
         ) : (
-          <p className="text-sm text-ink-2">Du meldest dich bisher nur mit Apple an. Lege unten zuerst ein Passwort fest – damit bestätigst du die Änderung.</p>
+          <p className="text-sm text-ink-2">Du meldest dich bisher ohne Passwort an (mit Apple bzw. Pinterest). Lege unten zuerst ein Passwort fest – damit bestätigst du die Änderung.</p>
         )}
       </Dialog>
     </>

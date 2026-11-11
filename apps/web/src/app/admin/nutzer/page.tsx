@@ -8,16 +8,18 @@ import { Avatar, Badge } from "@/components/ui/misc";
 import { num, shortDate } from "@/components/admin/format";
 import { relativeTime } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
+import { SignupMethodIcon } from "@/components/admin/signup-method";
+import { SIGNUP_METHODS, SIGNUP_METHOD_LABEL } from "@/config/signup-methods";
 
 export const metadata: Metadata = { title: "Nutzer" };
 
-type SP = { q?: string; status?: string; rolle?: string; seite?: string };
+type SP = { q?: string; status?: string; rolle?: string; ueber?: string; seite?: string };
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await adminPage("PLATFORM_MODERATOR", "/admin/nutzer");
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.seite) || 1);
-  const r = await listUsers(user, { q: sp.q, status: sp.status, role: sp.rolle, page });
+  const r = await listUsers(user, { q: sp.q, status: sp.status, role: sp.rolle, signup: sp.ueber, page });
   const qs = (p: number) => `/admin/nutzer?${new URLSearchParams(Object.entries({ ...sp, seite: String(p) }).filter(([, v]) => v) as [string, string][])}`;
 
   return (
@@ -51,12 +53,23 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             ))}
           </Select>
         </FilterField>
+        <FilterField label="Registriert über">
+          <Select name="ueber" defaultValue={sp.ueber ?? ""} className="h-9 w-auto min-w-[140px] text-[13.5px]">
+            <option value="">Alle</option>
+            {SIGNUP_METHODS.map((k) => (
+              <option key={k} value={k}>
+                {SIGNUP_METHOD_LABEL[k]}
+              </option>
+            ))}
+          </Select>
+        </FilterField>
       </FilterBar>
 
       <Table caption="Nutzerkonten">
         <thead>
           <tr>
             <Th>Mitglied</Th>
+            <Th>Über</Th>
             <Th>E-Mail</Th>
             <Th>Rolle</Th>
             <Th>Status</Th>
@@ -68,7 +81,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           </tr>
         </thead>
         <tbody>
-          {r.rows.length === 0 && <EmptyRow cols={9}>Keine Konten gefunden.</EmptyRow>}
+          {r.rows.length === 0 && <EmptyRow cols={10}>Keine Konten gefunden.</EmptyRow>}
           {r.rows.map((u) => (
             <Tr key={u.id}>
               <Td>
@@ -79,6 +92,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                     <span className="block text-xs text-muted">@{u.profile?.handle ?? "–"}</span>
                   </span>
                 </Link>
+              </Td>
+              <Td>
+                <SignupMethodIcon method={u.signupMethod} />
               </Td>
               <Td mono className="text-muted">
                 {maskEmail(u.email)}

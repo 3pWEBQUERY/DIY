@@ -10,10 +10,20 @@ import { buttonClass } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { getCustomerDetails } from "@/server/account/customer";
 import { CustomerDetailsForm } from "@/components/settings/customer-details-form";
+import { UnlinkPinterestButton } from "@/components/settings/pinterest-link";
+import { features } from "@/server/env";
 
 export const metadata: Metadata = { title: "Konto & Daten" };
 
-export default async function AccountSettingsPage() {
+const PINTEREST_NOTICE: Record<string, { tone: "moss" | "warn" | "danger"; text: string }> = {
+  verbunden: { tone: "moss", text: "Pinterest ist jetzt mit deinem Konto verbunden. Du kannst dich ab sofort auch mit Pinterest anmelden." },
+  vergeben: { tone: "danger", text: "Dieses Pinterest-Konto ist bereits mit einem anderen Werkuno-Konto verbunden." },
+  fehler: { tone: "danger", text: "Die Verbindung mit Pinterest ist fehlgeschlagen oder wurde abgebrochen. Bitte versuche es erneut." },
+};
+
+export default async function AccountSettingsPage({ searchParams }: { searchParams: Promise<{ pinterest?: string }> }) {
+  const sp = await searchParams;
+  const pinterestNotice = sp.pinterest ? PINTEREST_NOTICE[sp.pinterest] : undefined;
   const user = await requirePageUser("/einstellungen/konto", { allowSuspended: true });
   const [a, details, session] = await Promise.all([accountOverview(user.id), getCustomerDetails(user.id), getSession()]);
   // Konten ohne Passwort: kritische Schritte nur kurz nach einer frischen Anmeldung mit Apple
@@ -31,10 +41,35 @@ export default async function AccountSettingsPage() {
           </span>
         </div>
         {a.providers.includes("apple") && <p className="mt-2 text-xs text-muted">Du meldest dich (auch) mit Apple an.</p>}
+        {pinterestNotice && (
+          <Notice tone={pinterestNotice.tone} className="mt-3">
+            {pinterestNotice.text}
+          </Notice>
+        )}
+        {(features.pinterest() || a.providers.includes("pinterest")) && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 text-sm">
+            <span className="font-semibold">Pinterest</span>
+            {a.providers.includes("pinterest") ? (
+              <>
+                <Badge tone="moss">Verbunden</Badge>
+                <span className="ml-auto">
+                  <UnlinkPinterestButton canUnlink={a.hasPassword || a.providers.includes("apple")} />
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-muted">Mit Pinterest anmelden</span>
+                <a href="/api/auth/pinterest?verbinden=1" className={buttonClass("outline", "sm", "ml-auto")}>
+                  Verbinden
+                </a>
+              </>
+            )}
+          </div>
+        )}
         <p className="mt-2 text-xs text-muted">Mitglied seit {formatDate(a.createdAt)}.</p>
       </SettingsSection>
 
-      <SettingsSection n="02" title={a.hasPassword ? "Passwort ändern" : "Passwort festlegen"} description={a.hasPassword ? undefined : "Du meldest dich bisher nur mit Apple an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden."}>
+      <SettingsSection n="02" title={a.hasPassword ? "Passwort ändern" : "Passwort festlegen"} description={a.hasPassword ? undefined : `Du meldest dich bisher nur mit ${a.providers.includes("apple") ? "Apple" : "Pinterest"} an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden.`}>
         <ChangePasswordForm hasPassword={a.hasPassword} reauthFresh={reauthFresh} />
       </SettingsSection>
 
@@ -63,7 +98,7 @@ export default async function AccountSettingsPage() {
               <li>Beiträge, Projekte, Anleitungen und Kommentare (nicht mehr sichtbar)</li>
               <li>Blogartikel (verborgen)</li>
               <li>Follower- und Folgebeziehungen</li>
-              <li>Alle Sitzungen und verknüpften Anmeldungen (z. B. Apple)</li>
+              <li>Alle Sitzungen und verknüpften Anmeldungen (z. B. Apple, Pinterest)</li>
               {a.hasShop && <li>Dein Shop wird gesperrt, Produkte werden deaktiviert</li>}
             </ul>
           </div>

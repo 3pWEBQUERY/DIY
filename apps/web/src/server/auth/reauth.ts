@@ -20,7 +20,8 @@ export type ReauthProof = { password?: string | null; appleIdentityToken?: strin
 
 /** Fehler „bitte erneut mit Apple anmelden“ – `fields.reauth` signalisiert den Clients den Ablauf. */
 export const reauthRequired = () =>
-  new AppError("FORBIDDEN", `Bitte bestätige diesen Schritt, indem du dich erneut mit Apple anmeldest. Danach hast du ${REAUTH_MINUTES} Minuten Zeit.`, { reauth: "apple" });
+  // `reauth: "apple"` bleibt als Signal für die iOS-App (dort gibt es nur Apple); im Web wählt /api/auth/reauth den Anbieter
+  new AppError("FORBIDDEN", `Bitte bestätige diesen Schritt, indem du dich erneut anmeldest (mit Apple bzw. Pinterest). Danach hast du ${REAUTH_MINUTES} Minuten Zeit.`, { reauth: "apple" });
 
 /** Wurde die Sitzung gerade eben (innerhalb des Fensters) angemeldet? */
 export const isFreshLogin = (sessionCreatedAt: Date, now = Date.now()) => now - sessionCreatedAt.getTime() <= WINDOW_MS;

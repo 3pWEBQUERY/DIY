@@ -140,3 +140,22 @@ test("E-Mail selbst ändern: Passwort, Link an die neue Adresse, erst dann umges
     await sql(`DELETE FROM "VerificationToken" WHERE "userId" = $1 AND purpose = 'EMAIL_CHANGE'`, [elias]);
   }
 });
+
+test("Admin: Nutzerliste zeigt, wie registriert wurde (Symbol + Filter)", async ({ browser }) => {
+  const mira = await userId("mira");
+  await sql(`UPDATE "User" SET "signupMethod" = 'PINTEREST' WHERE id = $1`, [mira]);
+  const { page, restore } = await adminPage(browser);
+  try {
+    await page.goto("/admin/nutzer?ueber=PINTEREST");
+    const row = page.getByRole("row", { name: new RegExp(USERS.mira.name) });
+    await expect(row.getByTitle("Registriert über Pinterest")).toBeVisible();
+    await expect(page.getByRole("row", { name: new RegExp(USERS.lena.name) })).toHaveCount(0);
+    await page.goto(`/admin/nutzer/${mira}`);
+    await expect(page.getByText("Registriert über", { exact: true })).toBeVisible();
+    await page.goto("/admin/nutzer");
+    await expect(page.getByRole("row", { name: new RegExp(USERS.lena.name) }).getByTitle("Registriert über E-Mail")).toBeVisible();
+  } finally {
+    await sql(`UPDATE "User" SET "signupMethod" = 'EMAIL' WHERE id = $1`, [mira]);
+    await restore();
+  }
+});

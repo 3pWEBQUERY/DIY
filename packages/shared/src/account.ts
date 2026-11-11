@@ -88,6 +88,8 @@ export const DM_POLICY_LABEL: Record<(typeof DM_POLICIES)[number], string> = {
 export const privacyPrefsSchema = z.object({
   dmPolicy: z.enum(DM_POLICIES),
   reduceMotion: z.boolean().default(false),
+  /** Lesebestätigungen in Einzelchats (fehlt bei älteren App-Versionen → unverändert) */
+  readReceipts: z.boolean().optional(),
 });
 
 export const SUPPORT_TOPICS = ["GENERAL", "ACCOUNT", "ORDER", "SELLING", "SAFETY", "PRIVACY", "BUG"] as const;

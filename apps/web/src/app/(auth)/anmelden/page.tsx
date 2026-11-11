@@ -17,7 +17,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <p className="spec mb-3">Willkommen zurück</p>
       <h1 className="display text-5xl">Anmelden</h1>
       <p className="mt-3 text-muted">Schön, dass du wieder da bist. Deine Projekte warten.</p>
-      <SignInForm next={sp.weiter} apple={features.apple()} error={sp.fehler} />
+      <SignInForm next={sp.weiter} apple={features.apple()} pinterest={features.pinterest()} error={sp.fehler} />
     </>
   );
 }

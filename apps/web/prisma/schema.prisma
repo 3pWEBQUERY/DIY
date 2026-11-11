@@ -268,6 +268,8 @@ model User {
   termsAcceptedAt DateTime?
   onboardedAt     DateTime?
   locale          String        @default("de-CH")
+  /// Wie das Konto registriert wurde: EMAIL | APPLE | PINTEREST | ANDROID (Admin-Anzeige)
+  signupMethod    String?
   lastSeenAt      DateTime?
   deletedAt       DateTime?
   createdAt       DateTime      @default(now())
@@ -451,6 +453,8 @@ model UserPreference {
   emailDigest       String   @default("DAILY") // OFF | INSTANT | DAILY | WEEKLY
   feedDefault       String   @default("FOR_YOU")
   reduceMotion      Boolean  @default(false)
+  /// Lesebestätigungen in Einzelchats senden und sehen (gegenseitig wie bei WhatsApp; Gruppen immer)
+  readReceipts      Boolean  @default(true)
   hiddenCategories  String[] @default([])
   updatedAt         DateTime @updatedAt
 }
@@ -1296,6 +1300,8 @@ model ConversationMember {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastReadAt     DateTime?
+  /// Zuletzt auf einem Gerät angekommen (Posteingang/Zähler abgerufen) – für „zugestellt“ (✓✓ grau)
+  lastDeliveredAt DateTime?
   archivedAt     DateTime?
   isRequest      Boolean      @default(false)
   /// Gruppen: ADMIN darf Mitglieder verwalten und umbenennen

@@ -54,7 +54,8 @@ SESSION_SECRET=<zufällig, 48+ Zeichen>
 
 Optional: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET` (Marktplatz),
 `RESEND_API_KEY`, `MAIL_FROM` (E-Mail – in web **und** worker), `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`,
-`APPLE_PRIVATE_KEY` (Anmelden mit Apple – web; zusätzlich worker für den Token-Widerruf bei Kontolöschung, siehe „Apple-Schlüssel“), `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (web, zufällig 32 Byte base64,
+`APPLE_PRIVATE_KEY` (Anmelden mit Apple – web; zusätzlich worker für den Token-Widerruf bei Kontolöschung, siehe „Apple-Schlüssel“),
+`PINTEREST_CLIENT_ID`, `PINTEREST_CLIENT_SECRET` (Anmelden mit Pinterest – nur web), `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (web, zufällig 32 Byte base64,
 z. B. `openssl rand -base64 32` – hält Server-Action-IDs über Deploys stabil; wird als Build-Argument gebraucht).
 In `.railway/railway.ts` stehen sie als `preserve()`: Werte im Dashboard setzen, IaC überschreibt sie nicht.
 VAPID-Schlüssel (Browser-Push) erzeugt die App selbst und speichert sie in der Datenbank; `VAPID_PUBLIC_KEY`/
@@ -237,6 +238,27 @@ Alles unter developer.apple.com → Account (Apple Developer Program, kostenpfli
 
 Die `.p8`-Datei ist ein Geheimnis: nie ins Repository, nur in Railway bzw. einem Passwortmanager aufbewahren.
 Bei Verlust in Apple einen neuen Schlüssel erstellen, den alten widerrufen und die Variablen ersetzen.
+
+## Anmelden mit Pinterest
+
+Der Button „Mit Pinterest fortfahren“ erscheint auf Anmelden/Registrieren, sobald im Service **web**
+`PINTEREST_CLIENT_ID` und `PINTEREST_CLIENT_SECRET` gesetzt sind (worker braucht sie nicht).
+
+1. Unter developers.pinterest.com mit einem **Pinterest-Unternehmenskonto** anmelden (ein privates Konto lässt
+   sich kostenlos in ein Unternehmenskonto umwandeln) → „My apps“ → „Connect app“. App-Name „Werkuno“,
+   Website `https://werkuno.ch`, Zweck: Anmeldung von Mitgliedern. Pinterest prüft den Antrag
+   (meist innerhalb weniger Werktage) und schaltet zunächst **Trial-Zugriff** frei.
+2. In der App unter „Configure“ → **Redirect URIs**: `https://werkuno.ch/api/auth/pinterest/callback` eintragen.
+3. **App ID** → `PINTEREST_CLIENT_ID`, **App secret key** („Show key“) → `PINTEREST_CLIENT_SECRET` (web).
+4. Für alle Mitglieder: „Upgrade“ auf **Standard-Zugriff** beantragen. Pinterest verlangt dafür ein kurzes
+   Bildschirmvideo des Ablaufs (Button „Mit Pinterest fortfahren“ → Pinterest-Freigabe → zurück bei Werkuno).
+
+Werkuno fragt nur die Berechtigung `user_accounts:read` an und speichert keine Pinterest-Tokens. Pinterest gibt
+**keine E-Mail-Adresse** heraus: Neue Mitglieder geben sie auf `/registrieren/pinterest` an und bestätigen sie per
+Link. Bestehende Konten werden nie automatisch über die E-Mail verknüpft (Kontoübernahme), sondern nur nach
+Anmeldung unter Einstellungen → Konto → „Pinterest verbinden“. Konten ohne Passwort bestätigen kritische Schritte
+(Konto löschen, 2FA) mit einer frischen Anmeldung bei Pinterest bzw. Apple (`/api/auth/reauth`).
+Die iOS-App bietet Pinterest (noch) nicht an.
 
 ## Auszahlungen & Haltefrist
 

@@ -70,6 +70,7 @@ export async function signUp(input: unknown) {
       data: {
         email: data.email,
         passwordHash,
+        signupMethod: "EMAIL",
         adultConfirmedAt: now,
         termsAcceptedAt: now,
         profile: { create: { handle: avail.handle, displayName: data.displayName } },

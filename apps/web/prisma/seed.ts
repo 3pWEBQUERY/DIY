@@ -107,6 +107,7 @@ async function admin() {
     data: {
       email,
       passwordHash: await hashPassword(password),
+      signupMethod: "EMAIL",
       role: "SUPERADMIN",
       emailVerifiedAt: new Date(),
       adultConfirmedAt: new Date(),
@@ -601,6 +602,7 @@ async function demo(adminId: string) {
       data: {
         email: `${c.handle.replace(/\./g, "-")}@demo.werkraum.local`,
         passwordHash: pw,
+        signupMethod: "EMAIL",
         emailVerifiedAt: new Date(),
         adultConfirmedAt: new Date(),
         termsAcceptedAt: new Date(),

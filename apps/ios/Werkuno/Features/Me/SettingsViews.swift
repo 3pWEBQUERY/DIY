@@ -871,6 +871,7 @@ private struct MePrivacySettingsView: View {
     @State private var error: String?
     @State private var dmPolicy = "FOLLOWING"
     @State private var reduceMotion = false
+    @State private var readReceipts = true
     @State private var revision = 0
 
     var body: some View {
@@ -894,6 +895,13 @@ private struct MePrivacySettingsView: View {
                 .labelsHidden()
             } header: { Text("Wer darf dir schreiben?") } footer: {
                 Text("Neue Kontakte landen zuerst in den Anfragen. Zu Bestellungen kann dir immer geschrieben werden.")
+            }
+            if d.readReceipts != nil {
+                Section {
+                    Toggle("Lesebestätigungen senden", isOn: Binding(get: { readReceipts }, set: { readReceipts = $0; revision += 1 })).tint(.moss)
+                } header: { Text("Lesebestätigungen") } footer: {
+                    Text("✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen. Ausgeschaltet sehen andere in Einzelchats nicht, ob du gelesen hast – und du siehst es bei ihnen auch nicht. In Gruppen werden Lesebestätigungen immer angezeigt.")
+                }
             }
             Section {
                 Toggle("Bewegung reduzieren", isOn: Binding(get: { reduceMotion }, set: { reduceMotion = $0; revision += 1 })).tint(.moss)
@@ -923,14 +931,14 @@ private struct MePrivacySettingsView: View {
     private func load() async {
         do {
             let d: MePrivacySettings = try await APIClient.shared.get("/settings/privacy")
-            dmPolicy = d.dmPolicy; reduceMotion = d.reduceMotion
+            dmPolicy = d.dmPolicy; reduceMotion = d.reduceMotion; readReceipts = d.readReceipts ?? true
             data = d
             error = nil
         } catch { if data == nil { self.error = MeErr.text(error) } else { app.show(error: error) } }
     }
 
     private func save() async {
-        do { _ = try await APIClient.shared.put("/settings/privacy", ["dmPolicy": JSONValue.string(dmPolicy), "reduceMotion": .bool(reduceMotion)]) as JSONValue; app.show("Gesichert.") }
+        do { _ = try await APIClient.shared.put("/settings/privacy", ["dmPolicy": JSONValue.string(dmPolicy), "reduceMotion": .bool(reduceMotion), "readReceipts": .bool(readReceipts)]) as JSONValue; app.show("Gesichert.") }
         catch { app.show(error: error); await load() }
     }
 }

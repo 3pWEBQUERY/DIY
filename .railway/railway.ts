@@ -57,6 +57,9 @@ export default defineRailway((ctx) => {
       APPLE_KEY_ID: preserve(),
       APPLE_PRIVATE_KEY: preserve(),
       APPLE_IOS_CLIENT_ID: preserve(),
+      // Anmelden mit Pinterest (nur web) – docs/OPERATIONS.md „Anmelden mit Pinterest“
+      PINTEREST_CLIENT_ID: preserve(),
+      PINTEREST_CLIENT_SECRET: preserve(),
       // Schlüssel der Audit-Kette (HMAC) – in web UND worker identisch, nie wechseln (docs/OPERATIONS.md)
       AUDIT_HMAC_KEY: preserve(),
       // VAPID (Browser-Push) bewusst nicht: die Schlüssel werden beim ersten Bedarf erzeugt und in der DB

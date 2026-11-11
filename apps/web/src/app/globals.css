@@ -57,6 +57,8 @@
   --text-micro--line-height: 1rem;
 
   /* ── Ergänzungen „Werkbuch 2“ (Startseite) – neue Namen, wirken nur, wo sie verwendet werden ── */
+  --color-receipt: #a8e1ff;    /* „Gelesen“-Häkchen auf der eigenen Nachrichtenblase (≥ 3:1 auf moss) */
+  --color-receipt-ink: #0b72ad; /* „Gelesen“-Häkchen auf hellem Grund (Posteingang) */
   --color-pine: #2d6a4f;       /* Zweitakzent Tanne (Vertrauen) – 6.0:1 auf paper */
   --color-pine-soft: #e3efe8;
   --text-hero: clamp(2.6rem, 1.55rem + 4.6vw, 5.25rem);

@@ -252,3 +252,14 @@ export async function unregisterWebPushAction(endpoint: string) {
     return unregisterWebPush(u.id, endpoint);
   });
 }
+
+/** Pinterest-Verknüpfung lösen (nur mit Passwort oder Apple als weiterer Anmeldung). */
+export async function unlinkPinterestAction() {
+  return act(async () => {
+    const u = await requireUser({ allowSuspended: true });
+    const { unlinkPinterest } = await import("@/server/identity/pinterest");
+    await unlinkPinterest(u.id);
+    revalidatePath("/einstellungen/konto");
+    return null;
+  }, "Pinterest getrennt.");
+}

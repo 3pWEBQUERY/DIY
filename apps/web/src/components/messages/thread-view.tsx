@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Flag, Info, LogOut, ShieldAlert } from "lucide-react";
+import { messageStatus, type MessageStatus, type Receipt } from "@/lib/message-status";
+import { ReceiptTicks } from "./receipt-ticks";
 import type { MessageView, ThreadData } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
@@ -60,7 +62,7 @@ function Warning() {
 
 type Sender = { displayName: string; avatarUrl: string | null; handle: string };
 
-function Bubble({ m, otherName, onReport, showTime, sender }: { m: MessageView; otherName: string; onReport: () => void; showTime: boolean; sender?: Sender | null }) {
+function Bubble({ m, otherName, onReport, showTime, sender, status }: { m: MessageView; otherName: string; onReport: () => void; showTime: boolean; sender?: Sender | null; status?: MessageStatus | null }) {
   const flagged = !m.mine && m.flags.includes("SUSPICIOUS_PAYMENT_LINK");
   if (m.system) {
     return (
@@ -104,6 +106,11 @@ function Bubble({ m, otherName, onReport, showTime, sender }: { m: MessageView; 
                 ) : (
                   <RichText text={m.body} className={cn("break-words text-[15px] leading-relaxed", m.mine && "[&_a]:text-paper [&_a]:underline")} />
                 ))}
+              {status && (
+                <span className="-mb-0.5 -mr-1 mt-0.5 flex justify-end">
+                  <ReceiptTicks status={status} onBubble />
+                </span>
+              )}
             </>
           )}
         </div>
@@ -122,7 +129,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
   const router = useRouter();
   const [messages, setMessages] = useState(thread.messages);
   const [hasMore, setHasMore] = useState(thread.hasMore);
-  const [otherRead, setOtherRead] = useState(thread.other?.lastReadAt ?? null);
+  const [receipts, setReceipts] = useState<Receipt[]>(thread.receipts);
   const [otherPending, setOtherPending] = useState(!!thread.other?.pendingRequest);
   const [isRequest, setIsRequest] = useState(thread.me.isRequest);
   const [archived, setArchived] = useState(thread.me.archived);
@@ -182,8 +189,8 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
     try {
       const res = await fetch(`/api/v1/conversations/${thread.id}/messages${lastAt.current ? `?after=${encodeURIComponent(lastAt.current)}` : ""}`, { cache: "no-store" });
       if (!res.ok) return;
-      const { data } = (await res.json()) as { data: { messages: MessageView[]; otherLastReadAt: string | null; otherPendingRequest: boolean } };
-      setOtherRead(data.otherLastReadAt);
+      const { data } = (await res.json()) as { data: { messages: MessageView[]; otherPendingRequest: boolean; receipts: Receipt[] } };
+      setReceipts(data.receipts);
       setOtherPending(data.otherPendingRequest);
       if (data.messages.length) {
         lastAt.current = data.messages.at(-1)!.createdAt;
@@ -327,7 +334,6 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
   ];
 
   const lastMine = [...messages].reverse().find((m) => m.mine && !m.removed);
-  const lastMineRead = lastMine && otherRead && otherRead >= lastMine.createdAt;
 
   let prevDay = "";
   return (
@@ -404,11 +410,13 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
                   otherName={otherName}
                   onReport={() => setReportId(m.id)}
                   showTime={showTime}
+                  status={m.mine && !m.system && !m.removed ? messageStatus(m.createdAt, receipts) : null}
                   sender={group && !m.mine && !m.system && (i === 0 || messages[i - 1]!.senderId !== m.senderId || messages[i - 1]!.system || sep) ? (people.get(m.senderId) ?? { displayName: "Ehemaliges Mitglied", avatarUrl: null, handle: "" }) : null}
                 />
-                {!group && lastMine?.id === m.id && (
-                  <p className="mt-0.5 text-right text-[11px] text-muted" aria-live="polite">
-                    {lastMineRead ? "Gelesen" : otherPending ? "Als Kontaktanfrage zugestellt" : "Zugestellt"}
+                {lastMine?.id === m.id && (
+                  // Für Screenreader: Status der letzten eigenen Nachricht ansagen, wenn er sich ändert
+                  <p className={cn("mt-0.5 text-right text-[11px] text-muted", !otherPending && "sr-only")} aria-live="polite">
+                    {otherPending ? "Als Kontaktanfrage zugestellt" : { sent: "Gesendet", delivered: "Zugestellt", read: group ? "Von allen gelesen" : "Gelesen" }[messageStatus(m.createdAt, receipts)]}
                   </p>
                 )}
               </li>

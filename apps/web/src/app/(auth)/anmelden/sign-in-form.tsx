@@ -7,17 +7,22 @@ import { Notice } from "@/components/ui/misc";
 import { formToObject, useAction } from "@/lib/use-action";
 import { signInAction } from "../actions";
 import { AppleButton } from "../apple-button";
+import { PinterestButton } from "../pinterest-button";
 
-export function SignInForm({ next, apple, error }: { next?: string; apple: boolean; error?: string }) {
+export function SignInForm({ next, apple, pinterest = false, error }: { next?: string; apple: boolean; pinterest?: boolean; error?: string }) {
   const { run, pending, fields, error: err } = useAction(signInAction, { redirect: (d) => d.next });
   return (
     <div className="mt-8">
       {error === "apple" && <Notice tone="danger" alert className="mb-6">Die Anmeldung mit Apple ist fehlgeschlagen. Bitte versuche es erneut.</Notice>}
+      {error === "pinterest" && <Notice tone="danger" alert className="mb-6">Die Anmeldung mit Pinterest ist fehlgeschlagen oder wurde abgebrochen. Bitte versuche es erneut.</Notice>}
       {error === "gesperrt" && <Notice tone="danger" alert className="mb-6">Dieses Konto wurde dauerhaft gesperrt. Eine Anmeldung ist nicht möglich.</Notice>}
       {error === "geloescht" && <Notice tone="danger" alert className="mb-6">Dieses Konto wurde gelöscht. Eine Anmeldung ist nicht möglich.</Notice>}
-      {apple && (
+      {(apple || pinterest) && (
         <>
-          <AppleButton />
+          <div className="space-y-3">
+            {apple && <AppleButton />}
+            {pinterest && <PinterestButton href={`/api/auth/pinterest${next ? `?weiter=${encodeURIComponent(next)}` : ""}`} />}
+          </div>
           <div className="my-6 flex items-center gap-4 spec">
             <span className="h-px flex-1 bg-line" />
             oder mit E-Mail

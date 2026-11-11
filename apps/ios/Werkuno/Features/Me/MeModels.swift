@@ -508,6 +508,8 @@ struct MeFeedSettings: Decodable, Sendable {
 struct MePrivacySettings: Decodable, Sendable {
     var dmPolicy: String
     var reduceMotion: Bool
+    /// Lesebestätigungen in Einzelchats (ältere Server: fehlt)
+    var readReceipts: Bool?
     var blocked: [MeRelationEntry]?
 }
 

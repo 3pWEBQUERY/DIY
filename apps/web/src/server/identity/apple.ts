@@ -100,6 +100,7 @@ async function linkAppleClaimsOnce(claims: AppleClaims, displayName: string | nu
       email: email && (verified || !(await db.user.findUnique({ where: { email }, select: { id: true } }))) ? email : `apple-${claims.sub.slice(0, 12)}@privaterelay.invalid`,
       emailVerifiedAt: claims.email_verified === true || claims.email_verified === "true" ? new Date() : null,
       termsAcceptedAt: new Date(),
+      signupMethod: "APPLE",
       profile: { create: { handle, displayName: name } },
       preference: { create: {} },
       authAccounts: { create: { provider: "apple", providerAccountId: claims.sub } },

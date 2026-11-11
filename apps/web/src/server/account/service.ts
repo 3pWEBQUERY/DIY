@@ -264,14 +264,18 @@ export async function getPrivacySettings(userId: string) {
       select: { createdAt: true, blocked: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } },
     }),
   ]);
-  return { dmPolicy: profile?.dmPolicy ?? "FOLLOWING", reduceMotion: pref.reduceMotion, blocked };
+  return { dmPolicy: profile?.dmPolicy ?? "FOLLOWING", reduceMotion: pref.reduceMotion, readReceipts: pref.readReceipts, blocked };
 }
 
 export async function updatePrivacySettings(user: U, input: unknown) {
   const d = privacyPrefsSchema.parse(input);
   await db.$transaction([
     db.userProfile.update({ where: { userId: user.id }, data: { dmPolicy: d.dmPolicy } }),
-    db.userPreference.upsert({ where: { userId: user.id }, create: { userId: user.id, reduceMotion: d.reduceMotion }, update: { reduceMotion: d.reduceMotion } }),
+    db.userPreference.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, reduceMotion: d.reduceMotion, ...(d.readReceipts !== undefined ? { readReceipts: d.readReceipts } : {}) },
+      update: { reduceMotion: d.reduceMotion, ...(d.readReceipts !== undefined ? { readReceipts: d.readReceipts } : {}) },
+    }),
   ]);
 }
 

@@ -134,6 +134,15 @@ export default async function PrivacyPage() {
                   ausgestelltes Token speichern wir verschlüsselt, damit wir die Verknüpfung bei der Kontolöschung bei Apple widerrufen können.
                 </li>
                 <li>
+                  <strong>Mit Pinterest anmelden:</strong> Nutzt du diese Option, erhalten wir von Pinterest nur die Kennung und den Benutzernamen deines Pinterest-Kontos (Berechtigung „Konto lesen“). Pinterest gibt keine
+                  E-Mail-Adresse weiter – du gibst sie bei der Registrierung selbst an. Zugriffstokens von Pinterest speichern wir nicht; wir lesen und veröffentlichen keine Pins oder Pinnwände. Die Verknüpfung kannst du in
+                  den Einstellungen unter „Konto“ jederzeit trennen.
+                </li>
+                <li>
+                  <strong>Lesebestätigungen:</strong> Für Nachrichten speichern wir, wann sie auf deinem Gerät angekommen sind und wann du sie gelesen hast. Daraus zeigen wir den Absender:innen ✓ (gesendet), ✓✓ (zugestellt) und
+                  ✓✓ blau (gelesen). „Gelesen“ kannst du für Einzelchats in den Einstellungen unter „Privatsphäre“ ausschalten; dann siehst du es bei anderen auch nicht. In Gruppen wird es immer angezeigt.
+                </li>
+                <li>
                   <strong>Sitzungen:</strong> Für jede Anmeldung speichern wir eine Sitzung mit Gerätebezeichnung (z. B. „Safari auf macOS“), Browser-Kennung, Zeitpunkt der Anmeldung und letzten Nutzung sowie einem Hashwert der
                   IP-Adresse. Unter <Link href="/einstellungen/sicherheit">Einstellungen → Sicherheit</Link> siehst du alle Sitzungen und kannst sie beenden. Bei einer Anmeldung von einem unbekannten Gerät informieren wir dich per
                   E-Mail.
@@ -320,6 +329,7 @@ export default async function PrivacyPage() {
                   ],
                   ["Resend", "Versand von E-Mails", <>Resend, Inc., USA</>],
                   ["Apple", <>„Mit Apple anmelden“ und Push-Mitteilungen in der iOS-App (nur wenn du diese nutzt)</>, <>Apple Inc., USA, bzw. Apple Distribution International Ltd., Irland</>],
+                  ["Pinterest", <>„Mit Pinterest anmelden“ (nur wenn du diese Option nutzt)</>, <>Pinterest Europe Ltd., Irland, bzw. Pinterest, Inc., USA</>],
                   ["Push-Dienste der Browser", "Zustellung von Browser-Push (nur wenn du sie erlaubst)", <>je nach Browser Google, Mozilla, Apple oder Microsoft</>],
                 ]}
               />
@@ -356,6 +366,8 @@ export default async function PrivacyPage() {
                 items={[
                   ["wr_session", "Cookie, hält dich angemeldet. Höchstens 30 Tage, endet mit der Abmeldung."],
                   ["wr_apple_state, wr_apple_next", "Cookies, nur bei „Mit Apple anmelden“: schützen den Anmeldevorgang und merken die Zielseite. 10 Minuten."],
+                  ["wr_pinterest_state, wr_pinterest_next, wr_pinterest_link", "Cookies, nur bei „Mit Pinterest anmelden“ bzw. „Pinterest verbinden“: schützen den Anmeldevorgang und merken die Zielseite. 10 Minuten."],
+                  ["wr_pinterest_signup", "Cookie, nur bei der Registrierung mit Pinterest: merkt die Pinterest-Kennung (signiert), bis du deine E-Mail-Adresse angegeben hast. 30 Minuten."],
                   ["wr_nav", "Cookie, merkt, ob die Seitenleiste eingeklappt ist. 1 Jahr."],
                   ["wr_single_key_shortcuts", "Lokaler Speicher, merkt, ob Tastenkürzel mit einer Taste ausgeschaltet sind."],
                   ["wr_push_prompt", "Lokaler Speicher, merkt, dass du den Hinweis auf Push-Benachrichtigungen geschlossen hast."],

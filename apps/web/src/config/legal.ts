@@ -71,4 +71,4 @@ export const LEGAL_ROBOTS = LEGAL_FINAL ? undefined : { index: false, follow: tr
 export const LEGAL_PAGES = ["/rechtliches/datenschutz", "/rechtliches/agb", "/rechtliches/impressum"];
 
 /** Stand aller Rechtstexte, Richtlinien und Hilfeseiten. */
-export const LEGAL_UPDATED = "10. November 2026";
+export const LEGAL_UPDATED = "11. November 2026";

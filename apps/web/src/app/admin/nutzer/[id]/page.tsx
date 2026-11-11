@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SignupMethodIcon } from "@/components/admin/signup-method";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -226,7 +227,14 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 <dd className="font-mono">{isAdmin ? u.email : maskEmail(u.email)}</dd>
                 <dd className="text-muted">{u.emailVerifiedAt ? `bestätigt ${shortDate(u.emailVerifiedAt)}` : "nicht bestätigt"}</dd>
               </div>
-              <div><dt className="spec">Anmeldung</dt><dd>{[u.authAccounts.length ? u.authAccounts.map((a) => (a.provider === "apple" ? "Apple" : a.provider)).join(", ") : null, "E-Mail/Passwort"].filter(Boolean).join(" · ")}</dd></div>
+              <div>
+                <dt className="spec">Registriert über</dt>
+                <dd><SignupMethodIcon method={u.signupMethod} withLabel /></dd>
+              </div>
+              <div>
+                <dt className="spec">Anmeldung</dt>
+                <dd>{[u.hasPassword ? "E-Mail/Passwort" : null, ...u.authAccounts.filter((a) => a.provider === "apple" || a.provider === "pinterest").map((a) => (a.provider === "apple" ? "Apple" : "Pinterest"))].filter(Boolean).join(" · ") || "–"}</dd>
+              </div>
               <div>
                 <dt className="spec">Zwei-Faktor</dt>
                 <dd className={u.totpEnabledAt ? "" : u.role !== "MEMBER" ? "font-semibold text-danger" : "text-muted"}>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReceiptTicks } from "./receipt-ticks";
 import { PenSquare, ShieldAlert, UsersRound } from "lucide-react";
 import type { ConversationListItem, InboxBox } from "@/server/messaging/service";
 import { Avatar } from "@/components/ui/misc";
@@ -105,7 +106,8 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                       )}
                       <span className={cn("mt-0.5 flex items-center gap-1.5 text-[13px]", active ? "text-paper/80" : c.unread ? "text-ink" : "text-muted")}>
                         {c.flagged && <ShieldAlert size={13} className={active ? "text-paper" : "text-warn"} aria-label="Warnhinweis" />}
-                        <span className="truncate">{c.lastFromMe && "Du: "}{c.preview}</span>
+                        {c.lastStatus && <ReceiptTicks status={c.lastStatus} onBubble={active} />}
+                        <span className="truncate">{c.lastFromMe && !c.lastStatus && "Du: "}{c.preview}</span>
                       </span>
                       {c.unread && <span className="sr-only">Ungelesen</span>}
                     </span>

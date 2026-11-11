@@ -13,6 +13,7 @@ import { requireAdult } from "@/server/auth/adult";
 import { publish } from "@/server/realtime/bus";
 import { requireFlag } from "@/server/flags";
 import { detectSuspiciousPayment } from "./suspicious";
+import { messageStatus, type Receipt } from "@/lib/message-status";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -81,6 +82,61 @@ async function otherMembers(conversationId: string, userId: string) {
 
 const isDeclined = (m: { isRequest: boolean; archivedAt: Date | null }) => m.isRequest && !!m.archivedAt;
 
+// ───────────────────────── Lesebestätigungen ─────────────────────────
+
+type ReceiptMember = { userId: string; isRequest: boolean; archivedAt: Date | null; joinedAt: Date; lastReadAt: Date | null; lastDeliveredAt: Date | null; user: { status: string } };
+
+const later = (a: Date | null, b: Date | null) => (!a ? b : !b ? a : a > b ? a : b);
+
+/**
+ * Zugestellt/gelesen je Empfänger:in (siehe src/lib/message-status.ts).
+ * - Einzelchat: „gelesen“ nur, wenn beide Lesebestätigungen eingeschaltet haben (gegenseitig) und die
+ *   Kontaktanfrage angenommen ist. „Zugestellt“ immer.
+ * - Gruppe: alle aktuellen Mitglieder ausser offenen/abgelehnten Einladungen; Lesebestätigungen immer.
+ */
+async function receiptsFor(viewerId: string, isGroup: boolean, others: ReceiptMember[]): Promise<Receipt[]> {
+  const off = isGroup ? new Set<string>() : await readReceiptsOff([viewerId, ...others.map((o) => o.userId)]);
+  return buildReceipts(viewerId, isGroup, others, off);
+}
+
+/** Wer hat Lesebestätigungen ausgeschaltet? (eine Abfrage für viele Personen) */
+async function readReceiptsOff(userIds: string[]) {
+  if (!userIds.length) return new Set<string>();
+  const rows = await db.userPreference.findMany({ where: { userId: { in: [...new Set(userIds)] }, readReceipts: false }, select: { userId: true } });
+  return new Set(rows.map((r) => r.userId));
+}
+
+function buildReceipts(viewerId: string, isGroup: boolean, others: ReceiptMember[], off: Set<string>): Receipt[] {
+  const relevant = others.filter((o) => !isDeclined(o) && !(isGroup && o.isRequest) && o.user.status !== "DELETED");
+  const showRead = isGroup || (!off.has(viewerId) && relevant.every((o) => !off.has(o.userId)));
+  return relevant.map((o) => ({
+    joinedAt: o.joinedAt.toISOString(),
+    deliveredAt: later(o.lastDeliveredAt, o.lastReadAt)?.toISOString() ?? null,
+    readAt: showRead && !o.isRequest ? o.lastReadAt?.toISOString() ?? null : null,
+  }));
+}
+
+/**
+ * Nachrichten sind auf einem Gerät angekommen (Posteingang bzw. Zähler abgerufen – Web, App, Live-Kanal):
+ * „zugestellt“ setzen und die Absender:innen live informieren (✓ → ✓✓).
+ */
+export async function markDelivered(userId: string) {
+  const now = new Date();
+  const rows = await db.$queryRaw<{ conversationId: string }[]>`
+    UPDATE "ConversationMember" cm SET "lastDeliveredAt" = ${now}
+    FROM "Conversation" c
+    WHERE cm."conversationId" = c.id AND cm."userId" = ${userId}
+      AND NOT (cm."isRequest" AND cm."archivedAt" IS NOT NULL)
+      AND (cm."lastDeliveredAt" IS NULL OR cm."lastDeliveredAt" < c."lastMessageAt")
+    RETURNING cm."conversationId"`;
+  if (!rows.length) return 0;
+  const members = await db.conversationMember.findMany({ where: { conversationId: { in: rows.map((r) => r.conversationId) }, userId: { not: userId } }, select: { conversationId: true, userId: true } });
+  const byConv = new Map<string, string[]>();
+  for (const m of members) byConv.set(m.conversationId, [...(byConv.get(m.conversationId) ?? []), m.userId]);
+  for (const [c, users] of byConv) void publish(users, { t: "read", c });
+  return rows.length;
+}
+
 // ───────────────────────── Posteingang ─────────────────────────
 
 export type InboxBox = "inbox" | "requests" | "archived";
@@ -115,6 +171,8 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
   const orderIds = rows.map((r) => r.conversation.orderId).filter((x): x is string => !!x);
   const orders = orderIds.length ? await db.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, number: true } }) : [];
   const onum = new Map(orders.map((o) => [o.id, o.number]));
+  // Häkchen an der Vorschau, wenn die letzte Nachricht von mir ist
+  const off = await readReceiptsOff([userId, ...rows.filter((r) => r.conversation.kind !== "GROUP").flatMap((r) => r.conversation.members.map((m) => m.userId))]);
   return rows.map((r) => {
     const c = r.conversation;
     const other = c.members[0]?.user;
@@ -134,6 +192,8 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
       lastMessageAt: c.lastMessageAt.toISOString(),
       preview,
       lastFromMe: last?.senderId === userId && last.kind !== "SYSTEM",
+      /** Status der letzten eigenen Nachricht (✓ / ✓✓ / ✓✓ blau) */
+      lastStatus: last?.senderId === userId && last.kind !== "SYSTEM" ? messageStatus(last.createdAt.toISOString(), buildReceipts(userId, isGroup, c.members, off)) : null,
       flagged: !!last?.flags.includes("SUSPICIOUS_PAYMENT_LINK") && last.senderId !== userId,
       unread,
       other: other
@@ -145,6 +205,8 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
 export type ConversationListItem = Awaited<ReturnType<typeof listConversations>>[number];
 
 export async function inboxCounts(userId: string) {
+  // Wer Zähler bzw. Posteingang abruft, hat neue Nachrichten auf dem Gerät → zugestellt
+  void markDelivered(userId).catch(() => {});
   const rel = await relationsFor(userId);
   const notBlocked = rel.blocked.length ? { OR: [{ kind: "GROUP" }, { members: { none: { userId: { in: rel.blocked } } } }] } : {};
   const [requests, unread] = await Promise.all([
@@ -227,7 +289,7 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   });
   const hasMore = rows.length > PAGE;
   const messages = rows.slice(0, PAGE).reverse().map((m) => messageView(m, user.id));
-  const ownCount = await db.message.count({ where: { conversationId, senderId: user.id } });
+  const [ownCount, receipts] = await Promise.all([db.message.count({ where: { conversationId, senderId: user.id } }), receiptsFor(user.id, isGroup, others)]);
   const group = isGroup
     ? {
         title: conv.title ?? "Gruppe",
@@ -256,6 +318,8 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
     messages,
     hasMore,
     me: { isRequest: me.isRequest, archived: !!me.archivedAt, lastReadAt: me.lastReadAt?.toISOString() ?? null },
+    /** Zugestellt/gelesen je Empfänger:in für die Häkchen an eigenen Nachrichten */
+    receipts,
     other: other
       ? {
           id: other.userId,
@@ -263,8 +327,8 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
           displayName: other.user.status === "DELETED" ? "Gelöschtes Konto" : other.user.profile?.displayName ?? "Unbekannt",
           avatarUrl: other.user.profile?.avatarUrl ?? null,
           active: other.user.status === "ACTIVE",
-          // Lesebestätigung erst, wenn die Kontaktanfrage angenommen wurde
-          lastReadAt: other.isRequest ? null : other.lastReadAt?.toISOString() ?? null,
+          // Lesebestätigung erst, wenn die Kontaktanfrage angenommen wurde (und beide sie eingeschaltet haben)
+          lastReadAt: receipts[0]?.readAt ?? null,
           pendingRequest: other.isRequest && !other.archivedAt,
           declined: isDeclined(other),
         }
@@ -292,13 +356,16 @@ export async function messagesSince(user: SessionUser, conversationId: string, a
     otherMembers(conversationId, user.id),
   ]);
   const isGroup = kind === "GROUP";
-  // Gruppen: keine Lesebestätigungen und keine Blockier-Sperre
+  // Gruppen: keine Blockier-Sperre
   const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound();
+  const receipts = await receiptsFor(user.id, isGroup, others);
   return {
     messages: rows.map((m) => messageView(m, user.id)),
-    otherLastReadAt: other && !other.isRequest ? other.lastReadAt?.toISOString() ?? null : null,
+    /** Einzelchat (ältere App-Versionen): Lesestand der Gegenseite */
+    otherLastReadAt: other ? receipts[0]?.readAt ?? null : null,
     otherPendingRequest: !!other && other.isRequest && !other.archivedAt,
+    receipts,
   };
 }
 

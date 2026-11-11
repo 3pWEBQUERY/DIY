@@ -18,6 +18,7 @@ struct ConversationView: View {
     @State private var isRequest = false
     @State private var archived = false
     @State private var otherRead: Date?
+    @State private var receipts: [SocialReceipt]?
     @State private var otherPending = false
     @State private var lastAt: Date?
 
@@ -139,6 +140,7 @@ struct ConversationView: View {
                             sender: t.group != nil && !m.mine && !grouped(i) ? senderMember(m, t) : nil,
                             showTime: showTime(i),
                             groupedWithPrevious: grouped(i),
+                            status: m.mine && !m.isRemoved ? status(m) : nil,
                             onImage: { item in
                                 viewerMedia = ViewerSelection(items: m.media.map(\.asMediaItem), start: item)
                             },
@@ -146,7 +148,7 @@ struct ConversationView: View {
                         )
                         .id(m.id)
                         }
-                        if t.group == nil, m.id == lastMine?.id {
+                        if t.group == nil, m.id == lastMine?.id, otherPending {
                             Text(receipt)
                                 .font(.wr(.caption2))
                                 .foregroundStyle(Color.muted)
@@ -247,8 +249,14 @@ struct ConversationView: View {
 
     private var receipt: String {
         guard let m = lastMine else { return "" }
-        if let r = otherRead, r >= m.createdAt { return "Gelesen" }
-        return otherPending ? "Als Kontaktanfrage zugestellt" : "Zugestellt"
+        return otherPending ? "Als Kontaktanfrage zugestellt" : status(m).label
+    }
+
+    /// ✓ / ✓✓ / ✓✓ blau – ältere Server ohne `receipts`: nur „gelesen“ im Einzelchat
+    private func status(_ m: SocialMessage) -> SocialMessageStatus {
+        if let receipts { return .of(m.createdAt, receipts) }
+        if let r = otherRead, r >= m.createdAt { return .read }
+        return .delivered
     }
 
     // MARK: Untere Leiste
@@ -453,6 +461,7 @@ struct ConversationView: View {
                 isRequest = t.me.isRequest
                 archived = t.me.archived
                 otherRead = t.other?.lastReadAt
+                receipts = t.receipts
                 otherPending = t.other?.pendingRequest ?? false
                 lastAt = t.messages.last?.createdAt
                 error = nil
@@ -495,6 +504,7 @@ struct ConversationView: View {
             let r: SocialMessagesSince = try await APIClient.shared.get("/conversations/\(id)/messages", query: ["after": lastAt.map(SocialFmt.iso)])
             withAnimation(.snappy) {
                 otherRead = r.otherLastReadAt
+                receipts = r.receipts
                 otherPending = r.otherPendingRequest ?? false
             }
             guard !r.messages.isEmpty else { return }
@@ -622,6 +632,8 @@ private struct SocialMessageBubble: View {
     var sender: SocialGroupMember? = nil
     var showTime: Bool
     var groupedWithPrevious: Bool
+    /// Eigene Nachrichten: Lesebestätigung (Häkchen in der Blase)
+    var status: SocialMessageStatus? = nil
     var onImage: (MediaItem) -> Void
     var onReport: () -> Void
 
@@ -683,6 +695,12 @@ private struct SocialMessageBubble: View {
                         .padding(.horizontal, m.media.isEmpty ? 0 : 6)
                         .padding(.bottom, m.media.isEmpty ? 0 : 4)
                 }
+                if let status {
+                    SocialReceiptTicks(status: status)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, m.media.isEmpty ? -4 : 6)
+                        .padding(.bottom, m.media.isEmpty ? -2 : 4)
+                }
             }
             .padding(.horizontal, m.media.isEmpty ? 14 : 4)
             .padding(.vertical, m.media.isEmpty ? 9 : 4)
@@ -727,6 +745,7 @@ private struct SocialMessageBubble: View {
         if !message.media.isEmpty { s += Fmt.plural(message.media.count, "Bild", "Bilder") + ". " }
         s += message.body
         if message.isSuspicious { s = "Warnung, möglicher Zahlungslink. " + s }
+        if let status { s += ". \(status.label)" }
         return s
     }
 }
@@ -850,4 +869,21 @@ private struct ViewerSelection: Identifiable {
     let id = UUID()
     var items: [MediaItem]
     var start: MediaItem
+}
+
+/// ✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen – auf der eigenen (Coral-)Blase.
+private struct SocialReceiptTicks: View {
+    var status: SocialMessageStatus
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Image(systemName: "checkmark")
+            if status != .sent { Image(systemName: "checkmark").offset(x: 5) }
+        }
+        .font(.system(size: 10, weight: .bold))
+        .frame(width: status == .sent ? 11 : 16, alignment: .leading)
+        .foregroundStyle(status == .read ? Color(red: 0.66, green: 0.88, blue: 1.0) : Color.paper.opacity(0.7))
+        .accessibilityLabel(status.label)
+        .animation(.snappy, value: status)
+    }
 }

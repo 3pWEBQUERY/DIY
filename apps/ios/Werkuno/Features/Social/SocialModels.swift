@@ -172,6 +172,34 @@ struct SocialThreadContext: Decodable, Hashable, Sendable {
     var isOrder: Bool { type == "order" }
 }
 
+/// Lesebestätigung je Empfänger:in: ✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen (wie WhatsApp).
+/// Zählt nur, wer beim Senden schon in der Unterhaltung war.
+struct SocialReceipt: Decodable, Sendable, Equatable {
+    var joinedAt: Date
+    var deliveredAt: Date?
+    var readAt: Date?
+}
+
+enum SocialMessageStatus: Equatable {
+    case sent, delivered, read
+
+    var label: String {
+        switch self {
+        case .sent: "Gesendet"
+        case .delivered: "Zugestellt"
+        case .read: "Gelesen"
+        }
+    }
+
+    static func of(_ createdAt: Date, _ receipts: [SocialReceipt]) -> SocialMessageStatus {
+        let relevant = receipts.filter { $0.joinedAt <= createdAt }
+        guard !relevant.isEmpty else { return .sent }
+        if relevant.allSatisfy({ ($0.readAt ?? .distantPast) >= createdAt }) { return .read }
+        if relevant.allSatisfy({ ($0.deliveredAt ?? .distantPast) >= createdAt }) { return .delivered }
+        return .sent
+    }
+}
+
 /// `GET /conversations/:id`
 struct SocialThread: Decodable, Sendable {
     struct Me: Decodable, Sendable { var isRequest: Bool; var archived: Bool; var lastReadAt: Date? }
@@ -197,6 +225,8 @@ struct SocialThread: Decodable, Sendable {
     var canSend: Bool
     var requestQuotaLeft: Int?
     var messagingRestrictedUntil: Date?
+    /// Zugestellt/gelesen je Empfänger:in (ältere Server: fehlt)
+    var receipts: [SocialReceipt]?
 }
 
 /// `GET /conversations/:id/messages?after=`
@@ -204,6 +234,7 @@ struct SocialMessagesSince: Decodable, Sendable {
     var messages: [SocialMessage]
     var otherLastReadAt: Date?
     var otherPendingRequest: Bool?
+    var receipts: [SocialReceipt]?
 }
 
 /// `GET /conversations/prepare`

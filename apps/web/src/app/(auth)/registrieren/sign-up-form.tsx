@@ -9,8 +9,9 @@ import { formToObject, useAction } from "@/lib/use-action";
 import { slugify } from "@/lib/utils";
 import { signUpAction, checkHandleAction } from "../actions";
 import { AppleButton } from "../apple-button";
+import { PinterestButton } from "../pinterest-button";
 
-export function SignUpForm({ apple }: { apple: boolean }) {
+export function SignUpForm({ apple, pinterest = false }: { apple: boolean; pinterest?: boolean }) {
   const { run, pending, fields } = useAction(signUpAction, { redirect: (d) => d.next });
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
@@ -32,9 +33,12 @@ export function SignUpForm({ apple }: { apple: boolean }) {
 
   return (
     <div className="mt-8">
-      {apple && (
+      {(apple || pinterest) && (
         <>
-          <AppleButton />
+          <div className="space-y-3">
+            {apple && <AppleButton />}
+            {pinterest && <PinterestButton />}
+          </div>
           <div className="my-6 flex items-center gap-4 spec">
             <span className="h-px flex-1 bg-line" />
             oder mit E-Mail
