@@ -143,51 +143,6 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
   );
 }
 
-/** Mobil, unter dem Willkommensbildschirm: „Neu in der Werkstatt“ wie der Gastzugang der App. */
-function MobileLatest({ items }: { items: LatestProject[] }) {
-  return (
-    <section id="neu" aria-labelledby="neu-titel" className="scroll-mt-4 border-t border-line bg-paper px-5 pb-12 pt-10 md:hidden">
-      <p className="spec text-moss">{BRAND.name} · Gastzugang</p>
-      <h2 className="display mt-2 text-[36px] leading-[1.05]">Sieh dich um.</h2>
-      <p className="mt-2.5 text-[15px] leading-relaxed text-muted">Projekte, Anleitungen und Menschen, die mit den Händen arbeiten. Mit einem Konto kannst du folgen, speichern und selbst dokumentieren.</p>
-      <Link href="/registrieren" className="mt-5 flex h-[50px] w-full items-center justify-center rounded-full bg-moss text-[16px] font-semibold text-paper active:scale-[0.98]">
-        Anmelden oder registrieren
-      </Link>
-      <h3 id="neu-titel" className="mt-10 flex items-baseline gap-3 border-b border-line pb-2">
-        <span className="spec text-muted">01</span>
-        <span className="text-[19px] font-bold tracking-[-0.01em]">Neu in der Werkstatt</span>
-      </h3>
-      {items.length ? (
-        <ul className="mt-4 space-y-4">
-          {items.map((p) => (
-            <li key={p.id}>
-              <Link href={projectHref(p)} className="block overflow-hidden rounded-[20px] border border-line bg-card active:scale-[0.99]">
-                <div className="flex items-center gap-2.5 px-3.5 py-3">
-                  <Avatar src={p.owner.profile?.avatarUrl} name={p.owner.profile?.displayName ?? ""} size={32} />
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold text-ink">{p.owner.profile?.displayName}</span>
-                    <span className="block truncate text-[12px] text-muted">{categoryBySlug(p.category)?.short} · {PROJECT_STATUS_LABEL[p.status]}</span>
-                  </span>
-                </div>
-                <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="4/3" sizes="100vw" plateNumber={false} />
-                <div className="flex items-center justify-between gap-3 px-3.5 py-3">
-                  <span className="min-w-0 truncate text-[16px] font-bold tracking-[-0.01em] text-ink">{p.title}</span>
-                  <Difficulty level={p.difficulty} />
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-4 text-sm text-muted">Bald findest du hier die neuesten Projekte aus der Community.</p>
-      )}
-      <Link href="/entdecken" className="mt-6 flex h-[48px] w-full items-center justify-center gap-2 rounded-full border border-line-strong bg-card text-[15px] font-semibold text-ink active:scale-[0.98]">
-        Alles entdecken <ArrowRight size={16} aria-hidden />
-      </Link>
-    </section>
-  );
-}
-
 export default async function Landing() {
   if (await currentUser()) redirect("/feed");
   const d = await landingData();
@@ -392,14 +347,13 @@ export default async function Landing() {
   return (
     // .landing: Designwerte „Werkbuch 2“ (globals.css) gelten nur auf der Startseite
     <div className="landing bg-paper">
-      {/* Mobil: Willkommensbildschirm wie in der iOS-App statt der langen Startseite */}
+      {/* Mobil: nur der Willkommensbildschirm wie in der iOS-App – ohne Kopfzeile, Gastbereich und Footer */}
       <div className="hidden md:block">
         <MarketingHeader />
       </div>
       <RevealObserver />
       <main id="main">
         <MobileWelcome apple={features_.apple()} pinterest={features_.pinterest()} />
-        <MobileLatest items={d.latest.slice(0, 6)} />
         <div className="hidden md:block">
         {/* ── Hero ───────────────────────────────────────── */}
         <section className="relative overflow-hidden">
@@ -857,7 +811,10 @@ export default async function Landing() {
         </section>
         </div>
       </main>
-      <MarketingFooter />
+      {/* Mobil endet die Startseite mit dem Willkommensbildschirm – ohne Footer, wie in der App */}
+      <div className="hidden md:block">
+        <MarketingFooter />
+      </div>
     </div>
   );
 }

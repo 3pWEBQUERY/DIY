@@ -155,9 +155,9 @@ export function MobileWelcome({ apple, pinterest }: { apple: boolean; pinterest:
             Mit Pinterest fortfahren
           </a>
         )}
-        <a href="#neu" className="block py-1.5 text-center text-[15px] font-semibold text-moss">
+        <Link href="/entdecken" className="block py-1.5 text-center text-[15px] font-semibold text-moss">
           Erst einmal umsehen
-        </a>
+        </Link>
         <p className="text-center text-[11.5px] leading-snug text-muted">
           Ab 18 Jahren. Mit der Registrierung akzeptierst du die{" "}
           <Link href="/rechtliches/agb" className="underline underline-offset-2">Nutzungsbedingungen</Link> und die{" "}
