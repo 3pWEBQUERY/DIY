@@ -17,12 +17,48 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ key: string
   const ext = key.split(".").pop() ?? "";
   const etag = `"${key}"`;
   if (req.headers.get("if-none-match") === etag) return new NextResponse(null, { status: 304 });
-  return new NextResponse(new Uint8Array(obj.body), {
-    headers: {
-      "Content-Type": TYPES[ext] ?? obj.mime ?? "application/octet-stream",
-      "Cache-Control": "public, max-age=31536000, immutable",
-      ETag: etag,
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  const body = new Uint8Array(obj.body);
+  const size = body.byteLength;
+  const headers: Record<string, string> = {
+    "Content-Type": TYPES[ext] ?? obj.mime ?? "application/octet-stream",
+    "Cache-Control": "public, max-age=31536000, immutable",
+    ETag: etag,
+    "X-Content-Type-Options": "nosniff",
+    // Teilanfragen erlauben: iOS (AVPlayer/Safari) spielt Videos nur mit Byte-Ranges ab
+    "Accept-Ranges": "bytes",
+  };
+
+  const range = parseRange(req.headers.get("range"), size);
+  if (range === "invalid") {
+    return new NextResponse(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${size}` } });
+  }
+  if (range) {
+    const [start, end] = range;
+    return new NextResponse(body.subarray(start, end + 1), {
+      status: 206,
+      headers: { ...headers, "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) },
+    });
+  }
+  return new NextResponse(body, { headers: { ...headers, "Content-Length": String(size) } });
+}
+
+/** `Range: bytes=a-b` (eine Spanne) → [start, end] inklusive; null = keine/ungültige Angabe ignorieren. */
+function parseRange(header: string | null, size: number): [number, number] | null | "invalid" {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === "" && m[2] === "")) return null; // mehrere Spannen o. Ä. → ganze Datei
+  let start: number;
+  let end: number;
+  if (m[1] === "") {
+    // Suffix: die letzten n Bytes
+    const n = Number(m[2]);
+    if (n <= 0) return "invalid";
+    start = Math.max(0, size - n);
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) return "invalid";
+  return [start, end];
 }
