@@ -675,26 +675,93 @@ export default async function Landing() {
         </section>
 
         {/* ── Abschluss-CTA ─────────────────────────────── */}
-        <section className="px-3 pb-3 sm:px-5 sm:pb-5">
-          <div className="relative mx-auto max-w-[1400px] overflow-hidden rounded-[28px] bg-ink text-paper">
-            <svg aria-hidden className="absolute bottom-0 right-6 hidden h-[85%] w-1/2 text-moss/70 md:block" viewBox="0 0 400 300" fill="none" preserveAspectRatio="xMaxYMax meet">
-              <path d="M10 280 C 90 280, 100 200, 160 200 S 240 280, 270 230 S 240 120, 310 110 S 410 170, 370 220" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="370" cy="220" r="5" fill="currentColor" />
-            </svg>
-            <div data-reveal className="relative px-6 py-16 sm:px-12 sm:py-20 lg:px-20 lg:py-24">
-              <h2 className="display max-w-3xl text-display text-paper">
-                Was entsteht als Nächstes <span className="text-clay-soft">auf deiner Werkbank?</span>
-              </h2>
-              <p className="mt-5 max-w-lg text-body-lg text-paper/80">
-                Ein Konto für alles: entdecken, dokumentieren, Anleitungen schreiben, bloggen – und wenn du magst, verkaufen. {DIFFICULTY_LABEL[1]} oder Profi: Du bist willkommen.
-              </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <LinkButton href="/registrieren" size="lg" className="border-paper bg-paper text-ink hover:border-moss-soft hover:bg-moss-soft">
-                  Kostenlos starten <ArrowRight size={16} />
-                </LinkButton>
-                <Link href="/entdecken" className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl px-4 text-[15px] font-semibold text-paper transition-colors hover:bg-paper/10">
-                  Zuerst stöbern <ArrowUpRight size={16} aria-hidden />
-                </Link>
+        <section className="mx-auto max-w-[1240px] px-5 pb-20 sm:px-8 lg:pb-28" aria-labelledby="cta-title">
+          <div data-reveal className="relative overflow-hidden rounded-[32px] border border-line bg-card">
+            {/* derselbe ruhige Verlauf wie bei „Alles an einem Ort“ */}
+            <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-60" />
+            <div className="relative grid gap-10 p-6 sm:p-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14 lg:p-14">
+              <div className="flex flex-col">
+                <p className="eyebrow">Jetzt mitmachen</p>
+                <h2 id="cta-title" className="display mt-4 text-display">
+                  Was entsteht als Nächstes <span className="text-moss">auf deiner Werkbank?</span>
+                </h2>
+                <p className="mt-5 max-w-lg text-body-lg text-ink-2">
+                  Ein Konto für alles: entdecken, dokumentieren, Anleitungen schreiben, bloggen – und wenn du magst, verkaufen. {DIFFICULTY_LABEL[1]} oder Profi: Du bist willkommen.
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <LinkButton href="/registrieren" size="lg">
+                    Kostenlos starten <ArrowRight size={16} />
+                  </LinkButton>
+                  <LinkButton href="/entdecken" size="lg" variant="outline">
+                    Zuerst stöbern
+                  </LinkButton>
+                </div>
+                <ul className="mt-auto flex flex-wrap gap-x-5 gap-y-2 pt-8 text-[13.5px] font-medium text-ink-2">
+                  {["Kostenlos, ohne Abo", "Ab 18 Jahren", "Deine Inhalte bleiben deine"].map((t) => (
+                    <li key={t} className="flex items-center gap-1.5">
+                      <Check size={15} strokeWidth={2.6} className="text-pine" aria-hidden /> {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Rechts: was gerade tatsächlich auf Werkuno entsteht */}
+              <div className="rounded-[24px] border border-line bg-paper p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <p className="text-[13px] font-bold text-ink">Gerade auf der Werkbank</p>
+                  <Link href="/projekte" className="text-[12.5px] font-semibold text-muted hover:text-ink">
+                    Alle Projekte →
+                  </Link>
+                </div>
+                {d.latest.length ? (
+                  <ul className="mt-3 space-y-2">
+                    {d.latest.slice(0, 3).map((p) => (
+                      <li key={p.id}>
+                        <Link href={projectHref(p)} className="group flex items-center gap-3.5 rounded-2xl border border-line bg-card p-2.5 pr-4 transition-colors hover:border-rule-strong">
+                          <span className="block w-[72px] shrink-0 overflow-hidden rounded-xl">
+                            <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="1/1" sizes="72px" plateNumber={false} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[15px] font-bold text-ink group-hover:underline">{p.title}</span>
+                            <span className="mt-0.5 block truncate text-[12.5px] text-muted">
+                              {categoryBySlug(p.category)?.short} · {PROJECT_STATUS_LABEL[p.status]} · {p.owner.profile?.displayName}
+                            </span>
+                          </span>
+                          <Difficulty level={p.difficulty} />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {categories.slice(0, 8).map((c) => (
+                      <li key={c.slug}>
+                        <Link href={`/entdecken?kategorie=${c.slug}`} className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-ink-2 hover:border-rule-strong">
+                          <Glyph name={c.glyph} size={15} strokeWidth={1.8} /> {c.short}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-4 grid auto-cols-fr grid-flow-col divide-x divide-line rounded-2xl border border-line bg-card text-center">
+                  {/* Nur Kennzahlen mit Inhalt – „0 Anleitungen“ wirbt nicht */}
+                  {(
+                    [
+                      [d.projects, d.projects === 1 ? "Projekt" : "Projekte"],
+                      [d.tutorials, d.tutorials === 1 ? "Anleitung" : "Anleitungen"],
+                      [d.creators, d.creators === 1 ? "Creator" : "Creators"],
+                      [categories.length, "Werkstätten"],
+                    ] as [number, string][]
+                  )
+                    .filter(([n]) => n > 0)
+                    .slice(0, 3)
+                    .map(([n, label]) => (
+                    <div key={label} className="px-2 py-3">
+                      <p className="num text-[20px] font-extrabold tracking-[-0.02em] text-ink">{new Intl.NumberFormat("de-CH").format(n)}</p>
+                      <p className="text-[12px] text-muted">{label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
