@@ -11,6 +11,8 @@ export async function updateSettingAction(key: string, value: unknown) {
     const u = await requireRole("ADMIN");
     await updateSetting(u, key, value);
     revalidatePath("/admin/system");
+    // Beta-Hinweise (Startseite, Feed, /beta) sofort ein- bzw. ausblenden
+    if (key === "app.testflightUrl") revalidatePath("/", "layout");
     return null;
   }, "Einstellung gespeichert.");
 }
@@ -20,6 +22,7 @@ export async function resetSettingAction(key: string) {
     const u = await requireRole("ADMIN");
     await resetSetting(u, key);
     revalidatePath("/admin/system");
+    if (key === "app.testflightUrl") revalidatePath("/", "layout");
     return null;
   }, "Auf Standard zurückgesetzt.");
 }

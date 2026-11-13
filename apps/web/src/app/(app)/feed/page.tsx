@@ -17,6 +17,8 @@ import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { Plate } from "@/components/ui/media";
 import { LinkButton } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
+import { getSetting } from "@/server/settings";
+import { IosBetaHint } from "@/components/landing/ios-beta-hint";
 
 export const metadata: Metadata = { title: "Startseite" };
 
@@ -144,6 +146,8 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
           <h1 className="display mt-1 text-4xl">Grüezi, {user.profile?.displayName.split(" ")[0]}.</h1>
         </div>
       </div>
+
+      {(await getSetting("app.testflightUrl")) && <IosBetaHint variant="card" />}
 
       <Composer viewer={viewer} projects={projectOptions} categories={await categoryOptions()} compact />
 

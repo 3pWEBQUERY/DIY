@@ -86,6 +86,7 @@ export default async function SystemPage() {
                     min={s.meta.min}
                     max={s.meta.max}
                     format={s.meta.format}
+                    placeholder={s.meta.placeholder}
                     locked={(s.key === "commerce.feeBps" || s.key === "pro.feeBps") && !isSuper ? "Nur Superadministration" : undefined}
                     save={updateSettingAction}
                     reset={resetSettingAction}

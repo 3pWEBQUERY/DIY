@@ -3,6 +3,7 @@ import { Wordmark } from "@/components/shell/wordmark";
 import { cn } from "@/lib/utils";
 import { pickWelcomeBackground } from "./welcome-pick";
 import { WelcomePickFallback } from "./welcome-pick-fallback";
+import { IosBetaHint } from "./ios-beta-hint";
 
 /**
  * Mobile Startseite (nur unter md): ruhiger Willkommensbildschirm mit grossem Werkstatt-Bild oben, das weich
@@ -29,7 +30,7 @@ const BG_ID = "welcome-bg";
 /** Läuft beim Laden der Seite sofort, noch vor React (siehe welcome-pick.ts) */
 const PICK = `(${pickWelcomeBackground.toString()})(document.currentScript.parentElement, ${BACKGROUNDS.length})`;
 
-export function MobileWelcome({ apple, pinterest }: { apple: boolean; pinterest: boolean }) {
+export function MobileWelcome({ apple, pinterest, beta = false }: { apple: boolean; pinterest: boolean; beta?: boolean }) {
   return (
     <section aria-label="Willkommen bei Werkuno" className="relative isolate flex min-h-[100svh] flex-col overflow-hidden text-white md:hidden" style={{ backgroundColor: NIGHT }}>
       {/* Bild oben, weich ins Nachtblau auslaufend */}
@@ -60,6 +61,13 @@ export function MobileWelcome({ apple, pinterest }: { apple: boolean; pinterest:
           Anmelden
         </Link>
       </header>
+
+      {/* iOS-Beta: nur auf iPhones und nur mit gesetztem TestFlight-Link */}
+      {beta && (
+        <div className="absolute left-5 top-[calc(max(env(safe-area-inset-top),14px)+56px)]">
+          <IosBetaHint variant="chip" />
+        </div>
+      )}
 
       {/* kurze Bildschirme (z. B. iPhone SE): weniger Abstand, damit alles ohne Scrollen passt */}
       <div className="min-h-[30svh] flex-1 [@media(max-height:700px)]:min-h-[8svh]" />

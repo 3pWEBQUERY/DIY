@@ -16,7 +16,7 @@ function admin(actor: Actor) {
 }
 
 /** Beschreibung & Grenzen je Einstellung – steuert die typgerechten Eingaben. */
-export const SETTING_META: Record<SettingKey, { label: string; help: string; group: string; unit?: string; min?: number; max?: number; format?: "bps" }> = {
+export const SETTING_META: Record<SettingKey, { label: string; help: string; group: string; unit?: string; min?: number; max?: number; format?: "bps"; placeholder?: string }> = {
   "commerce.feeBps": { label: "Plattformprovision", help: "In Basispunkten (600 = 6 %). Wird vor dem Kauf transparent ausgewiesen.", group: "Marktplatz", unit: "bps", min: 0, max: 3000, format: "bps" },
   "commerce.reservationMinutes": { label: "Reservierungsdauer im Checkout", help: "So lange bleibt Ware während der Zahlung reserviert.", group: "Marktplatz", unit: "Min.", min: 5, max: 120 },
   "commerce.digitalEnabledWeb": { label: "Digitale Produkte im Web", help: "Verkauf digitaler Anleitungen über die Website.", group: "Marktplatz" },
@@ -33,6 +33,7 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; gro
   "pro.feeBps": { label: "Creator Pro – Plattformprovision", help: "Tiefere Provision für Shops mit Creator Pro (400 = 4 %).", group: "Creator Pro", unit: "bps", min: 0, max: 3000, format: "bps" },
   "pro.maxVideoSeconds": { label: "Creator Pro – max. Videolänge", help: "Statt der Standard-Videolänge.", group: "Creator Pro", unit: "Sek.", min: 10, max: 3600 },
   "pro.maxVideoMb": { label: "Creator Pro – max. Videogrösse", help: "Pro Datei.", group: "Creator Pro", unit: "MB", min: 10, max: 4000 },
+  "app.testflightUrl": { label: "TestFlight-Link (iOS-Beta)", help: "Öffentlicher Einladungslink aus App Store Connect → TestFlight → Externe Gruppe. Ist er gesetzt, erscheint auf iPhones ein Beta-Hinweis (Feed, Startseite) mit Anleitung unter /beta. Leer = ausgeblendet.", group: "iOS-App", placeholder: "https://testflight.apple.com/join/…" },
   "signup.minAge": { label: "Mindestalter", help: "Plattform ist für Erwachsene konzipiert (§8.4).", group: "Registrierung", unit: "Jahre", min: 16, max: 21 },
 };
 
@@ -42,7 +43,7 @@ export async function listSettings() {
   return (Object.keys(SETTING_DEFAULTS) as SettingKey[]).map((key) => {
     const row = byKey.get(key);
     const def = SETTING_DEFAULTS[key];
-    return { key, value: (row?.value ?? def) as number | boolean, default: def, isDefault: !row, updatedAt: row?.updatedAt ?? null, updatedBy: row?.updatedBy ?? null, meta: SETTING_META[key] };
+    return { key, value: (row?.value ?? def) as number | boolean | string, default: def as number | boolean | string, isDefault: !row, updatedAt: row?.updatedAt ?? null, updatedBy: row?.updatedBy ?? null, meta: SETTING_META[key] };
   });
 }
 
@@ -52,9 +53,17 @@ export async function updateSetting(actor: Actor, key: string, raw: unknown) {
   const k = key as SettingKey;
   const def = SETTING_DEFAULTS[k];
   const meta = SETTING_META[k];
-  let value: number | boolean;
+  let value: number | boolean | string;
   if (typeof def === "boolean") value = z.coerce.boolean().parse(raw === "false" ? false : raw);
-  else {
+  else if (typeof def === "string") {
+    // Bisher nur der TestFlight-Link: leer oder ein Einladungslink von Apple
+    value = z
+      .string()
+      .trim()
+      .max(300)
+      .refine((v) => v === "" || /^https:\/\/testflight\.apple\.com\/join\/[A-Za-z0-9]+\/?$/.test(v), "Bitte den öffentlichen Link im Format https://testflight.apple.com/join/… einfügen.")
+      .parse(String(raw ?? ""));
+  } else {
     value = z.coerce.number().int("Ganzzahl erwartet").min(meta.min ?? 0, `Mindestens ${meta.min}`).max(meta.max ?? 1_000_000, `Höchstens ${meta.max}`).parse(raw);
   }
   // Provisionserhöhungen sind kritisch → nur SUPERADMIN
@@ -62,7 +71,7 @@ export async function updateSetting(actor: Actor, key: string, raw: unknown) {
   const prev = await db.systemSetting.findUnique({ where: { key } });
   await db.$transaction(async (tx) => {
     await tx.systemSetting.upsert({ where: { key }, create: { key, value: value as Prisma.InputJsonValue, updatedBy: actor.id }, update: { value: value as Prisma.InputJsonValue, updatedBy: actor.id } });
-    await audit({ actorId: actor.id, action: "admin.setting_changed", targetType: "SYSTEM_SETTING", targetId: key, meta: { from: (prev?.value ?? def) as number | boolean, to: value } }, tx);
+    await audit({ actorId: actor.id, action: "admin.setting_changed", targetType: "SYSTEM_SETTING", targetId: key, meta: { from: (prev?.value ?? def) as number | boolean | string, to: value } }, tx);
   });
 }
 

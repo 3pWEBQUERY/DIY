@@ -35,18 +35,20 @@ export function SettingControl({
   min,
   max,
   format,
+  placeholder,
   locked,
   save,
   reset,
 }: {
   settingKey: string;
-  value: number | boolean;
+  value: number | boolean | string;
   isDefault: boolean;
-  defaultValue: number | boolean;
+  defaultValue: number | boolean | string;
   unit?: string;
   min?: number;
   max?: number;
   format?: "bps";
+  placeholder?: string;
   locked?: string;
   save: (key: string, value: unknown) => Promise<ActionResult<unknown>>;
   reset: (key: string) => Promise<ActionResult<unknown>>;
@@ -64,6 +66,46 @@ export function SettingControl({
         )}
         <Switch checked={value} disabled={s.pending || !!locked} onChange={(v) => s.run(settingKey, v)} label={settingKey} />
       </div>
+    );
+  }
+  if (typeof value === "string") {
+    // Text (z. B. TestFlight-Link): breites Feld, leer speichern = ausblenden
+    const changed = draft.trim() !== value;
+    return (
+      <form
+        className="flex w-full flex-wrap items-center justify-end gap-2 md:w-[420px]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          s.run(settingKey, draft);
+        }}
+      >
+        <input
+          type="url"
+          value={draft}
+          placeholder={placeholder}
+          disabled={!!locked}
+          onChange={(e) => setDraft(e.target.value)}
+          aria-label={`Wert für ${settingKey}`}
+          className="h-9 min-w-0 flex-1 rounded-2xl border border-line-strong bg-card px-3 font-mono text-[13px] outline-none focus:border-moss disabled:text-muted"
+        />
+        <Button type="submit" size="sm" variant={changed ? "ink" : "outline"} disabled={!changed || s.pending || !!locked}>
+          Speichern
+        </Button>
+        {!isDefault && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={r.pending || !!locked}
+            onClick={() => {
+              setDraft(String(defaultValue));
+              r.run(settingKey);
+            }}
+          >
+            Leeren
+          </Button>
+        )}
+        {s.error && <span className="w-full text-right text-[12px] text-danger">{s.error}</span>}
+      </form>
     );
   }
   const n = Number(draft);

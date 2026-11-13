@@ -359,7 +359,7 @@ export default async function Landing() {
       </div>
       <RevealObserver />
       <main id="main">
-        <MobileWelcome apple={features_.apple()} pinterest={features_.pinterest()} />
+        <MobileWelcome apple={features_.apple()} pinterest={features_.pinterest()} beta={!!(await getSetting("app.testflightUrl").catch(() => ""))} />
         <div className="hidden md:block">
         {/* ── Hero ───────────────────────────────────────── */}
         <section className="relative overflow-hidden">

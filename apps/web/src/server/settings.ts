@@ -24,6 +24,8 @@ export const SETTING_DEFAULTS = {
   "pro.feeBps": 400, // tiefere Provision für Pro-Shops
   "pro.maxVideoSeconds": 600,
   "pro.maxVideoMb": 1000,
+  // Öffentlicher TestFlight-Link der iOS-Beta (leer = Beta-Hinweise auf der Website ausgeblendet)
+  "app.testflightUrl": "" as string,
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;
