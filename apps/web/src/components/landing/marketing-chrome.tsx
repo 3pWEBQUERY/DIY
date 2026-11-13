@@ -9,9 +9,10 @@ export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-paper">
       <div className="mx-auto flex h-16 max-w-[1240px] items-center gap-4 px-4 sm:gap-8 sm:px-8">
-        <Link href="/" aria-label={`${BRAND.name} Startseite`} className="shrink-0 rounded-lg">
+        <Link href="/" aria-label={`${BRAND.name} Startseite`} className="flex shrink-0 items-center rounded-lg">
           <Wordmark height={26} className="sm:hidden" />
-          <Wordmark height={30} className="hidden sm:block" />
+          {/* inline-flex (nicht block): sonst fällt die vertikale Zentrierung der Wortmarke weg */}
+          <Wordmark height={30} className="hidden sm:inline-flex" />
         </Link>
         <nav aria-label="Bereiche" className="hidden items-center gap-1 text-[14px] font-medium text-ink-2 lg:flex">
           {[

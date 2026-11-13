@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Layers, Lock, NotebookPen, Percent, Share2, ShieldCheck, Store, UserPlus, Users } from "lucide-react";
-import { PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, listCategories, categoryBySlug } from "@werkraum/shared";
+import { ArrowRight, ArrowUpRight, Banknote, BookOpen, Check, ChevronDown, CreditCard, Flag, Hourglass, Layers, NotebookPen, PackageCheck, Percent, Share2, ShieldCheck, Store, Truck, UserPlus, Users } from "lucide-react";
+import { PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, listCategories, categoryBySlug, computeFees, formatMoney } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
 import { getSetting } from "@/server/settings";
@@ -68,7 +68,6 @@ function werkstaetten(n: number) {
   return n === 1 ? `${word} Werkstatt` : `${word} Werkstätten`;
 }
 
-const tage = (n: number) => (n === 1 ? "einen Tag" : `${n} Tage`);
 
 /** Einheitlicher Abschnittskopf: Kicker, Titel, kurzer Text. */
 function SectionHead({ id, kicker, title, children, className, align = "left" }: { id?: string; kicker: string; title: string; children?: React.ReactNode; className?: string; align?: "left" | "center" }) {
@@ -191,7 +190,14 @@ function MobileLatest({ items }: { items: LatestProject[] }) {
 export default async function Landing() {
   if (await currentUser()) redirect("/feed");
   const d = await landingData();
-  const [feeBps, holdDays] = await Promise.all([getSetting("commerce.feeBps").catch(() => 600), getSetting("commerce.payoutHoldDays").catch(() => 3)]);
+  const [feeBps, holdDays, autoCompleteDays] = await Promise.all([
+    getSetting("commerce.feeBps").catch(() => 600),
+    getSetting("commerce.payoutHoldDays").catch(() => 3),
+    getSetting("commerce.autoCompleteDays").catch(() => 14),
+  ]);
+  // Rechenbeispiel mit derselben Gebührenlogik wie der Checkout (Provision nur auf den Warenwert)
+  const example = computeFees(4000, 700, Number(feeBps));
+  const chf = (minor: number) => formatMoney(minor, "CHF");
   const fee = (Number(feeBps) / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
   const categories = listCategories({ activeOnly: true });
 
@@ -367,25 +373,11 @@ export default async function Landing() {
     { icon: Share2, title: "Teilen, lernen, verkaufen", body: "Aus Erfahrung wird eine Anleitung, aus Projekten entstehen Nachbauten – und wenn du magst, verkaufst du deine Stücke.", meta: "Anleitung · Shop" },
   ];
 
+  // Ergänzt Ablauf und Rechenbeispiel (Stripe, Provision, Haltefrist stehen dort schon)
   const trust = [
-    {
-      icon: Lock,
-      title: "Sichere Zahlung über Stripe",
-      body: "Bezahlt wird über unseren Zahlungsdienstleister Stripe – Kartendaten werden direkt dort verarbeitet, nicht bei Werkuno und nicht im Shop.",
-    },
-    {
-      icon: Percent,
-      title: `Transparente ${fee} % Provision`,
-      body: `Einstellen ist kostenlos. Erst bei einem Verkauf fallen ${fee} % an – transparent vor jeder Transaktion, ohne versteckte Gebühren und ohne bezahlte Platzierungen.`,
-    },
-    {
-      icon: ShieldCheck,
-      title: "Haltefrist schützt Käufer:innen",
-      body:
-        holdDays > 0
-          ? `Der Erlös wird erst ${tage(holdDays)} nach Abschluss einer Bestellung ausgezahlt. Reklamationen und Erstattungen lassen sich so direkt abwickeln.`
-          : "Problemfälle und angefochtene Zahlungen bleiben zurückgehalten, bis sie geklärt sind. Reklamationen lassen sich so direkt abwickeln.",
-    },
+    { icon: ShieldCheck, title: "Geprüfte Shops", body: "Wer verkauft, verifiziert sich bei Stripe mit Identität und Bankkonto, bevor Zahlungen möglich sind." },
+    { icon: Layers, title: "Herkunft sichtbar", body: "Viele Stücke verlinken das Projekt, aus dem sie entstanden sind – du siehst, wie es gemacht wurde." },
+    { icon: Flag, title: "Melden & Moderation", body: "Fragwürdige Angebote kannst du melden. Unser Team prüft sie und greift bei Verstössen ein." },
   ];
 
   const faq: [string, React.ReactNode][] = [
@@ -612,14 +604,14 @@ export default async function Landing() {
 
         {/* ── Vertrauen im Marktplatz ───────────────────── */}
         <section className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28" aria-labelledby="trust-title">
-          <div className="grid gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
-            <div data-reveal>
+          <div data-reveal className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end lg:gap-16">
+            <div>
               <p className="eyebrow">Marktplatz mit Vertrauen</p>
               <h2 id="trust-title" className="display mt-4 text-display">Fair kaufen und verkaufen.</h2>
-              <p className="mt-4 max-w-md text-body-lg text-ink-2">
-                Der Shop ergänzt die Community – er dominiert sie nie. Klare Regeln schützen Käufer:innen wie Verkäufer:innen.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+            </div>
+            <div>
+              <p className="text-body-lg text-ink-2">Der Shop ergänzt die Community – er dominiert sie nie. Klare Regeln schützen Käufer:innen wie Verkäufer:innen, und jede Gebühr steht vorher fest.</p>
+              <div className="mt-5 flex flex-wrap gap-3">
                 <LinkButton href="/markt" variant="secondary">
                   Zum Marktplatz <ArrowRight size={15} />
                 </LinkButton>
@@ -628,15 +620,86 @@ export default async function Landing() {
                 </LinkButton>
               </div>
             </div>
-            <ul className="grid gap-4">
+          </div>
+
+          <div className="mt-12 grid gap-4 lg:grid-cols-12 lg:gap-5">
+            {/* Bestellablauf – genau so, wie der Marktplatz abrechnet */}
+            <article data-reveal className="relative overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8 lg:col-span-7">
+              <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-pine-soft),transparent)] opacity-70" />
+              <div className="relative flex items-center justify-between gap-4">
+                <h3 className="text-headline font-bold leading-tight">So läuft eine Bestellung</h3>
+                <span className="rounded-full bg-pine-soft px-2.5 py-1 text-[12px] font-bold text-pine">{holdDays > 0 ? "Auszahlung erst nach der Haltefrist" : "Auszahlung erst nach Abschluss"}</span>
+              </div>
+              <ol className="relative mt-7">
+                {[
+                  { icon: CreditCard, title: "Bezahlt", body: "Über Stripe – Kartendaten sehen weder Werkuno noch der Shop." },
+                  { icon: Truck, title: "Versendet", body: "Der Shop versendet und hinterlegt die Sendungsnummer." },
+                  { icon: PackageCheck, title: "Erhalten", body: `Käufer:in bestätigt den Erhalt – sonst gilt die Bestellung ${autoCompleteDays} Tage nach dem Versand als abgeschlossen.` },
+                  {
+                    icon: Hourglass,
+                    title: holdDays > 0 ? `${holdDays} ${Number(holdDays) === 1 ? "Tag" : "Tage"} Haltefrist` : "Klärung offener Fälle",
+                    body: holdDays > 0 ? "Zeit für Reklamationen und Erstattungen, bevor das Geld weitergeht." : "Reklamationen und Erstattungen werden geklärt, bevor das Geld weitergeht.",
+                  },
+                  { icon: Banknote, title: "Ausgezahlt", body: "Der Erlös geht auf das Bankkonto des Shops." },
+                ].map((st, i, all) => (
+                  <li key={st.title} className="relative flex gap-4 pb-5 last:pb-0">
+                    {i < all.length - 1 && <span aria-hidden className="absolute left-[19px] top-10 h-[calc(100%-2.5rem)] w-px bg-line-strong" />}
+                    <span className={cn("relative grid size-10 shrink-0 place-items-center rounded-xl border", i === all.length - 1 ? "border-pine bg-pine text-paper" : "border-line bg-paper text-ink-2")}>
+                      <st.icon size={18} strokeWidth={1.9} aria-hidden />
+                    </span>
+                    <div className="pt-1">
+                      <p className="text-[15px] font-bold text-ink">
+                        <span className="spec mr-2 text-muted">{String(i + 1).padStart(2, "0")}</span>
+                        {st.title}
+                      </p>
+                      <p className="mt-0.5 text-[14px] leading-relaxed text-muted">{st.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </article>
+
+            {/* Rechenbeispiel aus der echten Gebührenlogik */}
+            <article data-reveal style={{ ["--reveal-i" as string]: 1 }} className="relative flex flex-col overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8 lg:col-span-5">
+              <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
+              <div className="relative flex items-center justify-between gap-4">
+                <h3 className="text-headline font-bold leading-tight">Rechenbeispiel</h3>
+                <Percent size={20} strokeWidth={1.9} className="text-moss-ink" aria-hidden />
+              </div>
+              <p className="relative mt-2 text-[14px] text-muted">Ein Stück für {chf(example.subtotal)} mit {chf(example.shipping)} Versand:</p>
+              <dl className="relative mt-5 overflow-hidden rounded-2xl border border-line bg-paper text-[14.5px]">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <dt className="text-ink-2">Käufer:in bezahlt</dt>
+                  <dd className="num font-semibold text-ink">{chf(example.total)}</dd>
+                </div>
+                <div className="flex items-center justify-between border-t border-line px-4 py-3">
+                  <dt className="text-ink-2">Provision {fee} % (nur auf den Warenwert)</dt>
+                  <dd className="num font-semibold text-moss-ink">− {chf(example.platformFee)}</dd>
+                </div>
+                <div className="flex items-center justify-between border-t border-line bg-card px-4 py-3.5">
+                  <dt className="font-bold text-ink">Auszahlung an den Shop</dt>
+                  <dd className="num text-[18px] font-extrabold tracking-[-0.01em] text-pine">{chf(example.sellerNet)}</dd>
+                </div>
+              </dl>
+              <ul className="relative mt-5 space-y-2 text-[14px] text-ink-2">
+                {["Shop eröffnen und einstellen: kostenlos", "Keine Gebühren für Käufer:innen", "Keine bezahlten Platzierungen"].map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <Check size={15} strokeWidth={2.6} className="shrink-0 text-pine" aria-hidden /> {t}
+                  </li>
+                ))}
+              </ul>
+            </article>
+
+            {/* Drei Zusagen, kompakt */}
+            <ul className="grid gap-4 sm:grid-cols-3 lg:col-span-12 lg:gap-5">
               {trust.map((t, i) => (
-                <li key={t.title} data-reveal style={{ ["--reveal-i" as string]: i }} className="flex flex-col gap-4 rounded-3xl border border-line bg-card p-6 sm:flex-row sm:gap-5">
-                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-pine-soft text-pine">
-                    <t.icon size={22} strokeWidth={1.9} aria-hidden />
+                <li key={t.title} data-reveal style={{ ["--reveal-i" as string]: i }} className="flex gap-4 rounded-[22px] border border-line bg-card p-5">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-ink text-paper">
+                    <t.icon size={18} strokeWidth={1.9} aria-hidden />
                   </span>
                   <div>
-                    <h3 className="text-title font-bold">{t.title}</h3>
-                    <p className="mt-1.5 text-[15px] leading-relaxed text-muted">{t.body}</p>
+                    <h3 className="text-[15px] font-bold leading-snug">{t.title}</h3>
+                    <p className="mt-1 text-[13.5px] leading-relaxed text-muted">{t.body}</p>
                   </div>
                 </li>
               ))}
