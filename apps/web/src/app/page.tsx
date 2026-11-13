@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, ArrowUpRight, Banknote, BookOpen, Check, ChevronDown, CreditCard, Flag, Hourglass, Layers, NotebookPen, PackageCheck, Percent, Share2, ShieldCheck, Store, Truck, UserPlus, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Banknote, BookOpen, Check, CreditCard, Flag, Hourglass, Layers, MessageCircle, NotebookPen, PackageCheck, Percent, Plus, Share2, ShieldCheck, Store, Truck, UserPlus, Users } from "lucide-react";
 import { PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, listCategories, categoryBySlug, computeFees, formatMoney } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
@@ -709,28 +709,50 @@ export default async function Landing() {
 
         {/* ── FAQ ───────────────────────────────────────── */}
         <section className="border-t border-line" aria-labelledby="faq-title">
-          <div className="mx-auto grid max-w-[1240px] gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16 lg:py-28">
-            <div data-reveal>
+          <div className="mx-auto grid max-w-[1240px] gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16 lg:py-28">
+            <div data-reveal className="lg:sticky lg:top-24 lg:self-start">
               <p className="eyebrow">Fragen & Antworten</p>
               <h2 id="faq-title" className="display mt-4 text-display">Kurz erklärt.</h2>
-              <p className="mt-4 max-w-sm text-body-lg text-ink-2">
-                Noch etwas offen? In der{" "}
-                <Link href="/hilfe" className="font-semibold text-moss-ink underline underline-offset-4">
-                  Hilfe
-                </Link>{" "}
-                findest du mehr.
-              </p>
+              <p className="mt-4 max-w-sm text-body-lg text-ink-2">Die häufigsten Fragen in einem Satz beantwortet – ausführlich in der Hilfe.</p>
+
+              {/* Weiterhelfen: echte Anlaufstellen statt Deko */}
+              <div className="relative mt-8 overflow-hidden rounded-[24px] border border-line bg-card p-5">
+                <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
+                <p className="relative text-[15px] font-bold text-ink">Noch etwas offen?</p>
+                <ul className="relative mt-3 divide-y divide-line">
+                  {[
+                    { href: "/hilfe", icon: BookOpen, label: "Hilfe-Center", note: "Anleitungen zu allen Funktionen" },
+                    { href: "/kontakt", icon: MessageCircle, label: "Kontakt", note: "Wir antworten in der Regel innert zwei Werktagen" },
+                    { href: "/richtlinien/marktplatz", icon: Store, label: "Marktplatz-Richtlinien", note: "Regeln, Gebühren, Auszahlungen" },
+                  ].map((l) => (
+                    <li key={l.href}>
+                      <Link href={l.href} className="group flex items-center gap-3 py-3">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-paper text-ink-2 ring-1 ring-line">
+                          <l.icon size={16} strokeWidth={1.9} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14.5px] font-semibold text-ink group-hover:text-moss-ink">{l.label}</span>
+                          <span className="block truncate text-[12.5px] text-muted">{l.note}</span>
+                        </span>
+                        <ArrowRight size={15} className="shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-moss-ink" aria-hidden />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <div data-reveal className="divide-y divide-line border-y border-line">
-              {faq.map(([q, a]) => (
-                <details key={q} className="group/faq">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 text-[16.5px] font-bold text-ink transition-colors hover:text-moss-ink [&::-webkit-details-marker]:hidden">
-                    {q}
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-line-strong bg-card transition-transform duration-300 group-open/faq:rotate-180">
-                      <ChevronDown size={16} aria-hidden />
+
+            <div data-reveal className="space-y-3">
+              {faq.map(([q, a], i) => (
+                <details key={q} open={i === 0} className="group/faq overflow-hidden rounded-[22px] border border-line bg-card transition-colors open:border-line-strong open:shadow-sm">
+                  <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-4.5 sm:px-6 [&::-webkit-details-marker]:hidden">
+                    <span className="spec w-6 shrink-0 text-muted group-open/faq:text-moss">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="min-w-0 flex-1 text-[16px] font-bold text-ink transition-colors group-hover/faq:text-moss-ink">{q}</span>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-line-strong bg-paper text-ink-2 transition-[transform,background-color,color,border-color] duration-300 group-open/faq:rotate-45 group-open/faq:border-moss group-open/faq:bg-moss group-open/faq:text-paper">
+                      <Plus size={16} strokeWidth={2.2} aria-hidden />
                     </span>
                   </summary>
-                  <div className="-mt-1 pb-6 pr-12 text-[15.5px] leading-relaxed text-ink-2">{a}</div>
+                  <div className="px-5 pb-5 pl-[3.75rem] pr-14 text-[15px] leading-relaxed text-ink-2 sm:px-6 sm:pl-[4.25rem]">{a}</div>
                 </details>
               ))}
             </div>
@@ -738,41 +760,42 @@ export default async function Landing() {
         </section>
 
         {/* ── Abschluss-CTA ─────────────────────────────── */}
-        <section className="mx-auto max-w-[1240px] px-5 pb-20 sm:px-8 lg:pb-28" aria-labelledby="cta-title">
-          <div data-reveal className="relative overflow-hidden rounded-[32px] border border-line bg-card">
-            {/* derselbe ruhige Verlauf wie bei „Alles an einem Ort“ */}
-            <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-60" />
-            <div className="relative grid gap-10 p-6 sm:p-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14 lg:p-14">
+        <section className="relative overflow-hidden bg-ink text-paper" aria-labelledby="cta-title">
+          {/* Gleiche Fläche wie „So funktioniert's“, anderer Grund: feines Raster wie eine Schneidematte */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:44px_44px]" />
+          <div aria-hidden className="pointer-events-none absolute -bottom-48 -left-40 size-[520px] rounded-full bg-moss opacity-[0.18] blur-[120px]" />
+          <div data-reveal className="relative mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
               <div className="flex flex-col">
-                <p className="eyebrow">Jetzt mitmachen</p>
-                <h2 id="cta-title" className="display mt-4 text-display">
-                  Was entsteht als Nächstes <span className="text-moss">auf deiner Werkbank?</span>
+                <p className="eyebrow text-[#f0a493]">Jetzt mitmachen</p>
+                <h2 id="cta-title" className="display mt-4 text-display text-paper">
+                  Was entsteht als Nächstes <span className="text-[#f0a493]">auf deiner Werkbank?</span>
                 </h2>
-                <p className="mt-5 max-w-lg text-body-lg text-ink-2">
+                <p className="mt-5 max-w-lg text-body-lg text-paper/70">
                   Ein Konto für alles: entdecken, dokumentieren, Anleitungen schreiben, bloggen – und wenn du magst, verkaufen. {DIFFICULTY_LABEL[1]} oder Profi: Du bist willkommen.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <LinkButton href="/registrieren" size="lg">
-                    Kostenlos starten <ArrowRight size={16} />
-                  </LinkButton>
-                  <LinkButton href="/entdecken" size="lg" variant="outline">
+                  <Link href="/registrieren" className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-7 text-[15px] font-bold text-ink transition-transform duration-200 hover:-translate-y-0.5">
+                    Kostenlos starten <ArrowRight size={16} aria-hidden />
+                  </Link>
+                  <Link href="/entdecken" className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/25 px-7 text-[15px] font-semibold text-paper transition-colors hover:bg-white/10">
                     Zuerst stöbern
-                  </LinkButton>
+                  </Link>
                 </div>
-                <ul className="mt-auto flex flex-wrap gap-x-5 gap-y-2 pt-8 text-[13.5px] font-medium text-ink-2">
+                <ul className="mt-auto flex flex-wrap gap-x-5 gap-y-2 pt-8 text-[13.5px] font-medium text-paper/75">
                   {["Kostenlos, ohne Abo", "Ab 18 Jahren", "Deine Inhalte bleiben deine"].map((t) => (
                     <li key={t} className="flex items-center gap-1.5">
-                      <Check size={15} strokeWidth={2.6} className="text-pine" aria-hidden /> {t}
+                      <Check size={15} strokeWidth={2.6} className="text-[#8fd1ae]" aria-hidden /> {t}
                     </li>
                   ))}
                 </ul>
               </div>
 
               {/* Rechts: was gerade tatsächlich auf Werkuno entsteht */}
-              <div className="rounded-[24px] border border-line bg-paper p-4 sm:p-5">
+              <div className="rounded-[24px] border border-white/10 bg-[#2d2b2e] p-4 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.6)] sm:p-5">
                 <div className="flex items-center justify-between gap-3 px-1">
-                  <p className="text-[13px] font-bold text-ink">Gerade auf der Werkbank</p>
-                  <Link href="/projekte" className="text-[12.5px] font-semibold text-muted hover:text-ink">
+                  <p className="text-[13px] font-bold text-paper">Gerade auf der Werkbank</p>
+                  <Link href="/projekte" className="text-[12.5px] font-semibold text-paper/60 hover:text-paper">
                     Alle Projekte →
                   </Link>
                 </div>
@@ -780,17 +803,17 @@ export default async function Landing() {
                   <ul className="mt-3 space-y-2">
                     {d.latest.slice(0, 3).map((p) => (
                       <li key={p.id}>
-                        <Link href={projectHref(p)} className="group flex items-center gap-3.5 rounded-2xl border border-line bg-card p-2.5 pr-4 transition-colors hover:border-rule-strong">
+                        <Link href={projectHref(p)} className="group flex items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-2.5 pr-4 transition-colors hover:border-white/25 hover:bg-white/[0.07]">
                           <span className="block w-[72px] shrink-0 overflow-hidden rounded-xl">
                             <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="1/1" sizes="72px" plateNumber={false} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[15px] font-bold text-ink group-hover:underline">{p.title}</span>
-                            <span className="mt-0.5 block truncate text-[12.5px] text-muted">
+                            <span className="block truncate text-[15px] font-bold text-paper group-hover:underline">{p.title}</span>
+                            <span className="mt-0.5 block truncate text-[12.5px] text-paper/60">
                               {categoryBySlug(p.category)?.short} · {PROJECT_STATUS_LABEL[p.status]} · {p.owner.profile?.displayName}
                             </span>
                           </span>
-                          <Difficulty level={p.difficulty} />
+                          <Difficulty level={p.difficulty} onDark />
                         </Link>
                       </li>
                     ))}
@@ -799,14 +822,14 @@ export default async function Landing() {
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {categories.slice(0, 8).map((c) => (
                       <li key={c.slug}>
-                        <Link href={`/entdecken?kategorie=${c.slug}`} className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-ink-2 hover:border-rule-strong">
+                        <Link href={`/entdecken?kategorie=${c.slug}`} className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-[13px] font-semibold text-paper/80 hover:border-white/30">
                           <Glyph name={c.glyph} size={15} strokeWidth={1.8} /> {c.short}
                         </Link>
                       </li>
                     ))}
                   </ul>
                 )}
-                <div className="mt-4 grid auto-cols-fr grid-flow-col divide-x divide-line rounded-2xl border border-line bg-card text-center">
+                <div className="mt-4 grid auto-cols-fr grid-flow-col divide-x divide-white/10 rounded-2xl border border-white/10 text-center">
                   {/* Nur Kennzahlen mit Inhalt – „0 Anleitungen“ wirbt nicht */}
                   {(
                     [
@@ -820,8 +843,8 @@ export default async function Landing() {
                     .slice(0, 3)
                     .map(([n, label]) => (
                     <div key={label} className="px-2 py-3">
-                      <p className="num text-[20px] font-extrabold tracking-[-0.02em] text-ink">{new Intl.NumberFormat("de-CH").format(n)}</p>
-                      <p className="text-[12px] text-muted">{label}</p>
+                      <p className="num text-[20px] font-extrabold tracking-[-0.02em] text-paper">{new Intl.NumberFormat("de-CH").format(n)}</p>
+                      <p className="text-[12px] text-paper/60">{label}</p>
                     </div>
                   ))}
                 </div>

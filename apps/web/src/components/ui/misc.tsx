@@ -131,11 +131,11 @@ export function Notice({ tone = "neutral", title, children, className, alert }: 
 }
 
 /* ───────── Schwierigkeitsanzeige 1–5 ───────── */
-export function Difficulty({ level, className }: { level: number; className?: string }) {
+export function Difficulty({ level, className, onDark = false }: { level: number; className?: string; onDark?: boolean }) {
   return (
     <span className={cn("inline-flex items-center gap-[3px]", className)} aria-label={`Schwierigkeit ${level} von 5`} role="img">
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={cn("h-2.5 w-[5px] rounded-full", i <= level ? "bg-ink" : "bg-line-strong")} />
+        <span key={i} className={cn("h-2.5 w-[5px] rounded-full", i <= level ? (onDark ? "bg-paper" : "bg-ink") : onDark ? "bg-white/20" : "bg-line-strong")} />
       ))}
     </span>
   );
