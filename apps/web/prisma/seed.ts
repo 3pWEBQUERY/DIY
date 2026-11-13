@@ -12,6 +12,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type ProjectStatus } from "../src/generated/prisma/client";
 import { hashPassword, verifyPassword } from "../src/server/crypto";
 import { purgeDemo } from "./demo-purge";
+import { starterContent } from "./starter-content";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
 // Öffentlich bekannte Standardpasswörter (stehen im Repo) – nur für lokale Entwicklung und CI
@@ -917,6 +918,8 @@ async function main() {
   if (process.env.SEED_DEMO === "true") await demo(a.id);
   // Demo-Daten entfernen (einmalig vor dem Start): PURGE_DEMO=true, Testlauf mit PURGE_DEMO=dry-run
   else if (process.env.PURGE_DEMO === "true" || process.env.PURGE_DEMO === "dry-run") await purgeDemo(db, { adminId: a.id, dryRun: process.env.PURGE_DEMO === "dry-run" });
+  // Erste Projektideen der Redaktion für die Startseite (einmalig, auch in Produktion; nicht mit Demo-Daten)
+  if (process.env.SEED_DEMO !== "true" && process.env.PURGE_DEMO !== "dry-run") await starterContent(db, a.id);
   console.log("✓ Seed abgeschlossen");
 }
 

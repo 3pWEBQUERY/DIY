@@ -50,7 +50,19 @@ const config: NextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // 3D-Faden der mobilen Startseite (public/three/story.html) wird als eigener Rahmen eingebettet –
+      // nur von der eigenen Seite
+      {
+        source: "/three/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: securityHeaders.find((h) => h.key === "Content-Security-Policy")!.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") },
+          { key: "Cache-Control", value: "public, max-age=86400" },
+        ],
+      },
+    ];
   },
 };
 
