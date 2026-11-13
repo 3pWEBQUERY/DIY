@@ -60,11 +60,33 @@ struct PickedMovie: Transferable {
     let url: URL
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(contentType: .movie) { SentTransferredFile($0.url) } importing: { received in
-            let dst = FileManager.default.temporaryDirectory.appendingPathComponent("werkuno-video-" + UUID().uuidString + "." + (received.file.pathExtension.isEmpty ? "mov" : received.file.pathExtension))
-            try FileManager.default.copyItem(at: received.file, to: dst)
-            return PickedMovie(url: dst)
+            PickedMovie(url: try copy(received.file))
         }
     }
+
+    /// Kopie in den temporären Ordner (die vom System gelieferte Datei ist nur kurz gültig)
+    static func copy(_ src: URL) throws -> URL {
+        let ext = src.pathExtension.isEmpty ? "mov" : src.pathExtension
+        let dst = FileManager.default.temporaryDirectory.appendingPathComponent("werkuno-video-" + UUID().uuidString + "." + ext)
+        try FileManager.default.copyItem(at: src, to: dst)
+        return dst
+    }
+
+    /// Video aus der Fotomediathek laden. Zuerst als Datei (speicherschonend); klappt das nicht
+    /// (z. B. bei Zeitlupe oder ungewöhnlichen Formaten), als Daten in eine temporäre Datei schreiben.
+    static func load(_ item: PhotosPickerItem) async -> URL? {
+        if let m = try? await item.loadTransferable(type: PickedMovie.self) { return m.url }
+        guard let data = try? await item.loadTransferable(type: Data.self), !data.isEmpty else { return nil }
+        let type = item.supportedContentTypes.first { $0.conforms(to: .movie) }
+        let ext = type?.preferredFilenameExtension ?? "mov"
+        let dst = FileManager.default.temporaryDirectory.appendingPathComponent("werkuno-video-" + UUID().uuidString + "." + ext)
+        do { try data.write(to: dst) } catch { return nil }
+        return dst
+    }
+}
+
+extension PhotosPickerItem {
+    var isMovie: Bool { supportedContentTypes.contains { $0.conforms(to: .movie) || $0.conforms(to: .audiovisualContent) } }
 }
 
 /// Medienauswahl mit Upload, Reihenfolge, Alt-Text (Barrierefreiheit) und Entfernen.
@@ -92,7 +114,9 @@ struct MediaPickerField: View {
                         tile(m, index: idx)
                     }
                     if items.count < maxCount {
-                        PhotosPicker(selection: $picks, maxSelectionCount: maxCount - items.count, matching: allowVideo ? .any(of: [.images, .videos]) : .images) {
+                        // `.current`: Original übernehmen statt erst umzuwandeln (iPhone-Videos sind HEVC – die Umwandlung
+                        // dauerte bei längeren Videos sehr lange und verdoppelte die Grösse; der Server wandelt selbst um)
+                        PhotosPicker(selection: $picks, maxSelectionCount: maxCount - items.count, matching: allowVideo ? .any(of: [.images, .videos]) : .images, preferredItemEncoding: .current) {
                             VStack(spacing: 6) {
                                 Image(systemName: "plus").font(.wr(.title3, .semibold))
                                 Text("Hinzufügen").font(.wr(.caption))
@@ -126,9 +150,17 @@ struct MediaPickerField: View {
         ZStack(alignment: .topTrailing) {
             Group {
                 if let img = m.image { Image(uiImage: img).resizable().scaledToFill() }
+                else if m.isVideo && m.remoteURL == nil { Color.black.opacity(0.85) }
                 else { RemoteImage(path: m.remoteURL) }
             }
             .frame(width: 96, height: 96)
+            .overlay {
+                // Videos deutlich als Video erkennbar (auch solange noch kein Vorschaubild da ist)
+                if m.isVideo && m.state == .ready {
+                    Image(systemName: "play.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                        .frame(width: 34, height: 34).background(.black.opacity(0.5), in: Circle())
+                }
+            }
             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
             .overlay {
                 switch m.state {
@@ -159,7 +191,7 @@ struct MediaPickerField: View {
         }
         .onTapGesture { altEditing = m }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(m.alt.isEmpty ? "Bild \(index + 1), ohne Alt-Text" : "Bild \(index + 1): \(m.alt)")
+        .accessibilityLabel(m.isVideo ? (m.alt.isEmpty ? "Video \(index + 1)" : "Video \(index + 1): \(m.alt)") : (m.alt.isEmpty ? "Bild \(index + 1), ohne Alt-Text" : "Bild \(index + 1): \(m.alt)"))
         .accessibilityHint("Doppeltippen für Alt-Text")
     }
 
@@ -168,36 +200,58 @@ struct MediaPickerField: View {
     }
 
     private func ingest(_ batch: [PhotosPickerItem]) async {
-        for item in batch {
-            if allowVideo, item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }), let movie = try? await item.loadTransferable(type: PickedMovie.self) {
-                var d = DraftMedia(isVideo: true, state: .uploading)
-                d.image = await thumbnail(movie.url)
-                items.append(d)
-                let did = d.id
-                do {
-                    let mid = try await MediaUpload.uploadVideo(movie.url)
-                    update(did) { $0.mediaId = mid; $0.state = .ready }
-                } catch let e as APIError where e.status == 422 {
-                    // Abgelehnt, bevor hochgeladen wurde (z. B. zu lang oder zu gross): Kachel entfernen, Meldung zeigen
-                    withAnimation(.snappy) { items.removeAll { $0.id == did } }
-                    app.show(error: e)
-                } catch { update(did) { $0.state = .failed(error.localizedDescription) }; app.show(error: error) }
-                // Temporäre Kopie aus der Fotomediathek wird nicht mehr gebraucht
-                try? FileManager.default.removeItem(at: movie.url)
+        // Sofort je Auswahl eine Kachel zeigen – grosse Videos (oder aus iCloud) brauchen einige Sekunden zum Laden
+        let drafts = batch.map { DraftMedia(isVideo: allowVideo && $0.isMovie, state: .uploading) }
+        withAnimation(.snappy) { items.append(contentsOf: drafts) }
+        for (item, did) in zip(batch, drafts.map(\.id)) {
+            if allowVideo && item.isMovie {
+                await ingestVideo(item, did)
                 continue
             }
-            guard let data = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: data) else { continue }
-            let d = DraftMedia(image: img, state: .uploading)
-            withAnimation(.snappy) { items.append(d) }
-            let did = d.id
-            do {
-                let (mid, r) = try await MediaUpload.upload(img)
-                update(did) { $0.mediaId = mid; $0.remoteURL = r.variants?.best; $0.state = .ready }
-            } catch {
-                update(did) { $0.state = .failed(error.localizedDescription) }
-                app.show(error: error)
+            if let data = try? await item.loadTransferable(type: Data.self), let img = UIImage(data: data) {
+                update(did) { $0.image = img }
+                do {
+                    let (mid, r) = try await MediaUpload.upload(img)
+                    update(did) { $0.mediaId = mid; $0.remoteURL = r.variants?.best; $0.state = .ready }
+                } catch {
+                    update(did) { $0.state = .failed(error.localizedDescription) }
+                    app.show(error: error)
+                }
+            } else if allowVideo {
+                // Typ nicht eindeutig erkannt: als Video versuchen
+                update(did) { $0.isVideo = true }
+                await ingestVideo(item, did)
+            } else {
+                drop(did, message: "Das Bild konnte nicht geladen werden. Bitte versuche es mit einem anderen Bild.")
             }
         }
+    }
+
+    private func ingestVideo(_ item: PhotosPickerItem, _ did: String) async {
+        guard let url = await PickedMovie.load(item) else {
+            drop(did, message: "Das Video konnte nicht geladen werden. Ist es noch in iCloud, warte kurz, bis es auf dem iPhone ist, und versuche es erneut.")
+            return
+        }
+        defer { try? FileManager.default.removeItem(at: url) }  // temporäre Kopie wird danach nicht mehr gebraucht
+        let thumb = await thumbnail(url)
+        update(did) { $0.image = thumb }
+        do {
+            let mid = try await MediaUpload.uploadVideo(url)
+            update(did) { $0.mediaId = mid; $0.state = .ready }
+        } catch let e as APIError where e.status == 422 {
+            // Abgelehnt, bevor hochgeladen wurde (z. B. zu lang oder zu gross): Kachel entfernen, Meldung zeigen
+            withAnimation(.snappy) { items.removeAll { $0.id == did } }
+            app.show(error: e)
+        } catch {
+            update(did) { $0.state = .failed(error.localizedDescription) }
+            app.show(error: error)
+        }
+    }
+
+    /// Kachel entfernen und erklären, warum
+    private func drop(_ id: String, message: String) {
+        withAnimation(.snappy) { items.removeAll { $0.id == id } }
+        app.show(message, style: .error)
     }
 
     private func update(_ id: String, _ f: (inout DraftMedia) -> Void) {
