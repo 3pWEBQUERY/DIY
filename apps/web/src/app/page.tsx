@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Layers, Lock, Percent, ShieldCheck, Store, Users } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronDown, Layers, Lock, NotebookPen, Percent, Share2, ShieldCheck, Store, UserPlus, Users } from "lucide-react";
 import { PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, listCategories, categoryBySlug } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
@@ -195,27 +195,63 @@ export default async function Landing() {
   const fee = (Number(feeBps) / 100).toLocaleString("de-CH", { maximumFractionDigits: 2 });
   const categories = listCategories({ activeOnly: true });
 
+  // Mini-Vorschauen der App in den Kacheln – echt wirkende Oberflächen statt Symbolbilder
+  const Window = ({ label, chip, children }: { label: string; chip?: React.ReactNode; children: React.ReactNode }) => (
+    <div className="overflow-hidden rounded-2xl border border-line bg-paper shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+      <div className="flex items-center justify-between gap-3 border-b border-line bg-card/70 px-4 py-2.5">
+        <span className="flex items-center gap-1.5" aria-hidden>
+          <span className="size-2 rounded-full bg-line-strong" />
+          <span className="size-2 rounded-full bg-line-strong" />
+          <span className="size-2 rounded-full bg-line-strong" />
+        </span>
+        <span className="truncate text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</span>
+        <span className="shrink-0">{chip}</span>
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+  const Chip = ({ tone = "neutral", children }: { tone?: "neutral" | "moss" | "pine"; children: React.ReactNode }) => (
+    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold", tone === "moss" ? "bg-moss-soft text-moss-ink" : tone === "pine" ? "bg-pine-soft text-pine" : "bg-sunken text-ink-2")}>{children}</span>
+  );
+  const Progress = ({ value, tone = "moss" }: { value: number; tone?: "moss" | "pine" }) => (
+    <span className="block h-1.5 overflow-hidden rounded-full bg-line" aria-hidden>
+      <span className={cn("block h-full rounded-full", tone === "pine" ? "bg-pine" : "bg-moss")} style={{ width: `${value}%` }} />
+    </span>
+  );
+
   const features = [
     {
       icon: Layers,
       title: "Projekte",
       href: "/projekte",
       cta: "Projekte ansehen",
-      body: "Dokumentiere dein Projekt Schritt für Schritt im Journal – mit Fotos, Meilensteinen, Problemen und Lösungen.",
+      span: "lg:col-span-7",
+      body: "Dokumentiere dein Projekt Schritt für Schritt im Journal – mit Fotos, Meilensteinen, Problemen und Lösungen. Andere sehen, wie es entsteht, und bauen es nach.",
+      points: ["Projektjournal mit Zeitstrahl", "Material- und Werkzeuglisten", "Nachbauten verlinken das Original"],
       demo: (
-        <ol className="space-y-0 border-l-2 border-line pl-0">
-          {[
-            ["Tag 1", "Ton geknetet, Boden aufgebaut", "Meilenstein"],
-            ["Tag 3", "Wülste bis zur Schulter – Riss am Rand", "Problem"],
-            ["Tag 4", "Schlicker + Feuchttuch hat geholfen", "Lösung"],
-          ].map(([day, text, tag], i) => (
-            <li key={day} className="relative py-1.5 pl-5">
-              <span className={cn("absolute -left-[6px] top-[13px] size-2.5 rounded-full ring-4 ring-card", i === 2 ? "bg-pine" : i === 1 ? "bg-moss" : "bg-ink")} />
-              <span className="text-[11.5px] font-semibold text-muted">{day} · {tag}</span>
-              <span className="block text-[14px] font-medium text-ink">{text}</span>
-            </li>
-          ))}
-        </ol>
+        <Window label="Projektjournal" chip={<Chip tone="moss">In Bearbeitung</Chip>}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-bold text-ink">Steinzeug-Vase, gedreht</p>
+              <p className="text-[12px] text-muted">Keramik · Mittel · 4 Einträge</p>
+            </div>
+            <span className="num shrink-0 text-[13px] font-bold text-ink">60 %</span>
+          </div>
+          <div className="mt-2.5"><Progress value={60} /></div>
+          <ol className="mt-4 space-y-0 border-l-2 border-line">
+            {[
+              ["Tag 1", "Ton geknetet, Boden aufgebaut", "Meilenstein", "bg-ink"],
+              ["Tag 3", "Wülste bis zur Schulter – Riss am Rand", "Problem", "bg-moss"],
+              ["Tag 4", "Schlicker + Feuchttuch hat geholfen", "Lösung", "bg-pine"],
+            ].map(([day, text, tag, dot]) => (
+              <li key={day} className="relative py-1.5 pl-5">
+                <span className={cn("absolute -left-[6px] top-[13px] size-2.5 rounded-full ring-4 ring-paper", dot)} />
+                <span className="text-[11.5px] font-semibold text-muted">{day} · {tag}</span>
+                <span className="block text-[14px] font-medium text-ink">{text}</span>
+              </li>
+            ))}
+          </ol>
+        </Window>
       ),
     },
     {
@@ -223,20 +259,29 @@ export default async function Landing() {
       title: "Anleitungen",
       href: "/anleitungen",
       cta: "Anleitungen ansehen",
+      span: "lg:col-span-5",
       body: "Strukturierte Schritte, Materiallisten und klare Sicherheitshinweise. Hake Schritte ab und übernimm Material direkt in deine Einkaufsliste.",
+      points: ["Schritte zum Abhaken", "Material in die Einkaufsliste"],
       demo: (
-        <ul className="space-y-1.5">
-          {[
-            ["Beine auf 45 cm ablängen", true],
-            ["Zapfenlöcher bohren – Schutzbrille!", true],
-            ["Sitzfläche verleimen", false],
-          ].map(([t, done], i) => (
-            <li key={i} className="flex items-center gap-3 rounded-xl bg-paper px-3 py-2 text-[14px]">
-              <span className={cn("grid size-5 shrink-0 place-items-center rounded-md border", done ? "border-moss bg-moss text-paper" : "border-field bg-card")}>{done && <Check size={12} strokeWidth={3} />}</span>
-              <span className={done ? "text-muted line-through decoration-1" : "font-medium text-ink"}>{t as string}</span>
-            </li>
-          ))}
-        </ul>
+        <Window label="Hocker aus Eiche" chip={<Chip>2 / 3</Chip>}>
+          <Progress value={66} tone="pine" />
+          <ul className="mt-3 space-y-1.5">
+            {[
+              ["Beine auf 45 cm ablängen", true],
+              ["Zapfenlöcher bohren – Schutzbrille!", true],
+              ["Sitzfläche verleimen", false],
+            ].map(([t, done], i) => (
+              <li key={i} className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2 text-[14px]">
+                <span className={cn("grid size-5 shrink-0 place-items-center rounded-md border", done ? "border-pine bg-pine text-paper" : "border-field bg-card")}>{done && <Check size={12} strokeWidth={3} />}</span>
+                <span className={done ? "text-muted line-through decoration-1" : "font-medium text-ink"}>{t as string}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-pine-soft px-3 py-2.5">
+            <span className="text-[13px] font-semibold text-pine">4 Materialien · Eichenkantel, Holzleim …</span>
+            <span className="shrink-0 rounded-full bg-pine px-2.5 py-1 text-[11.5px] font-bold text-paper">+ Einkaufsliste</span>
+          </div>
+        </Window>
       ),
     },
     {
@@ -244,22 +289,26 @@ export default async function Landing() {
       title: "Communities",
       href: "/communities",
       cta: "Communities ansehen",
+      span: "lg:col-span-5",
       body: "Gruppen rund um dein Handwerk: Fragen stellen, Fortschritte zeigen, bei Wettbewerben und Events mitmachen.",
+      points: ["Fragen, Treffen, Wettbewerbe"],
       demo: (
-        <ul className="space-y-1.5">
-          {(d.communities.length
-            ? d.communities.map((c) => ({ key: c.id, name: c.name, glyph: categoryBySlug(c.category)?.glyph ?? "spark", note: `${new Intl.NumberFormat("de-CH").format(c.memberCount)} Mitglieder` }))
-            : categories.slice(0, 3).map((c) => ({ key: c.slug, name: c.name, glyph: c.glyph, note: "Community" }))
-          ).map((c) => (
-            <li key={c.key} className="flex items-center gap-3 rounded-xl bg-paper px-3 py-2">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-moss-soft text-moss-ink">
-                <Glyph name={c.glyph} size={18} strokeWidth={1.7} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{c.name}</span>
-              <span className="shrink-0 text-[12px] text-muted">{c.note}</span>
-            </li>
-          ))}
-        </ul>
+        <Window label="Communities" chip={<Chip tone="pine">Offen</Chip>}>
+          <ul className="space-y-1.5">
+            {(d.communities.length
+              ? d.communities.map((c) => ({ key: c.id, name: c.name, glyph: categoryBySlug(c.category)?.glyph ?? "spark", note: `${new Intl.NumberFormat("de-CH").format(c.memberCount)} Mitglieder` }))
+              : categories.slice(0, 3).map((c) => ({ key: c.slug, name: c.name, glyph: c.glyph, note: "Beitreten" }))
+            ).map((c) => (
+              <li key={c.key} className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-moss-soft text-moss-ink">
+                  <Glyph name={c.glyph} size={18} strokeWidth={1.7} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{c.name}</span>
+                <span className="shrink-0 text-[12px] font-medium text-muted">{c.note}</span>
+              </li>
+            ))}
+          </ul>
+        </Window>
       ),
     },
     {
@@ -267,30 +316,55 @@ export default async function Landing() {
       title: "Marktplatz",
       href: "/markt",
       cta: "Marktplatz ansehen",
+      span: "lg:col-span-7",
       body: "Einzelstücke, Kleinserien, Materialsets und Pläne – direkt von Makern. Viele zeigen das Projekt, aus dem ihr Stück entstanden ist.",
+      points: ["Sichere Zahlung über Stripe", "Faire, transparente Gebühren"],
       demo: (
-        <dl className="divide-y divide-line rounded-xl bg-paper px-3 text-[14px]">
-          <div className="flex items-center justify-between py-2">
-            <dt className="text-muted">Shop eröffnen & einstellen</dt>
-            <dd className="font-bold text-pine">kostenlos</dd>
+        <Window label="Dein Shop" chip={<Chip tone="pine">Kostenlos</Chip>}>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+            <div className="flex items-center gap-3 rounded-xl border border-line bg-card p-2.5">
+              <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-sunken text-moss-ink">
+                <Glyph name="vessel" size={24} strokeWidth={1.6} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[14px] font-bold text-ink">Tasse, Steinzeug</span>
+                <span className="num block text-[13px] font-semibold text-ink-2">CHF 38.–</span>
+                <span className="mt-0.5 inline-block text-[11px] font-semibold text-moss-ink">Aus einem Projekt</span>
+              </span>
+            </div>
+            <dl className="divide-y divide-line rounded-xl border border-line bg-card px-3 text-[13.5px]">
+              <div className="flex items-center justify-between py-1.5">
+                <dt className="text-muted">Shop eröffnen</dt>
+                <dd className="font-bold text-pine">kostenlos</dd>
+              </div>
+              <div className="flex items-center justify-between py-1.5">
+                <dt className="text-muted">Provision</dt>
+                <dd className="num font-bold text-ink">{fee} %</dd>
+              </div>
+              <div className="flex items-center justify-between py-1.5">
+                <dt className="text-muted">Für Käufer:innen</dt>
+                <dd className="font-bold text-ink">keine Gebühr</dd>
+              </div>
+            </dl>
           </div>
-          <div className="flex items-center justify-between py-2">
-            <dt className="text-muted">Provision pro Verkauf</dt>
-            <dd className="font-bold text-ink num">{fee} %</dd>
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <dt className="text-muted">Gebühren für Käufer:innen</dt>
-            <dd className="font-bold text-ink">keine</dd>
-          </div>
-        </dl>
+          <ol className="mt-3 grid grid-cols-3 gap-2 text-center text-[11.5px] font-semibold">
+            {[
+              ["Bezahlt", "bg-pine text-paper"],
+              ["Versendet", "bg-pine text-paper"],
+              [`Auszahlung nach ${Number(holdDays) === 1 ? "1 Tag" : `${holdDays} Tagen`}`, "border border-line bg-card text-ink-2"],
+            ].map(([label, cls]) => (
+              <li key={label} className={cn("rounded-lg px-2 py-1.5", cls)}>{label}</li>
+            ))}
+          </ol>
+        </Window>
       ),
     },
   ];
 
   const steps = [
-    ["Konto erstellen", "Kostenlos registrieren und auswählen, was dich interessiert – Häkeln, Holz, Keramik oder alles zusammen."],
-    ["Machen & festhalten", "Starte ein Projekt und halte fest, wie es wächst. Fortschritte teilst du mit einem Klick im Feed."],
-    ["Teilen, lernen, verkaufen", "Aus Erfahrung wird eine Anleitung, aus Projekten entstehen Nachbauten – und wenn du magst, verkaufst du deine Stücke."],
+    { icon: UserPlus, title: "Konto erstellen", body: "Kostenlos registrieren und auswählen, was dich interessiert – Häkeln, Holz, Keramik oder alles zusammen.", meta: "In 1 Minute" },
+    { icon: NotebookPen, title: "Machen & festhalten", body: "Starte ein Projekt und halte fest, wie es wächst. Fortschritte teilst du mit einem Klick im Feed.", meta: "Journal mit Fotos" },
+    { icon: Share2, title: "Teilen, lernen, verkaufen", body: "Aus Erfahrung wird eine Anleitung, aus Projekten entstehen Nachbauten – und wenn du magst, verkaufst du deine Stücke.", meta: "Anleitung · Shop" },
   ];
 
   const trust = [
@@ -433,63 +507,105 @@ export default async function Landing() {
 
         {/* ── Was du hier machen kannst ─────────────────── */}
         <section className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28" aria-labelledby="features-title">
-          <div data-reveal className="max-w-2xl">
-            <p className="eyebrow">Alles an einem Ort</p>
-            <h2 id="features-title" className="display mt-4 text-display">Entdecken. Erschaffen. Teilen.</h2>
-            <p className="mt-4 text-body-lg text-ink-2">Ein Konto für alles – vom ersten Projekt bis zum eigenen Shop.</p>
+          <div data-reveal className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end lg:gap-16">
+            <div>
+              <p className="eyebrow">Alles an einem Ort</p>
+              <h2 id="features-title" className="display mt-4 text-display">Entdecken. Erschaffen. Teilen.</h2>
+            </div>
+            <div>
+              <p className="text-body-lg text-ink-2">Ein Konto für alles – vom ersten Projekt bis zum eigenen Shop. Alles greift ineinander: Projekte werden zu Anleitungen, Anleitungen zu Nachbauten, Nachbauten zu Stücken im Marktplatz.</p>
+              <ul className="mt-5 flex flex-wrap gap-2">
+                {features.map((f) => (
+                  <li key={f.title}>
+                    <a href={`#feature-${f.title.toLowerCase()}`} className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-card px-3 py-1.5 text-[13px] font-semibold text-ink-2 transition-colors hover:border-moss hover:text-moss-ink">
+                      <f.icon size={14} strokeWidth={2} aria-hidden /> {f.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:gap-5">
+          <div className="mt-12 grid gap-4 lg:grid-cols-12 lg:gap-5">
             {features.map((f, i) => (
-              <div key={f.title} data-reveal style={{ ["--reveal-i" as string]: i % 2 }}>
-              <article className="lift group relative flex h-full flex-col rounded-3xl border border-line bg-card p-6 sm:p-8">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-11 place-items-center rounded-2xl bg-moss-soft text-moss-ink">
-                    <f.icon size={20} strokeWidth={1.9} aria-hidden />
-                  </span>
-                  <h3 className="text-headline font-bold">{f.title}</h3>
-                </div>
-                <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-2">{f.body}</p>
-                <div className="mt-6 flex-1">{f.demo}</div>
-                <Link href={f.href} className="mt-6 inline-flex items-center gap-1.5 self-start text-[14px] font-bold text-moss-ink after:absolute after:inset-0 after:rounded-3xl">
-                  {f.cta}
-                  <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
-                </Link>
-              </article>
+              <div key={f.title} id={`feature-${f.title.toLowerCase()}`} data-reveal className={cn("scroll-mt-24", f.span)} style={{ ["--reveal-i" as string]: i % 2 }}>
+                <article className="lift group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8">
+                  {/* feiner Farbverlauf oben – ruhige Tiefe statt flacher Fläche */}
+                  <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
+                  <div className="relative flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <span className="grid size-12 place-items-center rounded-2xl bg-ink text-paper shadow-sm">
+                        <f.icon size={21} strokeWidth={1.8} aria-hidden />
+                      </span>
+                      <div>
+                        <p className="spec text-muted">{String(i + 1).padStart(2, "0")}</p>
+                        <h3 className="text-headline font-bold leading-tight">{f.title}</h3>
+                      </div>
+                    </div>
+                    <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-ink-2 transition-colors duration-200 group-hover:border-moss group-hover:bg-moss group-hover:text-paper">
+                      <ArrowUpRight size={16} />
+                    </span>
+                  </div>
+                  <p className="relative mt-4 max-w-lg text-[15px] leading-relaxed text-ink-2">{f.body}</p>
+                  <ul className="relative mt-4 flex flex-wrap gap-x-4 gap-y-1.5">
+                    {f.points.map((pt) => (
+                      <li key={pt} className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2">
+                        <Check size={14} strokeWidth={2.6} className="text-pine" aria-hidden /> {pt}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="relative mt-6 flex-1">{f.demo}</div>
+                  <Link href={f.href} className="mt-6 inline-flex items-center gap-1.5 self-start text-[14px] font-bold text-moss-ink after:absolute after:inset-0 after:z-10 after:rounded-[28px]">
+                    {f.cta}
+                    <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
+                  </Link>
+                </article>
               </div>
             ))}
           </div>
         </section>
 
         {/* ── So funktioniert's ─────────────────────────── */}
-        <section className="border-y border-line bg-card" aria-labelledby="steps-title">
-          <div className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
-            <SectionHead id="steps-title" kicker="So funktioniert's" title="In drei Schritten an der Werkbank." align="center" />
+        <section className="relative overflow-hidden bg-ink text-paper" aria-labelledby="steps-title">
+          {/* Punktraster wie in der App, sehr dezent */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:22px_22px]" />
+          <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full bg-moss opacity-20 blur-[120px]" />
+          <div className="relative mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
+            <div data-reveal className="mx-auto max-w-2xl text-center">
+              <p className="eyebrow justify-center text-[#f0a493]">So funktioniert&apos;s</p>
+              <h2 id="steps-title" className="display mt-4 text-display text-paper">In drei Schritten an der Werkbank.</h2>
+              <p className="mt-4 text-body-lg text-paper/70">Kein Abo, keine Kreditkarte. Du entscheidest, was du teilst – und wann.</p>
+            </div>
             <div data-reveal className="relative mt-14">
               {/* Der Faden verbindet die Schritte (ab md) */}
-              <svg aria-hidden className="absolute left-[16.67%] top-0 hidden h-12 w-[66.66%] text-rule-strong md:block" viewBox="0 0 680 48" preserveAspectRatio="none" fill="none">
-                <path
-                  className="draw-on-reveal"
-                  pathLength={1}
-                  d="M0 24 C 80 -4, 150 52, 230 24 S 380 -4, 450 24 S 600 52, 680 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
+              <svg aria-hidden className="absolute left-[16.67%] top-[38px] hidden h-12 w-[66.66%] text-[#f0a493]/50 md:block" viewBox="0 0 680 48" preserveAspectRatio="none" fill="none">
+                <path className="draw-on-reveal" pathLength={1} d="M0 24 C 80 -4, 150 52, 230 24 S 380 -4, 450 24 S 600 52, 680 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 0" />
               </svg>
-              <ol className="relative grid gap-10 md:grid-cols-3 md:gap-8">
-                {steps.map(([t, b], i) => (
-                  <li key={t} className="flex flex-col items-center text-center">
-                    <span className="grid size-12 place-items-center rounded-full border-2 border-moss bg-card text-[17px] font-extrabold text-moss-ink shadow-sm">{i + 1}</span>
-                    <h3 className="mt-5 text-title font-bold">{t}</h3>
-                    <p className="mt-2 max-w-xs text-[15px] leading-relaxed text-muted">{b}</p>
+              <ol className="relative grid gap-5 md:grid-cols-3 md:gap-6">
+                {steps.map((st, i) => (
+                  <li key={st.title} className="group relative flex flex-col rounded-[24px] border border-white/10 bg-[#2d2b2e] p-6 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.6)] transition-colors duration-300 hover:border-white/20 hover:bg-[#333134] sm:p-7">
+                    <div className="flex items-center justify-between">
+                      <span className="relative grid size-[52px] place-items-center rounded-2xl bg-moss text-paper shadow-[0_10px_30px_-10px_rgba(182,75,58,0.8)]">
+                        <st.icon size={22} strokeWidth={1.9} aria-hidden />
+                      </span>
+                      <span className="display text-[56px] leading-none text-white/[0.09]" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
+                    </div>
+                    <p className="spec mt-6 text-[#f0a493]">Schritt {i + 1}</p>
+                    <h3 className="mt-1.5 text-title font-bold text-paper">{st.title}</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-paper/70">{st.body}</p>
+                    <p className="mt-5 inline-flex items-center gap-1.5 self-start rounded-full border border-white/15 px-2.5 py-1 text-[12px] font-semibold text-paper/80">
+                      <Check size={12} strokeWidth={3} aria-hidden /> {st.meta}
+                    </p>
                   </li>
                 ))}
               </ol>
             </div>
-            <div data-reveal className="mt-12 flex justify-center">
-              <LinkButton href="/registrieren" size="lg">
-                Kostenlos starten <ArrowRight size={16} />
-              </LinkButton>
+            <div data-reveal className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link href="/registrieren" className="inline-flex h-12 items-center gap-2 rounded-full bg-paper px-7 text-[15px] font-bold text-ink transition-transform duration-200 hover:-translate-y-0.5">
+                Kostenlos starten <ArrowRight size={16} aria-hidden />
+              </Link>
+              <Link href="/entdecken" className="inline-flex h-12 items-center gap-2 rounded-full border border-white/25 px-7 text-[15px] font-semibold text-paper transition-colors hover:bg-white/10">
+                Erst einmal umsehen
+              </Link>
             </div>
           </div>
         </section>
