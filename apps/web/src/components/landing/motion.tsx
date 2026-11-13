@@ -91,7 +91,7 @@ const MarqueeCtx = createContext(false);
  * Gruppe von Laufbändern mit gemeinsamem Pause-Knopf (WCAG 2.2.2: automatisch bewegte Inhalte
  * lassen sich anhalten). Bänder pausieren zusätzlich bei Hover und Tastaturfokus.
  */
-export function MarqueeGroup({ children, label, className }: { children: ReactNode; label: string; className?: string }) {
+export function MarqueeGroup({ children, label, className, dark = false }: { children: ReactNode; label: string; className?: string; dark?: boolean }) {
   const [paused, setPaused] = useState(false);
   return (
     <MarqueeCtx.Provider value={paused}>
@@ -101,7 +101,10 @@ export function MarqueeGroup({ children, label, className }: { children: ReactNo
             type="button"
             onClick={() => setPaused((p) => !p)}
             aria-pressed={paused}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line-strong bg-card px-3 text-[12px] font-semibold text-muted shadow-xs transition-colors hover:border-rule-strong hover:text-ink"
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold transition-colors",
+              dark ? "border-white/20 text-paper/70 hover:border-white/40 hover:text-paper" : "border-line-strong bg-card text-muted shadow-xs hover:border-rule-strong hover:text-ink",
+            )}
           >
             {paused ? <Play size={12} aria-hidden /> : <Pause size={12} aria-hidden />}
             {paused ? "Abspielen" : "Anhalten"}

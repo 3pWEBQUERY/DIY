@@ -85,15 +85,16 @@ const projectHref = (p: LatestProject) => `/u/${p.owner.profile?.handle}/${p.slu
 /** Projektkarte im Laufband. */
 function ShowcaseCard({ p }: { p: LatestProject }) {
   return (
-    <Link href={projectHref(p)} className="zoom lift group block w-[232px] shrink-0 rounded-2xl border border-line bg-card p-2 sm:w-[260px]">
+    <Link href={projectHref(p)} className="zoom lift group flex w-[232px] shrink-0 flex-col rounded-2xl border border-line bg-card p-2 sm:w-[260px]">
       <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="4/3" sizes="260px" className="rounded-[14px]" plateNumber={false} />
-      <div className="px-1.5 pb-1.5 pt-3">
+      {/* Autor:in immer ganz unten – Karten im Laufband sind gleich hoch, egal wie viel Inhalt */}
+      <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-3">
         <p className="flex items-center justify-between gap-2 text-[12px] text-muted">
           <span className="truncate">{categoryBySlug(p.category)?.short} · {PROJECT_STATUS_LABEL[p.status]}</span>
           <Difficulty level={p.difficulty} />
         </p>
-        <h3 className="mt-1 truncate text-[15px] font-bold tracking-[-0.01em] text-ink">{p.title}</h3>
-        <p className="mt-2 flex items-center gap-2 text-[13px] text-muted">
+        <h3 className="mb-3 mt-1 line-clamp-2 text-[15px] font-bold leading-snug tracking-[-0.01em] text-ink">{p.title}</h3>
+        <p className="mt-auto flex items-center gap-2 border-t border-line pt-2.5 text-[13px] text-muted">
           <Avatar src={p.owner.profile?.avatarUrl} name={p.owner.profile?.displayName ?? ""} size={20} />
           <span className="truncate">{p.owner.profile?.displayName}</span>
         </p>
@@ -455,45 +456,47 @@ export default async function Landing() {
         </section>
 
         {/* ── Live-Showcase ─────────────────────────────── */}
-        <section className="border-y border-line bg-sunken/60 py-16 sm:py-20" aria-labelledby="showcase-title">
-          <div className="mx-auto flex max-w-[1240px] flex-wrap items-end justify-between gap-6 px-5 sm:px-8">
+        <section className="relative overflow-hidden bg-ink py-16 text-paper sm:py-20" aria-labelledby="showcase-title">
+          {/* Dunkel wie „So funktioniert's“, eigener Grund: warmer Schein von oben, kein Muster */}
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[linear-gradient(180deg,rgba(182,75,58,0.22),transparent)]" />
+          <div className="relative mx-auto flex max-w-[1240px] flex-wrap items-end justify-between gap-6 px-5 sm:px-8">
             <div data-reveal className="max-w-2xl">
-              <p className="eyebrow">Live aus der Community</p>
-              <h2 id="showcase-title" className="display mt-4 text-display">Frisch von der Werkbank.</h2>
-              <p className="mt-4 text-body-lg text-ink-2">Qualität vor Lautstärke: Hier zeigen Menschen, woran sie gerade arbeiten – vom ersten Skizzenstrich bis zum fertigen Stück.</p>
+              <p className="eyebrow text-[#f0a493]">Live aus der Community</p>
+              <h2 id="showcase-title" className="display mt-4 text-display text-paper">Frisch von der Werkbank.</h2>
+              <p className="mt-4 text-body-lg text-paper/70">Qualität vor Lautstärke: Hier zeigen Menschen, woran sie gerade arbeiten – vom ersten Skizzenstrich bis zum fertigen Stück.</p>
             </div>
-            <LinkButton href="/projekte" variant="secondary">
-              Alle Projekte <ArrowRight size={15} />
-            </LinkButton>
+            <Link href="/projekte" className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 px-5 text-[14.5px] font-semibold text-paper transition-colors hover:bg-white/10">
+              Alle Projekte <ArrowRight size={15} aria-hidden />
+            </Link>
           </div>
           {d.latest.length > 0 ? (
-            <MarqueeGroup label="Projekte und Kategorien" className="mt-8">
+            <MarqueeGroup label="Projekte und Kategorien" className="mt-8" dark>
               <Marquee label="Aktuelle Projekte" duration={Math.max(40, d.latest.length * 6)}>
                 {d.latest.map((p) => (
                   <ShowcaseCard key={p.id} p={p} />
                 ))}
               </Marquee>
               <div className="mx-auto mt-8 max-w-[1240px] px-5 sm:px-8">
-                <h3 className="text-title font-bold">{werkstaetten(categories.length)} unter einem Dach</h3>
+                <h3 className="text-title font-bold text-paper">{werkstaetten(categories.length)} unter einem Dach</h3>
               </div>
               <Marquee label="Kategorien" duration={Math.max(36, categories.length * 3)} reverse>
                 {categories.map((c) => (
                   <Link
                     key={c.slug}
                     href={`/entdecken?kategorie=${c.slug}`}
-                    className="group flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-line-strong bg-card pl-2 pr-4 text-[14px] font-semibold text-ink shadow-xs transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-moss"
+                    className="group flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.05] pl-2 pr-4 text-[14px] font-semibold text-paper transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-[#f0a493] hover:bg-white/[0.09]"
                   >
-                    <span className="grid size-8 place-items-center rounded-full bg-moss-soft text-moss-ink transition-transform duration-300 group-hover:-rotate-12">
+                    <span className="grid size-8 place-items-center rounded-full bg-white/10 text-[#f0a493] transition-transform duration-300 group-hover:-rotate-12">
                       <Glyph name={c.glyph} size={18} strokeWidth={1.7} />
                     </span>
                     {c.name}
-                    <span className="num text-[12px] font-semibold text-muted">{d.catCounts.get(c.slug) ?? 0}</span>
+                    <span className="num text-[12px] font-semibold text-paper/50">{d.catCounts.get(c.slug) ?? 0}</span>
                   </Link>
                 ))}
               </Marquee>
             </MarqueeGroup>
           ) : (
-            <p className="mx-auto mt-10 max-w-[1240px] px-5 text-muted sm:px-8">Die ersten Projekte entstehen gerade.</p>
+            <p className="relative mx-auto mt-10 max-w-[1240px] px-5 text-paper/60 sm:px-8">Die ersten Projekte entstehen gerade.</p>
           )}
         </section>
 
