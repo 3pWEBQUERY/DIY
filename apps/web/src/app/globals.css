@@ -410,3 +410,12 @@
   animation-duration: 0s !important;
   animation-delay: 0s !important;
 }
+
+/* Mobile Startseite: Seitenhintergrund im Nachtblau des Willkommensbildschirms – Safari färbt damit
+   Statusleiste und Werkzeugleiste ein (sonst oben und unten weisse Flächen, auch beim Überscrollen) */
+@media (max-width: 767px) {
+  html:has(#welcome-bg),
+  html:has(#welcome-bg) body {
+    background: #0d1626;
+  }
+}

@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, ArrowUpRight, Banknote, BookOpen, Check, CreditCard, Flag, Hourglass, Layers, MessageCircle, NotebookPen, PackageCheck, Percent, Plus, Share2, ShieldCheck, Store, Truck, UserPlus, Users } from "lucide-react";
@@ -17,6 +18,11 @@ import { features as features_ } from "@/server/env";
 import { MobileWelcome } from "@/components/landing/mobile-welcome";
 
 export const metadata = { alternates: { canonical: "/" } };
+
+/** Mobil färbt Safari Status- und Werkzeugleiste im Nachtblau des Willkommensbildschirms, am Desktop wie gewohnt hell. */
+export const viewport: Viewport = {
+  themeColor: [{ media: "(max-width: 767px)", color: "#0d1626" }, { color: "#FAF8F5" }],
+};
 
 export const revalidate = 300;
 
