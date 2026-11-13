@@ -447,14 +447,19 @@ struct MediaStrip: View {
         .fullScreenCover(item: $selected) { m in MediaViewer(media: media, start: m) }
     }
 
-    private func tile(_ m: MediaItem) -> some View {
-        RemoteImage(path: m.displayURL) { Color.sunken }
-            .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
-            .overlay { if m.isVideo { Image(systemName: "play.circle.fill").font(.wr(.largeTitle)).foregroundStyle(.white.opacity(0.9)) } }
-            .contentShape(.rect)
-            .onTapGesture { selected = m }
-            .accessibilityLabel(m.alt?.nilIfEmpty ?? "Bild")
-            .accessibilityAddTraits(.isImage)
+    @ViewBuilder private func tile(_ m: MediaItem) -> some View {
+        if m.isVideo {
+            // Video direkt im Beitrag abspielen (wie im Web)
+            InlineVideo(media: m)
+                .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
+        } else {
+            RemoteImage(path: m.displayURL) { Color.sunken }
+                .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
+                .contentShape(.rect)
+                .onTapGesture { selected = m }
+                .accessibilityLabel(m.alt?.nilIfEmpty ?? "Bild")
+                .accessibilityAddTraits(.isImage)
+        }
     }
 }
 
@@ -478,7 +483,12 @@ struct MediaViewer: View {
                 ForEach(media) { m in
                     VStack {
                         Spacer()
-                        RemoteImage(path: m.displayURL, contentMode: .fit) { ProgressView().tint(.white) }
+                        if m.isVideo {
+                            InlineVideo(media: m, contentMode: .fit, autoplay: m.id == start.id)
+                                .aspectRatio(m.aspect ?? 16 / 9, contentMode: .fit)
+                        } else {
+                            RemoteImage(path: m.displayURL, contentMode: .fit) { ProgressView().tint(.white) }
+                        }
                         Spacer()
                         if let alt = m.alt?.nilIfEmpty { Text(alt).font(.wr(.footnote)).foregroundStyle(.white.opacity(0.8)).padding() }
                     }
