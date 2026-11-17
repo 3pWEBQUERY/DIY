@@ -67,6 +67,12 @@ export async function exportUserData(userId: string) {
     db.media.findMany({ where: { ownerId: userId }, select: { id: true, kind: true, alt: true, variants: true, state: true, createdAt: true } }),
   ]);
 
+  const [stories, storyViews, highlights] = await Promise.all([
+    db.story.findMany({ where: { authorId: userId }, orderBy: { createdAt: "desc" }, select: { id: true, kind: true, text: true, background: true, alt: true, visibility: true, state: true, viewCount: true, likeCount: true, createdAt: true, expiresAt: true, media: { select: { variants: true } } } }),
+    db.storyView.findMany({ where: { viewerId: userId }, select: { storyId: true, likedAt: true, createdAt: true } }),
+    db.storyHighlight.findMany({ where: { ownerId: userId }, select: { id: true, title: true, createdAt: true, items: { orderBy: { position: "asc" }, select: { storyId: true } } } }),
+  ]);
+
   const [reports, appeals, tickets, notifications] = await Promise.all([
     db.report.findMany({ where: { reporterId: userId }, select: { targetType: true, targetId: true, reason: true, details: true, createdAt: true } }),
     db.appeal.findMany({ where: { userId }, select: { caseId: true, statement: true, decision: true, createdAt: true, decidedAt: true } }),
@@ -78,7 +84,7 @@ export async function exportUserData(userId: string) {
     exportedAt: new Date().toISOString(),
     hinweis: `Datenauskunft von ${BRAND.name}. Nicht enthalten: Passwort, Zwei-Faktor-Schlüssel und Zugangstokens (aus Sicherheitsgründen) sowie Inhalte anderer Personen.`,
     konto: { user, preference, customerDetails, subscription, sessions, devices, loginProviders: authAccounts },
-    inhalte: { posts, coauthorships, projects, contributions, tutorials, tutorialProgress, articles, comments, reactions, pollVotes, media },
+    inhalte: { posts, coauthorships, projects, contributions, tutorials, tutorialProgress, articles, comments, reactions, pollVotes, media, stories, storyViews, highlights },
     netzwerk: { following: follows, followerCount: followers, blocks, mutes, memberships, eventAttendance, challengeEntries, challengeVotes },
     sammlungen: { bookmarks, collections, shoppingLists, materialStock },
     nachrichten: { messages, conversations },

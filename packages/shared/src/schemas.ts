@@ -156,7 +156,7 @@ export const tutorialUpsertSchema = z.object({
 });
 
 export const reportSchema = z.object({
-  targetType: z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW"]),
+  targetType: z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW", "STORY"]),
   targetId: z.string().min(1),
   reason: z.enum(REPORT_REASONS),
   details: z.string().trim().max(2000).default(""),

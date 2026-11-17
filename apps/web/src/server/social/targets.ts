@@ -52,6 +52,10 @@ export async function targetMeta(type: TargetType, id: string): Promise<Meta | n
       const r = await db.review.findUnique({ where: { id }, select: { authorId: true, state: true, body: true, product: { select: { slug: true, shop: { select: { slug: true } } } } } });
       return r && { ownerId: r.authorId, visibility: "PUBLIC", state: r.state, title: r.body.slice(0, 80), href: `/markt/${r.product.shop.slug}/${r.product.slug}` };
     }
+    case "STORY": {
+      const s = await db.story.findUnique({ where: { id }, select: { authorId: true, visibility: true, state: true, text: true, kind: true, author: { select: { profile: { select: { handle: true } } } } } });
+      return s && { ownerId: s.authorId, visibility: s.visibility, state: s.state, title: s.text.slice(0, 80) || (s.kind === "TEXT" ? "Text-Story" : "Story"), href: `/stories/${s.author.profile?.handle ?? ""}?story=${id}` };
+    }
     case "TUTORIAL_STEP": {
       const s = await db.tutorialStep.findUnique({ where: { id }, select: { title: true, version: { select: { tutorial: { select: { authorId: true, slug: true, state: true } } } } } });
       return s && { ownerId: s.version.tutorial.authorId, visibility: "PUBLIC", state: s.version.tutorial.state, title: s.title, href: `/anleitungen/${s.version.tutorial.slug}` };

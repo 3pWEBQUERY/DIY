@@ -247,6 +247,7 @@ export async function deleteAccount(userId: string, sessionId: string, proof: Re
   const tomb = `geloescht-${userId.slice(-8)}`;
   await db.$transaction(async (tx) => {
     await tx.post.updateMany({ where: { authorId: userId }, data: { state: "REMOVED" } });
+    await tx.story.updateMany({ where: { authorId: userId }, data: { state: "REMOVED" } });
     await tx.project.updateMany({ where: { ownerId: userId }, data: { state: "REMOVED" } });
     await tx.tutorial.updateMany({ where: { authorId: userId }, data: { state: "REMOVED" } });
     await tx.blogArticle.updateMany({ where: { authorId: userId }, data: { state: "HIDDEN" } });

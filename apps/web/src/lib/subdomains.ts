@@ -37,9 +37,9 @@ export function subdomainBase(handle: string): string {
 export const APP_ROUTES = new Set([
   "abbestellen", "admin", "anleitungen", "anmelden", "beitrag", "beleg", "benachrichtigungen", "bestellungen",
   "beta", "blogs", "c", "communities", "e-mail-bestaetigen", "einkaufslisten", "einspruch", "einstellungen",
-  "entdecken", "erstellen", "events", "feed", "gespeichert", "go", "hilfe", "kasse", "kontakt", "liste", "markt",
+  "entdecken", "erstellen", "events", "feed", "gespeichert", "go", "highlights", "hilfe", "kasse", "kontakt", "liste", "markt",
   "materialien", "nachrichten", "passwort-vergessen", "passwort-zuruecksetzen", "profil", "projekte",
-  "rechtliches", "registrieren", "richtlinien", "sammlungen", "studio", "suche", "verifizieren", "warenkorb",
+  "rechtliches", "registrieren", "richtlinien", "sammlungen", "stories", "studio", "suche", "verifizieren", "warenkorb",
   "wettbewerbe", "willkommen",
 ]);
 

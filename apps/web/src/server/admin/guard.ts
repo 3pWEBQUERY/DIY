@@ -65,5 +65,6 @@ export const TARGET_TYPE_LABEL: Record<string, string> = {
   ARTICLE: "Artikel",
   COMMUNITY: "Community",
   REVIEW: "Bewertung",
+  STORY: "Story",
 };
 

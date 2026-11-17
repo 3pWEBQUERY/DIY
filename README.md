@@ -8,7 +8,7 @@
 
 | Bereich | Umfang |
 |---|---|
-| Community | Feeds *Für dich* (Ranking mit Vielfalt), *Folge ich* (chronologisch), *Neu* · Beiträge mit Bildern/Video, Alt-Texten, Projektverweis · Likes, Kommentare, Antworten, Speichern, Reposts · Folgen, Blockieren, Stummschalten, Melden |
+| Community | Feeds *Für dich* (Ranking mit Vielfalt), *Folge ich* (chronologisch), *Neu* · **Stories** (Foto, Video, Text – 24 Stunden im Story-Kreis, „Gesehen von“, Herz, Antwort per Nachricht, Archiv und Highlights) · Beiträge mit Bildern/Video, Alt-Texten, Projektverweis · Likes, Kommentare, Antworten, Speichern, Reposts · Folgen, Blockieren, Stummschalten, Melden |
 | Projekte | Datenblatt, Galerie, Status, Materialien & Werkzeuge, **Projektjournal**, **Nachbauten** mit Originalnennung, Projektfaden |
 | Anleitungen | Strukturierte Schritte, Sicherheitshinweise, Fortschritt je Konto, **Versionierung** mit stabilem Fortschritt |
 | Marktplatz | Shop-Aktivierung, Stripe Connect, Varianten & Bestand, Reservierung, Bestellstatus ≠ Zahlungsstatus, idempotente Webhooks, Bewertungen nach Kauf |

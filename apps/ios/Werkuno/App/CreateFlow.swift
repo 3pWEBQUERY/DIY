@@ -84,6 +84,9 @@ struct CreateMenuSheet: View {
         if app.hasActiveShop && app.marketplaceEnabled {
             list.insert(Item(id: "product", title: "Produkt", subtitle: "Handgemachtes verkaufen", symbol: "tag", tint: .clay, sheet: .productEditor()), at: 3)
         }
+        if app.storiesEnabled {
+            list.insert(Item(id: "story", title: "Story", subtitle: "Ein Moment von der Werkbank – 24 Stunden", symbol: "circle.dashed.inset.filled", tint: .clay, sheet: .storyComposer), at: 1)
+        }
         return list
     }
 
