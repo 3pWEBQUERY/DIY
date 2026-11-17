@@ -121,6 +121,8 @@ enum Route: Hashable {
     /// Events (`/events`) und Event-Detail (`/c/:slug/events/:id`)
     case events
     case event(id: String)
+    /// „Deine Stories“: Archiv und Highlights verwalten (`/stories`)
+    case storyArchive
 
     /// Web-Pfade (Benachrichtigungen, geteilte Links, Server-`href`) → native Ziele.
     static func from(href: String) -> Route? {
@@ -156,6 +158,7 @@ enum Route: Hashable {
             case "entdecken": return q["kategorie"].map { .category(slug: $0) }
             case "wettbewerbe": return .competitions(communitySlug: q["community"])
             case "events": return .events
+            case "stories": return .storyArchive
             default: return .web(path: href)
             }
         default:
@@ -223,8 +226,22 @@ enum SheetRoute: Identifiable, Hashable {
     case web(url: URL)
     /// Koautor:innen eines Beitrags verwalten (Autor:in) bzw. Koautorenschaft (eingeladene Person)
     case coauthors(postId: String, asCoauthor: Bool = false)
+    /// Neue Story (Foto/Video oder Text)
+    case storyComposer
 
     var id: String { String(describing: self) }
+}
+
+// MARK: - Story-Betrachter (Vollbild über allem)
+
+struct StoryViewerRequest: Identifiable, Hashable {
+    enum Source: Hashable {
+        /// Stories einer Person – ab hier weiter durch den Story-Kreis
+        case user(handle: String, focus: String? = nil)
+        case highlight(id: String)
+    }
+    let id = UUID()
+    var source: Source
 }
 
 // MARK: - Router
@@ -241,6 +258,8 @@ final class Router {
     var me = NavigationPath()
     var search = NavigationPath()
     var sheet: SheetRoute?
+    /// Story-Betrachter im Vollbild
+    var storyViewer: StoryViewerRequest?
     /// Gemeinsamer Suchtext des Such-Tabs
     var searchText = ""
     /// Anzahl sichtbarer Detailseiten mit eigener Aktionsleiste (blendet die Werkbank-Leiste aus)
@@ -283,8 +302,30 @@ final class Router {
         }
     }
 
+    func openStories(handle: String, focus: String? = nil) {
+        Haptics.tap()
+        storyViewer = StoryViewerRequest(source: .user(handle: handle, focus: focus))
+    }
+
+    func openHighlight(_ id: String) {
+        Haptics.tap()
+        storyViewer = StoryViewerRequest(source: .highlight(id: id))
+    }
+
     func open(href: String?) {
         guard let href else { return }
+        // Stories und Highlights öffnen im Vollbild-Betrachter
+        if let c = URLComponents(string: href) {
+            let parts = c.path.split(separator: "/").map(String.init)
+            if parts.count == 2, parts[0] == "stories" {
+                openStories(handle: parts[1], focus: c.queryItems?.first(where: { $0.name == "story" })?.value)
+                return
+            }
+            if parts.count == 2, parts[0] == "highlights" {
+                openHighlight(parts[1])
+                return
+            }
+        }
         // Bereiche, die ein Tab sind (Start, Entdecken, Markt): Tab wechseln statt Webansicht
         if let t = Self.tab(for: href) {
             tab = t

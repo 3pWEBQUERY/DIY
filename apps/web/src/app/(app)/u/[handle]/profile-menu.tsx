@@ -3,12 +3,13 @@
 import { confirmDialog } from "@/components/ui/confirm";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Flag, VolumeX, Volume2, Ban } from "lucide-react";
+import { Flag, VolumeX, Volume2, Ban, Eye, EyeOff } from "lucide-react";
 import { MoreMenu, ReportDialog } from "@/components/social/actions";
 import { toast } from "@/components/ui/toast";
 import { blockAction, muteAction } from "@/app/(app)/social-actions";
+import { storyMuteAction } from "@/app/(app)/stories/actions";
 
-export function ProfileSafetyMenu({ userId, name, muted }: { userId: string; name: string; blocked: boolean; muted: boolean }) {
+export function ProfileSafetyMenu({ userId, name, muted, storiesMuted = false }: { userId: string; name: string; blocked: boolean; muted: boolean; storiesMuted?: boolean }) {
   const router = useRouter();
   const [report, setReport] = useState(false);
   const run = async (p: Promise<{ ok: true; message?: string } | { ok: false; error: string }>) => {
@@ -28,6 +29,9 @@ export function ProfileSafetyMenu({ userId, name, muted }: { userId: string; nam
           muted
             ? { label: "Stummschaltung aufheben", icon: <Volume2 size={15} />, onSelect: () => run(muteAction(userId, false)) }
             : { label: "Stummschalten", icon: <VolumeX size={15} />, onSelect: () => run(muteAction(userId, true)) },
+          storiesMuted
+            ? { label: "Stories wieder anzeigen", icon: <Eye size={15} />, onSelect: () => run(storyMuteAction(userId, false)) }
+            : { label: "Stories ausblenden", icon: <EyeOff size={15} />, onSelect: () => run(storyMuteAction(userId, true)) },
           { label: `${name} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => (await confirmDialog(`${name} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) && run(blockAction(userId, true)) },
         ]}
       />

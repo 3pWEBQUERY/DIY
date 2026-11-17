@@ -39,6 +39,7 @@ export const LIMITS = {
   // Je Netzwerkadresse über alle Adressen (gegen Mail-Fluten und Konto-Abfragen)
   passwordResetIp: [20, 3600],
   post: [30, 3600],
+  story: [40, 3600],
   comment: [60, 3600],
   like: [300, 3600],
   follow: [120, 3600],

@@ -155,6 +155,24 @@ export async function contentPreview(type: TargetType, id: string): Promise<Cont
       const r = await db.review.findUnique({ where: { id }, select: { body: true, productRating: true } });
       return { ...base, body: r?.body ?? null, meta: [{ label: "Bewertung", value: `${r?.productRating ?? "–"} / 5` }] };
     }
+    case "STORY": {
+      const s = await db.story.findUnique({ where: { id }, select: { kind: true, text: true, background: true, visibility: true, expiresAt: true, viewCount: true, media: { select: { kind: true, variants: true } } } });
+      if (!s) return base;
+      const v = (s.media?.variants ?? {}) as Record<string, string>;
+      return {
+        ...base,
+        // Moderation sieht die Story auch nach Ablauf – der öffentliche Link führt dann ins Leere
+        href: s.expiresAt > new Date() ? base.href : null,
+        body: s.text || null,
+        imageUrl: v.lg ?? v.md ?? v.poster ?? v.sm ?? null,
+        meta: [
+          { label: "Art", value: s.kind === "TEXT" ? "Text-Story" : s.media?.kind === "VIDEO" ? "Video-Story" : "Foto-Story" },
+          { label: "Sichtbarkeit", value: s.visibility },
+          { label: "Läuft ab", value: s.expiresAt.toLocaleString("de-CH", { timeZone: "Europe/Zurich" }) },
+          { label: "Aufrufe", value: String(s.viewCount) },
+        ],
+      };
+    }
     case "USER": {
       const u = await db.user.findUnique({ where: { id }, select: { status: true, profile: { select: { bio: true, avatarUrl: true, handle: true } } } });
       return { ...base, body: u?.profile?.bio ?? null, imageUrl: u?.profile?.avatarUrl ?? null, state: u?.status ?? base.state, meta: [{ label: "Benutzername", value: `@${u?.profile?.handle ?? "–"}` }] };
@@ -226,6 +244,7 @@ export function allowedActions(type: TargetType, hasSubject: boolean): Moderatio
     case "TUTORIAL_STEP":
     case "COMMUNITY":
     case "ARTICLE":
+    case "STORY":
       return [...base, "HIDE", "REMOVE", ...user];
   }
 }
@@ -289,6 +308,11 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
       const r = await tx.review.findUniqueOrThrow({ where: { id }, select: { state: true } });
       await tx.review.update({ where: { id }, data: { state: contentState } });
       return { kind: "content", model: "review", id, field: "state", value: r.state };
+    }
+    case "STORY": {
+      const s = await tx.story.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      await tx.story.update({ where: { id }, data: { state: contentState } });
+      return { kind: "content", model: "story", id, field: "state", value: s.state };
     }
     case "PRODUCT": {
       const p = await tx.product.findUniqueOrThrow({ where: { id }, select: { status: true } });
@@ -392,6 +416,9 @@ async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolea
       break;
     case "review":
       count = (await tx.review.updateMany(args)).count;
+      break;
+    case "story":
+      count = (await tx.story.updateMany(args)).count;
       break;
     case "product":
       count = (await tx.product.updateMany(args)).count;

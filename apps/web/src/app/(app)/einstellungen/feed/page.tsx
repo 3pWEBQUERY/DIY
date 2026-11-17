@@ -4,7 +4,8 @@ import { requirePageUser } from "@/server/auth/session";
 import { getFeedSettings } from "@/server/account/service";
 import { FeedForm } from "@/components/settings/feed-form";
 import { SettingsSection } from "@/components/settings/section";
-import { ResetHiddenButton, UnmuteButton } from "@/components/settings/relation-buttons";
+import { ResetHiddenButton, UnmuteButton, ShowStoriesButton } from "@/components/settings/relation-buttons";
+import { listStoryMutes } from "@/server/stories/service";
 import { Avatar } from "@/components/ui/misc";
 import { pluralize } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Feed & Interessen" };
 
 export default async function FeedSettingsPage() {
   const user = await requirePageUser("/einstellungen/feed");
-  const s = await getFeedSettings(user.id);
+  const [s, storyMutes] = await Promise.all([getFeedSettings(user.id), listStoryMutes(user.id)]);
   return (
     <div>
       <FeedForm interests={s.interests} hidden={s.hiddenCategories} feedDefault={s.feedDefault} />
@@ -36,7 +37,26 @@ export default async function FeedSettingsPage() {
         )}
       </SettingsSection>
 
-      <SettingsSection n="04" title="Ausgeblendete Inhalte" description="Inhalte, die du mit „Weniger davon“ ausgeblendet hast.">
+      <SettingsSection n="04" title="Ausgeblendete Stories" description="Die Stories dieser Profile erscheinen nicht in deinem Story-Kreis. Ihre Beiträge siehst du weiterhin.">
+        {storyMutes.length ? (
+          <ul className="divide-y divide-line border-y border-line">
+            {storyMutes.map((m) => (
+              <li key={m.id} className="flex items-center gap-3 py-2.5">
+                <Avatar src={m.avatarUrl} name={m.displayName} size={32} />
+                <Link href={`/u/${m.handle}`} className="min-w-0 flex-1 hover:underline">
+                  <span className="block truncate text-sm font-semibold">{m.displayName}</span>
+                  <span className="block text-xs text-muted">@{m.handle}</span>
+                </Link>
+                <ShowStoriesButton userId={m.id} name={m.displayName} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">Du hast keine Stories ausgeblendet.</p>
+        )}
+      </SettingsSection>
+
+      <SettingsSection n="05" title="Ausgeblendete Inhalte" description="Inhalte, die du mit „Weniger davon“ ausgeblendet hast.">
         <div className="flex items-center justify-between gap-4 border border-line bg-card px-4 py-3 rounded-2xl">
           <span className="text-sm">{s.hiddenCount ? pluralize(s.hiddenCount, "Inhalt ausgeblendet", "Inhalte ausgeblendet") : "Keine ausgeblendeten Inhalte"}</span>
           <ResetHiddenButton count={s.hiddenCount} />

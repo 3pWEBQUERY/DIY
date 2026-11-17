@@ -13,6 +13,7 @@ export const metadata = { title: "Erstellen" };
 
 const OPTIONS = [
   { key: "beitrag", glyph: "frame", title: "Beitrag", body: "Ein Foto, ein Video oder ein Gedanke – so schnell wie überall.", href: "/erstellen?typ=beitrag" },
+  { key: "story", glyph: "spark", title: "Story", body: "Ein Moment von der Werkbank – 24 Stunden sichtbar, danach im Archiv.", href: "/stories?neu=1" },
   { key: "projekt", glyph: "layers", title: "Projekt", body: "Dokumentiere eine Arbeit mit Status, Materialien und Journal.", href: "/projekte/neu" },
   { key: "anleitung", glyph: "stitch", title: "Anleitung", body: "Strukturierte Schritte, Sicherheitshinweise und Materialliste.", href: "/studio/anleitungen/neu" },
   { key: "artikel", glyph: "fold", title: "Blogartikel", body: "Hintergrundwissen, Erfahrungsberichte, Materialkunde.", href: "/studio/blog/neu" },

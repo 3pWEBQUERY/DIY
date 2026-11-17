@@ -81,6 +81,9 @@ final class AppState {
     var flags: [String: Bool] = [:]
     /// Marktplatz per Admin-Schalter pausiert → Tab, Warenkorb und Shop-Einstiege ausblenden
     var marketplaceEnabled: Bool { flags["marketplace"] ?? true }
+    /// Stories (Flag „stories“) – anders als andere Flags nur an, wenn der Server es kennt und aktiv meldet:
+    /// eine neuere App gegen einen älteren Server zeigt so keine Story-Funktionen ohne Endpunkte.
+    var storiesEnabled: Bool { flags["stories"] ?? false }
 
     /// Bootstrap ist fehlgeschlagen (offline/Serverfehler), obwohl ein Token gespeichert ist: Die App läuft
     /// ohne Konto weiter, das Token bleibt erhalten – erneuter Versuch beim Aktivieren, Pull-to-Refresh,
