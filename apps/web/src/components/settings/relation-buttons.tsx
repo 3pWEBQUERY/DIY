@@ -4,6 +4,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { useAction } from "@/lib/use-action";
 import { Button } from "@/components/ui/button";
 import { resetHiddenAction, unblockAction, unmuteAction } from "@/app/(app)/einstellungen/actions";
+import { storyMuteAction } from "@/app/(app)/stories/actions";
 
 export function UnmuteButton({ userId, name }: { userId: string; name: string }) {
   const { run, pending } = useAction(unmuteAction);
@@ -34,6 +35,15 @@ export function ResetHiddenButton({ count }: { count: number }) {
   return (
     <Button size="sm" variant="outline" disabled={pending || count === 0} onClick={() => run()}>
       Zurücksetzen
+    </Button>
+  );
+}
+
+export function ShowStoriesButton({ userId, name }: { userId: string; name: string }) {
+  const { run, pending } = useAction((id: string) => storyMuteAction(id, false), { refresh: true });
+  return (
+    <Button size="sm" variant="outline" disabled={pending} onClick={() => run(userId)} aria-label={`Stories von ${name} wieder anzeigen`}>
+      Wieder anzeigen
     </Button>
   );
 }

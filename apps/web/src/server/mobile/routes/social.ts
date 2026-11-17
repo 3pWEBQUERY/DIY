@@ -17,8 +17,10 @@ import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingD
 import { decodeFollowCursor, encodeFollowCursor } from "../params";
 import { DELETE, GET, PATCH, POST, me, need, str, takeParam, viewer, viewerId, zBool, zIds, zStr, type RouteDef } from "../router";
 import { publicProductWhere } from "@/server/commerce/restock";
+import * as stories from "@/server/stories/service";
+import { listHighlights } from "@/server/stories/highlights";
 
-const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW"]);
+const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW", "STORY"]);
 
 /** Feed, Beiträge, Interaktionen, Profile (PRD §9, §12). */
 export const socialRoutes: RouteDef[] = [
@@ -196,7 +198,15 @@ export const socialRoutes: RouteDef[] = [
     const p = profile;
     profile = null as never;
     const activeShop = p.user.shop?.status === "ACTIVE" ? p.user.shop : null;
-    const [reviewCounts, awards] = blocked ? [{ given: 0, received: 0 }, []] : await Promise.all([profileReviewCounts(userId, activeShop?.id ?? null, vid), profileAwards(userId, v)]);
+    const [reviewCounts, awards, storyRing, highlights, storiesMuted] = blocked
+      ? [{ given: 0, received: 0 }, [], { active: false, unseen: false }, [], false]
+      : await Promise.all([
+          profileReviewCounts(userId, activeShop?.id ?? null, vid),
+          profileAwards(userId, v),
+          stories.storyRing(vid, userId),
+          listHighlights(vid, userId),
+          vid && !isSelf ? stories.isStoryMuted(vid, userId) : Promise.resolve(false),
+        ]);
     return {
       profile: {
         userId: p.userId,
@@ -220,7 +230,10 @@ export const socialRoutes: RouteDef[] = [
         role: p.user.role,
         shop: p.user.shop,
       },
-      viewer: { isSelf, following: rel.following.includes(userId), muted: rel.muted.includes(userId), blocked: !!blocked, followsYou },
+      viewer: { isSelf, following: rel.following.includes(userId), muted: rel.muted.includes(userId), blocked: !!blocked, followsYou, storiesMuted },
+      /** Ring am Profilbild (aktive Stories) und Highlights */
+      stories: { active: storyRing.active, unseen: storyRing.unseen },
+      highlights,
       projects: projects?.items ?? [],
       tutorials: tutorials?.items ?? [],
       posts: postList?.items ?? [],

@@ -12,6 +12,8 @@ import { relationsFor } from "@/server/visibility";
 import { Page, TabLinks } from "@/components/shell/page";
 import { Composer } from "@/components/social/composer";
 import { FeedList } from "@/components/social/feed-list";
+import { StoryTray } from "@/components/stories/story-tray";
+import { storyTray } from "@/server/stories/service";
 import { FollowButton } from "@/components/social/actions";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { Plate } from "@/components/ui/media";
@@ -35,13 +37,14 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
   const interests = user.profile?.categories ?? [];
   const viewer = { id: user.id, displayName: user.profile?.displayName ?? "", avatarUrl: user.profile?.avatarUrl ?? null };
 
-  const [feed, myProjects, creators, communities, trending, rel] = await Promise.all([
+  const [feed, myProjects, creators, communities, trending, rel, stories] = await Promise.all([
     getFeed(tab.key, { id: user.id, interests }, null),
     activeProjectsOf(user.id),
     suggestedCreators(user.id, interests, 4),
     suggestedCommunities(user.id, interests, 3),
     trendingProjects(3),
     relationsFor(user.id),
+    storyTray(user),
   ]);
   const projectOptions = await db.project.findMany({ where: { ownerId: user.id, state: { not: "REMOVED" } }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true } });
   const isNew = rel.following.length === 0;
@@ -144,6 +147,8 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
           <h1 className="display mt-1 text-4xl">Grüezi, {user.profile?.displayName.split(" ")[0]}.</h1>
         </div>
       </div>
+
+      <StoryTray tray={stories} projects={projectOptions} />
 
       <Composer viewer={viewer} projects={projectOptions} categories={await categoryOptions()} compact />
 

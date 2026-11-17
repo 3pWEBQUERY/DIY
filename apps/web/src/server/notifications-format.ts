@@ -104,6 +104,8 @@ function targetNoun(targetType: string | null | undefined, data: Record<string, 
       return "dein Kommentar";
     case "COMMUNITY":
       return "deine Community";
+    case "STORY":
+      return "deine Story";
     default:
       return "dein Beitrag";
   }

@@ -60,6 +60,11 @@ export async function purgeDeletedAccount(userId: string) {
   await db.postCoauthor.deleteMany({ where: { userId } });
   await db.userBlock.deleteMany({ where: { OR: [{ blockerId: userId }, { blockedId: userId }] } });
   await db.userMute.deleteMany({ where: { OR: [{ muterId: userId }, { mutedId: userId }] } });
+  // Stories samt Ansichten und Highlights (Medien folgen unten); eigene „Gesehen“-Spuren bei anderen
+  await db.storyHighlight.deleteMany({ where: { ownerId: userId } });
+  await db.story.deleteMany({ where: { authorId: userId } });
+  await db.storyView.deleteMany({ where: { viewerId: userId } });
+  await db.storyMute.deleteMany({ where: { OR: [{ muterId: userId }, { mutedId: userId }] } });
   // Gründer:innen-Mitgliedschaft bleibt, damit die Community nicht verwaist (Übergabe durch die Plattform)
   await db.communityMember.deleteMany({ where: { userId, role: { not: "OWNER" } } });
   await db.eventAttendee.deleteMany({ where: { userId } });
