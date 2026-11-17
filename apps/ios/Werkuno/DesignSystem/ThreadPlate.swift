@@ -1,5 +1,8 @@
 import SwiftUI
 
+// Dateiname bleibt „ThreadPlate.swift“, damit bestehende Xcode-Projekte ohne neues `xcodegen generate` weiter bauen.
+// Inhalt: Platzhalterbilder je Inhaltstyp und CoverView (die Faden-Tafel gibt es nicht mehr).
+
 // MARK: - Platzhalter (wenn kein eigenes Bild vorhanden ist)
 
 /// Inhaltstyp – bestimmt das Platzhalterbild, wenn kein eigenes Bild gesetzt ist (wie im Web).
