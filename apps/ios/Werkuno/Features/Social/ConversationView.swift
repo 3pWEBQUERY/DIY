@@ -637,6 +637,7 @@ private struct SocialMessageBubble: View {
                 .accessibilityHidden(true)
             }
             if m.isSuspicious { SocialPaymentWarning() }
+            if let ref = m.story, !m.isRemoved { StoryReplyRefView(ref: ref, mine: m.mine) }
             HStack {
                 if m.mine { Spacer(minLength: 48) }
                 bubble

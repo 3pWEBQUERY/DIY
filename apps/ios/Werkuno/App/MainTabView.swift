@@ -33,6 +33,12 @@ struct MainTabView: View {
                 .environment(router)
                 .toastOverlay()
         }
+        .fullScreenCover(item: $router.storyViewer) { req in
+            StoryViewerView(request: req)
+                .environment(app)
+                .environment(router)
+                .toastOverlay()
+        }
     }
 }
 
@@ -105,6 +111,7 @@ struct RouteView: View {
             case .event(let id): EventDetailView(id: id)
             case .material(let s): MaterialDetailView(slug: s)
             case .materialStock: MaterialStockView()
+            case .storyArchive: StoryArchiveView()
             }
         }
         .background(Color.paper)
@@ -162,6 +169,7 @@ struct SheetHost: View {
         case .shoppingListPicker(let k, let id, let t): ShoppingListPickerSheet(kind: k, id: id, title: t)
         case .web(let url): SafariSheet(url: url).ignoresSafeArea()
         case .coauthors(let id, let co): SocialCoauthorSheet(postId: id, asCoauthor: co)
+        case .storyComposer: StoryComposerSheet()
         }
     }
 }
