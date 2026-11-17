@@ -2,7 +2,7 @@ import type { Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, ArrowUpRight, Banknote, BookOpen, Check, CreditCard, Flag, Hourglass, Layers, MessageCircle, NotebookPen, PackageCheck, Percent, Plus, Share2, ShieldCheck, Store, Truck, UserPlus, Users } from "lucide-react";
-import { PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, listCategories, categoryBySlug, computeFees, formatMoney } from "@werkraum/shared";
+import { PROJECT_STATUS_LABEL, DIFFICULTY_LABEL, VISIBILITY_LABEL, listCategories, categoryBySlug, computeFees, formatMoney } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
 import { getSetting } from "@/server/settings";
@@ -91,7 +91,7 @@ const projectHref = (p: LatestProject) => `/u/${p.owner.profile?.handle}/${p.slu
 /** Projektkarte im Laufband. */
 function ShowcaseCard({ p }: { p: LatestProject }) {
   return (
-    <Link href={projectHref(p)} className="zoom lift group flex w-[232px] shrink-0 flex-col rounded-2xl border border-line bg-card p-2 sm:w-[260px]">
+    <Link href={projectHref(p)} className="flex w-[232px] shrink-0 flex-col rounded-2xl border border-line bg-card p-2 sm:w-[260px]">
       <Cover url={p.coverUrl} alt="" kind="project" ratio="4/3" sizes="260px" className="rounded-[14px]" />
       {/* Autor:in immer ganz unten – Karten im Laufband sind gleich hoch, egal wie viel Inhalt */}
       <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-3">
@@ -116,7 +116,7 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
   const card = (p: LatestProject, className: string, delay: string) => (
     <Link
       href={projectHref(p)}
-      className={cn("zoom group absolute block w-[300px] rounded-[22px] border border-line bg-card p-2.5 shadow-md transition-[translate,rotate,box-shadow] duration-500 ease-[var(--ease-out-quint)] hover:z-20 hover:shadow-float focus-visible:z-20 animate-rise", className)}
+      className={cn("absolute block w-[300px] rounded-[22px] border border-line bg-card p-2.5 shadow-xs focus-visible:z-20 animate-rise", className)}
       style={{ animationDelay: delay }}
     >
       <Cover url={p.coverUrl} alt="" kind="project" ratio="1/1" sizes="300px" className="rounded-[16px]" />
@@ -133,10 +133,10 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
   );
   return (
     <div className="relative hidden h-[560px] lg:block" aria-label="Aktuelle Projekte aus der Community" role="group">
-      {b && card(b, "left-0 top-16 -rotate-6 hover:-rotate-3 hover:-translate-y-2", "120ms")}
-      {c && card(c, "right-0 top-24 rotate-6 hover:rotate-3 hover:-translate-y-2", "200ms")}
-      {card(a, "left-1/2 top-0 z-10 -translate-x-1/2 hover:-translate-y-2", "40ms")}
-      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-md animate-rise" style={{ animationDelay: "360ms" }}>
+      {b && card(b, "left-0 top-16 -rotate-6", "120ms")}
+      {c && card(c, "right-0 top-24 rotate-6", "200ms")}
+      {card(a, "left-1/2 top-0 z-10 -translate-x-1/2", "40ms")}
+      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-xs animate-rise" style={{ animationDelay: "360ms" }}>
         <span className="grid size-9 place-items-center rounded-full bg-pine-soft text-pine">
           <Check size={16} strokeWidth={2.6} aria-hidden />
         </span>
@@ -342,12 +342,19 @@ export default async function Landing() {
     { icon: Flag, title: "Melden & Moderation", body: "Fragwürdige Angebote kannst du melden. Unser Team prüft sie und greift bei Verstössen ein." },
   ];
 
+  const link = "font-semibold text-moss-ink underline underline-offset-2";
   const faq: [string, React.ReactNode][] = [
-    [`Was kostet ${BRAND.name}?`, <>Nichts. Entdecken, Projekte dokumentieren, Anleitungen schreiben, bloggen und Communities sind kostenlos. Nur wenn du auf dem Marktplatz verkaufst, fällt pro Verkauf eine Provision von {fee} % an.</>],
+    [`Was kostet ${BRAND.name}?`, <>Nichts. Entdecken, Projekte dokumentieren, Anleitungen schreiben, bloggen und Communities sind kostenlos. Nur wenn du auf dem Marktplatz verkaufst, fällt pro Verkauf eine Provision von {fee} % auf den Warenwert an – Käufer:innen zahlen keine Gebühren.</>],
+    ["Wer kann mitmachen?", <>Alle ab 18 Jahren. Einen Shop eröffnen können Personen und Unternehmen mit Sitz in der Schweiz, in Liechtenstein, Deutschland oder Österreich.</>],
     ["Brauche ich Erfahrung?", <>Nein. Ob {DIFFICULTY_LABEL[1]} oder Profi – du bist willkommen. Jede Anleitung zeigt ihre Schwierigkeit, und in den Communities helfen dir andere weiter.</>],
-    ["Wem gehören meine Inhalte?", <>Dir. Du behältst die Rechte an deinen Fotos, Projekten und Anleitungen. Wer etwas nachbaut, nennt das Original – sichtbar. Mehr in den <Link href="/rechtliches/agb" className="font-semibold text-moss-ink underline underline-offset-2">Nutzungsbedingungen</Link>.</>],
-    ["Wie funktioniert Verkaufen?", <>Du eröffnest in deinem Studio einen Shop, stellst Produkte ein und erhältst Zahlungen über Stripe. Alle Regeln, Gebühren und Auszahlungsfristen findest du in den <Link href="/richtlinien/marktplatz" className="font-semibold text-moss-ink underline underline-offset-2">Marktplatz-Richtlinien</Link>.</>],
+    ["Wer sieht meine Projekte?", <>Das entscheidest du bei jedem Projekt und Beitrag selbst: {VISIBILITY_LABEL.PUBLIC.toLowerCase()}, nur für Follower oder nur für dich.</>],
+    ["Wem gehören meine Inhalte?", <>Dir. Du behältst die Rechte an deinen Fotos, Projekten und Anleitungen. Wer etwas nachbaut, nennt das Original – sichtbar. Mehr in den <Link href="/rechtliches/agb" className={link}>Nutzungsbedingungen</Link>.</>],
     ["Was zeigt mir der Feed?", <>Was gerade auf den Werkbänken entsteht – die neuesten Beiträge immer zuerst, ohne bezahlte Platzierungen. Kategorien, die dich nicht interessieren, blendest du aus, und alles, was du speicherst, bleibt auffindbar.</>],
+    ["Wie funktioniert Verkaufen?", <>Du eröffnest in deinem Studio einen Shop, verifizierst dich bei Stripe und stellst Produkte ein. Der Erlös wird {holdDays > 0 ? `${holdDays} ${Number(holdDays) === 1 ? "Tag" : "Tage"} nach` : "nach"} Abschluss einer Bestellung auf dein Bankkonto auszahlbar. Alle Regeln findest du in den <Link href="/richtlinien/marktplatz" className={link}>Marktplatz-Richtlinien</Link>.</>],
+    ["Kann ich auch Anleitungen als PDF verkaufen?", <>Ja. Eigene Anleitungen und Schnittmuster verkaufst du als digitales Produkt – Käufer:innen laden die Datei nach dem Kauf direkt herunter. Fremde Anleitungen ohne Lizenz sind nicht erlaubt.</>],
+    ["Ist das Bezahlen sicher?", <>Bezahlt wird ausschliesslich im Checkout über Stripe – Kartendaten sehen weder wir noch der Shop. Zahlungen ausserhalb des Checkouts sind nicht erlaubt, denn sie sind die häufigste Betrugsmasche.</>],
+    ["Was, wenn mit einer Bestellung etwas nicht stimmt?", <>Melde es über „Problem melden“ in der Bestellung. Der Erlös bleibt bis zur Klärung zurückgehalten, und wir vermitteln bei Bedarf. Kommt keine Erhaltsbestätigung, gilt eine versendete Bestellung nach {autoCompleteDays} Tagen als abgeschlossen.</>],
+    ["Kann ich mein Konto löschen?", <>Ja, jederzeit unter <Link href="/einstellungen/konto#loeschen" className={link}>Einstellungen → Konto</Link>. Profil, Beiträge und Projekte werden entfernt. Bestellungen und Rechnungsdaten müssen wir gesetzlich zehn Jahre aufbewahren – vom Profil getrennt.</>],
   ];
 
   return (
@@ -379,8 +386,8 @@ export default async function Landing() {
                 Handgemachtes auf dem Marktplatz kaufen und verkaufen.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center animate-rise [animation-delay:180ms]">
-                <LinkButton href="/registrieren" size="lg" className="group/cta">
-                  Kostenlos starten <ArrowRight size={16} className="transition-transform duration-200 group-hover/cta:translate-x-0.5" />
+                <LinkButton href="/registrieren" size="lg">
+                  Kostenlos starten <ArrowRight size={16} />
                 </LinkButton>
                 <LinkButton href="/entdecken" size="lg" variant="secondary">
                   Entdecken
@@ -444,9 +451,9 @@ export default async function Landing() {
                   <Link
                     key={c.slug}
                     href={`/entdecken?kategorie=${c.slug}`}
-                    className="group flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.05] pl-2 pr-4 text-[14px] font-semibold text-paper transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-[#f0a493] hover:bg-white/[0.09]"
+                    className="flex h-12 shrink-0 items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.05] pl-2 pr-4 text-[14px] font-semibold text-paper hover:border-white/30"
                   >
-                    <span className="grid size-8 place-items-center rounded-full bg-white/10 text-[#f0a493] transition-transform duration-300 group-hover:-rotate-12">
+                    <span className="grid size-8 place-items-center rounded-full bg-white/10 text-[#f0a493]">
                       <Glyph name={c.glyph} size={18} strokeWidth={1.7} />
                     </span>
                     {c.name}
@@ -483,12 +490,12 @@ export default async function Landing() {
           <div className="mt-12 grid gap-4 lg:grid-cols-12 lg:gap-5">
             {features.map((f, i) => (
               <div key={f.title} id={`feature-${f.title.toLowerCase()}`} data-reveal className={cn("scroll-mt-24", f.span)} style={{ ["--reveal-i" as string]: i % 2 }}>
-                <article className="lift group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8">
+                <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8">
                   {/* feiner Farbverlauf oben – ruhige Tiefe statt flacher Fläche */}
                   <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
                   <div className="relative flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3.5">
-                      <span className="grid size-12 place-items-center rounded-2xl bg-ink text-paper shadow-sm">
+                      <span className="grid size-12 place-items-center rounded-2xl bg-ink text-paper">
                         <f.icon size={21} strokeWidth={1.8} aria-hidden />
                       </span>
                       <div>
@@ -496,7 +503,7 @@ export default async function Landing() {
                         <h3 className="text-headline font-bold leading-tight">{f.title}</h3>
                       </div>
                     </div>
-                    <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-ink-2 transition-colors duration-200 group-hover:border-moss group-hover:bg-moss group-hover:text-paper">
+                    <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-ink-2">
                       <ArrowUpRight size={16} />
                     </span>
                   </div>
@@ -511,7 +518,7 @@ export default async function Landing() {
                   <div className="relative mt-6 flex-1">{f.demo}</div>
                   <Link href={f.href} className="mt-6 inline-flex items-center gap-1.5 self-start text-[14px] font-bold text-moss-ink after:absolute after:inset-0 after:z-10 after:rounded-[28px]">
                     {f.cta}
-                    <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
+                    <ArrowRight size={15} aria-hidden />
                   </Link>
                 </article>
               </div>
@@ -537,9 +544,9 @@ export default async function Landing() {
               </svg>
               <ol className="relative grid gap-5 md:grid-cols-3 md:gap-6">
                 {steps.map((st, i) => (
-                  <li key={st.title} className="group relative flex flex-col rounded-[24px] border border-white/10 bg-[#2d2b2e] p-6 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.6)] transition-colors duration-300 hover:border-white/20 hover:bg-[#333134] sm:p-7">
+                  <li key={st.title} className="relative flex flex-col rounded-[24px] border border-white/10 bg-[#2d2b2e] p-6 sm:p-7">
                     <div className="flex items-center justify-between">
-                      <span className="relative grid size-[52px] place-items-center rounded-2xl bg-moss text-paper shadow-[0_10px_30px_-10px_rgba(182,75,58,0.8)]">
+                      <span className="relative grid size-[52px] place-items-center rounded-2xl bg-moss text-paper">
                         <st.icon size={22} strokeWidth={1.9} aria-hidden />
                       </span>
                       <span className="display text-[56px] leading-none text-white/[0.09]" aria-hidden>{String(i + 1).padStart(2, "0")}</span>
@@ -555,7 +562,7 @@ export default async function Landing() {
               </ol>
             </div>
             <div data-reveal className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/registrieren" className="inline-flex h-12 items-center gap-2 rounded-full bg-paper px-7 text-[15px] font-bold text-ink transition-transform duration-200 hover:-translate-y-0.5">
+              <Link href="/registrieren" className="inline-flex h-12 items-center gap-2 rounded-full bg-paper px-7 text-[15px] font-bold text-ink hover:bg-white">
                 Kostenlos starten <ArrowRight size={16} aria-hidden />
               </Link>
               <Link href="/entdecken" className="inline-flex h-12 items-center gap-2 rounded-full border border-white/25 px-7 text-[15px] font-semibold text-paper transition-colors hover:bg-white/10">
@@ -676,7 +683,7 @@ export default async function Landing() {
             <div data-reveal className="lg:sticky lg:top-24 lg:self-start">
               <p className="eyebrow">Fragen & Antworten</p>
               <h2 id="faq-title" className="display mt-4 text-display">Kurz erklärt.</h2>
-              <p className="mt-4 max-w-sm text-body-lg text-ink-2">Die häufigsten Fragen in einem Satz beantwortet – ausführlich in der Hilfe.</p>
+              <p className="mt-4 max-w-sm text-body-lg text-ink-2">Die wichtigsten Fragen kurz beantwortet – ausführlich in der Hilfe.</p>
 
               {/* Weiterhelfen: echte Anlaufstellen statt Deko */}
               <div className="relative mt-8 overflow-hidden rounded-[24px] border border-line bg-card p-5">
@@ -697,7 +704,7 @@ export default async function Landing() {
                           <span className="block text-[14.5px] font-semibold text-ink group-hover:text-moss-ink">{l.label}</span>
                           <span className="block truncate text-[12.5px] text-muted">{l.note}</span>
                         </span>
-                        <ArrowRight size={15} className="shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-moss-ink" aria-hidden />
+                        <ArrowRight size={15} className="shrink-0 text-muted group-hover:text-moss-ink" aria-hidden />
                       </Link>
                     </li>
                   ))}
@@ -707,10 +714,10 @@ export default async function Landing() {
 
             <div data-reveal className="space-y-3">
               {faq.map(([q, a], i) => (
-                <details key={q} open={i === 0} className="group/faq overflow-hidden rounded-[22px] border border-line bg-card transition-colors open:border-line-strong open:shadow-sm">
+                <details key={q} open={i === 0} className="group/faq overflow-hidden rounded-[22px] border border-line bg-card open:border-line-strong">
                   <summary className="flex cursor-pointer list-none items-center gap-4 px-5 py-4.5 sm:px-6 [&::-webkit-details-marker]:hidden">
                     <span className="spec w-6 shrink-0 text-muted group-open/faq:text-moss">{String(i + 1).padStart(2, "0")}</span>
-                    <span className="min-w-0 flex-1 text-[16px] font-bold text-ink transition-colors group-hover/faq:text-moss-ink">{q}</span>
+                    <span className="min-w-0 flex-1 text-[16px] font-bold text-ink">{q}</span>
                     <span className="grid size-8 shrink-0 place-items-center rounded-full border border-line-strong bg-paper text-ink-2 transition-[transform,background-color,color,border-color] duration-300 group-open/faq:rotate-45 group-open/faq:border-moss group-open/faq:bg-moss group-open/faq:text-paper">
                       <Plus size={16} strokeWidth={2.2} aria-hidden />
                     </span>
@@ -724,9 +731,9 @@ export default async function Landing() {
 
         {/* ── Abschluss-CTA ─────────────────────────────── */}
         <section className="relative overflow-hidden bg-ink text-paper" aria-labelledby="cta-title">
-          {/* Gleiche Fläche wie „So funktioniert's“, anderer Grund: feines Raster wie eine Schneidematte */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:44px_44px]" />
-          <div aria-hidden className="pointer-events-none absolute -bottom-48 -left-40 size-[520px] rounded-full bg-moss opacity-[0.18] blur-[120px]" />
+          {/* Gleicher Hintergrund wie „So funktioniert's“: Punktraster und warmer Schein oben rechts */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:22px_22px]" />
+          <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full bg-moss opacity-20 blur-[120px]" />
           <div data-reveal className="relative mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
             <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
               <div className="flex flex-col">
@@ -738,7 +745,7 @@ export default async function Landing() {
                   Ein Konto für alles: entdecken, dokumentieren, Anleitungen schreiben, bloggen – und wenn du magst, verkaufen. {DIFFICULTY_LABEL[1]} oder Profi: Du bist willkommen.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Link href="/registrieren" className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-7 text-[15px] font-bold text-ink transition-transform duration-200 hover:-translate-y-0.5">
+                  <Link href="/registrieren" className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-paper px-7 text-[15px] font-bold text-ink hover:bg-white">
                     Kostenlos starten <ArrowRight size={16} aria-hidden />
                   </Link>
                   <Link href="/entdecken" className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/25 px-7 text-[15px] font-semibold text-paper transition-colors hover:bg-white/10">
@@ -755,7 +762,7 @@ export default async function Landing() {
               </div>
 
               {/* Rechts: was gerade tatsächlich auf Werkuno entsteht */}
-              <div className="rounded-[24px] border border-white/10 bg-[#2d2b2e] p-4 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.6)] sm:p-5">
+              <div className="rounded-[24px] border border-white/10 bg-[#2d2b2e] p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-3 px-1">
                   <p className="text-[13px] font-bold text-paper">Gerade auf der Werkbank</p>
                   <Link href="/projekte" className="text-[12.5px] font-semibold text-paper/60 hover:text-paper">
