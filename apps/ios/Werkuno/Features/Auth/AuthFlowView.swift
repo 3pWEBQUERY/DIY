@@ -84,6 +84,7 @@ struct AuthFlowView: View {
                                 .padding(.vertical, 4)
                             Text("Ab 18 Jahren. Mit der Registrierung akzeptierst du die Nutzungsbedingungen und die Datenschutzerklärung.")
                                 .font(.wr(.caption2)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)  // im ScrollView sonst auf eine Zeile gekürzt
                         }
                         .padding(.horizontal, Space.gutter)
                         .padding(.bottom, 12)
