@@ -62,8 +62,9 @@ final class AppState {
     var paymentsMode: String = "disabled"
     var feeBps: Int = 600
     var appleNative = false
-    /// Stories (Feature-Flag „stories“) – Standard an, bis der Server etwas anderes meldet
-    var storiesEnabled = true
+    /// Stories (Feature-Flag „stories“). Nur an, wenn der Server das Flag kennt und es aktiv ist –
+    /// eine neuere App gegen einen älteren Server zeigt so keine Story-Funktionen ohne Endpunkte.
+    var storiesEnabled = false
     var lastError: String?
 
     /// Zentrale Meldungen („Toast“)
@@ -125,7 +126,7 @@ final class AppState {
 
     private func apply(_ b: Bootstrap) {
         categories = b.categories
-        storiesEnabled = b.flags?["stories"] ?? true
+        storiesEnabled = b.flags?["stories"] ?? false
         paymentsMode = b.payments.mode
         feeBps = b.payments.feeBps
         appleNative = b.features?.appleNative ?? false

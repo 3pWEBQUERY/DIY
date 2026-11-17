@@ -68,7 +68,7 @@ struct StoryTrayView: View {
                 .transition(.opacity)
             }
         }
-        .task(id: app.me?.id) { await load() }
+        .task(id: "\(app.me?.id ?? "")-\(app.storiesEnabled)") { await load() }
         .onReceive(NotificationCenter.default.publisher(for: .storiesChanged)) { _ in Task { await load() } }
     }
 
@@ -116,7 +116,7 @@ struct StoryTrayView: View {
     private func firstName(_ s: String) -> String { s.split(separator: " ").first.map(String.init) ?? s }
 
     private func load() async {
-        guard app.isSignedIn else { return }
+        guard app.isSignedIn, app.storiesEnabled else { tray = nil; return }
         if let t = try? await StoryAPI.tray() { withAnimation(.snappy) { tray = t } }
     }
 }
