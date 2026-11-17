@@ -28,60 +28,70 @@ struct AuthFlowView: View {
         ZStack {
             Color.paper.ignoresSafeArea()
             DotGrid().ignoresSafeArea().opacity(0.6)
-            VStack(spacing: 0) {
-                HStack {
-                    Wordmark(size: 24)
-                    Spacer()
-                    Button("Anmelden") { sheet = .signIn }
-                        .buttonStyle(.glass)
-                        .font(.wr(.subheadline, .semibold))
-                }
-                .padding(.horizontal, Space.gutter)
-                .padding(.top, 8)
-
-                ThreeCanvas(scene: .story(progress: Double(chapter)))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 360)
-                    .padding(.top, 4)
-
-                TabView(selection: $chapter) {
-                    ForEach(chapters.indices, id: \.self) { i in
-                        chapterView(chapters[i]).tag(i).padding(.horizontal, Space.gutter)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 190)
-                .onChange(of: chapter) { _, _ in Haptics.selection() }
-                .simultaneousGesture(DragGesture().onChanged { _ in autoplay = false })
-
-                pager.padding(.vertical, 10)
-                Spacer(minLength: 8)
-
-                VStack(spacing: 10) {
-                    Button { sheet = .signUp } label: { Text("Konto erstellen – kostenlos").frame(maxWidth: .infinity) }
-                        .primaryButton()
-                    if app.appleNative {
-                        SignInWithAppleButton(.continue) { req in
-                            req.requestedScopes = [.fullName, .email]
-                            let raw = AppleNonce.random()
-                            appleNonce = raw
-                            req.nonce = AppleNonce.sha256(raw)
-                        } onCompletion: { result in
-                            Task { await handleApple(result) }
+            // Passt sich der verfügbaren Höhe an: Auf kleinen Bildschirmen (iPhone SE, iPhone-App auf dem iPad)
+            // wird die 3D-Szene kleiner; reicht der Platz trotzdem nicht (z. B. grosse Schrift), lässt sich scrollen –
+            // die Anmelde-Knöpfe bleiben immer erreichbar.
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Wordmark(size: 24)
+                            Spacer()
+                            Button("Anmelden") { sheet = .signIn }
+                                .buttonStyle(.glass)
+                                .font(.wr(.subheadline, .semibold))
                         }
-                        .signInWithAppleButtonStyle(.black)
-                        .frame(height: 50)
-                        .clipShape(Capsule())
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.top, 8)
+
+                        ThreeCanvas(scene: .story(progress: Double(chapter)))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: canvasHeight(for: geo.size.height))
+                            .padding(.top, 4)
+
+                        TabView(selection: $chapter) {
+                            ForEach(chapters.indices, id: \.self) { i in
+                                chapterView(chapters[i]).tag(i).padding(.horizontal, Space.gutter)
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .frame(height: geo.size.height < 760 ? 172 : 190)
+                        .onChange(of: chapter) { _, _ in Haptics.selection() }
+                        .simultaneousGesture(DragGesture().onChanged { _ in autoplay = false })
+
+                        pager.padding(.vertical, 10)
+                        Spacer(minLength: 8)
+
+                        VStack(spacing: 10) {
+                            Button { sheet = .signUp } label: { Text("Konto erstellen – kostenlos").frame(maxWidth: .infinity) }
+                                .primaryButton()
+                            if app.appleNative {
+                                SignInWithAppleButton(.continue) { req in
+                                    req.requestedScopes = [.fullName, .email]
+                                    let raw = AppleNonce.random()
+                                    appleNonce = raw
+                                    req.nonce = AppleNonce.sha256(raw)
+                                } onCompletion: { result in
+                                    Task { await handleApple(result) }
+                                }
+                                .signInWithAppleButtonStyle(.black)
+                                .frame(height: 50)
+                                .clipShape(Capsule())
+                            }
+                            Button("Erst einmal umsehen") { app.browseAsGuest() }
+                                .font(.wr(.subheadline, .semibold))
+                                .foregroundStyle(Color.moss)
+                                .padding(.vertical, 4)
+                            Text("Ab 18 Jahren. Mit der Registrierung akzeptierst du die Nutzungsbedingungen und die Datenschutzerklärung.")
+                                .font(.wr(.caption2)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.bottom, 12)
                     }
-                    Button("Erst einmal umsehen") { app.browseAsGuest() }
-                        .font(.wr(.subheadline, .semibold))
-                        .foregroundStyle(Color.moss)
-                        .padding(.vertical, 4)
-                    Text("Ab 18 Jahren. Mit der Registrierung akzeptierst du die Nutzungsbedingungen und die Datenschutzerklärung.")
-                        .font(.wr(.caption2)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
+                    .frame(minHeight: geo.size.height)
                 }
-                .padding(.horizontal, Space.gutter)
-                .padding(.bottom, 12)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
             }
         }
         .sheet(item: $sheet) { s in
@@ -108,10 +118,18 @@ struct AuthFlowView: View {
         }
     }
 
+    /// 3D-Szene: so gross wie möglich (max. 360 pt), aber nie auf Kosten der Knöpfe. Rund 485 pt brauchen
+    /// Kopfzeile, Kapiteltext, Seitenpunkte und Anmelde-Knöpfe; darunter schrumpft die Szene bis 120 pt.
+    private func canvasHeight(for height: CGFloat) -> CGFloat {
+        let reserved: CGFloat = app.appleNative ? 485 : 425
+        return min(360, max(120, height - reserved))
+    }
+
     private func chapterView(_ c: Chapter) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             SpecLabel(c.kicker, color: .moss)
             Text(c.title).font(.display(38)).foregroundStyle(Color.ink)
+                .lineLimit(1).minimumScaleFactor(0.75)  // „Schicht für Schicht.“ passt so auch auf schmale Bildschirme
             Text(c.text).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 ForEach(c.spec, id: \.self) { s in
