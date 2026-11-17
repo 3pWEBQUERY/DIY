@@ -347,7 +347,7 @@ export default async function Landing() {
     ["Brauche ich Erfahrung?", <>Nein. Ob {DIFFICULTY_LABEL[1]} oder Profi – du bist willkommen. Jede Anleitung zeigt ihre Schwierigkeit, und in den Communities helfen dir andere weiter.</>],
     ["Wem gehören meine Inhalte?", <>Dir. Du behältst die Rechte an deinen Fotos, Projekten und Anleitungen. Wer etwas nachbaut, nennt das Original – sichtbar. Mehr in den <Link href="/rechtliches/agb" className="font-semibold text-moss-ink underline underline-offset-2">Nutzungsbedingungen</Link>.</>],
     ["Wie funktioniert Verkaufen?", <>Du eröffnest in deinem Studio einen Shop, stellst Produkte ein und erhältst Zahlungen über Stripe. Alle Regeln, Gebühren und Auszahlungsfristen findest du in den <Link href="/richtlinien/marktplatz" className="font-semibold text-moss-ink underline underline-offset-2">Marktplatz-Richtlinien</Link>.</>],
-    ["Was zeigt mir der Feed?", <>Der Feed mischt Frisches, deine Interessen und kleine Ateliers – nicht nur die Lautesten. Sortiert wird nach Frische, Relevanz und Vielfalt, und alles, was du speicherst, bleibt auffindbar.</>],
+    ["Was zeigt mir der Feed?", <>Was gerade auf den Werkbänken entsteht – die neuesten Beiträge immer zuerst, ohne bezahlte Platzierungen. Kategorien, die dich nicht interessieren, blendest du aus, und alles, was du speicherst, bleibt auffindbar.</>],
   ];
 
   return (

@@ -311,7 +311,7 @@ private struct FeedEndNote: View {
                 Capsule().fill(Color.lineStrong).frame(width: 24, height: 1.5)
                 SpecLabel("Ende des Fadens")
             }
-            Text("Dein Feed mischt Frische, deine Interessen und Vielfalt – nicht nur Reichweite.")
+            Text("Die neuesten Beiträge stehen immer oben – Kategorien, die du ausblendest, erscheinen nicht.")
                 .font(.wr(.footnote))
                 .foregroundStyle(Color.muted)
             Button("Feed anpassen") { router.open(.settingsSection(.feed)) }

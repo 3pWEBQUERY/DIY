@@ -132,7 +132,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
       )}
 
       <p className="text-xs leading-relaxed text-muted">
-        Dein Feed mischt Frische, deine Interessen und Vielfalt – nicht nur Reichweite.{" "}
+        Die neuesten Beiträge stehen immer oben – Kategorien, die du ausblendest, erscheinen nicht.{" "}
         <Link href="/einstellungen/feed" className="underline underline-offset-2 hover:text-ink">Anpassen</Link>
       </p>
     </div>

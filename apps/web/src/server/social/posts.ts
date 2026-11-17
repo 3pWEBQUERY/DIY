@@ -10,8 +10,6 @@ import { assertOwnerOrMod, hasRole } from "@/server/authz";
 import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
 import { attachMedia, releaseMedia } from "@/server/media/service";
-import { getSetting } from "@/server/settings";
-import { decodeFeedCursor, nextFeedPage, rankFeed, type Candidate } from "./ranking";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { isPublicProduct } from "@/server/commerce/restock";
 
@@ -206,54 +204,25 @@ export async function getFeed(kind: FeedKind, viewer: { id: string; interests: s
     return listPosts({ ...base, ...communityFilter, visibility: "PUBLIC", ...(cats ? { category: { in: cats } } : {}) }, viewerId, { cursor });
   }
 
-  // Für dich: Kandidaten der letzten 21 Tage bis `asOf` → Ranking → nächste Seite ohne bereits
-  // gesehene Beiträge (Cursor trägt sie, siehe `decodeFeedCursor`). Ungültiger Cursor → von vorn.
-  const feedCursor = decodeFeedCursor(cursor);
-  const asOf = feedCursor.asOf;
-  const pageSize = 15;
-  const rel = await relationsFor(viewerId);
+  // Für dich: alle öffentlichen Werkbank-Beiträge, die neuesten zuerst – ohne ausgeblendete Kategorien
+  // und ohne in der Reichweite eingeschränkte Beiträge (Moderation). Blockierte, stummgeschaltete und
+  // ausgeblendete Inhalte filtert schon `base`.
+  // Cursor früherer App-Versionen (gerankter Feed: „s1.…“ bzw. „Zeit|Offset“) passen nicht zur ID-Paginierung –
+  // dann ist die Liste zu Ende, statt Beiträge doppelt zu liefern; beim nächsten Aktualisieren beginnt sie neu.
+  if (cursor && (cursor.startsWith("s1.") || cursor.includes("|"))) return { items: [], nextCursor: null };
   const pref = viewerId ? await db.userPreference.findUnique({ where: { userId: viewerId }, select: { hiddenCategories: true } }) : null;
-  const rows = await db.post.findMany({
-    where: { ...base, ...communityFilter, publishedAt: { lte: asOf, gte: new Date(asOf.getTime() - 21 * 86400_000) }, reachLimited: false },
-    select: {
-      id: true,
-      authorId: true,
-      category: true,
-      publishedAt: true,
-      likeCount: true,
-      commentCount: true,
-      saveCount: true,
-      qualityScore: true,
-      isCommercial: true,
-      projectId: true,
-      _count: { select: { media: true } },
-      author: { select: { profile: { select: { followerCount: true } } } },
+  const hidden = pref?.hiddenCategories ?? [];
+  return listPosts(
+    {
+      ...base,
+      ...communityFilter,
+      reachLimited: false,
+      // Beiträge ohne Kategorie bleiben sichtbar (NOT IN allein würde NULL-Kategorien ebenfalls ausschliessen)
+      ...(hidden.length ? { AND: [...((base.AND as Prisma.PostWhereInput[]) ?? []), { OR: [{ category: null }, { category: { notIn: hidden } }] }] } : {}),
     },
-    orderBy: { publishedAt: "desc" },
-    take: 400,
-  });
-  const candidates: Candidate[] = rows.map((r) => ({
-    id: r.id,
-    authorId: r.authorId,
-    category: r.category,
-    publishedAt: r.publishedAt,
-    likeCount: r.likeCount,
-    commentCount: r.commentCount,
-    saveCount: r.saveCount,
-    qualityScore: r.qualityScore,
-    isCommercial: r.isCommercial,
-    authorFollowers: r.author.profile?.followerCount ?? 0,
-    hasMedia: r._count.media > 0,
-    hasProject: !!r.projectId,
-  }));
-  const ranked = rankFeed(
-    candidates,
-    { now: asOf, interests: viewer?.interests ?? [], following: new Set(rel.following), hiddenCategories: pref?.hiddenCategories },
-    { authorCap: await getSetting("feed.authorCap"), pageSize },
+    viewerId,
+    { cursor },
   );
-  const { ids, nextCursor } = nextFeedPage(ranked, feedCursor, pageSize);
-  const items = await hydratePosts(ids, viewerId);
-  return { items, nextCursor };
 }
 
 // ───────────────────────── Schreiben ─────────────────────────
