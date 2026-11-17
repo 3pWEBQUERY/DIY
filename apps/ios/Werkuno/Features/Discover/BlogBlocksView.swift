@@ -248,8 +248,15 @@ struct BlogVideo: View {
         VideoPlayer(player: player)
             .aspectRatio(16 / 9, contentMode: .fit)
             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
-            .onAppear { if player == nil { player = AVPlayer(url: url) } }
-            .onDisappear { player?.pause() }
+            .onAppear {
+                // Ton auch im Stummmodus (wie Videos in Beiträgen)
+                try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+                if player == nil { player = AVPlayer(url: url) }
+            }
+            .onDisappear {
+                player?.pause()
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
             .accessibilityLabel("Video")
     }
 }

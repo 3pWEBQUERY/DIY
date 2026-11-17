@@ -64,6 +64,18 @@ final class DigitalStore {
         }
     }
 
+    private var retrying = false
+
+    /// Offene Käufe erneut verbuchen – z. B. wenn die App wieder aktiv wird, nach der Anmeldung oder nach
+    /// einem Netzfehler im Kaufdialog. `Transaction.unfinished` liefert jeden noch nicht abgeschlossenen Kauf;
+    /// `startListening` liest es nur einmal pro App-Start.
+    func retryUnfinished() async {
+        guard !retrying, APIClient.shared.isSignedIn else { return }
+        retrying = true
+        defer { retrying = false }
+        for await unfinished in Transaction.unfinished { await deliverQuietly(unfinished) }
+    }
+
     /// StoreKit-Produkt (mit lokalisiertem Preis) laden
     func product(_ appleProductId: String) async -> Product? {
         if let p = products[appleProductId] { return p }
@@ -100,9 +112,9 @@ final class DigitalStore {
     @discardableResult
     private func deliver(_ verification: VerificationResult<Transaction>) async throws -> MarketIAPResult {
         let transaction = verification.unsafePayloadValue
-        // Lokal ungültig signiert → nicht verbuchen; der Server würde es ohnehin ablehnen
+        // Lokal nicht bestätigt (z. B. vorübergehend) → nicht abschliessen: bleibt offen und wird später
+        // erneut geprüft. Abschliessen würde einen bezahlten Kauf endgültig verwerfen.
         if case .unverified = verification {
-            await transaction.finish()
             throw DigitalStoreError.unverified
         }
         let r: MarketIAPResult = try await APIClient.shared.post("/iap/transactions", ["signedTransaction": JSONValue.string(verification.jwsRepresentation)])

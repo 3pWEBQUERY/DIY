@@ -286,9 +286,9 @@ async function orderContext(conv: { orderId: string | null; productId: string | 
     };
   }
   if (conv.productId) {
-    const p = await db.product.findUnique({ where: { id: conv.productId }, select: { title: true, slug: true, coverUrl: true, priceMinor: true, currency: true, status: true, shop: { select: { name: true, slug: true } } } });
+    const p = await db.product.findUnique({ where: { id: conv.productId }, select: { title: true, slug: true, coverUrl: true, priceMinor: true, currency: true, status: true, kind: true, shop: { select: { name: true, slug: true } } } });
     if (!p) return null;
-    return { type: "product" as const, title: p.title, coverUrl: p.coverUrl, priceMinor: p.priceMinor, currency: p.currency, status: p.status, shop: p.shop, href: `/markt/${p.shop.slug}/${p.slug}` };
+    return { type: "product" as const, title: p.title, coverUrl: p.coverUrl, priceMinor: p.priceMinor, currency: p.currency, status: p.status, kind: p.kind, shop: p.shop, href: `/markt/${p.shop.slug}/${p.slug}` };
   }
   return null;
 }
@@ -301,13 +301,21 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   const isGroup = conv.kind === "GROUP";
   const other = isGroup ? undefined : others[0];
   if (other && (await isBlockedBetween(user.id, other.userId))) throw fail.notFound("Unterhaltung nicht gefunden.");
-  const before = opts.before ? new Date(opts.before) : null;
+  // Cursor „Zeitpunkt_ID“ der ältesten geladenen Nachricht (ältere Clients senden nur den Zeitpunkt):
+  // mit der ID gehen Nachrichten mit gleichem Zeitstempel an der Seitengrenze nicht verloren
+  const [beforeIso, beforeId] = (opts.before ?? "").split("_");
+  const before = beforeIso ? new Date(beforeIso) : null;
+  const validBefore = before && !Number.isNaN(before.getTime()) ? before : null;
   // Gruppen: Verlauf erst ab dem Beitritt (bzw. der Einladung) – frühere Nachrichten bleiben den
   // bisherigen Mitgliedern vorbehalten
   const joined = isGroup ? { gte: me.joinedAt } : {};
   const rows = await db.message.findMany({
-    where: { conversationId, createdAt: { ...joined, ...(before && !Number.isNaN(before.getTime()) ? { lt: before } : {}) } },
-    orderBy: { createdAt: "desc" },
+    where: {
+      conversationId,
+      createdAt: joined,
+      ...(validBefore ? { OR: [{ createdAt: { lt: validBefore } }, ...(beforeId ? [{ createdAt: validBefore, id: { lt: beforeId } }] : [])] } : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: PAGE + 1,
     include: messageInclude,
   });
@@ -668,6 +676,7 @@ export async function respondToRequest(user: SessionUser, conversationId: string
   if (accept && conv?.kind === "GROUP") {
     const m2 = await db.message.create({ data: { conversationId, senderId: user.id, body: `${user.profile?.displayName ?? "Jemand"} ist der Gruppe beigetreten.`, kind: "SYSTEM" } });
     await db.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: m2.createdAt } });
+    await db.conversationMember.update({ where: { conversationId_userId: { conversationId, userId: user.id } }, data: { lastReadAt: m2.createdAt } });
     const all = await db.conversationMember.findMany({ where: { conversationId }, select: { userId: true } });
     void publish(all.map((x) => x.userId), { t: "message", c: conversationId });
   }

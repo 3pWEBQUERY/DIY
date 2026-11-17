@@ -18,7 +18,7 @@ export const postInclude = {
   media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, width: true, height: true, kind: true, state: true } } } },
   project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, difficulty: true, state: true, visibility: true, owner: { select: { profile: { select: { handle: true } } } } } },
   tutorial: { select: { id: true, slug: true, title: true, difficulty: true, minutes: true, coverUrl: true, category: true, state: true } },
-  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, hideWhenSoldOut: true, shop: { select: { slug: true, name: true, status: true } } } },
+  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, hideWhenSoldOut: true, shop: { select: { slug: true, name: true, status: true } } } },
   article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
   coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
@@ -31,7 +31,7 @@ export const postInclude = {
       visibility: true,
       communityId: true,
       publishedAt: true,
-      author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
+      author: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
       media: { orderBy: { position: "asc" }, take: 1, include: { media: { select: { variants: true } } } },
     },
   },
@@ -41,7 +41,8 @@ type PostRow = Prisma.PostGetPayload<{ include: typeof postInclude }>;
 
 export type PostView = ReturnType<typeof toView>;
 
-type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null };
+/** blocked: wechselseitig blockierte Profile (Original eines Reposts ausblenden) */
+type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null; blocked?: Set<string> };
 
 /**
  * Umfrage für die Anzeige. Stimmenzahlen erst nach eigener Abstimmung, nach Ende oder für die
@@ -91,7 +92,14 @@ function toView(p: PostRow, viewer: ViewerState) {
     repostOf:
       // Original nur zeigen, solange es veröffentlicht und öffentlich ist (sonst Leck nach Sichtbarkeitswechsel)
       // Community-Beiträge nie als Repost zeigen – private Communities würden sonst öffentlich
-      p.repostOf && p.repostOf.state === "PUBLISHED" && p.repostOf.visibility === "PUBLIC" && !p.repostOf.communityId
+      // Blockieren gilt auch hier: das Original einer blockierten bzw. blockierenden Person (oder eines
+      // gesperrten Kontos) erscheint nicht über den Repost eines Dritten
+      p.repostOf &&
+      p.repostOf.state === "PUBLISHED" &&
+      p.repostOf.visibility === "PUBLIC" &&
+      !p.repostOf.communityId &&
+      !viewer.blocked?.has(p.repostOf.author.id) &&
+      (p.repostOf.author.status === "ACTIVE" || p.repostOf.author.status === "SUSPENDED")
         ? {
             id: p.repostOf.id,
             body: p.repostOf.body,
@@ -110,14 +118,15 @@ function toView(p: PostRow, viewer: ViewerState) {
 
 async function viewerState(viewerId: string | null | undefined, ids: string[]): Promise<ViewerState> {
   if (!viewerId || !ids.length) return { liked: new Set<string>(), saved: new Set<string>(), votes: new Map(), id: viewerId };
-  const [likes, saves, votes] = await Promise.all([
+  const [likes, saves, votes, rel] = await Promise.all([
     db.reaction.findMany({ where: { userId: viewerId, targetType: "POST", targetId: { in: ids } }, select: { targetId: true } }),
     db.bookmark.findMany({ where: { userId: viewerId, targetType: "POST", targetId: { in: ids } }, select: { targetId: true } }),
     db.pollVote.findMany({ where: { userId: viewerId, poll: { postId: { in: ids } } }, select: { pollId: true, optionId: true } }),
+    relationsFor(viewerId),
   ]);
   const byPoll = new Map<string, string[]>();
   for (const v of votes) byPoll.set(v.pollId, [...(byPoll.get(v.pollId) ?? []), v.optionId]);
-  return { liked: new Set(likes.map((l) => l.targetId)), saved: new Set(saves.map((s) => s.targetId)), votes: byPoll, id: viewerId };
+  return { liked: new Set(likes.map((l) => l.targetId)), saved: new Set(saves.map((s) => s.targetId)), votes: byPoll, id: viewerId, blocked: new Set(rel.blocked) };
 }
 
 /** Lädt Beiträge in gegebener Reihenfolge inkl. Betrachterstatus. */
@@ -392,7 +401,7 @@ export async function getPostForEdit(user: SessionUser, postId: string) {
 export type PostEditData = Awaited<ReturnType<typeof getPostForEdit>>;
 
 export async function deletePost(user: SessionUser, postId: string) {
-  const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true } });
+  const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, repostOfId: true } });
   if (!post || post.state === "REMOVED") throw fail.notFound();
   assertOwnerOrMod(user, post.authorId);
   if (post.state === "DRAFT") {
@@ -405,6 +414,8 @@ export async function deletePost(user: SessionUser, postId: string) {
   await db.$transaction([
     db.post.update({ where: { id: postId }, data: { state: "REMOVED" } }),
     ...(post.state === "PUBLISHED" ? [db.userProfile.update({ where: { userId: post.authorId }, data: { postCount: { decrement: 1 } } })] : []),
+    // Gelöschter Repost zählt beim Original nicht mehr (nie unter 0)
+    ...(post.state === "PUBLISHED" && post.repostOfId ? [db.post.updateMany({ where: { id: post.repostOfId, repostCount: { gt: 0 } }, data: { repostCount: { decrement: 1 } } })] : []),
   ]);
 }
 
@@ -538,12 +549,14 @@ export async function notifyEndedPolls() {
 async function publishDraftNow(postId: string) {
   const now = new Date();
   const done = await db.$transaction(async (tx) => {
-    const p = await tx.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, createdAt: true, body: true, poll: { select: { id: true, endsAt: true } } } });
+    const p = await tx.post.findUnique({ where: { id: postId }, select: { authorId: true, state: true, createdAt: true, body: true, repostOfId: true, poll: { select: { id: true, endsAt: true } } } });
     if (!p || p.state !== "DRAFT") return null;
     const claimed = await tx.post.updateMany({ where: { id: postId, state: "DRAFT" }, data: { state: "PUBLISHED", publishedAt: now, scheduledAt: null } });
     if (!claimed.count) return null;
     if (p.poll) await tx.poll.update({ where: { id: p.poll.id }, data: { endsAt: new Date(p.poll.endsAt.getTime() + (now.getTime() - p.createdAt.getTime())) } });
     await tx.userProfile.update({ where: { userId: p.authorId }, data: { postCount: { increment: 1 } } });
+    // Geplanter Repost zählt erst jetzt beim Original (wie beim sofortigen Teilen)
+    if (p.repostOfId) await tx.post.update({ where: { id: p.repostOfId }, data: { repostCount: { increment: 1 } } });
     await emit({ type: "PostPublished", postId, authorId: p.authorId }, tx);
     return p;
   });

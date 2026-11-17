@@ -199,7 +199,8 @@ export const socialRoutes: RouteDef[] = [
                 where: { shop: { ownerId: userId }, ...publicProductWhere },
                 orderBy: { publishedAt: "desc" },
                 take: 12,
-                select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true },
+                // kind: digitale Produkte bekommen in der App den App-Store-Preis (withAppPricing)
+                select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true, kind: true },
               })
             : Promise.resolve([]),
           db.collection.findMany({ where: { ownerId: userId, ...(isSelf ? {} : { visibility: "PUBLIC" }) }, orderBy: { updatedAt: "desc" }, include: { _count: { select: { items: true } } } }),

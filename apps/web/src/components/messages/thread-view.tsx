@@ -260,7 +260,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
       if (!first) return;
       const el = scroller.current;
       const prevHeight = el?.scrollHeight ?? 0;
-      const r = await callAction(() => loadOlderMessagesAction(thread.id, first.createdAt));
+      const r = await callAction(() => loadOlderMessagesAction(thread.id, `${first.createdAt}_${first.id}`));
       if (!r.ok) return toast(r.error, "error");
       setMessages((prev) => [...r.data.messages.filter((m) => !prev.some((p) => p.id === m.id)), ...prev]);
       setHasMore(r.data.hasMore);

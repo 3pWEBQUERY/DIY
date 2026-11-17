@@ -358,7 +358,7 @@ export async function syncProSubscriptions() {
   // Test-Abos (nie echt bezahlt) gibt es mit dem Live-Schlüssel nicht und werden beendet
   const mode = stripeKeyMode();
   if (mode) {
-    const unchecked = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, OR: [{ stripeMode: null }, { stripeMode: { not: mode } }] }, select: { id: true, userId: true, subscriptionId: true }, take: 200 });
+    const unchecked = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, OR: [{ stripeMode: null }, { stripeMode: { not: mode } }] }, select: { id: true, userId: true, subscriptionId: true }, orderBy: { updatedAt: "asc" }, take: 200 });
     for (const s of unchecked) {
       try {
         await stripe().subscriptions.retrieve(s.subscriptionId!);
@@ -372,7 +372,7 @@ export async function syncProSubscriptions() {
     }
   }
   // Gelöschte Konten mit noch laufendem Stripe-Abo (Kündigung beim Löschen nicht möglich gewesen) nachholen
-  const orphaned = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, user: { status: "DELETED" } }, select: { userId: true }, take: 200 });
+  const orphaned = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, status: { not: "canceled" }, user: { status: "DELETED" } }, select: { userId: true }, orderBy: { updatedAt: "asc" }, take: 200 });
   for (const s of orphaned) {
     try {
       await endProForDeletedAccount(s.userId);
@@ -381,7 +381,13 @@ export async function syncProSubscriptions() {
       await captureError(e, { source: "WORKER", path: "pro.cancel_deleted" });
     }
   }
-  const due = await db.subscription.findMany({ where: { provider: "stripe", subscriptionId: { not: null }, OR: [{ currentPeriodEnd: { lt: new Date(now.getTime() + 86400_000) } }, { status: { in: ["incomplete", "past_due"] } }] }, take: 200 });
+  // Beendete Abos (canceled, incomplete_expired) haben ein vergangenes Periodenende und passen sonst für immer –
+  // ab 200 solcher Altabos würden fällige Verlängerungen nicht mehr abgeglichen
+  const due = await db.subscription.findMany({
+    where: { provider: "stripe", subscriptionId: { not: null }, status: { notIn: ["canceled", "incomplete_expired"] }, OR: [{ currentPeriodEnd: { lt: new Date(now.getTime() + 86400_000) } }, { status: { in: ["incomplete", "past_due"] } }] },
+    orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+    take: 200,
+  });
   for (const s of due) {
     try {
       await syncStripeSubscription(await stripe().subscriptions.retrieve(s.subscriptionId!));

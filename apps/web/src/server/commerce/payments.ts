@@ -259,6 +259,7 @@ export async function initiateRefund(orderId: string, input: { amountMinor: numb
     if (!payment || !payment.providerRef || !["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status)) {
       throw fail.conflict(payment?.status === "DISPUTED" ? "Die Zahlung ist angefochten – Erstattungen laufen über das Streitfallverfahren." : "Für diese Bestellung gibt es keine erstattbare Zahlung.");
     }
+    if (payment.provider === "apple") throw fail.conflict(APPLE_REFUND_MESSAGE);
     const refundable = refundableAmount(payment.amountMinor, order.refunds);
     if (input.amountMinor < 1 || input.amountMinor > refundable) throw fail.invalid(`Es können höchstens ${money(refundable, order.currency)} erstattet werden.`, { amountMinor: "Betrag zu hoch" });
     const refund = await tx.refund.create({ data: { orderId, amountMinor: input.amountMinor, reason: input.reason.slice(0, 500), requestedBy: input.actorId, status: "PENDING" } });
@@ -565,7 +566,7 @@ async function reconcileUncertainRefunds() {
   });
   for (const r of rows) {
     const p = r.order.payments[0];
-    if (!p?.providerRef || p.provider === "simulated") continue;
+    if (!p?.providerRef || p.provider !== "stripe") continue;
     try {
       const res = await createRefund({ paymentIntentId: p.providerRef, amountMinor: r.amountMinor, refundId: r.id, orderId: r.orderId, reason: r.reason ?? undefined });
       await db.refund.update({ where: { id: r.id }, data: { providerRef: res.id, ...(res.status === "failed" || res.status === "canceled" ? { status: "FAILED" } : {}) } });
@@ -577,6 +578,13 @@ async function reconcileUncertainRefunds() {
   }
 }
 
+/**
+ * In-App-Käufe (Apple) kann nur Apple erstatten. Eine Erstattung über Stripe würde scheitern, nachdem
+ * Lizenz bzw. Bestellung bereits zurückgenommen wären. Apple meldet seine Erstattungen selbst (revokePurchase).
+ */
+export const APPLE_REFUND_MESSAGE =
+  "Dieser Kauf lief über den App Store – erstatten kann nur Apple. Die Käuferin oder der Käufer beantragt das unter reportaproblem.apple.com; sobald Apple erstattet, wird die Bestellung automatisch angepasst.";
+
 /** Markierung „automatische Wiederholung beendet“ (Refund-Zeile über 0, FAILED) – solche Bestellungen sind erschöpft. */
 const RETRY_EXHAUSTED = { amountMinor: 0, status: "FAILED" } as const;
 
@@ -586,7 +594,7 @@ export async function retryCancelledRefunds(take = 50) {
     where: {
       status: "CANCELLED",
       updatedAt: { gt: new Date(Date.now() - 30 * 86400_000) },
-      payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, provider: { not: "simulated" } } },
+      payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, provider: { notIn: ["simulated", "apple"] } } },
       // Erschöpfte Fälle (zur manuellen Klärung gemeldet) nicht mehr auswählen
       refunds: { none: RETRY_EXHAUSTED },
     },

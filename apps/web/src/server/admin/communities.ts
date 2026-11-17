@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { hasRole } from "@/server/authz";
 import { moderationLog } from "@/server/communities/service";
+import { dropFutureAttendance } from "@/server/communities/events";
 import type { SessionUser } from "@/server/auth/session";
 
 /**
@@ -416,6 +417,8 @@ export async function removeCommunityMember(actor: Actor, id: string, userId: st
       await tx.communityMember.delete({ where: { communityId_userId: { communityId: id, userId } } });
     }
     if (m.state === "ACTIVE") await tx.community.update({ where: { id }, data: { memberCount: { decrement: 1 } } });
+    // Wie beim Entfernen durch die Community: Zusagen zu kommenden Events fallen weg (Online-Link, Erinnerungen, Plätze)
+    await dropFutureAttendance(tx, id, userId);
     const code = input.ban ? "BAN_MEMBER" : m.state === "PENDING" ? "DECLINE_MEMBER" : "REMOVE_MEMBER";
     await communityLog(tx, { communityId: id, moderatorId: actor.id, targetType: "USER", targetId: userId, action: code, reason: "Plattform-Moderation" });
     await audit(

@@ -496,7 +496,7 @@ struct ConversationView: View {
         loadingOlder = true
         defer { loadingOlder = false }
         do {
-            let t: SocialThread = try await APIClient.shared.get("/conversations/\(id)", query: ["before": SocialFmt.iso(first.createdAt)])
+            let t: SocialThread = try await APIClient.shared.get("/conversations/\(id)", query: ["before": "\(SocialFmt.iso(first.createdAt))_\(first.id)"])
             let known = Set(messages.map(\.id))
             let older = t.messages.filter { !known.contains($0.id) }
             messages.insert(contentsOf: older, at: 0)

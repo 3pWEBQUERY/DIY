@@ -42,7 +42,11 @@ struct InlineVideo: View {
         Color.black.overlay { ZStack {
             if let player {
                 VideoPlayer(player: player)
-                    .onDisappear { player.pause() }
+                    .onDisappear {
+                        player.pause()
+                        // Audio-Sitzung freigeben, damit unterbrochene Musik anderer Apps weiterläuft
+                        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                    }
                     .onReceive(player.publisher(for: \.timeControlStatus).receive(on: RunLoop.main)) { s in
                         withAnimation(.easeOut(duration: 0.2)) { buffering = s == .waitingToPlayAtSpecifiedRate }
                     }
