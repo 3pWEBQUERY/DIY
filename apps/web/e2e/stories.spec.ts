@@ -13,6 +13,17 @@ async function cleanStories(...who: ("lena" | "mattia" | "mira" | "elias")[]) {
   await sql(`DELETE FROM "StoryMute" WHERE "muterId" = ANY($1) OR "mutedId" = ANY($1)`, [ids]);
 }
 
+/** Folgen setzen bzw. entfernen – mit passenden Zählern im Profil (wie der Dienst). */
+async function setFollow(followerId: string, followeeId: string, on: boolean) {
+  const changed = on
+    ? await sql(`INSERT INTO "Follow" ("followerId", "followeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING 1`, [followerId, followeeId])
+    : await sql(`DELETE FROM "Follow" WHERE "followerId" = $1 AND "followeeId" = $2 RETURNING 1`, [followerId, followeeId]);
+  if (!changed.length) return;
+  const d = on ? 1 : -1;
+  await sql(`UPDATE "UserProfile" SET "followingCount" = "followingCount" + $2 WHERE "userId" = $1`, [followerId, d]);
+  await sql(`UPDATE "UserProfile" SET "followerCount" = "followerCount" + $2 WHERE "userId" = $1`, [followeeId, d]);
+}
+
 /** Text-Story über den Erstellen-Dialog teilen. */
 async function postTextStory(page: Page, text: string, opts: { background?: string; followersOnly?: boolean } = {}) {
   await page.goto("/stories?neu=1");
@@ -32,11 +43,16 @@ async function postTextStory(page: Page, text: string, opts: { background?: stri
 test.describe.serial("Stories", () => {
   test.beforeAll(async () => {
     await cleanStories("lena", "mattia", "mira", "elias");
-    // Voraussetzung aus den Demo-Daten: Mattia folgt Lena, Mira folgt Mattia, Lena folgt Mattia nicht
-    const [lena, mattia, mira] = await Promise.all([userId("lena"), userId("mattia"), userId("mira")]);
-    expect(await one(`SELECT 1 FROM "Follow" WHERE "followerId" = $1 AND "followeeId" = $2`, [mattia, lena])).toBeTruthy();
-    expect(await one(`SELECT 1 FROM "Follow" WHERE "followerId" = $1 AND "followeeId" = $2`, [mira, mattia])).toBeTruthy();
-    expect(await one(`SELECT 1 FROM "Follow" WHERE "followerId" = $1 AND "followeeId" = $2`, [lena, mattia])).toBeFalsy();
+    // Voraussetzungen herstellen (frühere Tests blockieren/entfolgen u. U.): Mattia und Elias folgen Lena,
+    // Mira folgt Mattia, Lena folgt Mattia nicht; keine Blockierungen oder Stummschaltungen untereinander
+    const [lena, mattia, mira, elias] = await Promise.all([userId("lena"), userId("mattia"), userId("mira"), userId("elias")]);
+    const all = [lena, mattia, mira, elias];
+    await sql(`DELETE FROM "UserBlock" WHERE "blockerId" = ANY($1) AND "blockedId" = ANY($1)`, [all]);
+    await sql(`DELETE FROM "UserMute" WHERE "muterId" = ANY($1) AND "mutedId" = ANY($1)`, [all]);
+    await setFollow(mattia, lena, true);
+    await setFollow(elias, lena, true);
+    await setFollow(mira, mattia, true);
+    await setFollow(lena, mattia, false);
   });
 
   test("erstellen → Story-Kreis der Follower → ansehen, Herz, Antwort als Nachricht", async ({ browser }) => {
