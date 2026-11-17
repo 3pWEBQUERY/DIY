@@ -276,3 +276,31 @@ Die iOS-App bietet Pinterest (noch) nicht an.
 - Lautet das Bankkonto auf eine andere Währung als der Shop (z. B. EUR), wird der zurückgehaltene Betrag aus der tatsächlichen
   Gutschrift je Zahlung bei Stripe ermittelt (an der Zahlung zwischengespeichert). Ist sie nicht ermittelbar, wird vorsichtshalber
   nichts ausgezahlt, bis die Gutschrift abrufbar ist.
+
+## Profil-Subdomains ({name}.werkuno.ch)
+
+Jedes Profil hat eine eigene Adresse, z. B. `werkuno.werkuno.ch` → `/u/werkuno`. Die Subdomain entsteht automatisch
+aus dem Benutzernamen (Punkt/Unterstrich → Bindestrich, z. B. `lena.haekelt` → `lena-haekelt.werkuno.ch`); ein
+DB-Trigger vergibt sie bei Registrierung und Namensänderung, bestehende Profile wurden per Migration
+`20261124100000_profile_subdomains` nachgetragen. Belegte oder reservierte Namen (www, api, admin, mail …)
+bekommen `--2`, `--3` angehängt.
+
+Auf der Subdomain bleiben Profil, Projekte (`/{projekt}`), Blog und Medienkit; App-Bereiche wie Feed, Anmelden
+oder Studio leiten per 308 auf `werkuno.ch` weiter (dort gilt die Anmeldung). Die Anmeldung wird bewusst nicht
+auf Subdomains geteilt – Profile dort sind die öffentliche Ansicht.
+
+**Einrichten (einmalig):**
+
+1. Railway → Service **web** → Settings → Networking → *Custom Domain* → `*.werkuno.ch` hinzufügen.
+2. Beim DNS-Anbieter die drei Einträge anlegen, die Railway anzeigt:
+   - `CNAME  *                → <wert>.up.railway.app`
+   - `CNAME  _acme-challenge  → authorize.railwaydns.net` (bei Cloudflare **nicht** proxied – graue Wolke)
+   - `TXT` zur Bestätigung der Domain (Name und Wert genau wie von Railway angezeigt)
+   Bei Cloudflare zusätzlich: SSL/TLS-Modus „Full“, Universal SSL aktiv.
+3. Warten, bis Railway beim Eintrag `*.werkuno.ch` ein grünes Häkchen (Zertifikat ausgestellt) zeigt.
+4. Railway → Service **web** → Variables → `PROFILE_DOMAIN=werkuno.ch` setzen (nur web, nicht worker).
+   Erst danach erscheinen die Adressen im Profil und in den Einstellungen, und „Teilen“ nutzt sie.
+5. Prüfen: `https://werkuno.werkuno.ch` zeigt das Profil, `https://werkuno.werkuno.ch/feed` leitet auf
+   `https://werkuno.ch/feed` weiter.
+
+Ausschalten: `PROFILE_DOMAIN` entfernen – Profile sind dann wieder nur unter `/u/{name}` erreichbar.

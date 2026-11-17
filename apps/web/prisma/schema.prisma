@@ -347,6 +347,8 @@ model UserProfile {
   userId       String   @id
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   handle       String   @unique
+  /// Eigene Adresse {subdomain}.werkuno.ch – vom DB-Trigger aus dem Handle abgeleitet (Punkt/Unterstrich → Bindestrich)
+  subdomain    String?  @unique
   displayName  String
   bio          String   @default("")
   avatarUrl    String?

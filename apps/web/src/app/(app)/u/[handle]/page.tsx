@@ -16,7 +16,7 @@ import { FollowButton, ShareButton } from "@/components/social/actions";
 import { ProfileSafetyMenu } from "./profile-menu";
 import { TrackView } from "@/components/analytics/track-view";
 import { Avatar, Badge, Empty } from "@/components/ui/misc";
-import { Cover } from "@/components/ui/media";
+import { Cover, Placeholder } from "@/components/ui/media";
 import { Glyph } from "@/components/ui/glyphs";
 import { LinkButton } from "@/components/ui/button";
 import { TabLinks } from "@/components/shell/page";
@@ -28,6 +28,8 @@ import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingD
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
 import { cn, formatDate, compactNumber } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
+import { features } from "@/server/env";
+import { profileSubdomainUrl } from "@/lib/subdomains";
 import { publicProductWhere } from "@/server/commerce/restock";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string; art?: string }> };
@@ -67,6 +69,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   const sp = await searchParams;
   const profile = await load(handle);
   if (!profile) notFound();
+  const ownUrl = profileSubdomainUrl(profile.subdomain, features.profileDomain());
   const viewer = await currentUser();
   const viewerId = viewer?.id ?? null;
   const userId = profile.userId;
@@ -131,18 +134,14 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   return (
     <div>
       {!isSelf && !blocked && <TrackView targetType="USER" targetId={userId} />}
-      {/* Titelbild: Foto oder Rasterpapier mit den Werkstatt-Glyphen */}
+      {/* Titelbild: Foto oder das Werkbank-Platzhalterbild (wie in der iOS-App) */}
       <div className="mx-auto max-w-[1120px] px-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
       <div className="relative h-44 overflow-hidden rounded-3xl border border-line bg-sunken sm:h-64">
         {profile.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.coverUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className="grid-paper flex h-full items-center justify-end gap-10 overflow-hidden px-10 text-ink/80" aria-hidden>
-            {profile.categories.slice(0, 3).map((c, i) => (
-              <Glyph key={c} name={categoryBySlug(c)?.glyph ?? "spark"} size={i === 0 ? 150 : 96} strokeWidth={1.2} className={cn(i === 0 && "text-moss")} />
-            ))}
-          </div>
+          <Placeholder kind="workbench" sizes="(min-width: 1120px) 1120px, 100vw" />
         )}
       </div>
       </div>
@@ -160,6 +159,12 @@ export default async function ProfilePage({ params, searchParams }: Params) {
               </div>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                 <span>@{profile.handle}</span>
+                {ownUrl && (
+                  <a href={ownUrl} className="inline-flex items-center gap-1 font-medium text-ink-2 hover:text-ink hover:underline">
+                    <Link2 size={13} aria-hidden />
+                    {ownUrl.replace(/^https:\/\//, "")}
+                  </a>
+                )}
                 {followsYou && <span className="bg-sunken px-1.5 text-xs rounded-2xl">folgt dir</span>}
                 {profile.region && (
                   <span className="inline-flex items-center gap-1"><MapPin size={13} />{profile.region}</span>
@@ -184,7 +189,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : !viewer ? (
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
-            <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf ${BRAND.name}`} image={profile.avatarUrl} />
+            <ShareButton variant="button" url={ownUrl ?? `/u/${profile.handle}`} title={`${profile.displayName} auf ${BRAND.name}`} image={profile.avatarUrl} />
             {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
           </div>
         </header>

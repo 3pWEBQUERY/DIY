@@ -5,6 +5,9 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1),
   APP_URL: z.string().url().default("http://localhost:3000"),
+  // Profil-Subdomains: Hauptdomain ohne www (z. B. „werkuno.ch“) → {subdomain}.werkuno.ch zeigt das Profil.
+  // Erst setzen, wenn DNS-Eintrag *.werkuno.ch und Wildcard-Domain bei Railway aktiv sind.
+  PROFILE_DOMAIN: z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+$/, "Nur Domainname ohne https://").optional(),
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET muss mind. 32 Zeichen haben"),
   // Railway Bucket / S3
   S3_ENDPOINT: z.string().optional(),
@@ -86,4 +89,6 @@ export const features = {
   apple: () => Boolean(env().APPLE_CLIENT_ID && env().APPLE_TEAM_ID && env().APPLE_KEY_ID && env().APPLE_PRIVATE_KEY),
   email: () => Boolean(env().RESEND_API_KEY),
   pinterest: () => Boolean(env().PINTEREST_CLIENT_ID && env().PINTEREST_CLIENT_SECRET),
+  /** Hauptdomain für Profil-Subdomains oder null, wenn ausgeschaltet */
+  profileDomain: () => env().PROFILE_DOMAIN || null,
 };
