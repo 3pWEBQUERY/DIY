@@ -261,12 +261,21 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           </Link>
         )}
         {post.product && (
-          <Link href={`/markt/${post.product.shop.slug}/${post.product.slug}`} className="mt-3 flex items-center justify-between border border-clay/40 bg-clay-soft px-4 py-3 hover:border-clay rounded-2xl">
-            <span>
-              <span className="spec text-clay-ink">Im Shop von {post.product.shop.name}</span>
-              <span className="block font-semibold">{post.product.title}</span>
+          <Link href={`/markt/${post.product.shop.slug}/${post.product.slug}`} className="mt-3 flex items-center gap-3.5 border border-clay/40 bg-clay-soft p-2.5 pr-4 hover:border-clay rounded-2xl">
+            {/* Produktbild wie im Markt: ganz sichtbar, nicht beschnitten */}
+            <span className="relative block size-20 shrink-0 overflow-hidden rounded-xl border border-clay/25 bg-card">
+              {post.product.coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.product.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-contain" />
+              ) : (
+                <Plate seed={post.product.id} number={false} />
+              )}
             </span>
-            <span className="font-mono text-sm font-semibold">{formatMoney(post.product.priceMinor, post.product.currency as Currency)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="spec text-clay-ink">Im Shop von {post.product.shop.name}</span>
+              <span className="block font-semibold line-clamp-2">{post.product.title}</span>
+            </span>
+            <span className="shrink-0 font-mono text-sm font-semibold">{formatMoney(post.product.priceMinor, post.product.currency as Currency)}</span>
           </Link>
         )}
       </div>
