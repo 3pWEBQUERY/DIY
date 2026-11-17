@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/shell/wordmark";
-import { ThreadDrawing } from "@/components/landing/thread-drawing";
+import { AuthAside } from "@/components/auth/auth-aside";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,25 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Link href="/hilfe" className="hover:text-ink">Hilfe</Link>
         </footer>
       </div>
-      <aside className="relative hidden overflow-hidden border-l border-rule bg-sunken lg:block" aria-hidden>
-        <div className="grid-paper absolute inset-0 opacity-70" />
-        <div className="absolute inset-0 flex flex-col justify-between p-12">
-          <div className="flex justify-between spec text-ink">
-            <span>Werkblatt Nº 001</span>
-            <span>Massstab 1:1</span>
-          </div>
-          <ThreadDrawing className="mx-auto w-[78%] max-w-[560px] text-ink" />
-          <div>
-            <p className="display max-w-md text-4xl text-ink">„Jedes Projekt beginnt mit einem einzigen Faden.“</p>
-            <div className="mt-6 flex items-center gap-6 spec">
-              <span className="flex items-center gap-2"><span className="size-2 bg-moss rounded-full" />Idee</span>
-              <span className="flex items-center gap-2"><span className="size-2 bg-ink rounded-full" />Journal</span>
-              <span className="flex items-center gap-2"><span className="size-2 bg-clay rounded-full" />Anleitung</span>
-              <span className="flex items-center gap-2"><span className="size-2 border border-rule rounded-full" />Nachbau</span>
-            </div>
-          </div>
-        </div>
-      </aside>
+      <AuthAside />
     </div>
   );
 }
