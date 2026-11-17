@@ -107,10 +107,12 @@ export function Composer({
   }
 
   return (
-    <section aria-label="Neuer Beitrag" className={cn("border border-line bg-card rounded-2xl", open && "border-line-strong")}>
-      <div className="flex gap-3 p-4">
-        <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={40} />
-        <div className="min-w-0 flex-1">
+    // Konzentrische Ecken: Kartenradius = Avatar-Radius (20) + Innenabstand (12) = 32 – der Avatar sitzt
+    // genau in der Rundung der Ecke. Zugeklappt steht er mittig neben der einzeiligen Eingabe.
+    <section aria-label="Neuer Beitrag" className={cn("rounded-[32px] border border-line bg-card transition-colors", open && "border-line-strong")}>
+      <div className={cn("flex gap-3 p-3", open ? "items-start" : "items-center")}>
+        <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={40} className="ring-1 ring-ink/10" />
+        <div className="min-w-0 flex-1 pr-2">
           <label htmlFor="composer-body" className="sr-only">Was entsteht gerade bei dir?</label>
           <textarea
             id="composer-body"
@@ -120,12 +122,12 @@ export function Composer({
             maxLength={5000}
             rows={open ? 3 : 1}
             placeholder={poll ? "Stelle deine Frage …" : "Was entsteht gerade auf deiner Werkbank?"}
-            className="block w-full resize-none bg-transparent pt-2 text-[16px] leading-relaxed outline-none placeholder:text-muted field-sizing-content"
+            className={cn("block w-full resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted field-sizing-content", open && "pt-2")}
           />
         </div>
       </div>
       {open && (
-        <div className="border-t border-line p-4 animate-fade">
+        <div className="border-t border-line px-3 py-3.5 animate-fade">
           {poll ? (
             <div className="mb-4">
               <PollEditor value={poll} onChange={setPoll} onRemove={() => setPoll(null)} />
