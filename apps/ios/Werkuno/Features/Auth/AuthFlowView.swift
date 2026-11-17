@@ -3,9 +3,11 @@ import AuthenticationServices
 import CryptoKit
 import Security
 
-/// Willkommen: Die Faden-Story in vier Kapiteln (Three.js) – danach Anmelden oder Registrieren.
+/// Willkommen: vier Kapitel mit je einem Werkstatt-Foto oben (weich ins Papier auslaufend) – danach Anmelden
+/// oder Registrieren. Das Foto wechselt mit dem Kapitel; `focus` hält das Motiv auf jedem Bildschirm im Ausschnitt.
 struct AuthFlowView: View {
     @Environment(AppState.self) private var app
+    @Environment(\.colorScheme) private var colorScheme
     @State private var chapter = 0
     @State private var sheet: AuthSheet?
     @State private var autoplay = true
@@ -16,22 +18,40 @@ struct AuthFlowView: View {
 
     enum AuthSheet: String, Identifiable { case signIn, signUp, reset; var id: String { rawValue } }
 
-    private struct Chapter { let kicker: String; let title: String; let text: String; let spec: [String] }
+    private struct Chapter {
+        let kicker: String; let title: String; let text: String
+        let spec: [(symbol: String, label: String)]
+        /// Bild im Asset-Katalog und Bildpunkt, der im Ausschnitt mittig bleiben soll (0…1)
+        let image: String; let focus: UnitPoint
+    }
     private let chapters: [Chapter] = [
-        Chapter(kicker: "01 · Entdecken", title: "Ein Faden.", text: "Alles beginnt mit einer Idee – und mit Menschen, die zeigen, wie sie entsteht.", spec: ["Baumwollgarn", "300 g", "Nadel 4 mm"]),
-        Chapter(kicker: "02 · Erschaffen", title: "Schicht für Schicht.", text: "Dokumentiere dein Projekt im Journal – mit Fortschritt, Problemen und Lösungen.", spec: ["Steinzeug", "Ø 18 cm", "34 Wülste"]),
-        Chapter(kicker: "03 · Teilen", title: "Zum Nachbauen.", text: "Aus Projekten werden Anleitungen, Materiallisten und Nachbauten anderer.", spec: ["Eiche massiv", "Sitzhöhe 45 cm", "4 Beine"]),
-        Chapter(kicker: "04 · Gemeinsam wachsen", title: "Viele Projekte.", text: "Der Projektfaden verbindet Beiträge, Anleitungen, Shops und Communities.", spec: ["1 Projekt", "5 Verbindungen", "∞ Nachbauten"]),
+        Chapter(kicker: "01 · Entdecken", title: "Ein Faden.", text: "Alles beginnt mit einer Idee – und mit Menschen, die zeigen, wie sie entsteht.",
+                spec: [("circle.hexagongrid", "Granny Squares"), ("scribble.variable", "Baumwollgarn"), ("ruler", "Nadel 5 mm")],
+                image: "Welcome1", focus: UnitPoint(x: 0.68, y: 0.42)),
+        Chapter(kicker: "02 · Erschaffen", title: "Schicht für Schicht.", text: "Dokumentiere dein Projekt im Journal – mit Fortschritt, Problemen und Lösungen.",
+                spec: [("cabinet", "Schrankbau"), ("ruler", "120 cm"), ("square.stack.3d.up", "Massivholz")],
+                image: "Welcome2", focus: UnitPoint(x: 0.5, y: 0.46)),
+        Chapter(kicker: "03 · Teilen", title: "Zum Nachbauen.", text: "Aus Projekten werden Anleitungen, Materiallisten und Nachbauten anderer.",
+                spec: [("books.vertical", "Regal"), ("square.stack.3d.up", "Fichte massiv"), ("screwdriver", "Akkuschrauber")],
+                image: "Welcome3", focus: UnitPoint(x: 0.74, y: 0.42)),
+        Chapter(kicker: "04 · Gemeinsam wachsen", title: "Viele Projekte.", text: "Der Projektfaden verbindet Beiträge, Anleitungen, Shops und Communities.",
+                spec: [("hare", "Amigurumi"), ("square.grid.2x2", "Granny Square"), ("scribble.variable", "Wolle")],
+                image: "Welcome4", focus: UnitPoint(x: 0.5, y: 0.46)),
     ]
 
     var body: some View {
-        ZStack {
-            Color.paper.ignoresSafeArea()
-            DotGrid().ignoresSafeArea().opacity(0.6)
-            // Passt sich der verfügbaren Höhe an: Auf kleinen Bildschirmen (iPhone SE, iPhone-App auf dem iPad)
-            // wird die 3D-Szene kleiner; reicht der Platz trotzdem nicht (z. B. grosse Schrift), lässt sich scrollen –
-            // die Anmelde-Knöpfe bleiben immer erreichbar.
-            GeometryReader { geo in
+        // Passt sich der verfügbaren Höhe an: Auf kleinen Bildschirmen (iPhone SE, iPhone-App auf dem iPad) wird der
+        // Bildbereich kleiner; reicht der Platz trotzdem nicht (z. B. grosse Schrift), lässt sich scrollen – die
+        // Anmelde-Knöpfe bleiben immer erreichbar.
+        GeometryReader { geo in
+            let stage = stageHeight(for: geo.size.height)
+            ZStack(alignment: .top) {
+                Color.paper.ignoresSafeArea()
+
+                // Foto: reicht bis hinter die Statusleiste und läuft bis zum Kapitel-Kicker ins Papier aus
+                photo(height: geo.safeAreaInsets.top + 60 + stage + 30)
+                    .ignoresSafeArea(edges: .top)
+
                 ScrollView {
                     VStack(spacing: 0) {
                         HStack {
@@ -44,10 +64,7 @@ struct AuthFlowView: View {
                         .padding(.horizontal, Space.gutter)
                         .padding(.top, 8)
 
-                        ThreeCanvas(scene: .story(progress: Double(chapter)))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: canvasHeight(for: geo.size.height))
-                            .padding(.top, 4)
+                        Color.clear.frame(height: stage).padding(.top, 4)
 
                         TabView(selection: $chapter) {
                             ForEach(chapters.indices, id: \.self) { i in
@@ -55,7 +72,7 @@ struct AuthFlowView: View {
                             }
                         }
                         .tabViewStyle(.page(indexDisplayMode: .never))
-                        .frame(height: geo.size.height < 760 ? 172 : 190)
+                        .frame(height: geo.size.height < 760 ? 178 : 196)
                         .onChange(of: chapter) { _, _ in Haptics.selection() }
                         .simultaneousGesture(DragGesture().onChanged { _ in autoplay = false })
 
@@ -74,7 +91,7 @@ struct AuthFlowView: View {
                                 } onCompletion: { result in
                                     Task { await handleApple(result) }
                                 }
-                                .signInWithAppleButtonStyle(.black)
+                                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)  // HIG: im Dunkeln die weisse Variante
                                 .frame(height: 50)
                                 .clipShape(Capsule())
                             }
@@ -119,11 +136,32 @@ struct AuthFlowView: View {
         }
     }
 
-    /// 3D-Szene: so gross wie möglich (max. 360 pt), aber nie auf Kosten der Knöpfe. Rund 485 pt brauchen
-    /// Kopfzeile, Kapiteltext, Seitenpunkte und Anmelde-Knöpfe; darunter schrumpft die Szene bis 120 pt.
-    private func canvasHeight(for height: CGFloat) -> CGFloat {
-        let reserved: CGFloat = app.appleNative ? 485 : 425
-        return min(360, max(120, height - reserved))
+    /// Bildbereich zwischen Kopfzeile und Kapiteltext: so gross wie möglich (max. 380 pt), aber nie auf Kosten der
+    /// Knöpfe. Rund 495 pt brauchen Kopfzeile, Kapiteltext, Seitenpunkte und Anmelde-Knöpfe; mindestens 110 pt.
+    private func stageHeight(for height: CGFloat) -> CGFloat {
+        let reserved: CGFloat = app.appleNative ? 495 : 435
+        return min(380, max(110, height - reserved))
+    }
+
+    /// Kapitel-Foto mit weichem Übergang: oben leicht aufgehellt (Logo, Statusleiste), unten ins Papier auslaufend.
+    private func photo(height: CGFloat) -> some View {
+        ZStack {
+            ForEach(chapters.indices, id: \.self) { i in
+                if i == chapter {
+                    FocalImage(name: chapters[i].image, focus: chapters[i].focus)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.6), .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [Color.paper.opacity(0.7), Color.paper.opacity(0)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 150)
+        }
+        .animation(.easeInOut(duration: 0.7), value: chapter)
+        .accessibilityHidden(true)
     }
 
     private func chapterView(_ c: Chapter) -> some View {
@@ -132,16 +170,31 @@ struct AuthFlowView: View {
             Text(c.title).font(.display(38)).foregroundStyle(Color.ink)
                 .lineLimit(1).minimumScaleFactor(0.75)  // „Schicht für Schicht.“ passt so auch auf schmale Bildschirme
             Text(c.text).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                ForEach(c.spec, id: \.self) { s in
-                    Text(s).font(.spec).foregroundStyle(Color.muted)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .overlay(Capsule().strokeBorder(Color.line))
-                }
+            // Drei Merkmale; passt das nicht in die Breite (schmale Bildschirme, grosse Schrift), nur die ersten zwei
+            ViewThatFits(in: .horizontal) {
+                chips(c.spec)
+                chips(Array(c.spec.prefix(2)))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    private func chips(_ items: [(symbol: String, label: String)]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(items, id: \.label) { item in
+                HStack(spacing: 6) {
+                    Image(systemName: item.symbol).font(.system(size: 12, weight: .medium))
+                    Text(item.label).font(.wr(.footnote, .medium))
+                }
+                .lineLimit(1)
+                .fixedSize()
+                .foregroundStyle(Color.ink2)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.card.opacity(0.7), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.line))
+            }
+        }
     }
 
     private var pager: some View {
@@ -280,20 +333,6 @@ final class AppleReauth: NSObject, ASAuthorizationControllerDelegate, ASAuthoriz
             }
             return scene.keyWindow ?? scene.windows.first ?? UIWindow(windowScene: scene)
         }
-    }
-}
-
-/// Feines Punktraster als Werkbuch-Hintergrund
-struct DotGrid: View {
-    var body: some View {
-        Canvas { ctx, size in
-            let step: CGFloat = 22
-            var p = Path()
-            var y: CGFloat = 0
-            while y < size.height { var x: CGFloat = 0; while x < size.width { p.addEllipse(in: CGRect(x: x, y: y, width: 1.3, height: 1.3)); x += step }; y += step }
-            ctx.fill(p, with: .color(Color.lineStrong.opacity(0.55)))
-        }
-        .accessibilityHidden(true)
     }
 }
 
@@ -567,3 +606,23 @@ struct AuthField: View {
 }
 
 extension URL: @retroactive Identifiable { public var id: String { absoluteString } }
+
+/// Bild, das seine Fläche füllt und dabei den Bildpunkt `focus` möglichst in der Mitte hält – so bleibt das Motiv
+/// (Person, Hände, Werkstück) bei Hoch- und Querformat-Fotos auf jedem Bildschirm im Ausschnitt.
+private struct FocalImage: View {
+    let name: String
+    let focus: UnitPoint
+
+    var body: some View {
+        GeometryReader { g in
+            if let ui = UIImage(named: name), ui.size.width > 0, ui.size.height > 0 {
+                let scale = max(g.size.width / ui.size.width, g.size.height / ui.size.height)
+                let w = ui.size.width * scale, h = ui.size.height * scale
+                let x = min(0, max(g.size.width - w, g.size.width / 2 - focus.x * w))
+                let y = min(0, max(g.size.height - h, g.size.height / 2 - focus.y * h))
+                Image(uiImage: ui).resizable().frame(width: w, height: h).offset(x: x, y: y)
+            }
+        }
+        .clipped()
+    }
+}
