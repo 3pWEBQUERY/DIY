@@ -352,13 +352,13 @@ struct PostCardView: View {
             LinkedThreadRow(kicker: "Projekt · \(L.projectStatus(p.status))", title: p.title, seed: p.id, category: p.category, url: p.coverUrl) { router.open(.project(handle: h, slug: p.slug)) }
         }
         if let t = post.tutorial {
-            LinkedThreadRow(kicker: "Anleitung · \(Fmt.minutes(t.minutes))", title: t.title, seed: t.id, category: t.category, url: t.coverUrl) { router.open(.tutorial(slug: t.slug)) }
+            LinkedThreadRow(kicker: "Anleitung · \(Fmt.minutes(t.minutes))", title: t.title, seed: t.id, category: t.category, url: t.coverUrl, kind: .tutorial) { router.open(.tutorial(slug: t.slug)) }
         }
         if let pr = post.product, let shop = pr.shopSlug ?? pr.shop?.slug, let slug = pr.slug {
-            LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl) { router.open(.product(shopSlug: shop, productSlug: slug)) }
+            LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl, kind: .product) { router.open(.product(shopSlug: shop, productSlug: slug)) }
         }
         if let a = post.article {
-            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl) { router.open(href: a.href) }
+            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) { router.open(href: a.href) }
         }
     }
 
@@ -384,12 +384,13 @@ struct LinkedThreadRow: View {
     var seed: String
     var category: String?
     var url: String?
+    var kind: PlaceholderKind = .project
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                CoverView(url: url, seed: seed, category: category, showLabel: false)
+                CoverView(url: url, seed: seed, category: category, showLabel: false, kind: kind)
                     .frame(width: 46, height: 46)
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {

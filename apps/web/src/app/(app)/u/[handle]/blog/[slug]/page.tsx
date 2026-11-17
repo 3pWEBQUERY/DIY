@@ -13,7 +13,7 @@ import { ArticleCard } from "@/components/blog/article-card";
 import { Comments } from "@/components/social/comments";
 import { FollowButton } from "@/components/social/actions";
 import { Avatar, Notice, SectionTitle } from "@/components/ui/misc";
-import { Cover, Plate } from "@/components/ui/media";
+import { Cover, Placeholder } from "@/components/ui/media";
 import { LinkButton } from "@/components/ui/button";
 import { formatDate, pluralize } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
@@ -153,7 +153,7 @@ export default async function ArticlePage({ params }: Props) {
 
         {a.coverUrl && (
           <figure className="crop -mx-4 mt-10 sm:mx-0">
-            <Cover url={a.coverUrl} alt={a.title} seed={a.id} ratio="16/9" priority sizes="(min-width: 1100px) 1100px, 100vw" />
+            <Cover url={a.coverUrl} alt={a.title} kind="article" ratio="16/9" priority sizes="(min-width: 1100px) 1100px, 100vw" />
           </figure>
         )}
 
@@ -206,7 +206,7 @@ export default async function ArticlePage({ params }: Props) {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={p.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                           ) : (
-                            <Plate seed={p.id} category={p.category} number={false} />
+                            <Placeholder kind="project" />
                           )}
                         </span>
                         <span className="min-w-0 flex-1 px-4 py-3">

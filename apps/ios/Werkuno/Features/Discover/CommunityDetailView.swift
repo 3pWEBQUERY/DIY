@@ -250,7 +250,7 @@ struct CommunityDetailView: View {
         let c = d.community
         let color = CategoryPalette.color(for: c.category)
         return VStack(alignment: .leading, spacing: 14) {
-            CoverView(url: c.coverUrl, seed: c.id, category: c.category, animated: true)
+            CoverView(url: c.coverUrl, seed: c.id, category: c.category, animated: true, kind: .community)
                 .frame(height: 210)
                 .frame(maxWidth: .infinity)
                 .clipped()
@@ -346,7 +346,7 @@ struct CommunityDetailView: View {
     private func lockScreen(_ d: CommunityPagePayload) -> some View {
         VStack(spacing: 14) {
             ZStack {
-                ThreadPlate(seed: d.community.id, category: d.community.category, glyph: "ring", showLabel: false, animated: true)
+                PlaceholderImage(kind: .community)
                     .frame(width: 140, height: 140)
                     .clipShape(Circle())
                 Image(systemName: "lock.fill").font(.wr(.largeTitle)).foregroundStyle(Color.ink)

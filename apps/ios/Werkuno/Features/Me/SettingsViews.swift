@@ -133,7 +133,7 @@ private struct MeProfileSettings: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
-                    CoverView(url: removeCover ? nil : coverURL, seed: loaded?.userId ?? handle, category: categories.first, showLabel: false)
+                    CoverView(url: removeCover ? nil : coverURL, seed: loaded?.userId ?? handle, category: categories.first, showLabel: false, kind: .workbench)
                         .frame(height: 120)
                         .frame(maxWidth: .infinity)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
@@ -160,7 +160,7 @@ private struct MeProfileSettings: View {
                     .buttonStyle(.borderless)
                 }
                 .padding(.vertical, 4)
-            } header: { Text("Bilder") } footer: { Text("Ohne Foto zeigen wir eine generative Tafel in deiner Kategorie-Farbe.") }
+            } header: { Text("Bilder") } footer: { Text("Ohne Foto zeigen wir ein Platzhalterbild.") }
 
             Section {
                 TextField("Anzeigename", text: $displayName).textContentType(.name)

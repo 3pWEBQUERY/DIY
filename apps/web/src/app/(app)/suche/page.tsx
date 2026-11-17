@@ -164,7 +164,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-4">
               {results!.product.map((p) => (
                 <Link key={p.id} href={p.href} className="group">
-                  <Cover url={p.cover} alt="" seed={p.id} category={p.category} ratio="4/5" />
+                  <Cover url={p.cover} alt="" kind="product" ratio="4/5" />
                   <p className="mt-2 text-sm font-semibold group-hover:underline">{p.title}</p>
                   <p className="text-xs text-muted">{p.subtitle} · <span className="font-mono">{formatMoney(Number(p.meta?.priceMinor), (p.meta?.currency as Currency) ?? "CHF")}</span></p>
                 </Link>

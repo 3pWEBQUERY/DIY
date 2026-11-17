@@ -91,7 +91,7 @@ struct ArticleReaderView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    CoverView(url: a.coverUrl, seed: a.id, category: nil, animated: true)
+                    CoverView(url: a.coverUrl, seed: a.id, category: nil, animated: true, kind: .article)
                         .frame(height: 280)
                         .frame(maxWidth: .infinity)
                         .clipped()

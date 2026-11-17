@@ -199,7 +199,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
               <li key={p.id} className="group relative flex flex-col border border-line bg-card hover:border-rule-strong rounded-2xl">
-                <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="4/3" className="border-b border-line" sizes="(min-width: 1024px) 360px, 50vw" />
+                <Cover url={p.coverUrl} alt="" kind="project" ratio="4/3" className="border-b border-line" sizes="(min-width: 1024px) 360px, 50vw" />
                 <div className="flex flex-1 flex-col p-4">
                   <p className="spec">{PROJECT_STATUS_LABEL[p.status]} · {categoryBySlug(p.category)?.short}</p>
                   <h3 className="headline mt-1 text-[1.2rem]">
@@ -306,7 +306,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
     <div className="pb-16">
       <header className="border-b border-rule">
         <div className="mx-auto max-w-[1200px] px-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
-          <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/5" priority sizes="(min-width: 1280px) 1120px, 100vw" className="max-h-[300px] w-full rounded-3xl border border-line" label={c.name} />
+          <Cover url={c.coverUrl} alt="" kind="community" ratio="16/5" priority sizes="(min-width: 1280px) 1120px, 100vw" className="max-h-[300px] w-full rounded-3xl border border-line" />
         </div>
         <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-10">
           <div className="flex flex-wrap items-end justify-between gap-6 py-6">

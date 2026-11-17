@@ -32,7 +32,7 @@ export function ArticleCard({
     return (
       <article className={cn("group grid gap-6 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-10", className)}>
         <Link href={a.href} tabIndex={-1} aria-hidden className="block">
-          <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" priority={priority} sizes="(min-width: 1024px) 680px, 100vw" className="border border-line rounded-2xl" label={a.title} />
+          <Cover url={a.coverUrl} alt="" kind="article" ratio="3/2" priority={priority} sizes="(min-width: 1024px) 680px, 100vw" className="border border-line rounded-2xl" />
         </Link>
         <div className="flex flex-col justify-end">
           <p className="spec flex items-center gap-2"><span className="inline-block h-px w-6 bg-clay" />Aufmacher · {kicker}</p>
@@ -81,7 +81,7 @@ export function ArticleCard({
       )}
     >
       <Link href={a.href} tabIndex={-1} aria-hidden className="block">
-        <Cover url={a.coverUrl} alt="" seed={a.id} ratio="3/2" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="rounded-none" />
+        <Cover url={a.coverUrl} alt="" kind="article" ratio="3/2" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="rounded-none" />
       </Link>
       <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
         <p className="spec">{kicker}</p>

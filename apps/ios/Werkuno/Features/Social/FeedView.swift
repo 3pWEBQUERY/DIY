@@ -356,7 +356,7 @@ private struct FeedWorkbenchStrip: View {
 
     private func tile(_ p: SocialFeedContext.WorkbenchProject) -> some View {
         HStack(spacing: 12) {
-            CoverView(url: p.coverUrl, seed: p.id, category: p.category, showLabel: false)
+            CoverView(url: p.coverUrl, seed: p.id, category: p.category, showLabel: false, kind: .workbench)
                 .frame(width: 58, height: 58)
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {

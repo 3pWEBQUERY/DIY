@@ -182,7 +182,7 @@ struct CommunityListView: View {
     private func mineCard(_ c: CommunityCard) -> some View {
         Button { router.open(.community(slug: c.slug)) } label: {
             VStack(alignment: .leading, spacing: 0) {
-                CoverView(url: c.coverUrl, seed: c.id, category: c.category)
+                CoverView(url: c.coverUrl, seed: c.id, category: c.category, kind: .community)
                     .frame(height: 120)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(c.name).font(.wr(.headline)).foregroundStyle(Color.ink).a11yLineLimit(1)

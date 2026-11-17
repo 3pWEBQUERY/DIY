@@ -152,7 +152,7 @@ struct SellerOrderDetailView: View {
                 MarketSection("Positionen", number: "01") {
                     ForEach(o.items) { i in
                         HStack(alignment: .top, spacing: 12) {
-                            CoverView(url: i.product?.coverUrl, seed: i.productId ?? i.id, category: i.product?.category, showLabel: false)
+                            CoverView(url: i.product?.coverUrl, seed: i.productId ?? i.id, category: i.product?.category, showLabel: false, kind: .product)
                                 .frame(width: 48, height: 48)
                                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                             VStack(alignment: .leading, spacing: 2) {

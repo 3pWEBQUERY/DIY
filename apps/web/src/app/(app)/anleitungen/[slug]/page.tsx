@@ -138,7 +138,7 @@ export default async function TutorialPage({ params }: Params) {
           </div>
         </div>
         <div className="crop border border-line rounded-2xl">
-          <Cover url={t.coverUrl} alt={t.title} seed={`t-${t.id}`} category={t.category} ratio="16/10" priority sizes="(min-width: 1024px) 600px, 100vw" />
+          <Cover url={t.coverUrl} alt={t.title} kind="tutorial" ratio="16/10" priority sizes="(min-width: 1024px) 600px, 100vw" />
         </div>
       </header>
 
@@ -264,7 +264,7 @@ export default async function TutorialPage({ params }: Params) {
               <p className="spec mb-3 text-ink">Zum Projekt</p>
               <Link href={t.project.href} className="group block border-l border-rule pl-3">
                 <div className="border border-line transition-colors group-hover:border-rule-strong rounded-2xl">
-                  <Cover url={t.project.coverUrl} alt="" seed={t.project.id} category={t.project.category} ratio="4/3" sizes="320px" />
+                  <Cover url={t.project.coverUrl} alt="" kind="project" ratio="4/3" sizes="320px" />
                 </div>
                 <p className="spec mt-2"><StatusLabel status={t.project.status} /></p>
                 <p className="headline mt-1 text-xl group-hover:underline decoration-1 underline-offset-4">{t.project.title}</p>

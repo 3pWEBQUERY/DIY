@@ -153,7 +153,7 @@ struct ProfileView: View {
 
     private func hero(_ prof: MeProfilePage.Profile, _ viewer: MeProfilePage.Viewer) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            CoverView(url: prof.coverUrl, seed: prof.userId, category: prof.categories?.first, showLabel: false)
+            CoverView(url: prof.coverUrl, seed: prof.userId, category: prof.categories?.first, showLabel: false, kind: .workbench)
                 .frame(height: 170)
                 .frame(maxWidth: .infinity)
                 .clipped()
@@ -204,7 +204,7 @@ struct ProfileView: View {
                 counts(prof)
                 SocialAwardsList(awards: extras?.awards ?? [])
                 if let shop = prof.shop, shop.status == "ACTIVE" {
-                    LinkedThreadRow(kicker: "Shop", title: [shop.name, shop.tagline?.nilIfEmpty].compactMap { $0 }.joined(separator: " – "), seed: shop.slug, category: prof.categories?.first, url: nil) {
+                    LinkedThreadRow(kicker: "Shop", title: [shop.name, shop.tagline?.nilIfEmpty].compactMap { $0 }.joined(separator: " – "), seed: shop.slug, category: prof.categories?.first, url: nil, kind: .product) {
                         router.open(.shop(slug: shop.slug))
                     }
                     .padding(.top, 2)
@@ -350,7 +350,7 @@ struct ProfileView: View {
                 ForEach(p.collections ?? []) { c in
                     Button { router.open(.collection(id: c.id)) } label: {
                         HStack(spacing: 12) {
-                            ThreadPlate(seed: c.id, category: prof.categories?.first, showLabel: false)
+                            PlaceholderImage(kind: .workbench)
                                 .frame(width: 56, height: 56)
                                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                             VStack(alignment: .leading, spacing: 3) {

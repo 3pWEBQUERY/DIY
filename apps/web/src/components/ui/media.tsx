@@ -1,7 +1,4 @@
-import { useId } from "react";
-import { categoryBySlug } from "@werkraum/shared";
 import { cn } from "@/lib/utils";
-import { Glyph } from "./glyphs";
 
 export type Variants = Partial<Record<"sm" | "md" | "lg" | "thumb", string>> & { original?: string };
 
@@ -46,93 +43,72 @@ export function MediaImage({
   );
 }
 
-function hash(s: string) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  return h >>> 0;
-}
+export type PlaceholderKind = "project" | "workbench" | "article" | "community" | "tutorial" | "product";
 
-const PLATE_TONES = [
-  { bg: "#F3EFEB", ink: "#262427", accent: "#B64B3A" },
-  { bg: "#F6E5E0", ink: "#973B2C", accent: "#B64B3A" },
-  { bg: "#F6E5E0", ink: "#973B2C", accent: "#B64B3A" },
-  { bg: "#FFFFFF", ink: "#262427", accent: "#B64B3A" },
-];
+/** Bild je Inhaltstyp (public/placeholders) und Bildausschnitt für kleine, quadratische Vorschauen. */
+const PLACEHOLDERS: Record<PlaceholderKind, { file: string; focus: string }> = {
+  project: { file: "projekt", focus: "48% 50%" },
+  workbench: { file: "werkbank", focus: "50% 55%" },
+  article: { file: "artikel", focus: "52% 45%" },
+  community: { file: "community", focus: "50% 55%" },
+  // Ohne eigenes Motiv: Anleitungen zeigen das Werkzeug, Produkte und Shops die Werkstücke
+  tutorial: { file: "werkbank", focus: "50% 55%" },
+  product: { file: "community", focus: "50% 55%" },
+};
 
 /**
- * „Tafel“ – Platzhalter für Inhalte ohne Foto. Eine Werkzeichnung im Stil eines
- * Buchtafel-Drucks, deterministisch aus Titel + Kategorie. Kein Fake-Foto.
+ * Platzhalter für Inhalte ohne eigenes Bild – ein festes Motiv je Inhaltstyp.
+ * Füllt den nächsten positionierten Container vollständig aus.
  */
-export function Plate({ seed, category, label, className, number }: { seed: string; category?: string | null; label?: string; className?: string; number?: boolean }) {
-  const h = hash(seed);
-  // Eindeutige Muster-ID je Vorkommen (dieselbe Tafel kann mehrfach auf einer Seite stehen)
-  const gid = `g${h}${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
-  const tone = PLATE_TONES[h % PLATE_TONES.length]!;
-  const cat = categoryBySlug(category);
-  const rot = ((h >> 4) % 13) - 6;
-  const plateNo = String((h % 97) + 1).padStart(2, "0");
+export function Placeholder({ kind, className, sizes = "(min-width: 768px) 640px, 100vw" }: { kind: PlaceholderKind; className?: string; sizes?: string }) {
+  const p = PLACEHOLDERS[kind];
   return (
-    <div className={cn("relative h-full w-full overflow-hidden", className)} style={{ background: tone.bg, color: tone.ink }} aria-hidden>
-      <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-        <defs>
-          <pattern id={gid} width="6" height="6" patternUnits="userSpaceOnUse">
-            <path d="M6 0H0v6" fill="none" stroke={tone.ink} strokeOpacity="0.07" strokeWidth="0.25" />
-          </pattern>
-        </defs>
-        <rect width="100" height="100" fill={`url(#${gid})`} />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">
-        <div style={{ transform: `rotate(${rot}deg)`, width: "46%", aspectRatio: "1" }} className="relative">
-          <Glyph name={cat?.glyph ?? "spark"} size={400} className="h-full w-full" strokeWidth={1.3} />
-          <span className="absolute -right-2 top-1/2 h-px w-[22%] origin-left" style={{ background: tone.accent }} />
-        </div>
-      </div>
-      {number !== false && (
-        <div className="absolute left-3 top-3 font-mono text-[10px] uppercase tracking-[0.12em] opacity-70">
-          Tafel {plateNo}
-          {cat ? ` · ${cat.short}` : ""}
-        </div>
-      )}
-      {label && <div className="absolute bottom-3 left-3 right-3 truncate text-[13px] font-semibold opacity-80">{label}</div>}
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/placeholders/${p.file}-1280.webp`}
+      srcSet={`/placeholders/${p.file}-640.webp 640w, /placeholders/${p.file}-1280.webp 1280w`}
+      sizes={sizes}
+      alt=""
+      aria-hidden
+      loading="lazy"
+      decoding="async"
+      data-placeholder={kind}
+      className={cn("absolute inset-0 block h-full w-full object-cover", className)}
+      style={{ objectPosition: p.focus }}
+    />
   );
 }
 
-/** Cover: Foto, sonst Tafel. Feste Seitenverhältnisse je Komponente (§28.6). */
+/** Cover: Foto, sonst Platzhalter-Motiv des Inhaltstyps. Feste Seitenverhältnisse je Komponente (§28.6). */
 export function Cover({
   url,
   variants,
   alt,
-  seed,
-  category,
+  kind,
   ratio = "4/3",
   className,
   sizes,
   priority,
-  label,
-  plateNumber,
   fit = "cover",
 }: {
-  plateNumber?: boolean;
   /** „contain“: Bild vollständig zeigen statt formatfüllend beschneiden (Produktfotos) */
   fit?: "cover" | "contain";
   url?: string | null;
   variants?: Variants | null;
   alt: string;
-  seed: string;
-  category?: string | null;
+  /** Welches Platzhalter-Motiv ohne Bild erscheint */
+  kind: PlaceholderKind;
   ratio?: string;
   className?: string;
   sizes?: string;
   priority?: boolean;
-  label?: string;
 }) {
   return (
     <div className={cn("relative overflow-hidden rounded-2xl bg-sunken", className)} style={{ aspectRatio: ratio }}>
       {url || variants?.md ? (
         <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className={cn("zoom-media absolute inset-0", fit === "contain" && "object-contain")} />
       ) : (
-        <Plate seed={seed} category={category} label={label} number={plateNumber} className="zoom-media" />
+        <Placeholder kind={kind} sizes={sizes} className="zoom-media" />
       )}
     </div>
   );

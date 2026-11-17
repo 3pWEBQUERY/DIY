@@ -377,10 +377,10 @@ struct MarketShopCardView: View {
                 HStack(spacing: 4) {
                     let covers = Array((shop.covers ?? []).prefix(3))
                     if covers.isEmpty {
-                        CoverView(url: nil, seed: shop.id, category: nil, showLabel: false)
+                        CoverView(url: nil, seed: shop.id, category: nil, showLabel: false, kind: .product)
                     } else {
                         ForEach(covers, id: \.self) { c in
-                            CoverView(url: c.url, seed: c.id ?? shop.id, category: c.category, showLabel: false)
+                            CoverView(url: c.url, seed: c.id ?? shop.id, category: c.category, showLabel: false, kind: .product)
                         }
                     }
                 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MediaImage, Plate, type Variants } from "@/components/ui/media";
+import { MediaImage, Placeholder, type Variants } from "@/components/ui/media";
 import { cn } from "@/lib/utils";
 import { VideoPlayer } from "@/components/media/video";
 
@@ -11,7 +11,7 @@ type Item = { id: string; alt: string; variants: Variants; kind: string };
  * Produktgalerie: grosses Bild quadratisch und immer vollständig sichtbar (object-contain – Hoch- und
  * Querformate werden nicht beschnitten), nummerierte Miniaturen (Tafel-Nummern statt Punkte).
  */
-export function ProductGallery({ items, seed, category, title }: { items: Item[]; seed: string; category: string; title: string }) {
+export function ProductGallery({ items, title }: { items: Item[]; title: string }) {
   const [idx, setIdx] = useState(0);
   const current = items[idx];
   return (
@@ -24,7 +24,7 @@ export function ProductGallery({ items, seed, category, title }: { items: Item[]
             <MediaImage variants={current.variants} alt={current.alt || title} priority sizes="(min-width: 1024px) 640px, 100vw" className="absolute inset-0 object-contain" />
           )
         ) : (
-          <Plate seed={seed} category={category} label={title} />
+          <Placeholder kind="product" />
         )}
         {items.length > 1 && (
           <span className="absolute right-3 top-3 bg-ink/85 px-2 py-0.5 font-mono text-[11px] text-paper rounded-2xl" aria-hidden>

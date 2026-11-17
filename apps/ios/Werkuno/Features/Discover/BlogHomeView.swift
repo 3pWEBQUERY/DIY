@@ -182,7 +182,7 @@ struct BlogHomeView: View {
     private func heroCard(_ a: ArticleCard) -> some View {
         Button { open(a) } label: {
             VStack(alignment: .leading, spacing: 12) {
-                CoverView(url: a.coverUrl, seed: a.id, category: nil, animated: true)
+                CoverView(url: a.coverUrl, seed: a.id, category: nil, animated: true, kind: .article)
                     .frame(height: 250)
                     .frame(maxWidth: .infinity)
                     .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
@@ -218,7 +218,7 @@ struct BlogHomeView: View {
     private func secondaryCard(_ a: ArticleCard) -> some View {
         Button { open(a) } label: {
             VStack(alignment: .leading, spacing: 8) {
-                CoverView(url: a.coverUrl, seed: a.id, category: nil, showLabel: false)
+                CoverView(url: a.coverUrl, seed: a.id, category: nil, showLabel: false, kind: .article)
                     .frame(height: 120)
                     .frame(maxWidth: .infinity)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))

@@ -5,7 +5,7 @@ import { formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { listBuyerOrders } from "@/server/commerce/orders";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/commerce/order-parts";
-import { Plate } from "@/components/ui/media";
+import { Placeholder } from "@/components/ui/media";
 import { Empty } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
@@ -42,7 +42,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={first.product.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     ) : (
-                      <Plate seed={o.id} category={first?.product.category} number={false} />
+                      <Placeholder kind="product" />
                     )}
                   </div>
                   <div className="min-w-0">

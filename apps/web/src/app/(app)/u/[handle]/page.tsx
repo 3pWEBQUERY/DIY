@@ -235,7 +235,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                     <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3">
                       {products.map((p) => (
                         <Link key={p.id} href={`/markt/${profile.user.shop!.slug}/${p.slug}`} className="group">
-                          <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="1/1" fit="contain" />
+                          <Cover url={p.coverUrl} alt="" kind="product" ratio="1/1" fit="contain" />
                           <p className="mt-2 text-sm font-semibold group-hover:underline">{p.title}</p>
                           <p className="font-mono text-xs text-muted">{p.status === "SOLD_OUT" ? "Ausverkauft" : formatMoney(p.priceMinor, p.currency as Currency)}</p>
                         </Link>

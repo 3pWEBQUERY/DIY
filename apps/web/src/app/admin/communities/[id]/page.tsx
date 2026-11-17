@@ -88,7 +88,7 @@ export default async function CommunityDetailPage({ params, searchParams }: { pa
 
       <header className="mb-8 flex flex-wrap items-end justify-between gap-6 border-b border-rule pb-5">
         <div className="flex items-center gap-4">
-          <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="1/1" className="w-16 shrink-0 rounded-2xl border border-line" sizes="64px" />
+          <Cover url={c.coverUrl} alt="" kind="community" ratio="1/1" className="w-16 shrink-0 rounded-2xl border border-line" sizes="64px" />
           <div className="min-w-0">
             <p className="spec mb-1">Community · {c.id}</p>
             <h1 className="display text-[2.2rem]">{c.name}</h1>

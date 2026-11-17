@@ -14,7 +14,7 @@ import { Composer } from "@/components/social/composer";
 import { FeedList } from "@/components/social/feed-list";
 import { FollowButton } from "@/components/social/actions";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
-import { Plate } from "@/components/ui/media";
+import { Placeholder } from "@/components/ui/media";
 import { LinkButton } from "@/components/ui/button";
 import { relativeTime } from "@/lib/utils";
 import { getSetting } from "@/server/settings";
@@ -62,7 +62,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     ) : (
-                      <Plate seed={p.id} category={p.category} number={false} />
+                      <Placeholder kind="workbench" />
                     )}
                   </div>
                   <div className="min-w-0">

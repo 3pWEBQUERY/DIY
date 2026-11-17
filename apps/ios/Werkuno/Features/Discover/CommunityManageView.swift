@@ -173,7 +173,7 @@ struct CommunityManageView: View {
         List {
             Section {
                 HStack(spacing: 12) {
-                    CoverView(url: p.community.coverUrl, seed: p.community.id, category: p.community.category, showLabel: false)
+                    CoverView(url: p.community.coverUrl, seed: p.community.id, category: p.community.category, showLabel: false, kind: .community)
                         .frame(width: 54, height: 54)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {

@@ -463,7 +463,7 @@ struct StudioTutorialsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Button { router.open(.tutorial(slug: t.slug)) } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    CoverView(url: nil, seed: t.id, category: t.category, showLabel: false)
+                    CoverView(url: nil, seed: t.id, category: t.category, showLabel: false, kind: .tutorial)
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {
@@ -569,7 +569,7 @@ struct StudioArticlesView: View {
                 if a.state == "PUBLISHED", let h = app.handle { router.open(.article(handle: h, slug: a.slug)) } else { router.present(.articleEditor(id: a.id)) }
             } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    CoverView(url: a.coverUrl, seed: a.id, category: nil, showLabel: false)
+                    CoverView(url: a.coverUrl, seed: a.id, category: nil, showLabel: false, kind: .article)
                         .frame(width: 72, height: 72)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {

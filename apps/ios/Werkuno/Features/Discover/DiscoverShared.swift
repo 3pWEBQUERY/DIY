@@ -203,7 +203,7 @@ struct BlogMagazineRow: View {
                     .foregroundStyle(Color.muted)
                 }
                 Spacer(minLength: 0)
-                CoverView(url: article.coverUrl, seed: article.id, category: nil, showLabel: false)
+                CoverView(url: article.coverUrl, seed: article.id, category: nil, showLabel: false, kind: .article)
                     .frame(width: 86, height: 86)
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
             }

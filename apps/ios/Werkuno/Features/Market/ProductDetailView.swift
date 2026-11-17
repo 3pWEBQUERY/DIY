@@ -124,14 +124,14 @@ struct ProductDetailView: View {
     @ViewBuilder private func gallery(_ p: MarketProductPage) -> some View {
         let media = p.mediaItems
         if media.isEmpty {
-            CoverView(url: p.coverUrl, seed: p.id, category: p.category, animated: true)
+            CoverView(url: p.coverUrl, seed: p.id, category: p.category, animated: true, kind: .product)
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: .infinity)
         } else {
             TabView {
                 ForEach(media) { m in
                     // Vollständig sichtbar (wie im Web): Hoch- und Querformate nicht beschneiden
-                    RemoteImage(path: m.displayURL, contentMode: .fit) { ThreadPlate(seed: p.id, category: p.category) }
+                    RemoteImage(path: m.displayURL, contentMode: .fit) { PlaceholderImage(kind: .product) }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .contentShape(.rect)
@@ -310,7 +310,7 @@ struct ProductDetailView: View {
                     }
                 }
                 if let t = p.tutorial {
-                    LinkedThreadRow(kicker: "Anleitung", title: t.title, seed: t.id, category: t.category, url: t.coverUrl) {
+                    LinkedThreadRow(kicker: "Anleitung", title: t.title, seed: t.id, category: t.category, url: t.coverUrl, kind: .tutorial) {
                         router.open(.tutorial(slug: t.slug))
                     }
                 }

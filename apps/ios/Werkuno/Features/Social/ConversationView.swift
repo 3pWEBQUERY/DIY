@@ -879,7 +879,7 @@ struct SocialThreadContextCard: View {
     }
 
     private func thumb(_ url: String?, seed: String) -> some View {
-        CoverView(url: url, seed: seed, category: nil, showLabel: false)
+        CoverView(url: url, seed: seed, category: nil, showLabel: false, kind: .product)
             .clipShape(.rect(cornerRadius: 9, style: .continuous))
     }
 }

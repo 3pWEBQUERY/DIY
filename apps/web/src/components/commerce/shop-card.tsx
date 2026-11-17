@@ -31,7 +31,7 @@ export function ShopCard({ shop, className }: { shop: ShopCardProps; className?:
     <article className={cn("group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition-colors duration-200 hover:border-rule-strong", className)}>
       <div className="grid aspect-[16/10] grid-cols-[2fr_1fr] grid-rows-2 gap-0.5 bg-line">
         {tiles.map((t, i) => (
-          <Cover key={t.id} url={t.url} alt="" seed={t.id} category={t.category} ratio="auto" sizes={i === 0 ? "320px" : "160px"} className={cn("h-full rounded-none", i === 0 && "row-span-2")} plateNumber={false} />
+          <Cover key={t.id} url={t.url} alt="" kind="product" ratio="auto" sizes={i === 0 ? "320px" : "160px"} className={cn("h-full rounded-none", i === 0 && "row-span-2")} />
         ))}
       </div>
       <div className="flex flex-1 flex-col p-4">

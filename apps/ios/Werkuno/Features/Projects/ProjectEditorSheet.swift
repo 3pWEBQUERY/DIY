@@ -215,13 +215,13 @@ struct ProjectEditorSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Galerie & Titelbild").font(.headlineSerif)
-                Text("Zeig dein Projekt – Skizzen, Zwischenstände, das fertige Stück. Ohne Bilder bekommt es eine eigene Faden-Tafel.")
+                Text("Zeig dein Projekt – Skizzen, Zwischenstände, das fertige Stück. Ohne Bilder bekommt es ein Platzhalterbild.")
                     .font(.wr(.subheadline)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
             MediaPickerField(items: $media, maxCount: 30, title: "Bilder", coverHint: true)
             if let e = errors["media"] ?? errors["coverMediaId"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
             if media.isEmpty {
-                ThreadPlate(seed: projectId ?? title.nilIfEmpty ?? "neu", category: category.nilIfEmpty, animated: true)
+                PlaceholderImage(kind: .project)
                     .frame(height: 180)
                     .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
                     .overlay(alignment: .bottomLeading) {

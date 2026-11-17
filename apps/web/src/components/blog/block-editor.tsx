@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import type { ArticleBlock, ArticleBlockType } from "@werkraum/shared";
 import { uploadFile } from "@/components/media/uploader";
-import { Plate } from "@/components/ui/media";
+import { Placeholder } from "@/components/ui/media";
 import { Kbd } from "@/components/ui/misc";
 import { cn, pad } from "@/lib/utils";
 
@@ -1043,7 +1043,7 @@ function EmbedBlock({ kind, id, title, blockKey, onPick }: { kind: "project" | "
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={h.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                 ) : (
-                  <Plate seed={h.id} category={h.category} number={false} />
+                  <Placeholder kind={kind} />
                 )}
               </span>
               <span className="min-w-0">

@@ -170,16 +170,16 @@ struct PostDetailView: View {
             LinkedThreadRow(kicker: "Projekt · \(L.projectStatus(p.status))", title: p.title, seed: p.id, category: p.category, url: p.coverUrl) { router.open(.project(handle: h, slug: p.slug)) }
         }
         if let t = post.tutorial {
-            LinkedThreadRow(kicker: "Anleitung · \(Fmt.minutes(t.minutes))", title: t.title, seed: t.id, category: t.category, url: t.coverUrl) { router.open(.tutorial(slug: t.slug)) }
+            LinkedThreadRow(kicker: "Anleitung · \(Fmt.minutes(t.minutes))", title: t.title, seed: t.id, category: t.category, url: t.coverUrl, kind: .tutorial) { router.open(.tutorial(slug: t.slug)) }
         }
         if let pr = post.product, let shop = pr.shopSlug ?? pr.shop?.slug, let slug = pr.slug {
-            LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl) { router.open(.product(shopSlug: shop, productSlug: slug)) }
+            LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl, kind: .product) { router.open(.product(shopSlug: shop, productSlug: slug)) }
         }
         if let a = post.article {
-            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl) { router.open(href: a.href) }
+            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) { router.open(href: a.href) }
         }
         if let c = post.community {
-            LinkedThreadRow(kicker: "Community", title: c.name, seed: c.id ?? c.slug, category: post.category, url: nil) { router.open(.community(slug: c.slug)) }
+            LinkedThreadRow(kicker: "Community", title: c.name, seed: c.id ?? c.slug, category: post.category, url: nil, kind: .community) { router.open(.community(slug: c.slug)) }
         }
     }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { MediaImage, Plate, type Variants } from "@/components/ui/media";
+import { MediaImage, Placeholder, type Variants } from "@/components/ui/media";
 import { cn, pad } from "@/lib/utils";
 import { VideoPlayer } from "@/components/media/video";
 
@@ -9,17 +9,17 @@ type Item = { id: string; alt: string; caption?: string; kind: "IMAGE" | "VIDEO"
 
 /**
  * Projektgalerie: grosses Bild + Kontaktbogen (Thumbnails). Pfeiltasten wechseln das Bild.
- * Ohne Medien erscheint eine Tafel (kein Fake-Foto).
+ * Ohne Medien erscheint das Projekt-Platzhalterbild.
  */
-export function ProjectGallery({ items, title, seed, category, initialId }: { items: Item[]; title: string; seed: string; category: string; initialId?: string | null }) {
+export function ProjectGallery({ items, title, initialId }: { items: Item[]; title: string; initialId?: string | null }) {
   const start = Math.max(0, items.findIndex((i) => i.id === initialId));
   const [idx, setIdx] = useState(start);
   const cur = items[idx];
 
   if (!cur) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-line" style={{ aspectRatio: "4/3" }}>
-        <Plate seed={seed} category={category} label={title} />
+      <div className="relative overflow-hidden rounded-2xl border border-line" style={{ aspectRatio: "4/3" }}>
+        <Placeholder kind="project" />
       </div>
     );
   }

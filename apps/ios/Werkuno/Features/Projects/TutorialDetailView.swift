@@ -76,7 +76,7 @@ struct TutorialDetailView: View {
     private func content(_ t: TutorialPage) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                CoverView(url: t.coverUrl, seed: t.id, category: t.category, animated: true)
+                CoverView(url: t.coverUrl, seed: t.id, category: t.category, animated: true, kind: .tutorial)
                     .frame(height: 300)
                     .frame(maxWidth: .infinity)
                     .clipped()
@@ -329,7 +329,7 @@ struct TutorialDetailView: View {
                         }
                     }
                     ForEach(products) { pr in
-                        LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.soldOut == true ? " · Ausverkauft" : "")", title: pr.title, seed: pr.id, category: t.category, url: pr.coverUrl) {
+                        LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.soldOut == true ? " · Ausverkauft" : "")", title: pr.title, seed: pr.id, category: t.category, url: pr.coverUrl, kind: .product) {
                             router.open(href: pr.href)
                         }
                     }

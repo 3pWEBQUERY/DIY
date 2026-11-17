@@ -87,9 +87,9 @@ struct ShopView: View {
             HStack(spacing: 3) {
                 let covers = Array(products.prefix(3))
                 if covers.isEmpty {
-                    ThreadPlate(seed: s.id, category: nil, glyph: "loop", animated: true)
+                    PlaceholderImage(kind: .product)
                 } else {
-                    ForEach(covers) { p in CoverView(url: p.imageURL, seed: p.id, category: p.category, showLabel: false) }
+                    ForEach(covers) { p in CoverView(url: p.imageURL, seed: p.id, category: p.category, showLabel: false, kind: .product) }
                 }
             }
             .frame(height: 170)

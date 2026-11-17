@@ -171,7 +171,7 @@ struct CartView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 Button { router.open(href: l.href) } label: {
-                    CoverView(url: l.cover?.best, seed: l.productId, category: l.category, showLabel: false)
+                    CoverView(url: l.cover?.best, seed: l.productId, category: l.category, showLabel: false, kind: .product)
                         .frame(width: 72, height: 72)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 }

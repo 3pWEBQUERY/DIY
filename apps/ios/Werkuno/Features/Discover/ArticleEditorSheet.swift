@@ -332,7 +332,7 @@ struct ArticleEditorSheet: View {
 
     private var coverRow: some View {
         HStack(spacing: 12) {
-            CoverView(url: coverRemoved ? nil : coverURL, seed: articleId ?? (title.nilIfEmpty ?? "artikel"), category: nil, showLabel: false)
+            CoverView(url: coverRemoved ? nil : coverURL, seed: articleId ?? (title.nilIfEmpty ?? "artikel"), category: nil, showLabel: false, kind: .article)
                 .frame(width: 88, height: 66)
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
             VStack(alignment: .leading, spacing: 6) {
@@ -580,7 +580,7 @@ struct ArticleEditorSheet: View {
     private var previewPane: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                CoverView(url: coverRemoved ? nil : coverURL, seed: articleId ?? (title.nilIfEmpty ?? "artikel"), category: nil)
+                CoverView(url: coverRemoved ? nil : coverURL, seed: articleId ?? (title.nilIfEmpty ?? "artikel"), category: nil, kind: .article)
                     .frame(height: 220)
                     .frame(maxWidth: .infinity)
                     .clipped()
@@ -841,7 +841,7 @@ struct BlogEmbedPicker: View {
                             dismiss()
                         } label: {
                             HStack(spacing: 12) {
-                                CoverView(url: o.coverUrl, seed: o.id, category: o.category, showLabel: false)
+                                CoverView(url: o.coverUrl, seed: o.id, category: o.category, showLabel: false, kind: PlaceholderKind(searchType: kind))
                                     .frame(width: 44, height: 44)
                                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                                 VStack(alignment: .leading, spacing: 2) {

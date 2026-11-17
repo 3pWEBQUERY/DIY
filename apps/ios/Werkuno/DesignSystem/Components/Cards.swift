@@ -117,7 +117,7 @@ struct TutorialCardView: View {
     var body: some View {
         Button { router.open(.tutorial(slug: tutorial.slug)) } label: {
             HStack(alignment: .top, spacing: 12) {
-                CoverView(url: tutorial.coverUrl, seed: tutorial.id, category: tutorial.category, showLabel: false)
+                CoverView(url: tutorial.coverUrl, seed: tutorial.id, category: tutorial.category, showLabel: false, kind: .tutorial)
                     .frame(width: compact ? 64 : 92, height: compact ? 64 : 112)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                     .overlay(alignment: .bottomLeading) {
@@ -158,7 +158,7 @@ struct ProductCardView: View {
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 // Produktfotos vollständig zeigen (wie im Web) – nichts abschneiden
-                CoverView(url: product.imageURL, seed: product.id, category: product.category, showLabel: false, contentMode: .fit)
+                CoverView(url: product.imageURL, seed: product.id, category: product.category, showLabel: false, contentMode: .fit, kind: .product)
                     .aspectRatio(1, contentMode: .fit)
                     .background(Color.sunken)
                     .overlay(alignment: .topLeading) {
@@ -196,7 +196,7 @@ struct CommunityCardView: View {
     var body: some View {
         Button { router.open(.community(slug: community.slug)) } label: {
             HStack(spacing: 12) {
-                CoverView(url: community.coverUrl, seed: community.id, category: community.category, showLabel: false)
+                CoverView(url: community.coverUrl, seed: community.id, category: community.category, showLabel: false, kind: .community)
                     .frame(width: 56, height: 56)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 VStack(alignment: .leading, spacing: 3) {
@@ -232,7 +232,7 @@ struct ArticleCardView: View {
             if let h = article.author?.handle { router.open(.article(handle: h, slug: article.slug)) }
         } label: {
             VStack(alignment: .leading, spacing: 10) {
-                CoverView(url: article.coverUrl, seed: article.id, category: nil, showLabel: false)
+                CoverView(url: article.coverUrl, seed: article.id, category: nil, showLabel: false, kind: .article)
                     .frame(height: large ? 200 : 130)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 SpecLabel([article.category?.name, article.readingMinutes.map { "\($0) Min. Lesezeit" }].compactMap { $0 }.joined(separator: " · "), color: .clay)

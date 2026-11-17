@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, Info, Lightbulb, TriangleAlert } from "lucide-react";
 import { DIFFICULTY_LABEL, PROJECT_STATUS_LABEL, PRODUCT_KIND_LABEL, categoryBySlug, formatMoney, type ArticleBlock, type Currency } from "@werkraum/shared";
 import { resolveEmbeds, type ResolvedEmbeds } from "@/server/blog/service";
-import { MediaImage, Plate } from "@/components/ui/media";
+import { MediaImage, Placeholder, type PlaceholderKind } from "@/components/ui/media";
 import { Difficulty } from "@/components/ui/misc";
 import { cn, formatMinutes, slugify } from "@/lib/utils";
 import { InlineText } from "./inline";
@@ -46,12 +46,12 @@ function EmbedShell({ href, kicker, title, meta, cover, accent = "ink", children
   );
 }
 
-function coverOf(url: string | null, seed: string, category: string | null) {
+function coverOf(url: string | null, kind: PlaceholderKind) {
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
   ) : (
-    <Plate seed={seed} category={category} number={false} />
+    <Placeholder kind={kind} />
   );
 }
 
@@ -178,7 +178,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
           href={p.href}
           kicker={`Projekt · ${PROJECT_STATUS_LABEL[p.status]}`}
           title={p.title}
-          cover={coverOf(p.coverUrl, p.id, p.category)}
+          cover={coverOf(p.coverUrl, "project")}
           meta={
             <>
               <span>von {p.owner.profile?.displayName}</span>
@@ -197,7 +197,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
           href={t.href}
           kicker="Anleitung"
           title={t.title}
-          cover={coverOf(t.coverUrl, t.id, t.category)}
+          cover={coverOf(t.coverUrl, "tutorial")}
           meta={
             <>
               {t.minutes != null && <span>{formatMinutes(t.minutes)}</span>}
@@ -219,7 +219,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
           accent="clay"
           kicker={`Im Shop von ${p.shop.name}`}
           title={p.title}
-          cover={coverOf(p.coverUrl, p.id, p.category)}
+          cover={coverOf(p.coverUrl, "product")}
           meta={
             <>
               <span className="font-mono font-semibold text-ink">{formatMoney(p.priceMinor, p.currency as Currency)}</span>

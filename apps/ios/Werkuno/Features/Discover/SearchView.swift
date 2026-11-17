@@ -419,7 +419,7 @@ struct DiscoverSearchHitRow: View {
             Image(systemName: "text.bubble").font(.wr(.title3)).foregroundStyle(Color.moss)
                 .frame(width: 46, height: 46).background(Color.mossSoft, in: .rect(cornerRadius: Radius.small, style: .continuous))
         default:
-            CoverView(url: hit.cover, seed: hit.id, category: hit.category, showLabel: false)
+            CoverView(url: hit.cover, seed: hit.id, category: hit.category, showLabel: false, kind: PlaceholderKind(searchType: hit.type))
                 .frame(width: 46, height: 46)
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
         }

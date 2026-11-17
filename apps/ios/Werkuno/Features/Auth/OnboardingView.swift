@@ -212,7 +212,7 @@ struct OnboardingView: View {
                         VStack(spacing: 12) {
                             ForEach(s.communities) { c in
                                 HStack(spacing: 12) {
-                                    CoverView(url: c.coverUrl, seed: c.id, category: c.category, showLabel: false).frame(width: 44, height: 44).clipShape(.rect(cornerRadius: 12, style: .continuous))
+                                    CoverView(url: c.coverUrl, seed: c.id, category: c.category, showLabel: false, kind: .community).frame(width: 44, height: 44).clipShape(.rect(cornerRadius: 12, style: .continuous))
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(c.name).font(.wr(.subheadline, .semibold))
                                         Text(Fmt.plural(c.memberCount ?? 0, "Mitglied", "Mitglieder")).font(.wr(.caption)).foregroundStyle(Color.muted)

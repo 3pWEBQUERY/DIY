@@ -32,7 +32,7 @@ function Lead({ t }: { t: TutorialCardData }) {
   return (
     <Link href={t.href} className="group mb-14 grid gap-6 border-b border-rule pb-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-10">
       <div className="crop border border-line rounded-2xl">
-        <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="16/10" priority sizes="(min-width: 1024px) 680px, 100vw" />
+        <Cover url={t.coverUrl} alt="" kind="tutorial" ratio="16/10" priority sizes="(min-width: 1024px) 680px, 100vw" />
       </div>
       <div className="flex min-w-0 flex-col justify-end">
         <p className="spec">Aufmacher · {cat?.name ?? "Anleitung"}</p>

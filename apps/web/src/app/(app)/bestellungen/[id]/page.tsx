@@ -9,7 +9,7 @@ import { canReview, canTransition } from "@/server/commerce/rules";
 import { AddressBlock, FeeSummary, OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from "@/components/commerce/order-parts";
 import { ConfirmReceiptButton, ReportProblemButton, ReviewForm } from "@/components/commerce/buyer-order-actions";
 import { AbandonOrderButton, ResumePaymentButton } from "@/components/commerce/payment-actions";
-import { Plate } from "@/components/ui/media";
+import { Placeholder } from "@/components/ui/media";
 import { Notice, SectionTitle } from "@/components/ui/misc";
 import { buttonClass } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
@@ -105,7 +105,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={it.product.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         ) : (
-                          <Plate seed={it.productId} category={it.product.category} number={false} />
+                          <Placeholder kind="product" />
                         )}
                       </Link>
                       <div className="min-w-0">

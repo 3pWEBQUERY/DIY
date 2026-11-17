@@ -54,7 +54,7 @@ struct MeSavedEntryCard: View {
         case .product(let p):
             Button { router.open(href: p.href) } label: {
                 HStack(spacing: 12) {
-                    CoverView(url: p.coverUrl, seed: p.id, category: nil, showLabel: false)
+                    CoverView(url: p.coverUrl, seed: p.id, category: nil, showLabel: false, kind: .product)
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
@@ -75,7 +75,7 @@ struct MeSavedEntryCard: View {
         case .article(let a):
             Button { router.open(href: a.href) } label: {
                 HStack(spacing: 12) {
-                    CoverView(url: a.coverUrl, seed: a.id, category: nil, showLabel: false)
+                    CoverView(url: a.coverUrl, seed: a.id, category: nil, showLabel: false, kind: .article)
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
@@ -209,7 +209,7 @@ struct SavedView: View {
     private func collectionCard(_ c: MeCollectionSummary) -> some View {
         Button { router.open(.collection(id: c.id)) } label: {
             VStack(alignment: .leading, spacing: 8) {
-                ThreadPlate(seed: c.id, category: app.me?.profile?.categories?.first, showLabel: false)
+                PlaceholderImage(kind: .workbench)
                     .frame(width: 150, height: 84)
                     .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                     .overlay(alignment: .topTrailing) {

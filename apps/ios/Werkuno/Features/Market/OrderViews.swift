@@ -63,7 +63,7 @@ struct MarketOrderRow: View {
         Button(action: action) {
             HStack(alignment: .top, spacing: 12) {
                 let first = order.items?.first
-                CoverView(url: first?.product?.coverUrl, seed: order.id, category: first?.product?.category, showLabel: false)
+                CoverView(url: first?.product?.coverUrl, seed: order.id, category: first?.product?.category, showLabel: false, kind: .product)
                     .frame(width: 58, height: 58)
                     .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
@@ -286,7 +286,7 @@ struct OrderDetailView: View {
                 Button {
                     if let p = i.product?.slug { router.open(.product(shopSlug: i.product?.shop?.slug ?? o.shop.slug, productSlug: p)) }
                 } label: {
-                    CoverView(url: i.product?.coverUrl, seed: i.productId ?? i.id, category: i.product?.category, showLabel: false)
+                    CoverView(url: i.product?.coverUrl, seed: i.productId ?? i.id, category: i.product?.category, showLabel: false, kind: .product)
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 }

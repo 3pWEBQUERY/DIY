@@ -18,7 +18,7 @@ import { ProductSafetyMenu } from "@/components/commerce/product-menu";
 import { ProductGrid, RatingInline } from "@/components/commerce/product-card";
 import { SaveButton, ShareButton } from "@/components/social/actions";
 import { Avatar, Badge, Difficulty, Notice, SectionTitle } from "@/components/ui/misc";
-import { Plate, type Variants } from "@/components/ui/media";
+import { Placeholder, type Variants } from "@/components/ui/media";
 import { formatMinutes, relativeTime } from "@/lib/utils";
 import { ReviewReply } from "@/components/commerce/review-reply";
 
@@ -116,7 +116,7 @@ export default async function ProductPage({ params }: Params) {
       )}
 
       <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
-        <ProductGallery items={gallery} seed={p.id} category={p.category} title={p.title} />
+        <ProductGallery items={gallery} title={p.title} />
 
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-3">
@@ -250,7 +250,7 @@ export default async function ProductPage({ params }: Params) {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.project.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         ) : (
-                          <Plate seed={p.project.id} category={p.project.category} number={false} />
+                          <Placeholder kind="project" />
                         )}
                       </div>
                       <div className="min-w-0 px-4 py-3">

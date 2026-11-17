@@ -8,7 +8,7 @@ import { CoauthorDialog, leaveCoauthor } from "./coauthor-dialog";
 import { PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import type { PostView } from "@/server/social/posts";
 import { Avatar, Badge } from "@/components/ui/misc";
-import { MediaImage, Plate } from "@/components/ui/media";
+import { MediaImage, Placeholder } from "@/components/ui/media";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
@@ -119,7 +119,7 @@ function ProjectLink({ p }: { p: NonNullable<PostView["project"]> }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={p.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <Plate seed={p.id} category={p.category} number={false} />
+          <Placeholder kind="project" />
         )}
       </div>
       <div className="min-w-0 flex-1 px-3.5 py-2.5">
@@ -268,7 +268,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={post.product.coverUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-contain" />
               ) : (
-                <Plate seed={post.product.id} number={false} />
+                <Placeholder kind="product" />
               )}
             </span>
             <span className="min-w-0 flex-1">

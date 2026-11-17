@@ -205,7 +205,7 @@ struct TutorialEditorSheet: View {
             ProjectsField(label: "Titelbild", error: errors["coverMediaId"]) {
                 HStack(spacing: 14) {
                     SingleImagePicker(onUploaded: { id, url in coverId = id; coverPreview = url }) {
-                        CoverView(url: coverPreview, seed: tutorialId ?? title.nilIfEmpty ?? "neu", category: category.nilIfEmpty, showLabel: false)
+                        CoverView(url: coverPreview, seed: tutorialId ?? title.nilIfEmpty ?? "neu", category: category.nilIfEmpty, showLabel: false, kind: .tutorial)
                             .frame(width: 120, height: 90)
                             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                             .overlay(alignment: .bottomTrailing) {
@@ -214,7 +214,7 @@ struct TutorialEditorSheet: View {
                     }
                     .accessibilityLabel(coverId == nil ? "Titelbild wählen" : "Titelbild ändern")
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(coverId == nil ? "Ohne Titelbild zeigen wir eine Faden-Tafel." : "Titelbild gesetzt.").font(.wr(.footnote)).foregroundStyle(Color.muted)
+                        Text(coverId == nil ? "Ohne Titelbild zeigen wir ein Platzhalterbild." : "Titelbild gesetzt.").font(.wr(.footnote)).foregroundStyle(Color.muted)
                         if coverId != nil {
                             Button("Entfernen", role: .destructive) { coverId = nil; coverPreview = nil }.font(.wr(.footnote, .semibold))
                         }

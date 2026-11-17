@@ -118,11 +118,10 @@ struct ProjectDetailView: View {
 
     @ViewBuilder private func hero(_ p: ProjectPage) -> some View {
         let media = p.galleryItems
-        let color = CategoryPalette.color(for: p.category)
         if !media.isEmpty {
             TabView(selection: $heroIndex) {
                 ForEach(Array(media.enumerated()), id: \.element.id) { i, m in
-                    RemoteImage(path: m.displayURL) { ThreadPlate(seed: p.id, category: p.category) }
+                    RemoteImage(path: m.displayURL) { PlaceholderImage(kind: .project) }
                         .frame(maxWidth: .infinity)
                         .clipped()
                         .overlay { if m.isVideo { Image(systemName: "play.circle.fill").font(.wr(size: 54)).foregroundStyle(.white.opacity(0.9)) } }
@@ -147,30 +146,15 @@ struct ProjectDetailView: View {
                 }
             }
         } else if let c = p.coverUrl {
-            RemoteImage(path: c) { ThreadPlate(seed: p.id, category: p.category) }
+            RemoteImage(path: c) { PlaceholderImage(kind: .project) }
                 .frame(maxWidth: .infinity)
                 .frame(height: 400)
                 .clipped()
                 .accessibilityLabel("Titelbild von \(p.title)")
         } else {
-            ZStack(alignment: .bottomLeading) {
-                ThreadPlate(seed: p.id, category: p.category, showLabel: false, lineWidth: 0.8)
-                    .opacity(0.35)
-                ThreeCanvas(scene: .glyph(app.category(p.category)?.glyph, color: color, seed: Int(p.id.stableHash % 997)))
-                HStack {
-                    Text(String(format: "Nº %03d", Int(p.id.stableHash % 997)))
-                    Spacer()
-                    Text(app.categoryShort(p.category).uppercased())
-                }
-                .font(.wr(size: 10, weight: .semibold))
-                .tracking(1)
-                .foregroundStyle(color)
-                .padding(.horizontal, Space.gutter)
-                .padding(.bottom, 14)
-                .accessibilityHidden(true)
-            }
-            .frame(height: 340)
-            .background(CategoryPalette.soft(for: p.category))
+            PlaceholderImage(kind: .project)
+                .frame(maxWidth: .infinity)
+                .frame(height: 340)
         }
     }
 
@@ -452,25 +436,25 @@ struct ProjectDetailView: View {
                 ForEach(p.tutorials ?? []) { t in
                     LinkedThreadRow(
                         kicker: "Anleitung\(t.steps.map { " · \($0) Schritte" } ?? "")\(t.state == "DRAFT" ? " · Entwurf" : "")",
-                        title: t.title, seed: t.id, category: t.category ?? p.category, url: t.coverUrl
+                        title: t.title, seed: t.id, category: t.category ?? p.category, url: t.coverUrl, kind: .tutorial
                     ) { router.open(.tutorial(slug: t.slug)) }
                 }
                 ForEach(p.products ?? []) { pr in
                     LinkedThreadRow(
                         kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.soldOut == true ? " · Ausverkauft" : "")",
-                        title: pr.title, seed: pr.id, category: p.category, url: pr.coverUrl
+                        title: pr.title, seed: pr.id, category: p.category, url: pr.coverUrl, kind: .product
                     ) { router.open(href: pr.href) }
                 }
                 ForEach(p.articles ?? []) { a in
                     LinkedThreadRow(
                         kicker: "Artikel\(a.readingMinutes.map { " · \($0) Min. Lesezeit" } ?? "")",
-                        title: a.title, seed: a.id, category: p.category, url: a.coverUrl
+                        title: a.title, seed: a.id, category: p.category, url: a.coverUrl, kind: .article
                     ) { router.open(href: a.href) }
                 }
                 ForEach(p.posts ?? []) { post in
                     LinkedThreadRow(
                         kicker: "Beitrag · \(Fmt.relative(post.publishedAt))",
-                        title: post.excerpt?.nilIfEmpty ?? "Beitrag mit Medien", seed: post.id, category: p.category, url: nil
+                        title: post.excerpt?.nilIfEmpty ?? "Beitrag mit Medien", seed: post.id, category: p.category, url: nil, kind: .workbench
                     ) { router.open(.post(id: post.id)) }
                 }
                 if p.isOwner {

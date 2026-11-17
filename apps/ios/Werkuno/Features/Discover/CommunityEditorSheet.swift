@@ -88,7 +88,7 @@ struct CommunityEditorSheet: View {
         Form {
             Section {
                 ZStack(alignment: .bottomTrailing) {
-                    CoverView(url: coverRemoved ? nil : coverURL, seed: communityId ?? (name.nilIfEmpty ?? "neu"), category: category.nilIfEmpty)
+                    CoverView(url: coverRemoved ? nil : coverURL, seed: communityId ?? (name.nilIfEmpty ?? "neu"), category: category.nilIfEmpty, kind: .community)
                         .frame(height: 160)
                         .frame(maxWidth: .infinity)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
@@ -112,7 +112,7 @@ struct CommunityEditorSheet: View {
                     .padding(10)
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
-            } footer: { Text("Ohne Foto erhält deine Community eine eigene Faden-Tafel in der Kategoriefarbe.") }
+            } footer: { Text("Ohne Foto erhält deine Community ein Platzhalterbild.") }
 
             Section {
                 TextField("Name, z. B. „Häkelkreis Zürich“", text: $name)

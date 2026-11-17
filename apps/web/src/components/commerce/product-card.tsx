@@ -49,12 +49,10 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
     <article className={cn("group relative flex h-full flex-col", className)}>
       <div className="relative overflow-hidden rounded-2xl bg-sunken">
         <Cover
-          plateNumber={false}
           url={p.cover.url}
           variants={p.cover.variants}
           alt={p.cover.alt}
-          seed={p.id}
-          category={p.category}
+          kind="product"
           ratio="1/1"
           fit="contain"
           priority={priority}

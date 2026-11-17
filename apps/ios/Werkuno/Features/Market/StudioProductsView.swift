@@ -83,7 +83,7 @@ struct StudioProductsView: View {
         HStack(alignment: .top, spacing: 12) {
             Button { router.present(.productEditor(id: p.id)) } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    CoverView(url: p.imageURL, seed: p.id, category: p.category, showLabel: false)
+                    CoverView(url: p.imageURL, seed: p.id, category: p.category, showLabel: false, kind: .product)
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                     VStack(alignment: .leading, spacing: 5) {

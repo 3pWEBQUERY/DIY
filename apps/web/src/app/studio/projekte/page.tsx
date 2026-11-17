@@ -7,7 +7,7 @@ import { listStudioProjects } from "@/server/projects/service";
 import { PageHeader } from "@/components/shell/page";
 import { LinkButton } from "@/components/ui/button";
 import { Badge, Empty, Stat } from "@/components/ui/misc";
-import { Plate } from "@/components/ui/media";
+import { Placeholder } from "@/components/ui/media";
 import { StatusLabel } from "@/components/projects/status";
 import { compactNumber, relativeTime } from "@/lib/utils";
 
@@ -65,7 +65,7 @@ export default async function StudioProjects() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={r.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                           ) : (
-                            <Plate seed={r.id} category={r.category} number={false} />
+                            <Placeholder kind="project" />
                           )}
                         </span>
                         <span className="min-w-0">

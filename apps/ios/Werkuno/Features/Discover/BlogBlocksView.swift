@@ -152,11 +152,11 @@ struct BlogBlockView: View {
                 if let href = lp?.href { router.open(href: href) } else { router.open(.search(query: block.title ?? "")) }
             }
         case "tutorialCard":
-            embed(kicker: "Anleitung", title: block.title ?? "Anleitung", seed: block.tutorialId ?? block.id, category: nil, url: nil) {
+            embed(kicker: "Anleitung", title: block.title ?? "Anleitung", seed: block.tutorialId ?? block.id, category: nil, url: nil, kind: .tutorial) {
                 router.open(.search(query: block.title ?? ""))
             }
         case "productCard":
-            embed(kicker: "Produkt im Markt", title: block.title ?? "Produkt", seed: block.productId ?? block.id, category: nil, url: nil) {
+            embed(kicker: "Produkt im Markt", title: block.title ?? "Produkt", seed: block.productId ?? block.id, category: nil, url: nil, kind: .product) {
                 router.open(.search(query: block.title ?? ""))
             }
         case "divider":
@@ -172,8 +172,8 @@ struct BlogBlockView: View {
         }
     }
 
-    private func embed(kicker: String, title: String, seed: String, category: String?, url: String?, action: @escaping () -> Void) -> some View {
-        LinkedThreadRow(kicker: kicker, title: title, seed: seed, category: category, url: url, action: action)
+    private func embed(kicker: String, title: String, seed: String, category: String?, url: String?, kind: PlaceholderKind = .project, action: @escaping () -> Void) -> some View {
+        LinkedThreadRow(kicker: kicker, title: title, seed: seed, category: category, url: url, kind: kind, action: action)
             .padding(12)
             .cardSurface(radius: Radius.inner)
     }
@@ -191,7 +191,7 @@ struct BlogFigure: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             RemoteImage(path: url, contentMode: .fit) {
-                ThreadPlate(seed: seed, category: nil, showLabel: false).frame(height: 220)
+                PlaceholderImage(kind: .article).frame(height: 220)
             }
             .frame(maxWidth: .infinity)
             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
@@ -220,7 +220,7 @@ struct BlogGallery: View {
             LazyHStack(alignment: .top, spacing: 10) {
                 ForEach(images) { img in
                     VStack(alignment: .leading, spacing: 6) {
-                        RemoteImage(path: img.url) { ThreadPlate(seed: img.mediaId, category: nil, showLabel: false) }
+                        RemoteImage(path: img.url) { PlaceholderImage(kind: .article) }
                             .frame(height: 240)
                             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                             .contentShape(.rect)

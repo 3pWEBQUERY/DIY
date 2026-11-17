@@ -92,7 +92,7 @@ const projectHref = (p: LatestProject) => `/u/${p.owner.profile?.handle}/${p.slu
 function ShowcaseCard({ p }: { p: LatestProject }) {
   return (
     <Link href={projectHref(p)} className="zoom lift group flex w-[232px] shrink-0 flex-col rounded-2xl border border-line bg-card p-2 sm:w-[260px]">
-      <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="4/3" sizes="260px" className="rounded-[14px]" plateNumber={false} />
+      <Cover url={p.coverUrl} alt="" kind="project" ratio="4/3" sizes="260px" className="rounded-[14px]" />
       {/* Autor:in immer ganz unten – Karten im Laufband sind gleich hoch, egal wie viel Inhalt */}
       <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-3">
         <p className="flex items-center justify-between gap-2 text-[12px] text-muted">
@@ -119,7 +119,7 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
       className={cn("zoom group absolute block w-[300px] rounded-[22px] border border-line bg-card p-2.5 shadow-md transition-[translate,rotate,box-shadow] duration-500 ease-[var(--ease-out-quint)] hover:z-20 hover:shadow-float focus-visible:z-20 animate-rise", className)}
       style={{ animationDelay: delay }}
     >
-      <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="1/1" sizes="300px" className="rounded-[16px]" plateNumber={false} />
+      <Cover url={p.coverUrl} alt="" kind="project" ratio="1/1" sizes="300px" className="rounded-[16px]" />
       <div className="flex items-center gap-2.5 px-1.5 pb-1 pt-3">
         <Avatar src={p.owner.profile?.avatarUrl} name={p.owner.profile?.displayName ?? ""} size={28} />
         <span className="min-w-0">
@@ -768,7 +768,7 @@ export default async function Landing() {
                       <li key={p.id}>
                         <Link href={projectHref(p)} className="group flex items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-2.5 pr-4 transition-colors hover:border-white/25 hover:bg-white/[0.07]">
                           <span className="block w-[72px] shrink-0 overflow-hidden rounded-xl">
-                            <Cover url={p.coverUrl} alt="" seed={p.id} category={p.category} ratio="1/1" sizes="72px" plateNumber={false} />
+                            <Cover url={p.coverUrl} alt="" kind="workbench" ratio="1/1" sizes="72px" />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[15px] font-bold text-paper group-hover:underline">{p.title}</span>

@@ -169,7 +169,7 @@ struct SocialProfileReviews: View {
 
     private func given(_ r: SocialReview) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            CoverView(url: r.product?.coverUrl, seed: r.id, category: nil, showLabel: false)
+            CoverView(url: r.product?.coverUrl, seed: r.id, category: nil, showLabel: false, kind: .product)
                 .frame(width: 56, height: 56)
                 .clipShape(.rect(cornerRadius: Radius.small, style: .continuous))
                 .accessibilityHidden(true)

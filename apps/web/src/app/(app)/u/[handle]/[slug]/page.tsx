@@ -131,7 +131,7 @@ export default async function ProjectPage({ params }: Params) {
 
       {/* ───── Kopf: Galerie + Titelblock + Datenblatt ───── */}
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-12">
-        <ProjectGallery items={p.gallery} title={p.title} seed={p.id} category={p.category} initialId={p.cover?.id} />
+        <ProjectGallery items={p.gallery} title={p.title} initialId={p.cover?.id} />
 
         <div className="min-w-0">
           <p className="spec flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -250,7 +250,7 @@ export default async function ProjectPage({ params }: Params) {
                   {p.tutorials.map((t) => (
                     <Link key={t.id} href={t.state === "PUBLISHED" ? `/anleitungen/${t.slug}` : `/studio/anleitungen/${t.id}`} className="group grid gap-0 border border-line bg-card transition-colors hover:border-rule-strong sm:grid-cols-[14rem_1fr] rounded-2xl">
                       <div className="border-b border-line sm:border-b-0 sm:border-r">
-                        <Cover url={t.coverUrl} alt="" seed={`t-${t.id}`} category={t.category} ratio="3/2" sizes="224px" className="h-full" />
+                        <Cover url={t.coverUrl} alt="" kind="tutorial" ratio="3/2" sizes="224px" className="h-full" />
                       </div>
                       <div className="flex flex-col gap-3 p-5">
                         <p className="spec">

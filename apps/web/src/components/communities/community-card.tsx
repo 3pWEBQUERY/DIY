@@ -49,7 +49,7 @@ export function CommunityCard({ community: c, variant = "card", className }: { c
   if (variant === "row") {
     return (
       <Link href={`/c/${c.slug}`} className={cn("group flex items-center gap-4 py-3", className)}>
-        <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="1/1" className="w-14 shrink-0 border border-line rounded-2xl" sizes="56px" />
+        <Cover url={c.coverUrl} alt="" kind="community" ratio="1/1" className="w-14 shrink-0 border border-line rounded-2xl" sizes="56px" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold group-hover:underline">{c.name}</span>
           {meta}
@@ -64,7 +64,7 @@ export function CommunityCard({ community: c, variant = "card", className }: { c
 
   return (
     <article className={cn("group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-rule-strong", className)}>
-      <Cover url={c.coverUrl} alt="" seed={c.id} category={c.category} ratio="16/9" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="border-b border-line rounded-none" label={c.name} />
+      <Cover url={c.coverUrl} alt="" kind="community" ratio="16/9" sizes="(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw" className="border-b border-line rounded-none" />
       {c.isFeatured && <span className="absolute left-3 top-3 bg-ink px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-paper rounded-full">Empfohlen</span>}
       <div className="flex flex-1 flex-col p-4">
         {meta}

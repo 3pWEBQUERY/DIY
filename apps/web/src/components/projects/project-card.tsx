@@ -71,10 +71,8 @@ export function ProjectCard({
         <Cover
           url={p.coverUrl}
           alt=""
-          seed={p.id}
-          category={p.category}
+          kind="project"
           ratio={ratio}
-          plateNumber={false}
           className="rounded-none transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           sizes="(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw"
           priority={priority}
