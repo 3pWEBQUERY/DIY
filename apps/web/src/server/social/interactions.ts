@@ -132,8 +132,11 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
   }
   let parentAuthor: string | null = null;
   if (data.parentId) {
-    const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true } });
+    const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true, state: true } });
     if (!parent || parent.targetId !== id || parent.targetType !== type) throw fail.invalid("Antwort passt nicht zum Inhalt.");
+    // Antworten unter ausgeblendeten/gelöschten Kommentaren wären unsichtbar, würden aber gezählt und benachrichtigen
+    const top = parent.parentId ? await db.comment.findUnique({ where: { id: parent.parentId }, select: { state: true } }) : null;
+    if (parent.state !== "PUBLISHED" || (top && top.state !== "PUBLISHED")) throw fail.invalid("Auf diesen Kommentar kann nicht mehr geantwortet werden.");
     if (parent.parentId) data.parentId = parent.parentId; // nur eine Antwortebene
     parentAuthor = parent.authorId;
   }

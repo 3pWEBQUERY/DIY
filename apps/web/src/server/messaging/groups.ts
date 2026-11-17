@@ -65,6 +65,8 @@ async function resolveInvitees(user: SessionUser, handles: string[], exclude: Se
 async function systemMessage(conversationId: string, actorId: string, body: string) {
   const m = await db.message.create({ data: { conversationId, senderId: actorId, body, kind: "SYSTEM" } });
   await db.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: m.createdAt } });
+  // Die eigene Meldung ist gelesen – sonst zeigt der Posteingang ein ungelesenes Gespräch ohne Neues
+  await db.conversationMember.updateMany({ where: { conversationId, userId: actorId }, data: { lastReadAt: m.createdAt } });
   const members = await db.conversationMember.findMany({ where: { conversationId }, select: { userId: true } });
   void publish(members.map((x) => x.userId), { t: "message", c: conversationId });
 }

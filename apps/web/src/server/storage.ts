@@ -136,9 +136,10 @@ export function signLocal(key: string, exp: number, op: "put" | "get") {
 }
 
 const localDriver: Driver = {
-  async presignPut(key) {
+  async presignPut(key, _mime, bytes) {
     const exp = Date.now() + 600_000;
-    return `/api/v1/media/local?key=${encodeURIComponent(key)}&exp=${exp}&sig=${signLocal(key, exp, "put")}`;
+    // Angemeldete Grösse mitsigniert: der Upload darf sie nicht überschreiten
+    return `/api/v1/media/local?key=${encodeURIComponent(key)}&exp=${exp}&bytes=${bytes}&sig=${signLocal(`${key}:${bytes}`, exp, "put")}`;
   },
   async presignGet(key, expiresIn) {
     const exp = Date.now() + expiresIn * 1000;

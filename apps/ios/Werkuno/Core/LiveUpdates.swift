@@ -61,9 +61,11 @@ final class LiveStream {
                 let (bytes, response) = try await URLSession.shared.bytes(for: req)
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 if status == 401 { return } // abgemeldet – AppState kümmert sich
+                // 204: Live-Updates sind serverseitig abgeschaltet – nicht neu verbinden, die Zähler laufen per Polling
+                if status == 204 { isConnected = false; return }
                 guard status == 200 else { throw URLError(.badServerResponse) }
                 isConnected = true
-                delay = 1
+                let opened = Date()
                 // Nach (Wieder-)Verbindung einmal alles auffrischen – verpasste Ereignisse
                 post(.counts)
                 // Der Server schickt jede Nutzlast als eine einzige `data:`-Zeile (JSON mit Feld `t`).
@@ -75,6 +77,9 @@ final class LiveStream {
                         dispatch(data: line.dropFirst(5).trimmingCharacters(in: .whitespaces))
                     }
                 }
+                // Erst eine Verbindung, die eine Weile hielt, setzt den Backoff zurück – schliesst der Server
+                // sofort wieder (z. B. Echtzeit-Kanal gestört), wächst die Wartezeit statt Sekundentakt
+                if Date().timeIntervalSince(opened) > 30 { delay = 1 }
             } catch is CancellationError {
                 break
             } catch {

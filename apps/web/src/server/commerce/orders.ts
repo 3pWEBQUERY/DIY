@@ -9,7 +9,7 @@ import { rateLimit } from "@/server/ratelimit";
 import type { SessionUser } from "@/server/auth/session";
 import { hasRole } from "@/server/authz";
 import { lockOrder } from "./inventory";
-import { orderWith, initiateRefund, grantMissingEntitlementsTx, restockOrderTx } from "./payments";
+import { orderWith, initiateRefund, grantMissingEntitlementsTx, restockOrderTx, APPLE_REFUND_MESSAGE } from "./payments";
 import { canReview, canSellerCancel, canTransition, refundableAmount, SELLER_ORDER_TABS } from "./rules";
 import { requireOwnShop } from "./shops";
 
@@ -274,6 +274,8 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
     const o = await requireSellerOrder(tx, user, orderId);
     if (!canSellerCancel(o.status, o.shipments.length > 0)) throw fail.conflict("Diese Bestellung kann nicht mehr storniert werden.");
     const full = (await orderWith(tx, orderId))!;
+    // App-Store-Kauf: nicht stornieren (Lizenz weg, Geld nicht zurück) – nur Apple erstattet
+    if (full.payments[0]?.provider === "apple") throw fail.conflict(APPLE_REFUND_MESSAGE);
     // Genau einmal zurückbuchen (z. B. nicht erneut, wenn eine frühere Vollerstattung es schon getan hat)
     await restockOrderTx(tx, full);
     const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
@@ -309,6 +311,7 @@ export async function refundOrderByAdmin(actor: Pick<SessionUser, "id" | "role">
     const full = await orderWith(tx, orderId);
     if (!full) throw fail.notFound();
     if (full.status === "PENDING_PAYMENT") throw fail.conflict("Die Bestellung ist noch nicht bezahlt.");
+    if (full.payments[0]?.provider === "apple") throw fail.conflict(APPLE_REFUND_MESSAGE);
     const shipped = (await tx.shipment.count({ where: { orderId } })) > 0;
     const cancel = canSellerCancel(full.status, shipped);
     if (cancel) {

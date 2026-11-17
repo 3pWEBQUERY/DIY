@@ -269,10 +269,13 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
       return { kind: "content", model: "post", id, field: "state", value: p.state };
     }
     case "COMMENT": {
-      const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true, targetType: true, targetId: true } });
+      const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true, targetType: true, targetId: true, parentId: true } });
       await tx.comment.update({ where: { id }, data: { state: contentState } });
-      // Kommentarzähler nur beim Übergang aus „sichtbar“
-      if (c.state === "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", -1);
+      // Kommentarzähler nur beim Übergang aus „sichtbar“ – samt der Antworten, die mit dem Hauptkommentar verschwinden
+      if (c.state === "PUBLISHED") {
+        const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: id, state: "PUBLISHED" } });
+        await bumpCounter(tx, c.targetType, c.targetId, "comment", -(1 + replies));
+      }
       return { kind: "content", model: "comment", id, field: "state", value: c.state };
     }
     case "PROJECT": {
@@ -429,8 +432,9 @@ async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolea
     if (prior.model === "post") await syncPostCount(tx, (await tx.post.findUniqueOrThrow({ where: { id: prior.id }, select: { authorId: true } })).authorId);
     if (prior.model === "project") await syncProjectCount(tx, (await tx.project.findUniqueOrThrow({ where: { id: prior.id }, select: { ownerId: true } })).ownerId);
     if (prior.model === "comment" && prior.value === "PUBLISHED") {
-      const c = await tx.comment.findUniqueOrThrow({ where: { id: prior.id }, select: { targetType: true, targetId: true } });
-      await bumpCounter(tx, c.targetType, c.targetId, "comment", 1);
+      const c = await tx.comment.findUniqueOrThrow({ where: { id: prior.id }, select: { targetType: true, targetId: true, parentId: true } });
+      const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: prior.id, state: "PUBLISHED" } });
+      await bumpCounter(tx, c.targetType, c.targetId, "comment", 1 + replies);
     }
   }
   return count > 0;

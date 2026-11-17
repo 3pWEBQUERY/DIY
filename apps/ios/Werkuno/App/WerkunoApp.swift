@@ -112,7 +112,12 @@ struct RootView: View {
         .task { await app.launch() }
         // Käufe digitaler Produkte, die ausserhalb des Kaufdialogs abgeschlossen wurden, nachträglich verbuchen
         .task(id: app.phase == .ready) { if app.phase == .ready { DigitalStore.shared.startListening() } }
-        .onChange(of: scenePhase) { _, p in app.setActive(p == .active) }
+        .onChange(of: scenePhase) { _, p in
+            app.setActive(p == .active)
+            // Käufe, deren Verbuchung scheiterte (offline, anderes Konto), beim Zurückkehren nachholen
+            if p == .active, app.phase == .ready { Task { await DigitalStore.shared.retryUnfinished() } }
+        }
+        .task(id: app.me?.id) { if app.me != nil { await DigitalStore.shared.retryUnfinished() } }
     }
 }
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { REAL_ORDER } from "./real-orders";
 import { db } from "@/server/db";
 import { netPlatformFee } from "./rules";
 
@@ -15,7 +16,7 @@ export type RevenueRange = "30" | "90" | "365" | "alle";
 export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
   const since = range === "alle" ? null : new Date(Date.now() - Number(range) * 86400_000);
   const orders = await db.order.findMany({
-    where: { shopId, paidAt: since ? { gte: since } : { not: null } },
+    where: { shopId, paidAt: since ? { gte: since } : { not: null }, ...REAL_ORDER },
     select: {
       id: true,
       number: true,

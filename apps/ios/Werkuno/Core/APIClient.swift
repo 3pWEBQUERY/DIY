@@ -277,7 +277,14 @@ final class APIClient: @unchecked Sendable {
             throw APIError.offline
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if status >= 400 || status == 0 { throw failure(status: status, data: data) }
+        if status >= 400 || status == 0 {
+            // Nur abmelden, wenn die Anfrage mit dem aktuell gespeicherten Token lief – ein spätes 401 einer
+            // Anfrage mit altem Token (Abmelden, Kontowechsel) oder eigenem Token (2FA-Schritt) beendet sonst
+            // die neue Sitzung
+            let sent = req.value(forHTTPHeaderField: "Authorization")
+            let current = bearer == nil && sent != nil && sent == token.map { "Bearer \($0)" }
+            throw failure(status: status, data: data, signOut: current)
+        }
         do {
             return try JSON.decoder.decode(DataEnvelope<T>.self, from: data).data
         } catch let e as DecodingError {
@@ -289,13 +296,13 @@ final class APIClient: @unchecked Sendable {
     }
 
     /// Fehlerantwort `{ error: { code, message, fields } }` → `APIError` (bei 401 → `onUnauthorized`).
-    private func failure(status: Int, data: Data) -> APIError {
+    private func failure(status: Int, data: Data, signOut: Bool = true) -> APIError {
         if let env = try? JSON.decoder.decode(ErrorEnvelope.self, from: data) {
             let err = APIError(code: env.error.code, message: env.error.message ?? "Fehler", fields: env.error.fields, status: status)
-            if err.isAuth { onUnauthorized?() }
+            if err.isAuth, signOut { onUnauthorized?() }
             return err
         }
-        if status == 401 { onUnauthorized?() }
+        if status == 401, signOut { onUnauthorized?() }
         return APIError(code: "HTTP_\(status)", message: "Der Server hat mit Fehler \(status) geantwortet.", fields: nil, status: status)
     }
 

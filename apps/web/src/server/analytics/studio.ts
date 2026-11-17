@@ -1,4 +1,5 @@
 import "server-only";
+import { REAL_ORDER, REAL_ORDER_SQL } from "@/server/commerce/real-orders";
 import { db, Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
 import { storage } from "@/server/storage";
@@ -76,12 +77,12 @@ export async function studioOverview(userId: string) {
 
   let revenue: null | { gross: number; grossPrev: number; fees: number; orders: number; allTime: number; currency: string; series: number[] } = null;
   if (shop) {
-    const paid = { shopId: shop.id, paidAt: { not: null }, status: { notIn: ["CANCELLED", "REFUNDED", "PENDING_PAYMENT"] as ("CANCELLED" | "REFUNDED" | "PENDING_PAYMENT")[] } };
+    const paid = { shopId: shop.id, paidAt: { not: null }, status: { notIn: ["CANCELLED", "REFUNDED", "PENDING_PAYMENT"] as ("CANCELLED" | "REFUNDED" | "PENDING_PAYMENT")[] }, ...REAL_ORDER };
     const [cur, prev, all, series] = await Promise.all([
       db.order.aggregate({ where: { ...paid, paidAt: { gte: from } }, _sum: { totalMinor: true, platformFeeMinor: true }, _count: { _all: true } }),
       db.order.aggregate({ where: { ...paid, paidAt: { gte: prevFrom, lt: from } }, _sum: { totalMinor: true } }),
       db.order.aggregate({ where: paid, _sum: { totalMinor: true } }),
-      weeklySeries("Order", "paidAt", { sum: "totalMinor", where: Prisma.sql`AND "shopId" = ${shop.id} AND "status" NOT IN ('CANCELLED','REFUNDED','PENDING_PAYMENT')` }),
+      weeklySeries("Order", "paidAt", { sum: "totalMinor", where: Prisma.sql`AND "shopId" = ${shop.id} AND "status" NOT IN ('CANCELLED','REFUNDED','PENDING_PAYMENT') ${REAL_ORDER_SQL}` }),
     ]);
     revenue = {
       gross: cur._sum.totalMinor ?? 0,

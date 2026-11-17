@@ -15,6 +15,8 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { audit } from "@/server/audit";
 import { requireFlag } from "@/server/flags";
 import { dropFutureAttendance } from "./events";
+import { syncPostCount } from "@/server/social/counters";
+import { stateBeforeHide } from "@/server/admin/content";
 
 /**
  * Communities (PRD §15): Sichtbarkeit PUBLIC / REQUEST / PRIVATE, Rollen, Beitritt,
@@ -233,8 +235,17 @@ export async function listCommunityPosts(communityId: string, viewerId: string |
 
 export async function listPinnedPosts(communityId: string, viewerId: string | null) {
   const rel = await relationsFor(viewerId);
+  const hidden = rel.hidden.filter((h) => h.targetType === "POST").map((h) => h.targetId);
   const r = await listPosts(
-    { communityId, state: "PUBLISHED", isPinned: true, ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}) },
+    // Wie die übrige Liste: keine gesperrten/gelöschten Konten, nichts selbst Ausgeblendetes
+    {
+      communityId,
+      state: "PUBLISHED",
+      isPinned: true,
+      author: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+      ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}),
+      ...(hidden.length ? { id: { notIn: hidden } } : {}),
+    },
     viewerId,
     { take: MAX_PINNED },
   );
@@ -594,6 +605,9 @@ export async function removeMember(communityId: string, userId: string, opts: { 
   const { user, rank } = await requireMod(communityId);
   if (userId === user.id) throw fail.invalid("Du kannst dich nicht selbst entfernen.");
   const m = await targetMember(communityId, userId);
+  // Gesperrte nicht über „Entfernen“ freigeben (sonst hebt die Moderation Sperren der Leitung auf) –
+  // dafür gibt es „Sperre aufheben“ mit eigener Berechtigungsprüfung
+  if (m.state === "BANNED") throw fail.conflict(opts.ban ? "Diese Person ist bereits gesperrt." : "Gesperrte Personen bitte über „Sperre aufheben“ freigeben.");
   await assertOutranks(rank, m);
   await db.$transaction(async (tx) => {
     if (opts.ban) await tx.communityMember.update({ where: { communityId_userId: { communityId, userId } }, data: { state: "BANNED", role: "MEMBER", mutedUntil: null } });
@@ -650,11 +664,27 @@ async function modPost(communityId: string, postId: string) {
   return { ...ctx, post: p };
 }
 
+/**
+ * Wieder einblenden darf die Community-Moderation nur, was sie selbst ausgeblendet hat – nicht, was die
+ * Plattform-Moderation (Fall-Entscheidung oder Administration) ausgeblendet hat.
+ */
+async function assertHiddenByCommunity(communityId: string, postId: string) {
+  const [community, platformCase, adminHidden] = await Promise.all([
+    db.communityModerationAction.findFirst({ where: { communityId, targetType: "POST", targetId: postId, action: "HIDE_POST" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    db.moderationAction.findFirst({ where: { action: { in: ["HIDE", "REMOVE"] }, case: { targetType: "POST", targetId: postId } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    stateBeforeHide(db, "POST", postId),
+  ]);
+  const byCommunity = !!community && adminHidden === null && (!platformCase || platformCase.createdAt < community.createdAt);
+  if (!byCommunity) throw fail.forbidden("Diesen Beitrag hat die Plattform-Moderation ausgeblendet – nur sie kann ihn wieder einblenden.");
+}
+
 export async function setPostHidden(communityId: string, postId: string, hidden: boolean, reason?: string) {
   const { user, post } = await modPost(communityId, postId);
   if (hidden === (post.state === "HIDDEN")) return;
+  if (!hidden) await assertHiddenByCommunity(communityId, postId);
   await db.$transaction(async (tx) => {
     await tx.post.update({ where: { id: postId }, data: { state: hidden ? "HIDDEN" : "PUBLISHED", ...(hidden ? { isPinned: false } : {}) } });
+    await syncPostCount(tx, post.authorId);
     await recordAction(tx, { communityId, moderatorId: user.id, targetType: "POST", targetId: postId, action: hidden ? "HIDE_POST" : "RESTORE_POST", reason });
   });
 }

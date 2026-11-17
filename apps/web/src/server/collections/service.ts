@@ -23,7 +23,7 @@ export const SAVED_LABEL: Record<SavedType, string> = { POST: "Beiträge", PROJE
 
 const PAGE = 48;
 
-export type ProductMini = { id: string; title: string; priceMinor: number; currency: "CHF" | "EUR"; coverUrl: string | null; href: string; shopName: string; soldOut: boolean };
+export type ProductMini = { id: string; title: string; priceMinor: number; currency: "CHF" | "EUR"; coverUrl: string | null; href: string; shopName: string; soldOut: boolean; kind?: string };
 export type ArticleMini = { id: string; title: string; dek: string; coverUrl: string | null; href: string; authorName: string; readingMinutes: number };
 
 export async function getProductMinis(ids: string[], viewerId: string | null = null): Promise<ProductMini[]> {
@@ -36,12 +36,12 @@ export async function getProductMinis(ids: string[], viewerId: string | null = n
       // Wie Shop-/Produktseiten: keine Shops gesperrter/gelöschter oder blockierter Konten
       shop: { status: "ACTIVE", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) },
     },
-    select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true } } },
+    select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, shop: { select: { slug: true, name: true } } },
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
   return ids.flatMap((id) => {
     const p = byId.get(id);
-    return p ? [{ id: p.id, title: p.title, priceMinor: p.priceMinor, currency: (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR", coverUrl: p.coverUrl, href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name, soldOut: p.status === "SOLD_OUT" }] : [];
+    return p ? [{ id: p.id, title: p.title, priceMinor: p.priceMinor, currency: (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR", coverUrl: p.coverUrl, href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name, soldOut: p.status === "SOLD_OUT", kind: p.kind }] : [];
   });
 }
 

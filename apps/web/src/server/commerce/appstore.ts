@@ -1,4 +1,5 @@
 import "server-only";
+
 import { randomUUID } from "node:crypto";
 import { computeFees } from "@werkraum/shared";
 import { db, type Tx } from "@/server/db";
@@ -284,7 +285,8 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
         where: { id: intent.id },
         data: { status: "COMPLETED", orderId: order.id, completedAt: new Date(), transferStatus },
       });
-      await tx.shop.update({ where: { id: product.shop.id }, data: { salesCount: { increment: 1 } } });
+      // Testkäufe (Sandbox/Xcode) sind keine Verkäufe
+      if (!isTest) await tx.shop.update({ where: { id: product.shop.id }, data: { salesCount: { increment: 1 } } });
       await audit({ actorId: user.id, action: "appstore.purchase", targetType: "Order", targetId: order.id, meta: { transactionId: t.transactionId, environment, appleProductId: t.productId } }, tx);
       await emit({ type: "ProductPurchased", orderId: order.id }, tx);
       await notify({ recipientId: product.shop.ownerId, type: "ORDER_NEW", bundle: false, data: { number, title: product.title, href: `/studio/bestellungen/${order.id}` } }, tx);
@@ -345,12 +347,41 @@ export async function retrySellerTransfers() {
   const due = await db.appStorePurchase.findMany({
     where: { transferStatus: { in: ["PENDING", "FAILED"] }, transferAttempts: { lt: MAX_TRANSFER_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - 30 * 60_000) } },
     select: { id: true },
+    // Älteste zuerst – sonst verdrängen dauerhaft scheiternde Zeilen neue
+    orderBy: { updatedAt: "asc" },
     take: 50,
   });
   let sent = 0;
   for (const p of due) if ((await sendSellerTransfer(p.id)) === "sent") sent++;
+  const reversed = await retryTransferReversals();
   const expired = await db.appStorePurchase.updateMany({ where: { status: "PENDING", expiresAt: { lt: new Date(Date.now() - 7 * 86400_000) } }, data: { status: "EXPIRED" } });
-  return { tried: due.length, sent, expired: expired.count };
+  return { tried: due.length, sent, reversed, expired: expired.count };
+}
+
+/**
+ * Von Apple erstattete Käufe, deren Überweisung an den Shop noch nicht zurückgeholt ist (Rückbuchung
+ * gescheitert, z. B. zu wenig Guthaben): erneut versuchen – mit demselben Idempotenz-Schlüssel, also nie doppelt.
+ */
+async function retryTransferReversals() {
+  const open = await db.appStorePurchase.findMany({
+    where: { status: "REFUNDED", transferStatus: "SENT", transferId: { not: null }, transferAttempts: { lt: MAX_TRANSFER_ATTEMPTS * 4 }, updatedAt: { lt: new Date(Date.now() - 30 * 60_000) } },
+    orderBy: { updatedAt: "asc" },
+    select: { id: true, transferId: true },
+    take: 50,
+  });
+  let reversed = 0;
+  for (const p of open) {
+    try {
+      await reverseSellerTransfer(p.transferId!, `appstore-reversal:${p.id}`);
+      await db.appStorePurchase.update({ where: { id: p.id }, data: { transferStatus: "REVERSED", transferError: null } });
+      reversed++;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      log("error", "appstore_reversal_retry_failed", { purchaseId: p.id, err: message });
+      await db.appStorePurchase.update({ where: { id: p.id }, data: { transferAttempts: { increment: 1 }, transferError: `Rückbuchung fehlgeschlagen: ${message}`.slice(0, 500) } });
+    }
+  }
+  return reversed;
 }
 
 /* ───────────────────────── Erstattungen (Server-Benachrichtigungen V2) ───────────────────────── */

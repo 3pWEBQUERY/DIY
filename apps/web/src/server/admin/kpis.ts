@@ -1,4 +1,5 @@
 import "server-only";
+import { REAL_ORDER, REAL_ORDER_SQL } from "@/server/commerce/real-orders";
 import { db, Prisma } from "@/server/db";
 
 /**
@@ -121,11 +122,11 @@ export async function dashboardKpis(opts: { includeMoney: boolean }) {
 
   let money: null | { gmv30: number; gmvPrev30: number; commission30: number; seriesGmv: number[]; aov: number | null } = null;
   if (opts.includeMoney) {
-    const valid = { status: { notIn: ["CANCELLED", "REFUNDED", "PENDING_PAYMENT"] as ("CANCELLED" | "REFUNDED" | "PENDING_PAYMENT")[] } };
+    const valid = { status: { notIn: ["CANCELLED", "REFUNDED", "PENDING_PAYMENT"] as ("CANCELLED" | "REFUNDED" | "PENDING_PAYMENT")[] }, ...REAL_ORDER };
     const [cur, prev, seriesGmv] = await Promise.all([
       db.order.aggregate({ where: { paidAt: { gte: d30 }, ...valid }, _sum: { totalMinor: true, platformFeeMinor: true }, _count: { _all: true } }),
       db.order.aggregate({ where: { paidAt: { gte: d60, lt: d30 }, ...valid }, _sum: { totalMinor: true } }),
-      weeklySeries("Order", "paidAt", { sum: "totalMinor", where: Prisma.sql`AND "status" NOT IN ('CANCELLED','REFUNDED','PENDING_PAYMENT')` }),
+      weeklySeries("Order", "paidAt", { sum: "totalMinor", where: Prisma.sql`AND "status" NOT IN ('CANCELLED','REFUNDED','PENDING_PAYMENT') ${REAL_ORDER_SQL}` }),
     ]);
     const gmv30 = cur._sum.totalMinor ?? 0;
     money = { gmv30, gmvPrev30: prev._sum.totalMinor ?? 0, commission30: cur._sum.platformFeeMinor ?? 0, seriesGmv, aov: cur._count._all ? Math.round(gmv30 / cur._count._all) : null };
