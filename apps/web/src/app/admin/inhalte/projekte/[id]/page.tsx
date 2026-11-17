@@ -1,12 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CATEGORIES, DIFFICULTY_LABEL, PROJECT_STATUS_LABEL, VISIBILITY, categoryBySlug, listCategories } from "@werkraum/shared";
+import { DIFFICULTY_LABEL, PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import { AppError } from "@/server/errors";
 import { hasRole } from "@/server/authz";
 import { adminPage } from "@/server/admin/guard";
 import { getProjectDetail } from "@/server/admin/content-detail";
-import { EditContentButton } from "@/components/admin/content-admin";
+import { Pencil } from "lucide-react";
+import { LinkButton } from "@/components/ui/button";
 import { dateTime, num, shortDate } from "@/components/admin/format";
 import { Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { AuditSection, CasesSection, CommentsSection, DetailHeader, Facts, MetaList, Mono, Preview, STATE_LABEL, StatGrid, StateActions, VISIBILITY_SHORT, stateTone } from "../../_components/detail";
@@ -47,13 +48,9 @@ export default async function AdminProjectPage({ params }: { params: Promise<{ i
         actions={
           <>
             {p.state !== "REMOVED" && (
-              <EditContentButton
-                kind="PROJECT"
-                id={p.id}
-                values={{ title: p.title, summary: p.description, category: p.category, visibility: p.visibility }}
-                categories={listCategories().map((c) => ({ value: c.slug, label: c.short + (c.isActive ? "" : " (inaktiv)") }))}
-                visibilities={VISIBILITY.map((v) => ({ value: v, label: VISIBILITY_SHORT[v] ?? v }))}
-              />
+              <LinkButton href={`/admin/inhalte/projekte/${p.id}/bearbeiten`} size="sm" variant="outline">
+                <Pencil size={14} aria-hidden /> Bearbeiten
+              </LinkButton>
             )}
             <StateActions kind="PROJECT" id={p.id} state={p.state} featured={p.isFeatured} canFeature={p.visibility === "PUBLIC"} canRemove isAdmin={isAdmin} />
           </>

@@ -363,6 +363,14 @@ const editSchemas = {
     summary: z.string().trim().max(10_000).default(""),
     category,
     visibility,
+    // Optional, damit ältere Aufrufer ohne diese Felder weiter funktionieren
+    difficulty: z.coerce.number().int().min(1).max(5).optional(),
+    tags: z
+      .union([z.string(), z.array(z.string())])
+      .transform((v) => (Array.isArray(v) ? v : v.split(",")).map((t) => t.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))
+      .pipe(z.array(z.string().max(30, "Schlagwörter höchstens 30 Zeichen")).max(12, "Höchstens 12 Schlagwörter"))
+      .transform((v) => [...new Set(v)])
+      .optional(),
     reason: reasonSchema,
   }),
   TUTORIAL: z.object({
@@ -386,7 +394,7 @@ const editSchemas = {
   }),
 } as const;
 
-export type EditInput = { title?: string; summary?: string; body?: string; category?: string; categoryId?: string; visibility?: string; difficulty?: string | number; reason: string };
+export type EditInput = { title?: string; summary?: string; body?: string; category?: string; categoryId?: string; visibility?: string; difficulty?: string | number; tags?: string | string[]; reason: string };
 
 type Change = { field: string; from: unknown; to: unknown };
 function diff(before: Record<string, unknown>, after: Record<string, unknown>, longText: string[] = []): Change[] {
@@ -419,13 +427,20 @@ export async function updateContentMeta(actor: Actor, kind: DetailKind, id: stri
     if (k === "PROJECT") {
       const d = editSchemas.PROJECT.parse(input);
       reason = d.reason;
-      const p = await tx.project.findUnique({ where: { id }, select: { title: true, description: true, category: true, visibility: true, ownerId: true, state: true } });
+      const p = await tx.project.findUnique({ where: { id }, select: { title: true, description: true, category: true, visibility: true, difficulty: true, tags: true, ownerId: true, state: true } });
       if (!p) throw fail.notFound();
       if (p.state === "REMOVED") throw fail.conflict("Entfernte Inhalte können nicht bearbeitet werden.");
       assertNotWidened(p.visibility, d.visibility);
-      changes = diff({ title: p.title, description: p.description, category: p.category, visibility: p.visibility }, { title: d.title, description: d.summary, category: d.category, visibility: d.visibility }, ["description"]);
+      const difficulty = d.difficulty ?? p.difficulty;
+      const tags = d.tags ?? p.tags;
+      // Schlagwörter als Text vergleichen (Arrays sind nie identisch)
+      changes = diff(
+        { title: p.title, description: p.description, category: p.category, visibility: p.visibility, difficulty: p.difficulty, tags: p.tags.join(", ") },
+        { title: d.title, description: d.summary, category: d.category, visibility: d.visibility, difficulty, tags: tags.join(", ") },
+        ["description"],
+      );
       if (changes.length) {
-        await tx.project.update({ where: { id }, data: { title: d.title, description: d.summary, category: d.category, visibility: d.visibility, ...(d.visibility !== "PUBLIC" ? { isFeatured: false } : {}) } });
+        await tx.project.update({ where: { id }, data: { title: d.title, description: d.summary, category: d.category, visibility: d.visibility, difficulty, tags, ...(d.visibility !== "PUBLIC" ? { isFeatured: false } : {}) } });
         if (d.visibility !== p.visibility) await syncProjectCount(tx, p.ownerId);
       }
       ownerId = p.ownerId;

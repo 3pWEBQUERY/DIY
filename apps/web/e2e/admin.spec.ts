@@ -179,3 +179,39 @@ test("Admin: „Jetzt online“ im Dashboard und als Filter der Nutzerliste", as
     await restore();
   }
 });
+
+test("Admin bearbeitet ein Projekt auf eigener Seite statt im Dialog", async ({ browser }) => {
+  const mattia = await userId("mattia");
+  const p = (await one<{ id: string; title: string; difficulty: number; tags: string[] }>(
+    `SELECT id, title, difficulty, tags FROM "Project" WHERE "ownerId" = $1 AND state = 'PUBLISHED' ORDER BY "createdAt" LIMIT 1`,
+    [mattia],
+  ))!;
+  const { page, restore } = await adminPage(browser);
+  try {
+    await page.goto(`/admin/inhalte/projekte/${p.id}`);
+    await page.getByRole("link", { name: "Bearbeiten" }).click();
+    await expect(page).toHaveURL(new RegExp(`/admin/inhalte/projekte/${p.id}/bearbeiten$`));
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    const newTitle = `${p.title} (korrigiert)`.slice(0, 120);
+    await page.getByLabel("Titel").fill(newTitle);
+    await page.getByRole("group", { name: "Niveau" }).getByText("Mittel", { exact: true }).click();
+    await page.getByLabel(/Schlagwörter/).fill("#Eiche, möbel, eiche");
+    await page.getByLabel(/Interne Begründung/).fill("E2E: Titel und Schlagwörter korrigiert");
+    await page.getByRole("button", { name: "Änderungen speichern" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/admin/inhalte/projekte/${p.id}$`));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(newTitle);
+    const row = (await one<{ title: string; difficulty: number; tags: string[]; audit: number }>(
+      `SELECT title, difficulty, tags, (SELECT count(*)::int FROM "AuditEvent" a WHERE a."targetId" = p.id AND a.action = 'admin.content_edited') audit FROM "Project" p WHERE id = $1`,
+      [p.id],
+    ))!;
+    expect(row.title).toBe(newTitle);
+    expect(row.difficulty).toBe(3);
+    expect(row.tags).toEqual(["eiche", "möbel"]);
+    expect(row.audit).toBeGreaterThan(0);
+  } finally {
+    await sql(`UPDATE "Project" SET title = $2, difficulty = $3, tags = $4 WHERE id = $1`, [p.id, p.title, p.difficulty, p.tags]);
+    await restore();
+  }
+});
