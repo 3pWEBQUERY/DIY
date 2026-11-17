@@ -7,18 +7,21 @@ import { VideoPlayer } from "@/components/media/video";
 
 type Item = { id: string; alt: string; variants: Variants; kind: string };
 
-/** Produktgalerie: grosses Bild 4/5, nummerierte Miniaturen (Tafel-Nummern statt Punkte). */
+/**
+ * Produktgalerie: grosses Bild quadratisch und immer vollständig sichtbar (object-contain – Hoch- und
+ * Querformate werden nicht beschnitten), nummerierte Miniaturen (Tafel-Nummern statt Punkte).
+ */
 export function ProductGallery({ items, seed, category, title }: { items: Item[]; seed: string; category: string; title: string }) {
   const [idx, setIdx] = useState(0);
   const current = items[idx];
   return (
     <div className="space-y-3">
-      <div className="crop relative aspect-[4/5] overflow-hidden border border-line bg-sunken rounded-2xl">
+      <div className="crop relative aspect-square overflow-hidden rounded-2xl border border-line bg-sunken">
         {current ? (
           current.kind === "VIDEO" ? (
             <VideoPlayer variants={current.variants as Record<string, string>} alt={current.alt || title} />
           ) : (
-            <MediaImage variants={current.variants} alt={current.alt || title} priority sizes="(min-width: 1024px) 560px, 100vw" className="absolute inset-0" />
+            <MediaImage variants={current.variants} alt={current.alt || title} priority sizes="(min-width: 1024px) 640px, 100vw" className="absolute inset-0 object-contain" />
           )
         ) : (
           <Plate seed={seed} category={category} label={title} />
