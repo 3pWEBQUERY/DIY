@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import AVFoundation
+import UniformTypeIdentifiers
 
 /// Neue Story: Foto oder Video (mit optionaler Bildunterschrift) oder ein Satz auf einer Farbfläche.
 /// Oben die Vorschau im Story-Format (9:16), darunter die Angaben.

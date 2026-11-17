@@ -24,7 +24,6 @@ struct FeedView: View {
                     .padding(.top, 4)
 
                 StoryTrayView()
-                    .padding(.top, Space.l)
 
                 FeedComposerPrompt()
                     .padding(.horizontal, Space.gutter)

@@ -282,7 +282,7 @@ struct StoryArchiveView: View {
                         Label("Neue Story", systemImage: "plus").frame(maxWidth: .infinity)
                     }
                     .primaryButton()
-                    Button { editor = HighlightEditorState(id: nil, title: "", storyIds: [], coverStoryId: nil) } label: {
+                    Button { Task { await openEditor(HighlightEditorState(id: nil, title: "", storyIds: [], coverStoryId: nil)) } } label: {
                         Text("Highlight").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
@@ -335,7 +335,7 @@ struct StoryArchiveView: View {
                             }
                             .frame(width: 80)
                             .contextMenu {
-                                Button("Bearbeiten", systemImage: "pencil") { editor = HighlightEditorState(id: h.id, title: h.title, storyIds: h.storyIds, coverStoryId: h.coverStoryId) }
+                                Button("Bearbeiten", systemImage: "pencil") { Task { await openEditor(HighlightEditorState(id: h.id, title: h.title, storyIds: h.storyIds, coverStoryId: h.coverStoryId)) } }
                                 Button("Löschen", systemImage: "trash", role: .destructive) { deleting = h }
                             }
                         }
@@ -411,6 +411,16 @@ struct StoryArchiveView: View {
             items += page.items.filter { !known.contains($0.id) }
             cursor = page.nextCursor
         } catch { cursor = nil; app.show(error: error) }
+    }
+
+    /// Editor erst öffnen, wenn das ganze Archiv geladen ist – sonst fehlen ältere Stories eines Highlights in der Auswahl
+    private func openEditor(_ st: HighlightEditorState) async {
+        var pages = 0
+        while cursor != nil, pages < 30 {
+            await loadMore()
+            pages += 1
+        }
+        editor = st
     }
 
     private func deleteHighlight(_ h: StoryOwnHighlight) async {

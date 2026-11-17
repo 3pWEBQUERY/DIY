@@ -76,7 +76,6 @@ struct CreateMenuSheet: View {
     private var items: [Item] {
         var list: [Item] = [
             Item(id: "post", title: "Beitrag", subtitle: "Foto, Video oder Gedanke teilen", symbol: "text.bubble", tint: .moss, sheet: .composer()),
-            Item(id: "story", title: "Story", subtitle: "Ein Moment von der Werkbank – 24 Stunden", symbol: "circle.dashed.inset.filled", tint: .clay, sheet: .storyComposer),
             Item(id: "project", title: "Projekt", subtitle: "Ein neues Vorhaben dokumentieren", symbol: "hammer", tint: .clay, sheet: .projectEditor()),
             Item(id: "tutorial", title: "Anleitung", subtitle: "Schritt für Schritt erklären", symbol: "list.number", tint: .slate, sheet: .tutorialEditor()),
             Item(id: "article", title: "Blogartikel", subtitle: "Erfahrungen ausführlich erzählen", symbol: "text.book.closed", tint: .plum, sheet: .articleEditor()),
@@ -84,6 +83,9 @@ struct CreateMenuSheet: View {
         ]
         if app.hasActiveShop {
             list.insert(Item(id: "product", title: "Produkt", subtitle: "Handgemachtes verkaufen", symbol: "tag", tint: .clay, sheet: .productEditor()), at: 3)
+        }
+        if app.storiesEnabled {
+            list.insert(Item(id: "story", title: "Story", subtitle: "Ein Moment von der Werkbank – 24 Stunden", symbol: "circle.dashed.inset.filled", tint: .clay, sheet: .storyComposer), at: 1)
         }
         return list
     }

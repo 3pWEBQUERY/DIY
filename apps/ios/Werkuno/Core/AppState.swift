@@ -10,6 +10,8 @@ struct Bootstrap: Decodable, Sendable {
     var categories: [Category]
     var payments: Payments
     var features: Features?
+    /// Feature-Flags (Admin → System), z. B. `stories`
+    var flags: [String: Bool]?
     var me: Me?
 }
 
@@ -60,6 +62,8 @@ final class AppState {
     var paymentsMode: String = "disabled"
     var feeBps: Int = 600
     var appleNative = false
+    /// Stories (Feature-Flag „stories“) – Standard an, bis der Server etwas anderes meldet
+    var storiesEnabled = true
     var lastError: String?
 
     /// Zentrale Meldungen („Toast“)
@@ -121,6 +125,7 @@ final class AppState {
 
     private func apply(_ b: Bootstrap) {
         categories = b.categories
+        storiesEnabled = b.flags?["stories"] ?? true
         paymentsMode = b.payments.mode
         feeBps = b.payments.feeBps
         appleNative = b.features?.appleNative ?? false

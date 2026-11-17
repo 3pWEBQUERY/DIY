@@ -39,7 +39,8 @@ struct StoryTrayView: View {
     @State private var tray: StoryTray?
 
     var body: some View {
-        Group {
+        // VStack statt Group: existiert auch ohne Inhalt, damit .task/.onReceive laufen
+        VStack(spacing: 0) {
             if let tray, tray.enabled, let own = tray.own {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 14) {
@@ -63,6 +64,7 @@ struct StoryTrayView: View {
                     .padding(.horizontal, Space.gutter)
                 }
                 .scrollClipDisabled()
+                .padding(.top, Space.l)
                 .transition(.opacity)
             }
         }

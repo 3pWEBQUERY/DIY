@@ -46,7 +46,13 @@ struct ProfileView: View {
         .toolbar { toolbar }
         .task { if page == nil { await load() } }
         .refreshable { await load() }
-        .onReceive(NotificationCenter.default.publisher(for: .storiesChanged)) { _ in if page != nil { Task { await load() } } }
+        // Stories geändert (gesehen, neu, Highlight): nur Ring und Highlights neu laden – Beitragsliste bleibt, wo sie ist
+        .onReceive(NotificationCenter.default.publisher(for: .storiesChanged)) { _ in
+            guard page != nil else { return }
+            Task {
+                if let r: MeProfileResponse = try? await APIClient.shared.get("/users/\(handle.lowercased())") { withAnimation(.snappy) { stories = r.stories } }
+            }
+        }
     }
 
     // MARK: Laden

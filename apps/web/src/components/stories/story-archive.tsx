@@ -66,6 +66,21 @@ export function StoryArchive({
     });
   }
 
+  /** Editor erst öffnen, wenn das ganze Archiv geladen ist – sonst fehlen ältere Stories eines Highlights. */
+  async function openEditor(state: { id: string | null; title: string; storyIds: string[]; coverStoryId: string | null }) {
+    let next = cursor;
+    let all = items;
+    for (let i = 0; next && i < 30; i++) {
+      const r = await storyArchiveAction(next);
+      if (!r.ok) break;
+      all = [...all, ...r.data.items.filter((n) => !all.some((o) => o.id === n.id))];
+      next = r.data.nextCursor;
+    }
+    setItems(all);
+    setCursor(next);
+    setEditor(state);
+  }
+
   async function removeHighlight(h: OwnHighlight) {
     if (!(await confirmDialog({ title: `Highlight „${h.title}“ löschen?`, body: "Die Stories selbst bleiben in deinem Archiv." }))) return;
     const r = await deleteHighlightAction(h.id);
@@ -80,7 +95,7 @@ export function StoryArchive({
         <Button onClick={() => setComposer(true)}>
           <Plus size={16} aria-hidden /> Neue Story
         </Button>
-        <Button variant="outline" onClick={() => setEditor({ id: null, title: "", storyIds: [], coverStoryId: null })} disabled={!items.length}>
+        <Button variant="outline" onClick={() => void openEditor({ id: null, title: "", storyIds: [], coverStoryId: null })} disabled={!items.length}>
           Highlight zusammenstellen
         </Button>
       </div>
@@ -100,7 +115,7 @@ export function StoryArchive({
                     label={`Highlight ${h.title} bearbeiten`}
                     triggerClassName="grid size-6 shrink-0 place-items-center rounded-lg text-muted hover:bg-sunken hover:text-ink"
                     items={[
-                      { label: "Bearbeiten", icon: <Pencil size={15} />, onSelect: () => setEditor({ id: h.id, title: h.title, storyIds: h.storyIds, coverStoryId: h.coverStoryId }) },
+                      { label: "Bearbeiten", icon: <Pencil size={15} />, onSelect: () => void openEditor({ id: h.id, title: h.title, storyIds: h.storyIds, coverStoryId: h.coverStoryId }) },
                       { label: "Löschen", icon: <Trash2 size={15} />, danger: true, onSelect: () => void removeHighlight(h) },
                     ]}
                   />
