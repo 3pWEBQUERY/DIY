@@ -23,6 +23,17 @@ test.describe.serial("Werkuno Studio", () => {
     await p.getByRole("textbox", { name: "Breite", exact: true }).fill("42,5");
     await p.getByRole("textbox", { name: "Tiefe", exact: true }).fill("40");
     await p.getByLabel("Weitere Angaben").fill("Sitzhöhe 45 cm");
+    // WYSIWYG: fett per Tastenkürzel, Aufzählung über die Werkzeugleiste
+    const safety = p.getByRole("textbox", { name: "Sicherheitshinweise" });
+    await safety.click();
+    await safety.pressSequentially("Achtung ");
+    await safety.press("ControlOrMeta+b");
+    await safety.pressSequentially("Splitter");
+    await safety.press("ControlOrMeta+b");
+    await safety.pressSequentially(" möglich.");
+    await safety.press("Enter");
+    await p.getByRole("toolbar", { name: "Formatierung" }).nth(1).getByRole("button", { name: "Aufzählung" }).click();
+    await safety.pressSequentially("Handschuhe tragen");
     await p.getByRole("button", { name: "Veröffentlichen" }).click();
     await expect.poll(async () => (await one(`SELECT 1 FROM "Product" WHERE title = 'E2E Alter Bauernstuhl'`)) != null, { timeout: 15_000 }).toBe(true);
     const row = await one<{ kind: string; materialList: string[]; heightMm: number; widthMm: number; depthMm: number; slug: string }>(`SELECT kind, "materialList", "heightMm", "widthMm", "depthMm", slug FROM "Product" WHERE title = 'E2E Alter Bauernstuhl' ORDER BY "createdAt" DESC LIMIT 1`);
@@ -31,6 +42,10 @@ test.describe.serial("Werkuno Studio", () => {
     const sheet = p.locator("dl").first();
     await expect(sheet).toContainText("H 82 × B 42.5 × T 40 cm");
     await expect(sheet).toContainText("Eisennägel");
+    const stored = await one<{ safetyInfo: string }>(`SELECT "safetyInfo" FROM "Product" WHERE slug = $1`, [row!.slug]);
+    expect(stored!.safetyInfo).toBe("Achtung **Splitter** möglich.\n- Handschuhe tragen");
+    await expect(p.locator("strong", { hasText: "Splitter" })).toBeVisible();
+    await expect(p.getByRole("listitem").filter({ hasText: "Handschuhe tragen" })).toBeVisible();
   });
 
   test("Medienbibliothek: Karten, Alt-Text unten, eigener Lösch-Dialog", async ({ browser }) => {

@@ -77,7 +77,13 @@ test("Online-Status: im Chat „Online“, im Admin-Dashboard gelistet, ausgesch
   const { id, mattia } = await directConversation();
   const page = await loginAs(browser, "lena");
   // Mattia ist online (Herzschlag)
-  const m = await loginAs(browser, "mattia");
+  const mPage = await loginAs(browser, "mattia");
+  // Nur die Sitzung verwenden: eine offene Seite würde sich per Herzschlag selbst wieder online melden
+  const ctx = mPage.context();
+  for (const pg of ctx.pages()) await pg.close();
+  // Auch Seiten früherer Tests schliessen (z. B. Mattias offene Unterhaltung) – sie pingen sonst weiter
+  for (const c of browser.contexts()) if (c !== ctx && c !== page.context()) await c.close();
+  const m = { request: ctx.request };
   await m.request.post("/api/v1/me/presence");
   await page.goto(`/nachrichten/${id}`);
   const header = page.getByRole("region", { name: /Unterhaltung mit/ });

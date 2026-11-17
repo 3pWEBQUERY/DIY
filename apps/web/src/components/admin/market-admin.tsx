@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Pencil } from "lucide-react";
 import type { ActionResult } from "@/server/errors";
 import { useAction } from "@/lib/use-action";
@@ -148,7 +149,7 @@ export function ProductEditButton({
             </Field>
           </div>
           <Field label="Beschreibung" optional error={f.description}>
-            {(p) => <Textarea name="description" defaultValue={initial.description} maxLength={10000} rows={5} {...p} />}
+            {(p) => <RichField name="description" initial={initial.description} maxLength={10000} minHeight={140} {...p} />}
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Materialien" optional error={f.materials}>
@@ -158,16 +159,27 @@ export function ProductEditButton({
               {(p) => <Input name="dimensions" defaultValue={initial.dimensions} maxLength={200} {...p} />}
             </Field>
             <Field label="Sicherheitshinweise" optional error={f.safetyInfo}>
-              {(p) => <Textarea name="safetyInfo" defaultValue={initial.safetyInfo} maxLength={2000} rows={2} {...p} />}
+              {(p) => <RichField name="safetyInfo" initial={initial.safetyInfo} maxLength={2000} minHeight={90} {...p} />}
             </Field>
             <Field label="Rückgabe" optional error={f.returnPolicy}>
-              {(p) => <Textarea name="returnPolicy" defaultValue={initial.returnPolicy} maxLength={2000} rows={2} {...p} />}
+              {(p) => <RichField name="returnPolicy" initial={initial.returnPolicy} maxLength={2000} minHeight={90} {...p} />}
             </Field>
           </div>
           <ReasonFields fields={f} />
           <Footer pending={d.pending} onCancel={() => d.setOpen(false)} />
         </form>
       </Dialog>
+    </>
+  );
+}
+
+/** WYSIWYG-Feld in Formularen mit FormData: Wert läuft über ein verstecktes Feld mit. */
+function RichField({ name, initial, maxLength, minHeight, ...p }: { name: string; initial: string; maxLength: number; minHeight: number; id: string; "aria-describedby"?: string; "aria-invalid"?: boolean }) {
+  const [v, setV] = useState(initial);
+  return (
+    <>
+      <RichTextEditor {...p} value={v} onChange={setV} maxLength={maxLength} minHeight={minHeight} />
+      <input type="hidden" name={name} value={v} />
     </>
   );
 }

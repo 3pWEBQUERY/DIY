@@ -78,9 +78,10 @@ export function SaveButton({ type, id, saved: initial, label }: { type: TargetTy
           } else if (next) toast("Gespeichert. Du findest es unter „Gespeichert“.");
         });
       }}
-      className={cn("inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors hover:text-ink", saved && "text-ink")}
+      // Gespeichert in Werkuno-Farbe (wie „Gefällt mir“), nicht schwarz
+      className={cn("inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors hover:text-ink", saved && "text-moss hover:text-moss-ink")}
     >
-      <Bookmark size={18} strokeWidth={1.7} className={cn(saved && "fill-ink")} />
+      <Bookmark size={18} strokeWidth={1.7} className={cn("transition-colors", saved && "fill-current")} />
       {label && <span className="font-medium">{saved ? "Gespeichert" : "Speichern"}</span>}
     </button>
   );

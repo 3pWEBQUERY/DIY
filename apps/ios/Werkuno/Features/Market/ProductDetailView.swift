@@ -83,11 +83,15 @@ struct ProductDetailView: View {
                     if needsVariant(p) { variantPicker(p) }
                     if !p.isDigital && !(p.isOwner ?? false) && (p.purchasable ?? false) { quantityRow(p) }
                     if let d = p.description?.nilIfEmpty {
-                        Text(d).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                        RichTextBlock(text: d)
                     }
                     dataSheet(p)
                     if let s = p.safetyInfo?.nilIfEmpty {
-                        NoticeView(tone: .warn, title: "Sicherheitshinweis", message: s)
+                        NoticeView(tone: .warn, title: "Sicherheitshinweis", message: s, formatted: true)
+                    }
+                    if p.isDigital {
+                        // Information, keine Warnung – deshalb neutral (wie im Web)
+                        NoticeView(tone: .info, title: "Lizenz", message: "Persönliche, nicht übertragbare Nutzung. Die Datei steht nach dem Kauf in deinen Bestellungen zum Download bereit.")
                     }
                     policies(p)
                     linked(p)
@@ -126,7 +130,8 @@ struct ProductDetailView: View {
         } else {
             TabView {
                 ForEach(media) { m in
-                    RemoteImage(path: m.displayURL) { ThreadPlate(seed: p.id, category: p.category) }
+                    // Vollständig sichtbar (wie im Web): Hoch- und Querformate nicht beschneiden
+                    RemoteImage(path: m.displayURL, contentMode: .fit) { ThreadPlate(seed: p.id, category: p.category) }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .contentShape(.rect)
@@ -675,9 +680,10 @@ struct MarketPolicyBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(title, systemImage: symbol).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
-            Text(text).font(.wr(.footnote)).foregroundStyle(Color.ink2)
-                .lineLimit(expanded ? nil : 4)
-                .fixedSize(horizontal: false, vertical: true)
+            // Formatierter Text (Rückgabe kann Listen und Hervorhebungen enthalten)
+            RichTextBlock(text: text, font: .wr(.footnote))
+                .frame(maxHeight: expanded || text.count <= 220 ? nil : 92, alignment: .top)
+                .clipped()
             if text.count > 220 {
                 Button(expanded ? "Weniger" : "Mehr lesen") { withAnimation(.snappy) { expanded.toggle() } }
                     .font(.wr(.footnote, .semibold))

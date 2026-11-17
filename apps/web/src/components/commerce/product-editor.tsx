@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
@@ -271,7 +272,7 @@ export function ProductEditor({
             error={fields.description}
             hint={v.kind === "RAW" ? "Beschreibe den Zustand ehrlich: Herkunft, Gebrauchsspuren, Schäden – und was man daraus machen könnte." : "Wie ist es entstanden, wofür eignet es sich, wie pflegt man es?"}
           >
-            {(p) => <Textarea {...p} rows={7} value={v.description} onChange={(e) => set("description", e.target.value)} maxLength={10000} />}
+            {(p) => <RichTextEditor {...p} value={v.description} onChange={(md) => set("description", md)} maxLength={10000} minHeight={168} />}
           </Field>
         </section>
 
@@ -513,10 +514,10 @@ export function ProductEditor({
             error={fields.safetyInfo}
             hint="Pflicht bei Kinderprodukten, Kerzen, Elektronik, Kosmetik u.ä.: Warnhinweise, Altersempfehlung, Hersteller-/Kontaktangaben."
           >
-            {(p) => <Textarea {...p} rows={4} value={v.safetyInfo} onChange={(e) => set("safetyInfo", e.target.value)} maxLength={2000} />}
+            {(p) => <RichTextEditor {...p} value={v.safetyInfo} onChange={(md) => set("safetyInfo", md)} maxLength={2000} minHeight={100} />}
           </Field>
           <Field label="Rückgabe & Umtausch" optional error={fields.returnPolicy} hint={shopReturnPolicy ? "Vorausgefüllt mit der Rückgaberegel deines Shops." : "Leer lassen, um die Regel deines Shops zu verwenden."}>
-            {(p) => <Textarea {...p} rows={3} value={v.returnPolicy} onChange={(e) => set("returnPolicy", e.target.value)} maxLength={2000} />}
+            {(p) => <RichTextEditor {...p} value={v.returnPolicy} onChange={(md) => set("returnPolicy", md)} maxLength={2000} minHeight={84} />}
           </Field>
         </section>
 

@@ -45,7 +45,7 @@ function Line({ line, currency }: { line: CartLine; currency: Currency }) {
   return (
     <li className={cn("grid grid-cols-[72px_1fr] gap-4 py-4 sm:grid-cols-[88px_1fr_auto]", pending && "opacity-60")}>
       <Link href={line.href} className="block border border-line rounded-2xl" tabIndex={-1} aria-hidden>
-        <Cover url={line.cover.url} variants={line.cover.variants} alt="" seed={line.productId} category={line.category} ratio="4/5" sizes="88px" />
+        <Cover url={line.cover.url} variants={line.cover.variants} alt="" seed={line.productId} category={line.category} ratio="1/1" fit="contain" sizes="88px" />
       </Link>
       <div className="min-w-0">
         <p className="spec">{PRODUCT_KIND_LABEL[line.kind as ProductKind]}</p>

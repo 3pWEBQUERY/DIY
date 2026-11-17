@@ -90,6 +90,8 @@ struct SaveButton: View {
         } label: {
             if label {
                 Label(saved ? "Gespeichert" : "Speichern", systemImage: saved ? "bookmark.fill" : "bookmark")
+                    // Gespeichert in Werkuno-Farbe (wie im Web)
+                    .foregroundStyle(saved ? Color.moss : Color.ink2)
             } else {
                 Image(systemName: saved ? "bookmark.fill" : "bookmark")
                     .font(.wr(.subheadline))

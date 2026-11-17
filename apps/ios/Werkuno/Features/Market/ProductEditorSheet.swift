@@ -191,8 +191,7 @@ struct ProductEditorSheet: View {
                     ForEach(c.categories) { Text($0.name).tag($0.slug) }
                 }
                 MarketFieldError(text: fields["category"])
-                TextField("Beschreibung – wie ist es entstanden, wofür eignet es sich, wie pflegt man es?", text: $description, axis: .vertical)
-                    .lineLimit(4...12)
+                RichTextField(placeholder: "Beschreibung – wie ist es entstanden, wofür eignet es sich, wie pflegt man es?", markup: $description, minHeight: 120)
             } header: { Text("Angebot") } footer: {
                 if isDigital { Text("Digitale Dateien verwaltest du im Web. In der iOS-App kaufen Kund:innen über Apple; dein Anteil ist gleich wie bei einem Web-Verkauf.") }
                 else { Text("Konkret und ehrlich, z. B. „Gehäkelter Korb aus Baumwollkordel, natur“.") }
@@ -251,11 +250,11 @@ struct ProductEditorSheet: View {
             }
 
             Section {
-                TextField("Warnhinweise, Altersempfehlung, Hersteller-/Kontaktangaben", text: $safetyInfo, axis: .vertical).lineLimit(2...8)
+                RichTextField(placeholder: "Warnhinweise, Altersempfehlung, Hersteller-/Kontaktangaben", markup: $safetyInfo, minHeight: 72)
             } header: { Text("Sicherheitshinweise") } footer: { Text("Pflicht bei Kinderprodukten, Kerzen, Elektronik, Kosmetik u. ä.") }
 
             Section {
-                TextField("Rückgabe & Umtausch", text: $returnPolicy, axis: .vertical).lineLimit(2...8)
+                RichTextField(placeholder: "Rückgabe & Umtausch", markup: $returnPolicy, minHeight: 72)
             } footer: { Text("Leer lassen, um die Rückgaberegel deines Shops zu verwenden.") }
 
             Section {

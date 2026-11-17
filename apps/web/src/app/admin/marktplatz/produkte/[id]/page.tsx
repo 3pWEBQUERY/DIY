@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FormattedText } from "@/components/ui/formatted-text";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -141,7 +142,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <section aria-labelledby="p2">
             <SectionTitle n="02" title={<span id="p2">Angaben</span>} />
             <div className="mt-4 space-y-5 text-[13.5px]">
-              {p.description ? <p className="whitespace-pre-wrap leading-relaxed text-ink-2">{p.description}</p> : <p className="text-muted">Keine Beschreibung.</p>}
+              {p.description ? <FormattedText text={p.description} className="leading-relaxed text-ink-2" /> : <p className="text-muted">Keine Beschreibung.</p>}
               <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
                 {[
                   ["Materialien", p.materials],
@@ -151,7 +152,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 ].map(([l, v]) => (
                   <div key={l} className="border-l border-line pl-4">
                     <dt className="spec">{l}</dt>
-                    <dd className="mt-1 whitespace-pre-wrap text-ink-2">{v || "–"}</dd>
+                    <dd className="mt-1 text-ink-2">{v ? l === "Sicherheitshinweise" || l === "Rückgabe" ? <FormattedText text={v} /> : <span className="whitespace-pre-wrap">{v}</span> : "–"}</dd>
                   </div>
                 ))}
               </dl>

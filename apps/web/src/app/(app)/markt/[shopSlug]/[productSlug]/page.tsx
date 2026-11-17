@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { FormattedText } from "@/components/ui/formatted-text";
+import { richToPlain } from "@/lib/rich-text";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
 import type { Metadata } from "next";
-import { ShieldAlert, Star } from "lucide-react";
+import { FileCheck2, ShieldAlert, Star } from "lucide-react";
 import { COUNTRY_LABEL, PRODUCT_KIND_LABEL, PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency, type ShipCountry, formatDimensions } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { countProductView, getProductPage, moreFromShop } from "@/server/commerce/products";
@@ -26,7 +28,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { shopSlug, productSlug } = await params;
   const p = await getProductPage(shopSlug, productSlug, null);
   if (!p) return { title: "Produkt nicht gefunden", robots: { index: false } };
-  const desc = (p.description || `${PRODUCT_KIND_LABEL[p.kind]} von ${p.shop.name}`).replace(/\s+/g, " ").slice(0, 160);
+  const desc = (richToPlain(p.description) || `${PRODUCT_KIND_LABEL[p.kind]} von ${p.shop.name}`).replace(/\s+/g, " ").slice(0, 160);
   const img = p.coverUrl ?? undefined;
   return {
     title: `${p.title} – ${p.shop.name}`,
@@ -68,7 +70,7 @@ export default async function ProductPage({ params }: Params) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: p.title,
-    description: p.description.slice(0, 5000) || undefined,
+    description: richToPlain(p.description).slice(0, 5000) || undefined,
     image: gallery.map((g) => absolute(g.variants.lg ?? g.variants.md)).filter(Boolean),
     category: cat?.name,
     material: p.materials || undefined,
@@ -231,7 +233,7 @@ export default async function ProductPage({ params }: Params) {
           {p.description && (
             <section aria-labelledby="beschreibung">
               <SectionTitle n="01" title={<span id="beschreibung">Beschreibung</span>} />
-              <div className="prose-werk mt-5 whitespace-pre-line">{p.description}</div>
+              <FormattedText text={p.description} className="prose-werk mt-5" />
             </section>
           )}
 
@@ -287,19 +289,23 @@ export default async function ProductPage({ params }: Params) {
               {p.safetyInfo ? (
                 <div className="rounded-2xl flex gap-3 bg-warn-soft px-4 py-3">
                   <ShieldAlert size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden />
-                  <p className="whitespace-pre-line">{p.safetyInfo}</p>
+                  <FormattedText text={p.safetyInfo} />
                 </div>
               ) : (
                 <p className="text-muted">Der Shop hat keine besonderen Sicherheitshinweise hinterlegt.</p>
               )}
               <div>
                 <h3 className="spec mb-1.5">Rückgabe & Umtausch</h3>
-                <p className="whitespace-pre-line">{returnText || "Es gelten die gesetzlichen Bestimmungen. Der Shop hat keine eigenen Bedingungen hinterlegt."}</p>
+                {returnText ? <FormattedText text={returnText} /> : <p>Es gelten die gesetzlichen Bestimmungen. Der Shop hat keine eigenen Bedingungen hinterlegt.</p>}
               </div>
               {isDigital && (
-                <div>
-                  <h3 className="spec mb-1.5">Lizenz</h3>
-                  <p>Persönliche, nicht übertragbare Nutzung. Die Datei steht nach dem Kauf in deinen Bestellungen zum Download bereit.</p>
+                // Hinweis im neutralen Stil (nicht rot/warnend – es ist eine Information, keine Gefahr)
+                <div role="note" aria-labelledby="lizenz-titel" className="flex gap-3 rounded-2xl border border-line bg-sunken px-4 py-3.5">
+                  <FileCheck2 size={18} className="mt-0.5 shrink-0 text-ink-2" aria-hidden />
+                  <div>
+                    <h3 id="lizenz-titel" className="text-[14px] font-semibold text-ink">Lizenz</h3>
+                    <p className="mt-0.5">Persönliche, nicht übertragbare Nutzung. Die Datei steht nach dem Kauf in deinen Bestellungen zum Download bereit.</p>
+                  </div>
                 </div>
               )}
             </div>

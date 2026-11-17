@@ -157,8 +157,10 @@ struct ProductCardView: View {
             if let s = product.shopSlugValue { router.open(.product(shopSlug: s, productSlug: product.slug)) }
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                CoverView(url: product.imageURL, seed: product.id, category: product.category, showLabel: false)
+                // Produktfotos vollständig zeigen (wie im Web) – nichts abschneiden
+                CoverView(url: product.imageURL, seed: product.id, category: product.category, showLabel: false, contentMode: .fit)
                     .aspectRatio(1, contentMode: .fit)
+                    .background(Color.sunken)
                     .overlay(alignment: .topLeading) {
                         if product.soldOut { Pill(text: "Ausverkauft", tint: .ink, filled: true).padding(8) }
                         else if product.kind == "UNIQUE" { Pill(text: "Einzelstück", tint: .clay, filled: true).padding(8) }

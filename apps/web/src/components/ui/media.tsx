@@ -111,8 +111,11 @@ export function Cover({
   priority,
   label,
   plateNumber,
+  fit = "cover",
 }: {
   plateNumber?: boolean;
+  /** „contain“: Bild vollständig zeigen statt formatfüllend beschneiden (Produktfotos) */
+  fit?: "cover" | "contain";
   url?: string | null;
   variants?: Variants | null;
   alt: string;
@@ -127,7 +130,7 @@ export function Cover({
   return (
     <div className={cn("relative overflow-hidden rounded-2xl bg-sunken", className)} style={{ aspectRatio: ratio }}>
       {url || variants?.md ? (
-        <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className="zoom-media absolute inset-0" />
+        <MediaImage url={url} variants={variants} alt={alt} sizes={sizes} priority={priority} className={cn("zoom-media absolute inset-0", fit === "contain" && "object-contain")} />
       ) : (
         <Plate seed={seed} category={category} label={label} number={plateNumber} className="zoom-media" />
       )}

@@ -37,7 +37,8 @@ export function RatingInline({ avg, count, className }: { avg: number; count: nu
 }
 
 /**
- * Produktkarte: Das Foto ist die Karte (4:5, ruhiger Zoom beim Hover). Darunter eine klare
+ * Produktkarte: Das Foto ist die Karte (quadratisch und vollständig sichtbar – wie auf der Produktseite
+ * nichts abgeschnitten; ruhiger Zoom beim Hover). Darunter eine klare
  * Typo-Hierarchie – Shop, Titel, Preis. Angebotsart dezent auf dem Bild, keine Rabatt-Badges.
  */
 export function ProductCard({ product, priority, sizes, className, showShop = true }: { product: ProductCardProps; priority?: boolean; sizes?: string; className?: string; showShop?: boolean }) {
@@ -54,7 +55,8 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
           alt={p.cover.alt}
           seed={p.id}
           category={p.category}
-          ratio="4/5"
+          ratio="1/1"
+          fit="contain"
           priority={priority}
           sizes={sizes ?? "(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw"}
           className={cn("rounded-none transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100", soldOut && "opacity-55 grayscale-[40%]")}

@@ -223,12 +223,14 @@ struct CoverView: View {
     var category: String?
     var showLabel = true
     var animated = false
+    /// .fit: Bild vollständig zeigen statt beschneiden (Produktfotos)
+    var contentMode: ContentMode = .fill
 
     var body: some View {
-        // Color.clear übernimmt die vorgeschlagene Grösse; das Bild füllt sie und wird genau dort beschnitten
+        // Color.clear übernimmt die vorgeschlagene Grösse; das Bild füllt sie (bzw. passt hinein) und wird dort beschnitten
         Color.clear
             .overlay {
-                RemoteImage(path: url) {
+                RemoteImage(path: url, contentMode: contentMode) {
                     ThreadPlate(seed: seed, category: category, showLabel: showLabel, animated: animated)
                 }
             }

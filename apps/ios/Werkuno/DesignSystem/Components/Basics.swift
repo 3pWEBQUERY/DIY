@@ -315,6 +315,8 @@ struct NoticeView: View {
     var tone: Tone = .info
     var title: String? = nil
     var message: String
+    /// Nachricht ist formatierter Text (fett, kursiv, Listen, Links – RichMarkup)
+    var formatted = false
     var body: some View {
         let c: Color = switch tone { case .info: .slate; case .warn: .warn; case .danger: .danger; case .success: .moss }
         HStack(alignment: .top, spacing: 10) {
@@ -322,7 +324,8 @@ struct NoticeView: View {
                 .foregroundStyle(c)
             VStack(alignment: .leading, spacing: 3) {
                 if let title { Text(title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink) }
-                Text(message).font(.wr(.footnote)).foregroundStyle(Color.ink2)
+                if formatted { RichTextBlock(text: message, font: .wr(.footnote)) }
+                else { Text(message).font(.wr(.footnote)).foregroundStyle(Color.ink2) }
             }
             Spacer(minLength: 0)
         }
