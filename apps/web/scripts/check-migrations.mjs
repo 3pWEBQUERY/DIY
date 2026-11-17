@@ -43,6 +43,14 @@ const local = readdirSync(migrationsDir, { withFileTypes: true })
   .map((d) => d.name)
   .sort();
 
+// Basis (Pull Request: Zielbranch; Push: vorheriger Stand) – vorab gelesen, weil Regel 1 und 3 sie brauchen
+const argIdx = process.argv.indexOf("--base");
+const base = (argIdx > -1 ? process.argv[argIdx + 1] : process.env.MIGRATIONS_BASE_REF)?.trim();
+const relDir = repoRoot ? relative(repoRoot, migrationsDir).split("\\").join("/") : "apps/web/prisma/migrations";
+const baseTree = base && !/^0+$/.test(base) ? git(["ls-tree", "--name-only", `${base}:${relDir}`]) : null;
+const baseNames = baseTree == null ? null : baseTree.split("\n").filter((n) => NAME.test(n)).sort();
+const onBase = new Set(baseNames ?? []);
+
 // 1. Namensschema, migration.sql, eindeutige Zeitstempel
 const stamps = new Map();
 for (const m of local) {
@@ -50,7 +58,12 @@ for (const m of local) {
   if (!match) errors.push(`${m}: Name muss dem Schema JJJJMMTThhmmss_name entsprechen (Kleinbuchstaben, Ziffern, _).`);
   if (!existsSync(join(migrationsDir, m, "migration.sql"))) errors.push(`${m}: migration.sql fehlt.`);
   if (match) {
-    if (stamps.has(match[1])) errors.push(`${m}: Zeitstempel ${match[1]} schon vergeben (${stamps.get(match[1])}).`);
+    if (stamps.has(match[1])) {
+      // Bereits ausgerollte Paare lassen sich nicht mehr umbenennen (Prisma kennt sie unter ihrem Namen) –
+      // sie sind nur ein Hinweis. Eine NEUE Migration mit vergebenem Zeitstempel bleibt ein Fehler.
+      const grandfathered = onBase.has(m) && onBase.has(stamps.get(match[1]));
+      (grandfathered ? notes : errors).push(`${m}: Zeitstempel ${match[1]} schon vergeben (${stamps.get(match[1])})${grandfathered ? " – bereits ausgerollt, bleibt so" : ""}.`);
+    }
     stamps.set(match[1], m);
   }
 }
@@ -86,15 +99,10 @@ if (repoRoot) {
 }
 
 // 3. Vergleich mit der Basis (Pull Request: Zielbranch; Push: vorheriger Stand)
-const argIdx = process.argv.indexOf("--base");
-const base = (argIdx > -1 ? process.argv[argIdx + 1] : process.env.MIGRATIONS_BASE_REF)?.trim();
 if (base && !/^0+$/.test(base)) {
-  const rel = repoRoot ? relative(repoRoot, migrationsDir).split("\\").join("/") : "apps/web/prisma/migrations";
-  const tree = git(["ls-tree", "--name-only", `${base}:${rel}`]);
-  if (tree == null) {
+  if (baseNames == null) {
     notes.push(`Basis ${base} nicht gefunden – Basisvergleich übersprungen.`);
   } else {
-    const baseNames = tree.split("\n").filter((n) => NAME.test(n)).sort();
     const localSet = new Set(local);
     for (const b of baseNames) {
       if (!localSet.has(b)) errors.push(`${b}: existiert auf ${base}, fehlt hier. Angewendete Migrationen nie umbenennen oder löschen.`);
