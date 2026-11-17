@@ -41,7 +41,7 @@ export function AuthAside() {
   const path = usePathname() ?? "";
   const copy = path.startsWith("/registrieren") ? NEWCOMERS : MEMBERS;
   return (
-    <aside className="relative hidden overflow-hidden border-l border-rule bg-[#ece6e1] lg:block" aria-label="Über Werkuno">
+    <aside className="relative hidden overflow-hidden border-l border-rule bg-[#ece6e1] lg:sticky lg:top-0 lg:block lg:h-dvh lg:self-start" aria-label="Über Werkuno">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/auth/werkstatt-1086.webp"
@@ -54,19 +54,19 @@ export function AuthAside() {
       />
       {/* Weicher Verlauf von links über die freie Wand: Text bleibt lesbar, Pflanze und Werkzeug bleiben klar */}
       <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(242,237,232,0.88)_0%,rgba(242,237,232,0.6)_36%,rgba(242,237,232,0)_60%)]" aria-hidden />
-      <div className="relative flex h-full flex-col p-12 text-[#262427] xl:p-14">
+      <div className="relative flex h-full flex-col p-12 text-[#262427] xl:p-14 [@media(max-height:820px)]:py-9">
         <p className="spec text-[#973b2c]">{copy.kicker}</p>
-        <h2 className="display mt-4 max-w-[11ch] text-5xl leading-[1.02] xl:text-6xl">{copy.title}</h2>
-        <p className="mt-4 max-w-[38ch] text-[15px] leading-relaxed text-[#4a4446]">{copy.lead}</p>
-        <ul className="mt-8 max-w-[400px] space-y-2.5">
+        <h2 className="display mt-4 max-w-[11ch] text-5xl leading-[1.02] xl:text-6xl [@media(max-height:820px)]:text-4xl">{copy.title}</h2>
+        <p className="mt-4 max-w-[38ch] text-[15px] leading-relaxed text-[#4a4446] [@media(max-height:700px)]:hidden">{copy.lead}</p>
+        <ul className="mt-8 max-w-[400px] space-y-2.5 [@media(max-height:820px)]:mt-6">
           {copy.points.map(({ icon: Icon, title, text }) => (
-            <li key={title} className="flex gap-3.5 rounded-2xl border border-white/60 bg-white/70 p-3.5 shadow-[0_1px_2px_rgba(38,36,39,0.06)] backdrop-blur-md">
+            <li key={title} className="flex items-center gap-3.5 rounded-2xl border border-white/60 bg-white/70 p-3.5 shadow-[0_1px_2px_rgba(38,36,39,0.06)] backdrop-blur-md">
               <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#f6e5e0] text-[#b64b3a]" aria-hidden>
                 <Icon size={17} strokeWidth={1.8} />
               </span>
               <span className="min-w-0">
                 <span className="block text-[14px] font-semibold leading-snug">{title}</span>
-                <span className="mt-0.5 block text-[13px] leading-snug text-[#5b5457]">{text}</span>
+                <span className="mt-0.5 block text-[13px] leading-snug text-[#5b5457] [@media(max-height:820px)]:hidden">{text}</span>
               </span>
             </li>
           ))}
