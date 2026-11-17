@@ -41,6 +41,11 @@ export const FLAGS = {
     description: "Creator Pro abschliessen (Abo). Aus: Keine neuen Abos – bestehende Abos und geschenkte Zugänge bleiben aktiv.",
     default: true,
   },
+  stories: {
+    label: "Stories",
+    description: "Stories erstellen und im Story-Kreis ansehen. Aus: Story-Kreis ausgeblendet, keine neuen Stories. Highlights auf Profilen bleiben sichtbar.",
+    default: true,
+  },
   realtime: {
     label: "Live-Updates",
     description: "Badges, Benachrichtigungen und Chats in Echtzeit. Aus: Aktualisierung alle paar Sekunden statt sofort (entlastet den Server).",
@@ -58,6 +63,7 @@ const PAUSED_MESSAGE: Record<FlagKey, string> = {
   "messages.new": "Neue Unterhaltungen sind gerade pausiert. Bestehende Gespräche funktionieren weiter.",
   "uploads.video": "Video-Uploads sind gerade pausiert. Fotos kannst du weiterhin hochladen.",
   pro: "Creator Pro kann gerade nicht abgeschlossen werden. Bitte versuche es später erneut.",
+  stories: "Stories sind gerade pausiert. Bitte versuche es später erneut.",
   realtime: "Live-Updates sind gerade pausiert.",
 };
 

@@ -18,6 +18,7 @@ import { MessageComposer, type ComposerHandle } from "./composer";
 import { ContextCard } from "./context-card";
 import { GroupInfo } from "./group-info";
 import { GroupAvatar } from "./inbox";
+import { StoryReplyRef } from "@/components/stories/story-reply-ref";
 import { leaveGroupAction } from "@/app/(app)/nachrichten/actions";
 import { LIVE_EVENT, refreshCounts, type LiveDetail } from "@/components/shell/live-counts";
 
@@ -76,6 +77,7 @@ function Bubble({ m, otherName, onReport, showTime, sender }: { m: MessageView; 
         </Link>
       )}
       {flagged && <Warning />}
+      {m.story && <StoryReplyRef story={m.story} mine={m.mine} />}
       <div className={cn("flex max-w-[85%] items-end gap-2 sm:max-w-[70%]", m.mine && "flex-row-reverse")}>
         <div className={cn("min-w-0 px-3.5 py-2", m.removed ? "rounded-[20px] border border-dashed border-line-strong text-muted" : m.mine ? "rounded-[20px] rounded-br-md bg-moss text-paper" : "rounded-[20px] rounded-bl-md border border-line bg-card text-ink", flagged && "border-warn")}>
           <p className="sr-only">{m.mine ? "Du" : sender?.displayName ?? otherName}, {time(m.createdAt)}:</p>

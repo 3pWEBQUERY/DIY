@@ -23,6 +23,8 @@ struct FeedView: View {
                     .padding(.horizontal, Space.gutter)
                     .padding(.top, 4)
 
+                StoryTrayView()
+
                 FeedComposerPrompt()
                     .padding(.horizontal, Space.gutter)
                     .padding(.top, Space.l)
@@ -59,6 +61,7 @@ struct FeedView: View {
             async let a: Void = loadFeed(reset: true)
             async let b: Void = loadContext()
             async let c: Void = app.refreshCounts()
+            NotificationCenter.default.post(name: .storiesChanged, object: nil)
             _ = await (a, b, c)
         }
         .onReceive(NotificationCenter.default.publisher(for: .socialPostsChanged)) { note in

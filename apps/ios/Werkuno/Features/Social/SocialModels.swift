@@ -144,6 +144,8 @@ struct SocialMessage: Codable, Hashable, Identifiable, Sendable {
     var mine: Bool
     /// Gruppenereignis („Lena hat Mattia hinzugefügt“) statt Nachricht
     var system: Bool?
+    /// Antwort auf eine Story (Vorschau, solange die Story läuft)
+    var story: StoryRef?
 
     var isSystem: Bool { system == true }
     var isRemoved: Bool { removed == true }

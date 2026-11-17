@@ -6,9 +6,11 @@ private enum MeProfileTab: String, Hashable { case posts, projects, tutorials, s
 private struct MeProfileResponse: Decodable {
     var page: MeProfilePage
     var extras: SocialProfileExtras
+    var stories: StoryProfileExtras
     init(from decoder: Decoder) throws {
         page = try MeProfilePage(from: decoder)
         extras = try SocialProfileExtras(from: decoder)
+        stories = (try? StoryProfileExtras(from: decoder)) ?? StoryProfileExtras()
     }
 }
 
@@ -21,6 +23,7 @@ struct ProfileView: View {
 
     @State private var page: MeProfilePage?
     @State private var extras: SocialProfileExtras?
+    @State private var stories: StoryProfileExtras?
     @State private var error: String?
     @State private var tab: MeProfileTab = .posts
     @State private var posts: [PostItem] = []
@@ -43,6 +46,13 @@ struct ProfileView: View {
         .toolbar { toolbar }
         .task { if page == nil { await load() } }
         .refreshable { await load() }
+        // Stories geändert (gesehen, neu, Highlight): nur Ring und Highlights neu laden – Beitragsliste bleibt, wo sie ist
+        .onReceive(NotificationCenter.default.publisher(for: .storiesChanged)) { _ in
+            guard page != nil else { return }
+            Task {
+                if let r: MeProfileResponse = try? await APIClient.shared.get("/users/\(handle.lowercased())") { withAnimation(.snappy) { stories = r.stories } }
+            }
+        }
     }
 
     // MARK: Laden
@@ -60,6 +70,7 @@ struct ProfileView: View {
             let first = page == nil
             page = p
             extras = r.extras
+            stories = r.stories
             posts = p.posts ?? []
             cursor = p.postsCursor
             error = nil
@@ -99,6 +110,11 @@ struct ProfileView: View {
                         if viewer.muted && !unmuted {
                             Button("Stummschaltung aufheben", systemImage: "speaker.wave.2") { Task { await unmute(prof) } }
                         }
+                        if stories?.viewer?.storiesMuted == true {
+                            Button("Stories wieder anzeigen", systemImage: "eye") { Task { await setStoriesMuted(prof, false) } }
+                        } else {
+                            Button("Stories ausblenden", systemImage: "eye.slash") { Task { await setStoriesMuted(prof, true) } }
+                        }
                         SafetyMenuItems(targetType: "USER", targetId: prof.userId, authorId: prof.userId, authorName: prof.displayName, allowHide: false)
                     }
                 } label: {
@@ -106,6 +122,13 @@ struct ProfileView: View {
                 }
                 .accessibilityLabel("Weitere Aktionen")
             }
+        }
+    }
+
+    private func setStoriesMuted(_ prof: MeProfilePage.Profile, _ muted: Bool) async {
+        let msg = muted ? "Du siehst die Stories von \(prof.displayName) nicht mehr." : "Stories werden wieder angezeigt."
+        if await app.run(msg, { try await StoryAPI.muteStories(of: prof.userId, muted) }) {
+            NotificationCenter.default.post(name: .storiesChanged, object: nil)
         }
     }
 
@@ -160,9 +183,7 @@ struct ProfileView: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .bottom) {
-                    AvatarView(url: prof.avatarUrl, name: prof.displayName, size: 88, category: prof.categories?.first)
-                        .padding(4)
-                        .background(Color.paper, in: Circle())
+                    profileAvatar(prof)
                         .offset(y: -44)
                         .padding(.bottom, -44)
                     Spacer()
@@ -202,6 +223,11 @@ struct ProfileView: View {
                     }
                 }
                 counts(prof)
+                if !viewer.blocked, viewer.isSelf || !(stories?.highlights ?? []).isEmpty {
+                    ProfileHighlightsRow(highlights: stories?.highlights ?? [], isSelf: viewer.isSelf)
+                        .padding(.horizontal, -Space.gutter)
+                        .padding(.vertical, 2)
+                }
                 SocialAwardsList(awards: extras?.awards ?? [])
                 if let shop = prof.shop, shop.status == "ACTIVE" {
                     LinkedThreadRow(kicker: "Shop", title: [shop.name, shop.tagline?.nilIfEmpty].compactMap { $0 }.joined(separator: " – "), seed: shop.slug, category: prof.categories?.first, url: nil) {
@@ -212,6 +238,27 @@ struct ProfileView: View {
             }
             .padding(.horizontal, Space.gutter)
             .padding(.bottom, 10)
+        }
+    }
+
+    /// Profilbild – mit Story-Ring, wenn die Person gerade Stories hat (Koralle = neu)
+    @ViewBuilder private func profileAvatar(_ prof: MeProfilePage.Profile) -> some View {
+        let avatar = AvatarView(url: prof.avatarUrl, name: prof.displayName, size: 88, category: prof.categories?.first)
+        if let ring = stories?.stories, ring.active {
+            Button { router.openStories(handle: prof.handle) } label: {
+                avatar
+                    .padding(4)
+                    .overlay(Circle().strokeBorder(ring.unseen ? Color.moss : Color.lineStrong, lineWidth: 2.5))
+                    .padding(3)
+                    .background(Color.paper, in: Circle())
+            }
+            .buttonStyle(.pressable)
+            .accessibilityLabel("Stories von \(prof.displayName) ansehen")
+            .accessibilityValue(ring.unseen ? "neu" : "gesehen")
+        } else {
+            avatar
+                .padding(4)
+                .background(Color.paper, in: Circle())
         }
     }
 

@@ -31,6 +31,7 @@ export const LIMITS = {
   signUp: [5, 3600],
   passwordReset: [5, 3600],
   post: [30, 3600],
+  story: [40, 3600],
   comment: [60, 3600],
   like: [300, 3600],
   follow: [120, 3600],

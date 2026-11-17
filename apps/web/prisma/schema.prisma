@@ -90,6 +90,7 @@ enum TargetType {
   ARTICLE
   COMMUNITY
   REVIEW
+  STORY
 }
 
 enum ProjectRelationKind {
@@ -328,6 +329,11 @@ model User {
   organizedEvents CommunityEvent[] @relation("eventOrganizer")
   eventAttendance EventAttendee[]
   customerDetails CustomerDetails?
+  stories         Story[]
+  storyViews      StoryView[]
+  storyHighlights StoryHighlight[]
+  storyMutes      StoryMute[] @relation("storyMuter")
+  storyMutedBy    StoryMute[] @relation("storyMuted")
 }
 
 model UserProfile {
@@ -479,6 +485,7 @@ model Media {
   projectMedia  ProjectMedia[]
   productMedia  ProductMedia[]
   tutorialMedia TutorialMedia[]
+  stories       Story[]
 
   @@index([ownerId, createdAt])
   @@index([state, createdAt])
@@ -781,6 +788,7 @@ model Project {
   incoming         ProjectRelation[] @relation("to")
   contributors     ProjectContributor[]
   posts            Post[]
+  stories          Story[]
   tutorials        Tutorial[]
   products         Product[]
   articles         ArticleProject[]
@@ -1276,9 +1284,13 @@ model Message {
   media          Json         @default("[]")
   flags          String[]     @default([]) // SUSPICIOUS_PAYMENT_LINK, …
   state          ContentState @default(PUBLISHED)
+  /// Antwort auf eine Story: Bezug für die Vorschau im Verlauf (Story kann später ablaufen/gelöscht werden)
+  storyId        String?
+  story          Story?       @relation(fields: [storyId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])
+  @@index([storyId])
 }
 
 // ───────────────────────────── Handel ─────────────────────────────
@@ -2171,4 +2183,99 @@ model PostCoauthor {
 
   @@id([postId, userId])
   @@index([userId, status])
+}
+
+// ───────────────────────────── Stories ─────────────────────────────
+
+enum StoryKind {
+  MEDIA
+  TEXT
+}
+
+/// Story: Foto, Video oder Text, 24 Stunden im Story-Kreis sichtbar, danach im eigenen Archiv
+/// (und in Highlights, falls dort gespeichert).
+model Story {
+  id         String       @id @default(cuid())
+  authorId   String
+  author     User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  kind       StoryKind    @default(MEDIA)
+  mediaId    String?
+  media      Media?       @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  /// Bildunterschrift (Foto/Video) bzw. der Text einer Text-Story
+  text       String       @default("")
+  /// Text-Story: Hintergrund aus der festen Palette (STORY_BACKGROUNDS)
+  background String?
+  alt        String       @default("")
+  /// Optionaler Projektfaden: Verweis auf ein eigenes Projekt
+  projectId  String?
+  project    Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// PUBLIC (alle, die das Profil sehen) oder FOLLOWERS
+  visibility Visibility   @default(PUBLIC)
+  state      ContentState @default(PUBLISHED)
+  viewCount  Int          @default(0)
+  likeCount  Int          @default(0)
+  expiresAt  DateTime
+  createdAt  DateTime     @default(now())
+
+  views          StoryView[]
+  highlightItems StoryHighlightItem[]
+  replies        Message[]
+
+  @@index([authorId, expiresAt])
+  @@index([state, expiresAt])
+}
+
+/// Wer eine Story gesehen hat (für „Gesehen von“ und den Ring „neu/gesehen“), inkl. Herz.
+model StoryView {
+  storyId   String
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewerId  String
+  viewer    User      @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  likedAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  @@id([storyId, viewerId])
+  @@index([viewerId, createdAt])
+  @@index([storyId, createdAt])
+}
+
+/// Highlight: dauerhafte Sammlung eigener Stories auf dem Profil.
+model StoryHighlight {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title        String
+  /// Titelbild: eine der enthaltenen Stories (sonst die erste)
+  coverStoryId String?
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items StoryHighlightItem[]
+
+  @@index([ownerId, position])
+}
+
+model StoryHighlightItem {
+  highlightId String
+  highlight   StoryHighlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  storyId     String
+  story       Story          @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  position    Int
+  addedAt     DateTime       @default(now())
+
+  @@id([highlightId, storyId])
+  @@index([storyId])
+  @@index([highlightId, position])
+}
+
+/// Stories einer Person ausblenden, ohne ihre Beiträge stummzuschalten.
+model StoryMute {
+  muterId   String
+  muter     User     @relation("storyMuter", fields: [muterId], references: [id], onDelete: Cascade)
+  mutedId   String
+  muted     User     @relation("storyMuted", fields: [mutedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([muterId, mutedId])
 }

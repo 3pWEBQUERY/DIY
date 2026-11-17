@@ -11,6 +11,7 @@ import { attachMedia } from "@/server/media/service";
 import type { SessionUser } from "@/server/auth/session";
 import { publish } from "@/server/realtime/bus";
 import { requireFlag } from "@/server/flags";
+import { storyRefSelect, toStoryRef, type StoryRefRow } from "@/server/stories/ref";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -58,7 +59,10 @@ const profileSelect = { id: true, status: true, profile: { select: { handle: tru
 
 type MediaItem = { id: string; url: string; thumb: string; alt: string; width: number | null; height: number | null };
 
-function messageView(m: { id: string; body: string; media: unknown; flags: string[]; state: string; createdAt: Date; senderId: string; kind?: string }, viewerId: string) {
+/** Nachrichten mit Story-Bezug (Antwort auf eine Story) für die Vorschau im Verlauf. */
+const messageInclude = { story: { select: storyRefSelect } } as const;
+
+function messageView(m: { id: string; body: string; media: unknown; flags: string[]; state: string; createdAt: Date; senderId: string; kind?: string; story?: StoryRefRow | null }, viewerId: string) {
   const removed = m.state !== "PUBLISHED";
   return {
     id: m.id,
@@ -71,6 +75,8 @@ function messageView(m: { id: string; body: string; media: unknown; flags: strin
     createdAt: m.createdAt.toISOString(),
     senderId: m.senderId,
     mine: m.senderId === viewerId,
+    /** Antwort auf eine Story (Vorschau, solange die Story läuft) */
+    story: removed ? null : toStoryRef(m.story),
   };
 }
 export type MessageView = ReturnType<typeof messageView>;
@@ -237,6 +243,7 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
     where: { conversationId, createdAt: { ...joined, ...(before && !Number.isNaN(before.getTime()) ? { lt: before } : {}) } },
     orderBy: { createdAt: "desc" },
     take: PAGE + 1,
+    include: messageInclude,
   });
   const hasMore = rows.length > PAGE;
   const messages = rows.slice(0, PAGE).reverse().map((m) => messageView(m, user.id));
@@ -301,6 +308,7 @@ export async function messagesSince(user: SessionUser, conversationId: string, a
       where: { conversationId, createdAt: { ...joined, ...(since && !Number.isNaN(since.getTime()) ? { gt: since } : {}) } },
       orderBy: { createdAt: "asc" },
       take: 100,
+      include: messageInclude,
     }),
     otherMembers(conversationId, user.id),
   ]);
@@ -337,7 +345,7 @@ export function assertCanMessage(user: SessionUser) {
   }
 }
 
-export async function sendMessage(user: SessionUser, conversationId: string, input: unknown) {
+export async function sendMessage(user: SessionUser, conversationId: string, input: unknown, ctx: { storyId?: string | null } = {}) {
   const data = messageSendSchema.parse(input);
   assertCanMessage(user);
   const me = await membershipOrThrow(user.id, conversationId);
@@ -359,7 +367,10 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
   const flags = flagsFor(data.body);
   const message = await db.$transaction(async (tx) => {
     const media = await buildMedia(tx, user.id, data.media);
-    const m = await tx.message.create({ data: { conversationId, senderId: user.id, body: data.body, media: media as unknown as Prisma.InputJsonValue, flags } });
+    const m = await tx.message.create({
+      data: { conversationId, senderId: user.id, body: data.body, media: media as unknown as Prisma.InputJsonValue, flags, storyId: ctx.storyId ?? null },
+      include: messageInclude,
+    });
     await tx.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: m.createdAt } });
     await tx.conversationMember.update({
       where: { conversationId_userId: { conversationId, userId: user.id } },
@@ -372,7 +383,7 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
   });
   // Live: alle Beteiligten (auch eigene weitere Tabs) sofort informieren
   void publish([user.id, ...others.map((o) => o.userId)], { t: "message", c: conversationId });
-  const excerpt = data.body ? data.body.slice(0, 120) : "Hat dir ein Bild geschickt.";
+  const excerpt = ctx.storyId ? `Antwort auf deine Story: ${data.body.slice(0, 100)}` : data.body ? data.body.slice(0, 120) : "Hat dir ein Bild geschickt.";
   // Erste Nachricht einer Kontaktanfrage: genau eine Benachrichtigung pro Unterhaltung
   // (weitere Nachrichten sind bis zur Annahme ohnehin begrenzt → kein Spam-Kanal)
   const firstRequestMessage = !isGroup && others.some((o) => o.isRequest) && (await db.message.count({ where: { conversationId, senderId: user.id } })) === 1;
@@ -475,13 +486,13 @@ export async function prepareConversation(user: SessionUser, input: { handle: st
   return { kind: "ok" as const, recipient, context: null, asRequest };
 }
 
-export async function startConversation(user: SessionUser, input: unknown) {
+export async function startConversation(user: SessionUser, input: unknown, ctx: { storyId?: string | null } = {}) {
   const data = conversationStartSchema.parse(input);
   const body = messageSendSchema.parse({ body: data.body, media: data.media });
   const prep = await prepareConversation(user, { handle: data.recipientHandle, orderId: data.orderId, productId: data.productId });
   switch (prep.kind) {
     case "existing":
-      await sendMessage(user, prep.conversationId, body);
+      await sendMessage(user, prep.conversationId, body, ctx);
       return { conversationId: prep.conversationId, asRequest: false };
     case "not_found":
       throw fail.notFound("Kein Profil mit diesem Namen gefunden.");
@@ -522,7 +533,7 @@ export async function startConversation(user: SessionUser, input: unknown) {
     });
   });
   try {
-    await sendMessage(user, conv.id, body);
+    await sendMessage(user, conv.id, body, ctx);
   } catch (e) {
     await db.conversation.delete({ where: { id: conv.id } }).catch(() => {});
     throw e;

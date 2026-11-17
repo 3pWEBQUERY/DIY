@@ -28,6 +28,9 @@ import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingD
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
 import { cn, formatDate, compactNumber } from "@/lib/utils";
 import { publicProductWhere } from "@/server/commerce/restock";
+import { isStoryMuted, storyRing } from "@/server/stories/service";
+import { listHighlights } from "@/server/stories/highlights";
+import { ProfileHighlights, StoryAvatarLink } from "@/components/stories/profile-stories";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string; art?: string }> };
 
@@ -84,6 +87,9 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   // Creator Pro: Kennzeichen, Schaufenster, Medienkit
   const [pro, featured, awards] = blocked ? [false, [], []] : await Promise.all([isPro(userId), featuredProjects(userId, profile.featuredProjectIds, viewerId), profileAwards(userId, viewer)]);
   const wins = awards.filter((a) => a.place === 1).length;
+  const [ring, highlights, storiesMuted] = blocked
+    ? [{ active: false, unseen: false }, [], false]
+    : await Promise.all([storyRing(viewerId, userId), listHighlights(viewerId, userId), viewerId && !isSelf ? isStoryMuted(viewerId, userId) : Promise.resolve(false)]);
   const [projects, tutorials, posts, products, collections, articles, followsYou] = blocked
     ? [null, null, null, [], [], 0, false]
     : await Promise.all([
@@ -149,7 +155,13 @@ export default async function ProfilePage({ params, searchParams }: Params) {
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-10">
         <header className="relative grid gap-6 border-b border-line pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 ml-4 rounded-2xl border border-rule sm:-mt-16 sm:ml-8" />
+            {ring.active ? (
+              <StoryAvatarLink handle={profile.handle} unseen={ring.unseen} name={profile.displayName}>
+                <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="rounded-2xl border border-rule" />
+              </StoryAvatarLink>
+            ) : (
+              <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 ml-4 rounded-2xl border border-rule sm:-mt-16 sm:ml-8" />
+            )}
             <div className="min-w-0 pb-1 sm:pt-5">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="display text-4xl sm:text-5xl">{profile.displayName}</h1>
@@ -184,7 +196,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
             <ShareButton variant="button" url={`/u/${profile.handle}`} title={`${profile.displayName} auf Werkuno`} image={profile.avatarUrl} />
-            {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} />}
+            {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} storiesMuted={storiesMuted} />}
           </div>
         </header>
 
@@ -193,6 +205,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
         ) : (
           <div className="grid gap-10 py-8 lg:grid-cols-[1fr_280px]">
             <div className="min-w-0">
+              {(highlights.length > 0 || isSelf) && <ProfileHighlights highlights={highlights} isSelf={isSelf} />}
               {featured.length > 0 && (
                 <section aria-labelledby="schaufenster" className="mb-10">
                   <h2 id="schaufenster" className="mb-4 flex items-center gap-2 text-[15px] font-bold tracking-tight">

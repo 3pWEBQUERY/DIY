@@ -207,7 +207,7 @@ export type MenuItem = { label: string; icon?: React.ReactNode; onSelect: () => 
  * Kontextmenü (WAI-ARIA Menu Button): Enter/Leertaste/Pfeiltasten öffnen, Pfeiltasten/Pos1/Ende
  * bewegen den Fokus, Esc schliesst und gibt den Fokus an den Auslöser zurück, Tab verlässt das Menü.
  */
-export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline" }: { items: MenuItem[]; label?: string; variant?: "inline" | "button" }) {
+export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline", triggerClassName, onOpenChange }: { items: MenuItem[]; label?: string; variant?: "inline" | "button"; triggerClassName?: string; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -217,6 +217,11 @@ export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline"
   const menuId = useId();
 
   const entries = () => Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -289,7 +294,7 @@ export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline"
             show(e.key === "ArrowUp" ? "last" : "first");
           }
         }}
-        className={variant === "button" ? cn(buttonClass("outline", "md"), "size-11 px-0") : "grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink"}
+        className={triggerClassName ?? (variant === "button" ? cn(buttonClass("outline", "md"), "size-11 px-0") : "grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-ink")}
       >
         <MoreHorizontal size={18} aria-hidden />
       </button>
