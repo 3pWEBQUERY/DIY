@@ -205,7 +205,7 @@ struct TutorialEditorSheet: View {
             ProjectsField(label: "Titelbild", error: errors["coverMediaId"]) {
                 HStack(spacing: 14) {
                     SingleImagePicker(onUploaded: { id, url in coverId = id; coverPreview = url }) {
-                        CoverView(url: coverPreview, seed: tutorialId ?? title.nilIfEmpty ?? "neu", category: category.nilIfEmpty, showLabel: false, kind: .tutorial)
+                        CoverView(url: coverPreview, seed: tutorialId ?? title.nilIfEmpty ?? "neu", category: category.nilIfEmpty, showLabel: false, kind: .project)
                             .frame(width: 120, height: 90)
                             .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
                             .overlay(alignment: .bottomTrailing) {
