@@ -122,7 +122,9 @@ export default async function CommunityDetailPage({ params, searchParams }: { pa
               label="Ausblenden"
               variant="outline"
               title="Community ausblenden"
-              description="Die Community ist danach für Nicht-Moderierende nicht mehr erreichbar. Die Leitung wird informiert; die Begründung wird ihr angezeigt."
+              description="Die Community-Seite ist danach nur noch für die Plattform-Moderation erreichbar. Die Leitung wird informiert."
+              reasonLabel="Begründung an die betroffene Person"
+              reasonHint="Wird der Community-Leitung mit der Benachrichtigung angezeigt und im Audit-Protokoll gespeichert."
               confirmLabel="Ausblenden"
             />
           )}

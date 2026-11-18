@@ -172,8 +172,8 @@ struct CommunityEditorSheet: View {
 
     private var visibilityHint: String {
         switch visibility {
-        case "REQUEST": "Alle sehen Name und Beschreibung. Beiträge sehen nur Mitglieder – die Moderation nimmt Anfragen an."
-        case "PRIVATE": "Nur Mitglieder sehen Inhalte. Neue Mitglieder kommen ausschliesslich per Einladung dazu."
+        case "REQUEST": "Alle können lesen. Beitritt nach Freigabe durch die Moderation."
+        case "PRIVATE": "Nur Mitglieder sehen Beiträge. Beitritt per Anfrage oder Einladung."
         default: "Alle können Beiträge lesen und sofort beitreten."
         }
     }

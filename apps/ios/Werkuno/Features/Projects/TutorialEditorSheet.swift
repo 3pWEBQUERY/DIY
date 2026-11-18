@@ -31,6 +31,8 @@ struct TutorialEditorSheet: View {
     @State private var category = ""
     @State private var difficulty = 2
     @State private var minutes: Int?
+    /// Sprache der Anleitung – beim Bearbeiten die geladene behalten, neue Anleitungen in Schweizer Hochdeutsch
+    @State private var language = "de-CH"
     @State private var projectId = ""
     @State private var coverId: String?
     @State private var coverPreview: String?
@@ -439,6 +441,7 @@ struct TutorialEditorSheet: View {
         category = v.category
         difficulty = v.difficulty ?? 2
         minutes = v.minutes
+        language = v.language?.nilIfEmpty ?? "de-CH"
         projectId = v.projectId ?? ""
         coverId = v.cover?.id
         coverPreview = v.cover?.preview?.nilIfEmpty
@@ -478,7 +481,7 @@ struct TutorialEditorSheet: View {
             "summary": .string(summary.trimmed),
             "category": .string(category),
             "difficulty": .number(Double(difficulty)),
-            "language": "de-CH",
+            "language": .string(language),
             "materials": materials.cleaned.json,
             "tools": tools.cleaned.json,
             "steps": .array(steps.map(\.json)),

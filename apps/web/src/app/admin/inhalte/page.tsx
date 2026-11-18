@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/misc";
 import { num, shortDate } from "@/components/admin/format";
 import { Select } from "@/components/ui/select";
 import { setDetailFeaturedAction, setDetailHiddenAction } from "./actions";
-import { DETAIL_PATH, POST_KIND_LABEL, STATE_LABEL, VISIBILITY_SHORT, stateTone } from "./_components/detail";
+import { DETAIL_PATH, POST_KIND_LABEL, STATE_LABEL, VISIBILITY_SHORT, hideReasonProps, stateTone } from "./_components/detail";
 import type { DetailKind } from "@/server/admin/content-detail";
 
 export const metadata: Metadata = { title: "Inhalte" };
@@ -29,7 +29,7 @@ const TYPES: { key: Typ; label: string; kind: DetailKind }[] = [
 ];
 
 const CONTENT_STATES = ["PUBLISHED", "DRAFT", "HIDDEN", "REMOVED"];
-const ARTICLE_STATES = ["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN"];
+const ARTICLE_STATES = ["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN", "REMOVED"];
 
 /** Titel → Admin-Detail; kleines Symbol → öffentliche Seite. */
 function TitleCell({ kind, id, title, publicHref, children }: { kind: DetailKind; id: string; title: string; publicHref: string | null; children?: ReactNode }) {
@@ -102,8 +102,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
           variant="ghost"
           title="Inhalt ausblenden"
           description="Der Inhalt ist danach nur noch für die Person selbst sichtbar. Für Regelverstösse besser einen Moderationsfall nutzen."
-          reasonLabel="Begründung"
-          reasonHint="Wird protokolliert und der Person in der Benachrichtigung angezeigt."
+          {...hideReasonProps(kind)}
           confirmLabel="Ausblenden"
         />
       )}

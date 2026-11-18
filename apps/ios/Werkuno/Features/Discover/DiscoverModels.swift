@@ -419,6 +419,15 @@ struct BlogReadPayload: Decodable, Sendable {
     var commentCount: Int?
     var related: [ArticleCard]?
     var linkedProjects: [BlogLinkedProject]?
+    /// Aufgelöste Karten-Einbettungen (Projekt/Anleitung/Produkt): Ziel-ID → Link, Titel, Titelbild.
+    /// Optional – ältere Server liefern das Feld nicht.
+    var embeds: [String: BlogEmbed]?
+}
+
+struct BlogEmbed: Decodable, Hashable, Sendable {
+    var href: String
+    var title: String?
+    var coverUrl: String?
 }
 
 // MARK: Studio-Editor

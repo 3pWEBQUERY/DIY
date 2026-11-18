@@ -103,7 +103,7 @@ struct ArticleReaderView: View {
                         titleBlock(d, a)
                         let hs = headings(a)
                         if hs.count >= 2 { toc(hs, proxy: proxy) }
-                        BlogBlocksView(blocks: a.blocks, linkedProjects: d.linkedProjects ?? [], plainText: a.plainText)
+                        BlogBlocksView(blocks: a.blocks, linkedProjects: d.linkedProjects ?? [], embeds: d.embeds ?? [:], plainText: a.plainText)
                         if let tags = a.tags, !tags.isEmpty { TagList(tags: tags) }
                         endMark
                         actions(d, a)

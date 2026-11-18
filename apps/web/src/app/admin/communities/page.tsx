@@ -84,7 +84,7 @@ export default async function CommunitiesAdmin({ searchParams }: { searchParams:
                   {c.state === "PUBLISHED" && c.visibility !== "PRIVATE" && (
                     <ActionButton action={setCommunityFeaturedAction.bind(null, c.id, !c.isFeatured)} label={c.isFeatured ? "Nicht mehr hervorheben" : "Hervorheben"} variant={c.isFeatured ? "ghost" : "outline"} />
                   )}
-                  {c.state === "PUBLISHED" && <ReasonButton action={setCommunityHiddenAction.bind(null, c.id, true)} label="Ausblenden" variant="ghost" title="Community ausblenden" description="Die Community ist danach für Nicht-Mitglieder nicht mehr auffindbar." confirmLabel="Ausblenden" />}
+                  {c.state === "PUBLISHED" && <ReasonButton action={setCommunityHiddenAction.bind(null, c.id, true)} label="Ausblenden" variant="ghost" title="Community ausblenden" description="Die Community-Seite ist danach nur noch für die Plattform-Moderation erreichbar. Die Leitung wird informiert." reasonLabel="Begründung an die betroffene Person" reasonHint="Wird der Community-Leitung mit der Benachrichtigung angezeigt und im Audit-Protokoll gespeichert." confirmLabel="Ausblenden" />}
                   {c.state === "HIDDEN" && <ReasonButton action={setCommunityHiddenAction.bind(null, c.id, false)} label="Wieder anzeigen" variant="ghost" title="Community wieder anzeigen" confirmLabel="Anzeigen" />}
                   <LinkButton href={`/admin/communities/${c.id}`} size="sm" variant="outline">
                     Verwalten

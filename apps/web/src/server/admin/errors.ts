@@ -1,4 +1,5 @@
 import "server-only";
+import { z } from "zod";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import { hasRole } from "@/server/authz";
@@ -49,8 +50,12 @@ export async function getErrorGroup(actor: Actor, id: string) {
   return { group: g, occurrences: occurrences.map((o) => ({ ...o, handle: o.userId ? handle.get(o.userId) ?? null : null })), perDay: perDay.map((d) => ({ day: d.day, n: Number(d.n) })) };
 }
 
-export async function setErrorState(actor: Actor & { id: string }, id: string, state: "resolve" | "reopen" | "ignore") {
+// Server-Action-Argumente kommen ungeprüft vom Client: unbekannte Werte nicht als „wieder öffnen“ behandeln
+export const errorStateSchema = z.enum(["resolve", "reopen", "ignore"], { message: "Unbekannte Aktion." });
+
+export async function setErrorState(actor: Actor & { id: string }, id: string, input: "resolve" | "reopen" | "ignore") {
   admin(actor);
+  const state = errorStateSchema.parse(input);
   const now = new Date();
   const data = state === "resolve" ? { resolvedAt: now, ignoredAt: null } : state === "ignore" ? { ignoredAt: now, resolvedAt: null } : { resolvedAt: null, ignoredAt: null };
   await db.errorGroup.update({ where: { id }, data });

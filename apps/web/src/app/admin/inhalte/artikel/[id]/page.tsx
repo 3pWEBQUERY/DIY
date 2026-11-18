@@ -73,7 +73,12 @@ export default async function AdminArticlePage({ params }: { params: Promise<{ i
 
       {a.state === "HIDDEN" && (
         <Notice tone="warn" className="mb-8" title="Artikel ausgeblendet">
-          Nur die Person selbst sieht den Artikel. Artikel kennen keinen Zustand „entfernt“ – Ausblenden ist die stärkste Massnahme.
+          Nur die Person selbst sieht den Artikel.
+        </Notice>
+      )}
+      {a.state === "REMOVED" && (
+        <Notice tone="danger" className="mb-8" title="Artikel entfernt">
+          Der Artikel ist für niemanden mehr sichtbar, auch nicht für die Person selbst. {isAdmin ? "Wiederherstellen ist möglich." : "Wiederherstellen kann nur die Administration."}
         </Notice>
       )}
 

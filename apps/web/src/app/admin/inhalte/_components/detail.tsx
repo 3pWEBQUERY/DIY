@@ -50,6 +50,19 @@ const AUDIT_LABEL: Record<string, string> = {
 
 export const DETAIL_PATH: Record<DetailKind, string> = { PROJECT: "projekte", TUTORIAL: "anleitungen", POST: "beitraege", ARTICLE: "artikel" };
 
+/**
+ * Feld „Begründung“ beim Ausblenden: Bei Projekten und Anleitungen geht sie an die Person (setContentHidden),
+ * bei Beiträgen und Artikeln bleibt sie intern (setDetailHidden informiert ohne Begründung).
+ */
+export function hideReasonProps(kind: DetailKind) {
+  return kind === "PROJECT" || kind === "TUTORIAL"
+    ? { reasonLabel: "Begründung an die betroffene Person", reasonHint: "Wird protokolliert und der Person in der Benachrichtigung angezeigt." }
+    : { reasonLabel: "Interne Begründung", reasonHint: "Wird nur im Audit-Protokoll gespeichert. Die Person erfährt, dass der Inhalt ausgeblendet wurde – nicht die Begründung." };
+}
+
+// Kommentare: Die Person erfährt nur die Entscheidung (moderateComment), die Begründung bleibt intern
+const COMMENT_REASON = { reasonLabel: "Interne Begründung", reasonHint: "Wird nur im Audit-Protokoll gespeichert. Die Person erfährt die Entscheidung, nicht die Begründung." };
+
 /* ───────── Kopf ───────── */
 
 type Author = { id: string; status: string; profile: { handle: string; displayName: string; avatarUrl: string | null } | null };
@@ -144,8 +157,7 @@ export function StateActions({
           variant="outline"
           title="Inhalt ausblenden"
           description="Der Inhalt ist danach nur noch für die Person selbst sichtbar. Für Regelverstösse besser einen Moderationsfall nutzen."
-          reasonLabel="Begründung"
-          reasonHint="Wird protokolliert und der Person in der Benachrichtigung angezeigt."
+          {...hideReasonProps(kind)}
           confirmLabel="Ausblenden"
         />
       )}
@@ -170,7 +182,7 @@ export function StateActions({
           label="Wiederherstellen"
           variant="outline"
           title="Inhalt wiederherstellen"
-          description="Der Inhalt wird wieder veröffentlicht – oder als Entwurf hergestellt, falls er nie veröffentlicht war."
+          description="Der Inhalt kehrt in den Zustand vor dem Entfernen zurück – ein Entwurf wird nicht veröffentlicht, ein ausgeblendeter Inhalt bleibt ausgeblendet."
           confirmLabel="Wiederherstellen"
         />
       )}
@@ -287,8 +299,7 @@ export function CommentsSection({ n, ctx, isAdmin, note }: { n: string; ctx: Tar
                     label="Ausblenden"
                     variant="ghost"
                     title="Kommentar ausblenden"
-                    reasonLabel="Begründung"
-                    reasonHint="Wird protokolliert und der Person in der Benachrichtigung angezeigt."
+                    {...COMMENT_REASON}
                     confirmLabel="Ausblenden"
                   />
                 )}
@@ -299,8 +310,7 @@ export function CommentsSection({ n, ctx, isAdmin, note }: { n: string; ctx: Tar
                     variant="ghost"
                     confirmVariant="danger"
                     title="Kommentar entfernen"
-                    reasonLabel="Begründung"
-                    reasonHint="Wird protokolliert und der Person in der Benachrichtigung angezeigt."
+                    {...COMMENT_REASON}
                     confirmLabel="Entfernen"
                   />
                 )}

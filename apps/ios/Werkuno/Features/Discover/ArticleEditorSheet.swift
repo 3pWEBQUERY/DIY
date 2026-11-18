@@ -273,7 +273,15 @@ struct ArticleEditorSheet: View {
             let res: BlogRestoreResult = try await APIClient.shared.post("/studio/articles/\(articleId)/revisions/\(r.id)/restore")
             title = res.title
             blocks = res.blocks
-            savedSnapshot = payload
+            // Der Server hat nur Titel und Blöcke ersetzt: Nur diese im gespeicherten Stand nachführen –
+            // andere, noch ungespeicherte Änderungen (Unterzeile, Schlagwörter, Titelbild …) bleiben „ungespeichert“
+            if case .object(var saved)? = savedSnapshot, case .object(let now) = payload {
+                saved["title"] = now["title"]
+                saved["blocks"] = now["blocks"]
+                savedSnapshot = .object(saved)
+            } else {
+                savedSnapshot = payload
+            }
             app.show("Stand vom \(Fmt.dateTime(r.createdAt)) wiederhergestellt.")
             await loadRevisions()
         } catch { app.show(error: error) }

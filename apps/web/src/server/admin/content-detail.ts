@@ -34,7 +34,7 @@ function admin(actor: Actor, what = "Diese Aktion") {
 const reasonSchema = z.string().trim().min(5, "Bitte begründe den Eingriff (mind. 5 Zeichen)").max(1000);
 const kindSchema = z.enum(["PROJECT", "TUTORIAL", "POST", "ARTICLE"]);
 const contentStateFilter = z.enum(["PUBLISHED", "DRAFT", "HIDDEN", "REMOVED"]).nullable().catch(null);
-const articleStateFilter = z.enum(["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN"]).nullable().catch(null);
+const articleStateFilter = z.enum(["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN", "REMOVED"]).nullable().catch(null);
 
 /* ───────────────────────────── Listen ───────────────────────────── */
 

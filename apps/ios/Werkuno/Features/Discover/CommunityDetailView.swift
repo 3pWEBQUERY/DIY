@@ -65,7 +65,7 @@ struct CommunityDetailView: View {
         } message: { Text("Der Beitrag ist danach nur noch für die Moderation sichtbar. Die Autor:in wird benachrichtigt.") }
         .confirmationDialog("Community verlassen?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Verlassen", role: .destructive) { Task { await leave() } }
-        } message: { Text("Du kannst später wieder beitreten – bei privaten Communities nur mit neuer Einladung.") }
+        } message: { Text("Du kannst später wieder beitreten – bei privaten und solchen auf Anfrage nach erneuter Freigabe durch die Moderation.") }
     }
 
     // MARK: Laden
@@ -331,11 +331,10 @@ struct CommunityDetailView: View {
             }
         } else if state == "BANNED" {
             NoticeView(tone: .danger, message: "Du kannst dieser Community nicht beitreten.")
-        } else if d.community.visibility == "PRIVATE" {
-            NoticeView(tone: .info, title: "Nur auf Einladung", message: "Private Communities nehmen neue Mitglieder nur per Einladung auf.")
         } else {
+            // REQUEST und PRIVATE: Der Server legt eine Anfrage an (PENDING), die die Moderation freigibt – wie im Web
             AsyncButton { await join() } label: {
-                Label(d.community.visibility == "REQUEST" ? "Beitritt anfragen" : "Beitreten", systemImage: "person.badge.plus")
+                Label(d.community.visibility == "PUBLIC" ? "Beitreten" : "Beitritt anfragen", systemImage: "person.badge.plus")
             }
             .primaryButton()
         }
@@ -354,9 +353,9 @@ struct CommunityDetailView: View {
                     .glassEffect(.regular, in: Circle())
             }
             Text("Diese Community ist geschlossen").font(.titleSerif).multilineTextAlignment(.center)
-            Text(d.community.visibility == "REQUEST"
-                 ? "Beiträge, Projekte und Mitglieder siehst du, sobald die Moderation deine Anfrage angenommen hat."
-                 : "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Neue Mitglieder kommen per Einladung dazu.")
+            Text(d.membership?.state == "PENDING"
+                 ? "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Deine Anfrage liegt der Moderation vor."
+                 : "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Stell eine Beitrittsanfrage – die Moderation entscheidet.")
                 .font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
             if let rules = d.community.rules, !rules.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {

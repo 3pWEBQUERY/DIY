@@ -17,9 +17,15 @@ export async function createReview(user: SessionUser, input: unknown) {
   await rateLimit(`review:${user.id}`, 30, 3600);
   const item = await db.orderItem.findUnique({
     where: { id: data.orderItemId },
-    include: { order: { select: { id: true, buyerId: true, status: true, shopId: true, payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } } } }, review: { select: { id: true } } },
+    include: {
+      order: { select: { id: true, buyerId: true, status: true, shopId: true, payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true } }, appStorePurchase: { select: { environment: true } } } },
+      review: { select: { id: true } },
+    },
   });
   if (!item || item.order.buyerId !== user.id) throw fail.notFound();
+  // Testkäufe aus der App (Apple Sandbox/Xcode, vgl. REAL_ORDER) sind keine echten Käufe – keine Bewertung
+  const env = item.order.appStorePurchase?.environment;
+  if (env && env !== "Production") throw fail.forbidden("Testkäufe können nicht bewertet werden.");
   if (!canReview(item.order.status, item.order.payments[0]?.status)) throw fail.forbidden("Bewerten kannst du, sobald deine Bestellung versendet wurde.");
   if (item.review) throw fail.conflict("Du hast diesen Artikel bereits bewertet.");
   try {

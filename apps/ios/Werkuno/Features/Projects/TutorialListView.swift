@@ -19,6 +19,10 @@ struct TutorialListView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var generation = 0
+    /// Filter, für den `items` zuletzt erfolgreich geladen wurde – beim Zurückkehren nicht neu laden (Scrollposition bleibt)
+    @State private var loadedKey: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
     /// Dauer-Filter (`GET /tutorials/durations`), lokale Liste als Rückfall
     @State private var durations: [(key: String, label: String)] = L.tutorialDurations
 
@@ -85,6 +89,7 @@ struct TutorialListView: View {
         .refreshable { await reload() }
         .task { await loadDurations() }
         .task(id: filterKey) {
+            if loadedKey == filterKey { return }
             if !query.isEmpty { try? await Task.sleep(for: .milliseconds(320)) }
             guard !Task.isCancelled else { return }
             await reload()
@@ -113,7 +118,7 @@ struct TutorialListView: View {
                 ForEach(items) { t in TutorialCardView(tutorial: t) }
             }
             .padding(.horizontal, Space.gutter)
-            LoadMoreTrigger(hasMore: cursor != nil) { await loadMore() }
+            LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await loadMore() }
         }
     }
 
@@ -160,11 +165,14 @@ struct TutorialListView: View {
     private func reload() async {
         generation += 1
         let gen = generation
+        let key = filterKey
         loading = true
         do {
             let page: Page<TutorialCard> = try await APIClient.shared.get("/tutorials", query: params(cursor: nil))
             guard gen == generation else { return }
             withAnimation(.snappy) { items = page.items; cursor = page.nextCursor; error = nil }
+            moreFailed = false
+            loadedKey = key
         } catch is CancellationError {
         } catch {
             guard gen == generation else { return }
@@ -190,9 +198,12 @@ struct TutorialListView: View {
             let known = Set(items.map(\.id))
             items += page.items.filter { !known.contains($0.id) }
             cursor = page.nextCursor
+            moreFailed = false
+        } catch is CancellationError {
         } catch {
-            cursor = nil
-            app.show(error: error)
+            // Cursor behalten: LoadMoreTrigger zeigt „Erneut versuchen“
+            guard gen == generation else { return }
+            moreFailed = true
         }
     }
 }
