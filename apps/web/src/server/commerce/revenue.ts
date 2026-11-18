@@ -21,8 +21,8 @@ export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
   // netPlatformFee je Bestellung (anteilig nach Erstattung, gerundet), dann summiert.
   const [agg] = await db.$queryRaw<{ n: bigint; gross: bigint | null; refunds: bigint | null; fees: bigint | null }[]>`
     SELECT COUNT(*) AS n,
-           SUM("Order"."totalMinor") AS gross,
-           SUM(COALESCE(r.refunded, 0)) AS refunds,
+           SUM("Order"."totalMinor")::bigint AS gross,
+           SUM(COALESCE(r.refunded, 0))::bigint AS refunds,
            SUM(CASE WHEN "Order"."totalMinor" <= 0 THEN 0
                     ELSE "Order"."platformFeeMinor" - ROUND("Order"."platformFeeMinor" * LEAST(1, GREATEST(0, COALESCE(r.refunded, 0)::numeric / "Order"."totalMinor"))) END)::bigint AS fees
     FROM "Order"

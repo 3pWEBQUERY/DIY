@@ -102,7 +102,7 @@ export const commerceRoutes: RouteDef[] = [
       productId ? listProductReviews(productId, vid, 20) : Promise.resolve([]),
       shopId && productId ? products.moreFromShop(shopId, productId, 6) : Promise.resolve([]),
     ]);
-    if (productId) void products.countProductView(productId).catch(() => {});
+    if (productId) void products.countProductView(productId, vid).catch(() => {});
     return publicCommerce({ ...(page as object), reviews, moreFromShop: more, payments: { mode: paymentsMode(), feeBps: await getSetting("commerce.feeBps") } });
   }),
 
