@@ -20,11 +20,10 @@ Zeichengrenzen von Apple sind jeweils angegeben und eingehalten.
    ```
    In Xcode: Target „Werkuno“ → Signing & Capabilities → **Team** wählen (DEVELOPMENT_TEAM ist leer),
    „Automatically manage signing“ an. Einmal auf einem echten iPhone durchtesten (Abschnitt 8).
-4. **Versionsnummer:**
-   - Wurde 1.0.0 noch **nie freigegeben** (abgelehnt oder nie eingereicht): Version 1.0.0 lassen,
-     nur die **Build-Nummer erhöhen** (`CURRENT_PROJECT_VERSION` in `apps/ios/project.yml` von 2 auf 3,
-     danach `xcodegen generate`).
-   - Ist 1.0.0 bereits im Store: `MARKETING_VERSION` auf **1.1.0**, Build-Nummer 1 (oder höher).
+4. **Versionsnummer:** Version **1.0.1**, Build **3** (in `apps/ios/project.yml` gesetzt). Nach jedem
+   weiteren Upload derselben Version die Build-Nummer (`CURRENT_PROJECT_VERSION`) erhöhen und
+   `xcodegen generate` ausführen. In App Store Connect eine neue Version „1.0.1“ anlegen; ist bereits
+   eine Version im Store, den Text aus Abschnitt 3 unter „Was ist neu“ eintragen.
 5. **Archivieren und hochladen:** Xcode → Product → Archive → Distribute App → App Store Connect.
    Push: Beim Export mit Distributionsprofil setzt Xcode `aps-environment` automatisch auf
    `production` – im Organizer unter „Entitlements“ kontrollieren.
