@@ -241,6 +241,7 @@ struct ProductEditorSheet: View {
                     MarketFieldError(text: fields["stock"])
                 }
                 feePreview(c)
+                if isDigital, let store = c.appStore, store.enabled { appPriceHint(store) }
             } header: { Text("Preis & Bestand") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Inklusive allfälliger MWST. Mindestens CHF 1.00.")
@@ -316,6 +317,24 @@ struct ProductEditorSheet: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    /// Digitale Produkte: Preis in der iOS-App (Apple-Preisstufen, ganze Franken bis zur höchsten Stufe)
+    @ViewBuilder private func appPriceHint(_ store: AppStorePricing) -> some View {
+        let top = store.tiersMinor.last ?? 0
+        let rule = "In der App kaufen Kund:innen über Apple. Der App-Preis ist dein Preis plus \(Fmt.percent(bps: store.markupBps)) (Apple-Gebühr), aufgerundet auf ganze Franken – höchstens \(Fmt.money(top)). Kaufbar bis \(Fmt.money(store.maxWebMinor)). Dein Anteil bleibt gleich."
+        if let p = priceMinor, p >= 100 {
+            if let app = store.appPrice(forWeb: p) {
+                NoticeView(tone: .info, title: "Preis in der App: \(Fmt.money(app))", message: rule)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            } else {
+                NoticeView(tone: .warn, title: "In der App nicht kaufbar", message: "Bei diesem Preis gibt es keine Apple-Preisstufe mehr. In der App kaufbar sind digitale Produkte bis \(Fmt.money(store.maxWebMinor)).")
+                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+        } else {
+            NoticeView(tone: .info, title: "Preis in der App", message: rule)
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+        }
     }
 
     @ViewBuilder private func feePreview(_ c: MarketEditorContext) -> some View {

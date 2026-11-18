@@ -144,7 +144,7 @@ das Stripe-Plattformguthaben muss die Überweisungen decken.
 
 Einrichtung in App Store Connect:
 1. Pro Preisstufe einen **Verbrauchsartikel** anlegen: Produkt-ID `ch.werkuno.app.digital.chf<Franken>`
-   für 1–10, 12, 15, 18, 20, 25, 30 (nur Beträge, die Apple in CHF anbietet; weitere Stufen zuerst in `APP_STORE_TIERS_CHF` ergänzen) (Liste:
+   für alle ganzen Franken 1–30 (weitere Stufen zuerst in `APP_STORE_TIERS_CHF` ergänzen) (Liste:
    `APP_STORE_TIERS_CHF` in `src/server/commerce/appstore.ts`), Preis in CHF genau dieser Betrag.
 2. App-Informationen → App Store Server Notifications **Version 2**, Produktions- und Sandbox-URL:
    `https://werkuno.ch/api/webhooks/apple` (Erstattungen widerrufen den Download und holen den Shop-Anteil zurück).

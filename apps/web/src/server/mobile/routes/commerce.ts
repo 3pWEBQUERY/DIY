@@ -240,17 +240,18 @@ export const commerceRoutes: RouteDef[] = [
   GET("/studio/products/editor", async (c) => {
     const u = await me();
     const id = str(c.q, "id");
-    const [shop, links, feeBps, digitalEnabled, categories, product] = await Promise.all([
+    const [shop, links, feeBps, digitalEnabled, categories, product, appStore] = await Promise.all([
       shops.getMyShop(u.id),
       products.linkOptions(u.id),
       getSetting("commerce.feeBps"),
       getSetting("commerce.digitalEnabledWeb"),
       categoryOptions(),
       id ? products.getProductForEdit(u, id) : Promise.resolve(null),
+      appstore.appStorePricingInfo(),
     ]);
     if (!shop) throw fail.forbidden(`Eröffne zuerst deinen Shop im ${BRAND.name} Studio.`);
     if (id && !product) throw fail.notFound("Produkt nicht gefunden.");
-    return { shop: { id: shop.id, slug: shop.slug, status: shop.status, name: shop.name }, links, feeBps, digitalEnabled, categories, product };
+    return { shop: { id: shop.id, slug: shop.slug, status: shop.status, name: shop.name }, links, feeBps, digitalEnabled, categories, product, appStore };
   }),
   POST("/studio/products", async (c) => {
     const { input, extra } = await c.body({ input: z.unknown(), extra: z.unknown() });

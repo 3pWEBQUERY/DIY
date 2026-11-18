@@ -13,7 +13,7 @@ import { Notice, SectionTitle } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { cn, formatDate } from "@/lib/utils";
 import type { CategoryOption } from "@/server/categories/types";
-import { minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
+import { appTierFor, minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
 import { saveProductAction } from "@/app/studio/produkte/actions";
 import { callAction } from "@/lib/use-action";
 
@@ -76,6 +76,8 @@ function parseDeltaInput(v: string): number | null {
   return minor == null ? null : sign * minor;
 }
 
+export type AppStorePricing = { enabled: boolean; markupBps: number; tiersMinor: readonly number[]; maxWebMinor: number };
+
 /**
  * Produkteditor (§13.4): alle Pflicht- und Zusatzangaben, Varianten mit Bestand,
  * Versand, Sicherheits- und Rückgabeinfos sowie der Projektfaden zu eigenem Projekt/Anleitung.
@@ -88,6 +90,7 @@ export function ProductEditor({
   shopReturnPolicy,
   feeBps,
   digitalEnabled,
+  appStore,
   categories = CATEGORIES,
 }: {
   initial: ProductEditorInitial;
@@ -97,6 +100,8 @@ export function ProductEditor({
   shopReturnPolicy: string;
   feeBps: number;
   digitalEnabled: boolean;
+  /** Preisstufen der iOS-App für digitale Produkte (Kauf dort nur über Apple) */
+  appStore?: AppStorePricing;
   /** Angebotene Kategorien (aktive + ggf. bereits gespeicherte); Standard: alle */
   categories?: readonly CategoryOption[];
 }) {
@@ -308,6 +313,8 @@ export function ProductEditor({
               </Field>
             )}
           </div>
+
+          {isDigital && appStore?.enabled && <AppPriceHint priceMinor={priceMinor} appStore={appStore} />}
 
           {!isDigital && (
             <div className="border border-line bg-card rounded-2xl">
@@ -627,5 +634,24 @@ export function ProductEditor({
         )}
       </aside>
     </form>
+  );
+}
+
+/** Hinweis für digitale Produkte: Preis in der iOS-App (Apple-Preisstufen, ganze Franken bis zur höchsten Stufe). */
+function AppPriceHint({ priceMinor, appStore }: { priceMinor: number; appStore: AppStorePricing }) {
+  const top = appStore.tiersMinor[appStore.tiersMinor.length - 1] ?? 0;
+  const appMinor = priceMinor >= 100 ? appTierFor(priceMinor, appStore.markupBps, appStore.tiersMinor) : null;
+  const rule = `In der iOS-App kaufen Kund:innen über Apple. Der App-Preis ist dein Preis plus ${formatBps(appStore.markupBps)} (Apple-Gebühr), aufgerundet auf ganze Franken – höchstens ${formatMoney(top)}. Dein Anteil bleibt gleich wie im Web.`;
+  if (priceMinor >= 100 && appMinor == null) {
+    return (
+      <Notice tone="warn" title="In der iOS-App nicht kaufbar">
+        Bei diesem Preis gibt es keine Apple-Preisstufe mehr. In der App kaufbar sind digitale Produkte bis {formatMoney(appStore.maxWebMinor)}. Im Web bleibt das Produkt normal kaufbar.
+      </Notice>
+    );
+  }
+  return (
+    <Notice title={appMinor ? `Preis in der iOS-App: ${formatMoney(appMinor)}` : "Preis in der iOS-App"}>
+      {rule} In der App kaufbar bis {formatMoney(appStore.maxWebMinor)}.
+    </Notice>
   );
 }

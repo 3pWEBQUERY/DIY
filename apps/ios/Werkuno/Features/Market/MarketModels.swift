@@ -662,6 +662,23 @@ struct MarketEditorContext: Decodable, Sendable {
     var digitalEnabled: Bool?
     var categories: [Category]
     var product: MarketEditorProduct?
+    /// Preisstufen der iOS-App für digitale Produkte (Kauf in der App nur über Apple)
+    var appStore: AppStorePricing?
+}
+
+struct AppStorePricing: Decodable, Sendable {
+    var enabled: Bool
+    var markupBps: Int
+    var tiersMinor: [Int]
+    var maxWebMinor: Int
+
+    /// App-Preis (Rappen) für einen Web-Preis: kleinste Stufe ≥ Preis × (1 + Aufschlag), wie der Server
+    func appPrice(forWeb minor: Int) -> Int? {
+        guard minor > 0 else { return nil }
+        let factor = 10_000 + max(0, markupBps)
+        let target = (minor * factor + 9_999) / 10_000
+        return tiersMinor.first { $0 >= target }
+    }
 }
 
 struct MarketUpsertResult: Decodable, Sendable {

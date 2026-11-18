@@ -153,6 +153,21 @@
       "type": "Consumable"
     },
     {
+      "displayPrice": "11.00",
+      "familyShareable": false,
+      "internalID": "6740000010",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 11.–)",
+          "displayName": "Digitales Produkt CHF 11",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf11",
+      "referenceName": "Digital CHF 11",
+      "type": "Consumable"
+    },
+    {
       "displayPrice": "12.00",
       "familyShareable": false,
       "internalID": "6740000011",
@@ -165,6 +180,36 @@
       ],
       "productID": "ch.werkuno.app.digital.chf12",
       "referenceName": "Digital CHF 12",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "13.00",
+      "familyShareable": false,
+      "internalID": "6740000012",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 13.–)",
+          "displayName": "Digitales Produkt CHF 13",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf13",
+      "referenceName": "Digital CHF 13",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "14.00",
+      "familyShareable": false,
+      "internalID": "6740000013",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 14.–)",
+          "displayName": "Digitales Produkt CHF 14",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf14",
+      "referenceName": "Digital CHF 14",
       "type": "Consumable"
     },
     {
@@ -183,6 +228,36 @@
       "type": "Consumable"
     },
     {
+      "displayPrice": "16.00",
+      "familyShareable": false,
+      "internalID": "6740000015",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 16.–)",
+          "displayName": "Digitales Produkt CHF 16",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf16",
+      "referenceName": "Digital CHF 16",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "17.00",
+      "familyShareable": false,
+      "internalID": "6740000016",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 17.–)",
+          "displayName": "Digitales Produkt CHF 17",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf17",
+      "referenceName": "Digital CHF 17",
+      "type": "Consumable"
+    },
+    {
       "displayPrice": "18.00",
       "familyShareable": false,
       "internalID": "6740000017",
@@ -195,6 +270,21 @@
       ],
       "productID": "ch.werkuno.app.digital.chf18",
       "referenceName": "Digital CHF 18",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "19.00",
+      "familyShareable": false,
+      "internalID": "6740000018",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 19.–)",
+          "displayName": "Digitales Produkt CHF 19",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf19",
+      "referenceName": "Digital CHF 19",
       "type": "Consumable"
     },
     {
@@ -213,9 +303,69 @@
       "type": "Consumable"
     },
     {
-      "displayPrice": "25.00",
+      "displayPrice": "21.00",
+      "familyShareable": false,
+      "internalID": "6740000020",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 21.–)",
+          "displayName": "Digitales Produkt CHF 21",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf21",
+      "referenceName": "Digital CHF 21",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "22.00",
       "familyShareable": false,
       "internalID": "6740000021",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 22.–)",
+          "displayName": "Digitales Produkt CHF 22",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf22",
+      "referenceName": "Digital CHF 22",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "23.00",
+      "familyShareable": false,
+      "internalID": "6740000022",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 23.–)",
+          "displayName": "Digitales Produkt CHF 23",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf23",
+      "referenceName": "Digital CHF 23",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "24.00",
+      "familyShareable": false,
+      "internalID": "6740000023",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 24.–)",
+          "displayName": "Digitales Produkt CHF 24",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf24",
+      "referenceName": "Digital CHF 24",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "25.00",
+      "familyShareable": false,
+      "internalID": "6740000024",
       "localizations": [
         {
           "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 25.–)",
@@ -228,9 +378,69 @@
       "type": "Consumable"
     },
     {
+      "displayPrice": "26.00",
+      "familyShareable": false,
+      "internalID": "6740000025",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 26.–)",
+          "displayName": "Digitales Produkt CHF 26",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf26",
+      "referenceName": "Digital CHF 26",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "27.00",
+      "familyShareable": false,
+      "internalID": "6740000026",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 27.–)",
+          "displayName": "Digitales Produkt CHF 27",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf27",
+      "referenceName": "Digital CHF 27",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "28.00",
+      "familyShareable": false,
+      "internalID": "6740000027",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 28.–)",
+          "displayName": "Digitales Produkt CHF 28",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf28",
+      "referenceName": "Digital CHF 28",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "29.00",
+      "familyShareable": false,
+      "internalID": "6740000028",
+      "localizations": [
+        {
+          "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 29.–)",
+          "displayName": "Digitales Produkt CHF 29",
+          "locale": "de_CH"
+        }
+      ],
+      "productID": "ch.werkuno.app.digital.chf29",
+      "referenceName": "Digital CHF 29",
+      "type": "Consumable"
+    },
+    {
       "displayPrice": "30.00",
       "familyShareable": false,
-      "internalID": "6740000023",
+      "internalID": "6740000029",
       "localizations": [
         {
           "description": "Digitales Produkt auf Werkuno (Preisstufe CHF 30.–)",

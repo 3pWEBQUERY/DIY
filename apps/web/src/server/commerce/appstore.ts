@@ -14,7 +14,7 @@ import { requireFlag } from "@/server/flags";
 import { isBlockedBetween } from "@/server/visibility";
 import { captureError } from "@/server/monitoring";
 import { feeForShop } from "./fees";
-import { formatOrderNumber } from "./rules";
+import { appTierFor, formatOrderNumber } from "./rules";
 import { createSellerTransfer, isStripeError, paymentsMode, reverseSellerTransfer } from "./stripe";
 import { AppStoreVerificationError, verifyAppStoreJws, type AppStoreNotification, type AppStoreTransaction } from "./appstore-verify";
 import { handleAppleProNotification, isProAppleProduct } from "@/server/pro/apple";
@@ -34,11 +34,11 @@ import { handleAppleProNotification, isProAppleProduct } from "@/server/pro/appl
  */
 
 /**
- * Preisstufen in Franken – jede ist ein Produkt in App Store Connect. Nur Beträge, die Apple in CHF
- * anbietet (zwischen 10 und 20 gibt es z. B. nur 12, 15, 18), und nur die angelegten Produkte.
- * Weitere Stufen (35, 40, 45, 50 …) erst hier ergänzen, wenn sie in App Store Connect existieren.
+ * Preisstufen in Franken – jede ist ein Produkt in App Store Connect (`ch.werkuno.app.digital.chf1`
+ * bis `…chf30`, ganze Franken). Höhere Stufen erst hier ergänzen, wenn sie in App Store Connect existieren.
  */
-export const APP_STORE_TIERS_CHF = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30] as const;
+export const APP_STORE_TIERS_CHF: readonly number[] = Array.from({ length: 30 }, (_, i) => i + 1);
+const APP_STORE_TIERS_MINOR = APP_STORE_TIERS_CHF.map((t) => t * 100);
 export const APP_STORE_PRODUCT_PREFIX = "ch.werkuno.app.digital.chf";
 
 const INTENT_MINUTES = 60;
@@ -53,21 +53,31 @@ export type AppPrice = { priceMinor: number; appleProductId: string };
 
 /** App-Preis für einen Web-Preis (in Rappen): kleinste Stufe ≥ Web-Preis × (1 + Aufschlag). */
 export function appPriceFor(webMinor: number, markupBps: number): AppPrice | null {
-  if (!Number.isInteger(webMinor) || webMinor <= 0) return null;
-  const target = Math.ceil((webMinor * (10_000 + Math.max(0, markupBps))) / 10_000);
-  const chf = APP_STORE_TIERS_CHF.find((t) => t * 100 >= target);
-  return chf ? { priceMinor: chf * 100, appleProductId: `${APP_STORE_PRODUCT_PREFIX}${chf}` } : null;
+  const minor = appTierFor(webMinor, markupBps, APP_STORE_TIERS_MINOR);
+  return minor ? { priceMinor: minor, appleProductId: `${APP_STORE_PRODUCT_PREFIX}${minor / 100}` } : null;
 }
 
 export function webPriceForAppleProduct(appleProductId: string) {
   if (!appleProductId.startsWith(APP_STORE_PRODUCT_PREFIX)) return null;
   const chf = Number(appleProductId.slice(APP_STORE_PRODUCT_PREFIX.length));
-  return (APP_STORE_TIERS_CHF as readonly number[]).includes(chf) ? chf * 100 : null;
+  return APP_STORE_TIERS_CHF.includes(chf) ? chf * 100 : null;
+}
+
+/** Höchster Web-Preis (Rappen), für den es in der App noch eine Preisstufe gibt. */
+export function maxWebMinorForApp(markupBps: number) {
+  const top = APP_STORE_TIERS_CHF[APP_STORE_TIERS_CHF.length - 1]! * 100;
+  return Math.floor((top * 10_000) / (10_000 + Math.max(0, markupBps)));
 }
 
 export async function appStoreSettings() {
   const [enabled, markupBps] = await Promise.all([getSetting("commerce.digitalEnabledIos"), getSetting("commerce.iosMarkupBps")]);
   return { enabled: !!enabled, markupBps: Number(markupBps) || 0 };
+}
+
+/** Für die Produkteditoren (Web und App): wie ein Web-Preis in der iOS-App erscheint. */
+export async function appStorePricingInfo() {
+  const { enabled, markupBps } = await appStoreSettings();
+  return { enabled, markupBps, tiersMinor: APP_STORE_TIERS_MINOR, maxWebMinor: maxWebMinorForApp(markupBps) };
 }
 
 /**
