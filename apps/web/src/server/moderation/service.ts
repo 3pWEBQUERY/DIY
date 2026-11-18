@@ -673,12 +673,29 @@ export async function submitAppeal(user: Pick<SessionUser, "id">, caseId: string
   });
 }
 
+const APPEALS_PER_PAGE = 50;
+
+/** Einsprüche seitenweise (Admin → Einsprüche). */
+export async function listAppealsPage(actor: Actor, status: "OPEN" | "UPHELD" | "OVERTURNED" | "ALL" = "OPEN", pageInput = 1) {
+  assertModerator(actor);
+  const page = Math.max(1, Math.floor(pageInput) || 1);
+  const where = status === "ALL" ? {} : { status };
+  const [rows, total] = await Promise.all([listAppealRows(where, status, (page - 1) * APPEALS_PER_PAGE, APPEALS_PER_PAGE), db.appeal.count({ where })]);
+  return { rows, total, page, pages: Math.max(1, Math.ceil(total / APPEALS_PER_PAGE)) };
+}
+
+/** Erste Seite als Liste (App: bisherige Antwortform). */
 export async function listAppeals(actor: Actor, status: "OPEN" | "UPHELD" | "OVERTURNED" | "ALL" = "OPEN") {
   assertModerator(actor);
+  return listAppealRows(status === "ALL" ? {} : { status }, status, 0, 100);
+}
+
+function listAppealRows(where: Prisma.AppealWhereInput, status: string, skip: number, take: number) {
   return db.appeal.findMany({
-    where: status === "ALL" ? {} : { status },
-    orderBy: { createdAt: status === "OPEN" ? "asc" : "desc" },
-    take: 100,
+    where,
+    orderBy: [{ createdAt: status === "OPEN" ? "asc" : "desc" }, { id: "asc" }],
+    skip,
+    take,
     include: {
       user: { select: { id: true, profile: { select: { handle: true, displayName: true } } } },
       case: {

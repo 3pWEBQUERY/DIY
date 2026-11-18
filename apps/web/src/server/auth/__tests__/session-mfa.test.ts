@@ -5,9 +5,15 @@ const state = {
   user: { passwordHash: null as string | null },
   session: { userId: "u1", createdAt: new Date() },
   calls: [] as { op: string; args: unknown }[],
+  // Konto mit Pinterest-Verknüpfungen (für den Hinweis in securityReset)
+  account: { createdAt: new Date("2026-01-01T10:00:00Z"), authAccounts: [] as { createdAt: Date }[] },
+  notices: [] as { recipientId: string; data?: Record<string, unknown> }[],
 };
 const db = {
-  user: { findUniqueOrThrow: async () => state.user, findUnique: async () => ({ adultConfirmedAt: null }) },
+  user: {
+    findUniqueOrThrow: async () => state.user,
+    findUnique: async (q: { select?: Record<string, unknown> }) => (q.select?.authAccounts ? state.account : { adultConfirmedAt: null }),
+  },
   session: {
     findUnique: async () => state.session,
     updateMany: async (args: unknown) => (state.calls.push({ op: "session.updateMany", args }), { count: 2 }),
@@ -18,6 +24,7 @@ const db = {
 vi.mock("@/server/db", () => ({ db }));
 vi.mock("@/server/auth/session", () => ({ requireUser: async () => null }));
 vi.mock("@/server/ratelimit", () => ({ rateLimit: async () => ({ remaining: 1 }) }));
+vi.mock("@/server/notifications", () => ({ notify: async (n: { recipientId: string; data?: Record<string, unknown> }) => void state.notices.push(n) }));
 vi.mock("@/server/crypto", () => ({ verifyPassword: async (pw: string, hash: string) => hash === `hash:${pw}` }));
 
 const { hasRole, mfaSatisfied } = await import("../../authz");
@@ -79,6 +86,18 @@ describe("securityReset", () => {
     expect(s.where).toMatchObject({ userId: "u1", revokedAt: null, id: { not: "keep" } });
     const t = state.calls.find((c) => c.op === "verificationToken.deleteMany")!.args as { where: Record<string, unknown> };
     expect(t.where).toMatchObject({ userId: "u1", usedAt: null, purpose: { in: ["PASSWORD_RESET", "EMAIL_CHANGE"] }, id: { not: "used" } });
+  });
+  it("weist auf ein später verbundenes Pinterest-Konto hin (überdauert Sitzungen und Passwort)", async () => {
+    state.notices = [];
+    // Bei der Registrierung angelegt → die eigene Anmeldung, kein Hinweis
+    state.account = { createdAt: new Date("2026-01-01T10:00:00Z"), authAccounts: [{ createdAt: new Date("2026-01-01T10:00:00Z") }] };
+    await securityReset("u1");
+    expect(state.notices).toHaveLength(0);
+    state.account = { createdAt: new Date("2026-01-01T10:00:00Z"), authAccounts: [{ createdAt: new Date("2026-11-12T10:00:00Z") }] };
+    await securityReset("u1");
+    expect(state.notices).toHaveLength(1);
+    expect(state.notices[0]).toMatchObject({ recipientId: "u1", data: { href: "/einstellungen/konto" } });
+    expect(String(state.notices[0]!.data!.message)).toContain("Pinterest");
   });
   it("ohne keepSessionId werden alle Sitzungen beendet", async () => {
     state.calls = [];

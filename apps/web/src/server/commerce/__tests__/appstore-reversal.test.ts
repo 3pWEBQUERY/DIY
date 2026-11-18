@@ -63,7 +63,7 @@ describe("REFUND_REVERSED", () => {
     m.db.appStorePurchase.findUnique
       .mockResolvedValueOnce(purchase())
       // sendSellerTransfer
-      .mockResolvedValueOnce({ id: "p1", status: "COMPLETED", transferStatus: "PENDING", transferAttempts: 0, transferId: "tr_old", sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { stripeAccountId: "acct_1", name: "S" } } });
+      .mockResolvedValueOnce({ id: "p1", status: "COMPLETED", transferStatus: "PENDING", transferAttempts: 0, transferId: "tr_old", sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { id: "sh1", stripeAccountId: "acct_1", name: "S", status: "ACTIVE", owner: { status: "ACTIVE" } } } });
     m.transfer.mockResolvedValue({ id: "tr_new" });
 
     expect(await handleAppStoreNotification({ signedPayload: "payload" })).toBe(200);
@@ -97,7 +97,7 @@ describe("REFUND_REVERSED", () => {
 describe("Überweisungen nach dem letzten Versuch", () => {
   it("meldet den endgültig gescheiterten Versuch in der Fehlerüberwachung", async () => {
     m.db.appStorePurchase.findMany.mockResolvedValueOnce([{ id: "p1", transferAttempts: 23 }]).mockResolvedValueOnce([]);
-    m.db.appStorePurchase.findUnique.mockResolvedValueOnce({ id: "p1", status: "COMPLETED", transferStatus: "FAILED", transferAttempts: 23, transferId: null, sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { stripeAccountId: null, name: "S" } } });
+    m.db.appStorePurchase.findUnique.mockResolvedValueOnce({ id: "p1", status: "COMPLETED", transferStatus: "FAILED", transferAttempts: 23, transferId: null, sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { id: "sh1", stripeAccountId: null, name: "S", status: "ACTIVE", owner: { status: "ACTIVE" } } } });
     m.db.appStorePurchase.updateMany.mockResolvedValue({ count: 0 });
     await retrySellerTransfers();
     expect(m.capture).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ path: "appstore.transfer", meta: expect.objectContaining({ purchaseId: "p1" }) }));
@@ -105,9 +105,30 @@ describe("Überweisungen nach dem letzten Versuch", () => {
 
   it("frühere Fehlversuche melden sich nicht", async () => {
     m.db.appStorePurchase.findMany.mockResolvedValueOnce([{ id: "p1", transferAttempts: 3 }]).mockResolvedValueOnce([]);
-    m.db.appStorePurchase.findUnique.mockResolvedValueOnce({ id: "p1", status: "COMPLETED", transferStatus: "FAILED", transferAttempts: 3, transferId: null, sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { stripeAccountId: null, name: "S" } } });
+    m.db.appStorePurchase.findUnique.mockResolvedValueOnce({ id: "p1", status: "COMPLETED", transferStatus: "FAILED", transferAttempts: 3, transferId: null, sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { id: "sh1", stripeAccountId: null, name: "S", status: "ACTIVE", owner: { status: "ACTIVE" } } } });
     m.db.appStorePurchase.updateMany.mockResolvedValue({ count: 0 });
     await retrySellerTransfers();
+    expect(m.capture).not.toHaveBeenCalled();
+  });
+
+  it("gesperrter Shop bzw. gebanntes Konto: nichts überweisen, zurückhalten und einmal melden", async () => {
+    const held = (over: Record<string, unknown>) => ({ id: "p1", status: "COMPLETED", transferStatus: "PENDING", transferAttempts: 0, transferId: null, transferError: null, sellerNetMinor: 1000, currency: "CHF", order: { id: "o1", number: "W-1", shop: { id: "sh1", stripeAccountId: "acct_1", name: "S", status: "SUSPENDED", owner: { status: "ACTIVE" } } }, ...over });
+    m.db.appStorePurchase.findMany.mockResolvedValueOnce([{ id: "p1", transferAttempts: 0 }]).mockResolvedValueOnce([]);
+    m.db.appStorePurchase.findUnique.mockResolvedValueOnce(held({}));
+    m.db.appStorePurchase.updateMany.mockResolvedValue({ count: 0 });
+    await retrySellerTransfers();
+    expect(m.transfer).not.toHaveBeenCalled();
+    // Status bleibt offen, kein Versuch verbraucht
+    expect(m.db.appStorePurchase.update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { transferError: expect.stringContaining("Zurückgehalten") } });
+    expect(m.capture).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ path: "appstore.transfer_held" }));
+
+    // Zweiter Lauf: bereits gemeldet → nicht erneut melden
+    vi.clearAllMocks();
+    m.db.appStorePurchase.findMany.mockResolvedValueOnce([{ id: "p1", transferAttempts: 0 }]).mockResolvedValueOnce([]);
+    m.db.appStorePurchase.findUnique.mockResolvedValueOnce(held({ transferError: "Zurückgehalten: Shop gesperrt bzw. Konto gebannt oder gelöscht", order: { id: "o1", number: "W-1", shop: { id: "sh1", stripeAccountId: "acct_1", name: "S", status: "ACTIVE", owner: { status: "BANNED" } } } }));
+    m.db.appStorePurchase.updateMany.mockResolvedValue({ count: 0 });
+    await retrySellerTransfers();
+    expect(m.transfer).not.toHaveBeenCalled();
     expect(m.capture).not.toHaveBeenCalled();
   });
 });

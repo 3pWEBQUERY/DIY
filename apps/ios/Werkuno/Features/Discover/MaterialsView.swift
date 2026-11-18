@@ -14,7 +14,12 @@ struct MaterialsView: View {
     @State private var loaded = false
     @State private var error: String?
     @State private var expanded: Set<String> = []
+    /// Filter, für den `items` zuletzt geladen wurde – beim Zurückkehren nicht neu laden (Scrollposition bleibt)
+    @State private var loadedKey: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
 
+    private var filterKey: String { "\(query.trimmed)|\(category ?? "")" }
     private var total: Int { groups.reduce(0) { $0 + $1.count } }
 
     var body: some View {
@@ -37,7 +42,7 @@ struct MaterialsView: View {
                     } else {
                         LazyVStack(spacing: 10) {
                             ForEach(items) { m in card(m) }
-                            LoadMoreTrigger(hasMore: cursor != nil) { await load(reset: false) }
+                            LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await load(reset: false) }
                         }
                     }
                 }
@@ -60,7 +65,8 @@ struct MaterialsView: View {
         }
         .refreshable { await loadGroups(); await load(reset: true) }
         .task { if groups.isEmpty { await loadGroups() } }
-        .task(id: "\(query.trimmed)|\(category ?? "")") {
+        .task(id: filterKey) {
+            if loadedKey == filterKey { return }
             if loaded { try? await Task.sleep(for: .milliseconds(300)) }
             guard !Task.isCancelled else { return }
             await load(reset: true)
@@ -72,15 +78,23 @@ struct MaterialsView: View {
     }
 
     private func load(reset: Bool) async {
+        if !reset && cursor == nil { return }
+        let key = filterKey
         do {
             let p: Page<MaterialEntry> = try await APIClient.shared.get("/materials/browse", query: ["category": category, "q": query.trimmed.nilIfEmpty, "cursor": reset ? nil : cursor])
+            // Antwort für einen inzwischen geänderten Filter verwerfen
+            guard key == filterKey else { return }
             withAnimation(.snappy) { items = reset ? p.items : items + p.items.filter { n in !items.contains { $0.id == n.id } } }
             cursor = p.nextCursor
             loaded = true
             error = nil
+            moreFailed = false
+            loadedKey = key
         } catch is CancellationError {
         } catch {
-            if items.isEmpty { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
+            guard key == filterKey else { return }
+            if !reset { moreFailed = true }
+            else if items.isEmpty { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
         }
     }
 

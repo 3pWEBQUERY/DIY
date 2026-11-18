@@ -14,8 +14,13 @@ struct BlogHomeView: View {
     @State private var list: [ArticleCard] = []
     @State private var cursor: String?
     @State private var listLoaded = false
+    /// Filter, für den `list` zuletzt geladen wurde – beim Zurückkehren nicht neu laden (Scrollposition bleibt)
+    @State private var loadedKey: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
 
     private var isFiltering: Bool { query.trimmed.count >= 2 || category != nil || tag != nil }
+    private var filterKey: String { "\(query.trimmed)|\(category ?? "")|\(tag ?? "")" }
 
     var body: some View {
         ScrollView {
@@ -64,8 +69,9 @@ struct BlogHomeView: View {
         }
         .refreshable { await load(); if isFiltering { await search(reset: true) } }
         .task { if home == nil { await load() } }
-        .task(id: "\(query.trimmed)|\(category ?? "")|\(tag ?? "")") {
-            guard isFiltering else { list = []; listLoaded = false; return }
+        .task(id: filterKey) {
+            guard isFiltering else { list = []; listLoaded = false; loadedKey = nil; return }
+            if loadedKey == filterKey { return }
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             await search(reset: true)
@@ -83,14 +89,27 @@ struct BlogHomeView: View {
     }
 
     private func search(reset: Bool) async {
+        if !reset && cursor == nil { return }
+        let key = filterKey
         do {
             let q = query.trimmed.count >= 2 ? query.trimmed : nil
             let p: Page<ArticleCard> = try await APIClient.shared.get("/blog/articles", query: ["q": q, "category": category, "tag": tag, "cursor": reset ? nil : cursor])
-            withAnimation(.snappy) { list = reset ? p.items : list + p.items }
+            guard key == filterKey else { return }
+            withAnimation(.snappy) {
+                if reset { list = p.items } else {
+                    let known = Set(list.map(\.id))
+                    list += p.items.filter { !known.contains($0.id) }
+                }
+            }
             cursor = p.nextCursor
             listLoaded = true
+            moreFailed = false
+            loadedKey = key
         } catch is CancellationError {
-        } catch { app.show(error: error) }
+        } catch {
+            guard key == filterKey else { return }
+            if !reset { moreFailed = true } else { app.show(error: error) }
+        }
     }
 
     // MARK: Kopf
@@ -128,7 +147,7 @@ struct BlogHomeView: View {
             } else {
                 SpecLabel(Fmt.plural(list.count, "Artikel", "Artikel")).padding(.bottom, 4)
                 ForEach(list) { BlogMagazineRow(article: $0) }
-                LoadMoreTrigger(hasMore: cursor != nil) { await search(reset: false) }
+                LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await search(reset: false) }
             }
         }
         .padding(.horizontal, Space.gutter)
@@ -263,6 +282,9 @@ struct UserBlogView: View {
     @State private var loaded = false
     @State private var error: String?
     @State private var tag: String?
+    /// Schlagwort, für das `items` zuletzt geladen wurde (`"*"` = alle) – beim Zurückkehren nicht neu laden
+    @State private var loadedKey: String?
+    @State private var moreFailed = false
 
     private var h: String { current ?? handle }
     private var author: UserMini? { items.first?.author }
@@ -304,7 +326,7 @@ struct UserBlogView: View {
                             VStack(spacing: 0) {
                                 ForEach(items.dropFirst()) { BlogMagazineRow(article: $0, showAuthor: false) }
                             }
-                            LoadMoreTrigger(hasMore: cursor != nil) { await load(reset: false) }
+                            LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await load(reset: false) }
                         }
                     }
                 }
@@ -323,10 +345,15 @@ struct UserBlogView: View {
             }
         }
         .refreshable { await load(reset: true) }
-        .task(id: tag) { await load(reset: true) }
+        .task(id: tag) {
+            if loaded && loadedKey == (tag ?? "*") { return }
+            await load(reset: true)
+        }
     }
 
     private func load(reset: Bool) async {
+        if !reset && cursor == nil { return }
+        let key = tag ?? "*"
         do {
             let p: BlogUserPage = try await APIClient.shared.get("/users/\(h)/blog", query: ["tag": tag, "cursor": reset ? nil : cursor])
             if let r = p.redirect, r != h {
@@ -334,13 +361,23 @@ struct UserBlogView: View {
                 await load(reset: true)
                 return
             }
-            withAnimation(.snappy) { items = reset ? (p.items ?? []) : items + (p.items ?? []) }
+            guard key == (tag ?? "*") else { return }
+            withAnimation(.snappy) {
+                if reset { items = p.items ?? [] } else {
+                    let known = Set(items.map(\.id))
+                    items += (p.items ?? []).filter { !known.contains($0.id) }
+                }
+            }
             cursor = p.nextCursor
             loaded = true
             error = nil
+            moreFailed = false
+            loadedKey = key
         } catch is CancellationError {
         } catch {
-            if items.isEmpty { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
+            guard key == (tag ?? "*") else { return }
+            if !reset { moreFailed = true }
+            else if items.isEmpty { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
         }
     }
 }

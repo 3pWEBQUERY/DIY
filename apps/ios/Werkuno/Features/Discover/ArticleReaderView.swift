@@ -8,6 +8,7 @@ struct ArticleReaderView: View {
 
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+    @Environment(\.dismiss) private var dismiss
 
     @State private var target: (handle: String, slug: String)?
     @State private var data: BlogReadPayload?
@@ -50,9 +51,28 @@ struct ArticleReaderView: View {
             withAnimation(.snappy) { data = d; error = nil }
             if let id = d.article?.id, d.isAuthor != true { SocialAPI.track("ARTICLE", id) }
         } catch is CancellationError {
+        } catch let e as APIError where (e.status == 404 || e.code == "NOT_FOUND") && data != nil {
+            // Nach dem Bearbeiten: umbenannt (neue Adresse übernehmen) oder gelöscht (Leser schliessen)
+            await handleGone()
         } catch {
             if data == nil { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
         }
+    }
+
+    /// Der bisher angezeigte Artikel ist unter dieser Adresse nicht mehr zu finden.
+    private func handleGone() async {
+        if data?.isAuthor == true, let id = data?.article?.id {
+            struct Editor: Decodable { struct Article: Decodable { var slug: String }; var article: Article? }
+            if let ed: Editor = try? await APIClient.shared.get("/studio/articles/editor", query: ["id": id]),
+               let newSlug = ed.article?.slug, newSlug != s {
+                target = (h, newSlug)
+                await load()
+                return
+            }
+        }
+        // Eigener Artikel: Das Löschen hat der Editor schon bestätigt
+        if data?.isAuthor != true { app.show("Dieser Artikel ist nicht mehr verfügbar.", style: .info) }
+        dismiss()
     }
 
     // MARK: Toolbar

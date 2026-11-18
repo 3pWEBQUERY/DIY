@@ -23,6 +23,10 @@ struct CommunityManageView: View {
     @State private var transferTarget: CommunityMemberRow?
     @State private var showDissolve = false
     @State private var dissolveName = ""
+    /// Weitere Mitglieder jenseits der ersten 100 aus `/manage` (`GET /communities/:id/members?cursor=`)
+    @State private var moreMembers: [CommunityMemberRow] = []
+    @State private var membersCursor: String?
+    @State private var membersMoreFailed = false
 
     private var id: String? { page?.community.id }
     private var isManager: Bool { page?.isManager == true }
@@ -47,7 +51,7 @@ struct CommunityManageView: View {
         }
         .alert(removeTarget?.ban == true ? "Mitglied sperren" : "Mitglied entfernen", isPresented: Binding(get: { removeTarget != nil }, set: { if !$0 { removeTarget = nil } })) {
             TextField("Grund (optional)", text: $removeReason)
-            Button("Abbrechen", role: .cancel) { removeTarget = nil }
+            Button("Abbrechen", role: .cancel) { removeTarget = nil; removeReason = "" }
             Button(removeTarget?.ban == true ? "Sperren" : "Entfernen", role: .destructive) {
                 if let t = removeTarget { Task { await remove(t.member, ban: t.ban) } }
                 removeTarget = nil
@@ -60,7 +64,7 @@ struct CommunityManageView: View {
             Button("24 Stunden") { mute(hours: 24) }
             Button("7 Tage") { mute(hours: 24 * 7) }
             Button("30 Tage") { mute(hours: 24 * 30) }
-            Button("Abbrechen", role: .cancel) { muteTarget = nil }
+            Button("Abbrechen", role: .cancel) { muteTarget = nil; muteReason = "" }
         } message: { Text("\(muteTarget?.displayName ?? "") kann in dieser Zeit nichts schreiben.") }
         .confirmationDialog("Leitung übertragen?", isPresented: Binding(get: { transferTarget != nil }, set: { if !$0 { transferTarget = nil } }), titleVisibility: .visible) {
             Button("An \(transferTarget?.displayName ?? "") übertragen", role: .destructive) {
@@ -92,12 +96,34 @@ struct CommunityManageView: View {
             withAnimation(.snappy) {
                 page = p
                 manage = m
+                moreMembers = []
+                membersCursor = m.members.nextCursor
+                membersMoreFailed = false
                 if !rulesDirty { rules = p.community.rules ?? [] }
                 error = nil
             }
         } catch is CancellationError {
         } catch {
             if manage == nil { self.error = (error as? APIError)?.message ?? error.localizedDescription } else { app.show(error: error) }
+        }
+    }
+
+    /// Nächste Seite der Mitgliederliste (gleiche Suche wie `/manage`)
+    private func loadMoreMembers() async {
+        guard let id, let c = membersCursor, let first = manage?.members.items else { return }
+        let q = memberQuery.trimmed.nilIfEmpty
+        do {
+            let next: Page<CommunityMemberRow> = try await APIClient.shared.get("/communities/\(id)/members", query: ["q": q, "cursor": c, "take": "100"])
+            // Zwischenzeitlich neu geladen (andere Suche, Aktion) → Antwort verwerfen
+            guard membersCursor == c else { return }
+            let known = Set((first + moreMembers).map(\.userId))
+            moreMembers += next.items.filter { !known.contains($0.userId) }
+            membersCursor = next.nextCursor
+            membersMoreFailed = false
+        } catch is CancellationError {
+        } catch {
+            guard membersCursor == c else { return }
+            membersMoreFailed = true
         }
     }
 
@@ -229,9 +255,10 @@ struct CommunityManageView: View {
                 TextField("Mitglied suchen", text: $memberQuery)
                     .textInputAutocapitalization(.never)
                     .onSubmit { Task { await load() } }
-                ForEach(m.members.items) { mem in
+                ForEach(m.members.items + moreMembers) { mem in
                     memberRow(mem)
                 }
+                LoadMoreTrigger(hasMore: membersCursor != nil, failed: membersMoreFailed) { await loadMoreMembers() }
             } header: { Text("Mitglieder (\(p.community.memberCount ?? m.members.items.count))") }
 
             if !m.banned.isEmpty {
@@ -367,10 +394,10 @@ struct CommunityManageView: View {
                             Task { await memberAction(mem, "mute", ["until": .null], success: "Stummschaltung aufgehoben.") }
                         }
                     } else {
-                        Button("Stummschalten …", systemImage: "speaker.slash") { muteTarget = mem }
+                        Button("Stummschalten …", systemImage: "speaker.slash") { muteReason = ""; muteTarget = mem }
                     }
-                    Button("Entfernen …", systemImage: "person.badge.minus") { removeTarget = (mem, false) }
-                    Button("Sperren …", systemImage: "hand.raised", role: .destructive) { removeTarget = (mem, true) }
+                    Button("Entfernen …", systemImage: "person.badge.minus") { removeReason = ""; removeTarget = (mem, false) }
+                    Button("Sperren …", systemImage: "hand.raised", role: .destructive) { removeReason = ""; removeTarget = (mem, true) }
                 }
             } label: {
                 Image(systemName: "ellipsis.circle").font(.wr(.title3)).foregroundStyle(Color.muted).frame(width: 44, height: 44)
@@ -396,6 +423,11 @@ struct CommunityChallengeSheet: View {
     @State private var judging = "VOTES"
     @State private var votingEndsAt = Date().addingTimeInterval(86400 * 37)
     @State private var fields: [String: String] = [:]
+    @State private var confirmDiscard = false
+
+    private var hasChanges: Bool {
+        !title.trimmed.isEmpty || !description.trimmed.isEmpty || !rules.trimmed.isEmpty || !prize.trimmed.isEmpty
+    }
 
     var body: some View {
         NavigationStack {
@@ -432,14 +464,20 @@ struct CommunityChallengeSheet: View {
             .navigationTitle("Neuer Wettbewerb")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { if hasChanges { confirmDiscard = true } else { dismiss() } } }
                 ToolbarItem(placement: .confirmationAction) {
                     AsyncButton("Anlegen") { await save() }
                         .disabled(title.trimmed.count < 3 || endsAt <= startsAt)
                 }
             }
+            .confirmationDialog("Änderungen verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Verwerfen", role: .destructive) { dismiss() }
+                Button("Weiter bearbeiten", role: .cancel) {}
+            }
         }
         .presentationDetents([.medium, .large])
+        // Wischen schliesst nicht mit ungespeicherten Eingaben
+        .interactiveDismissDisabled(hasChanges)
     }
 
     private func save() async {

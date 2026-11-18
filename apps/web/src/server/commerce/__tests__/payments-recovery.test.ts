@@ -12,10 +12,12 @@ const m = vi.hoisted(() => {
       payment: { findUnique: fn() },
       order: { findUnique: fn() },
       orderEvent: { create: fn() },
+      refund: { update: fn() },
       $transaction: fn(),
     },
     capture: vi.fn(),
     reverse: vi.fn(),
+    createRefund: vi.fn(),
   };
 });
 
@@ -30,7 +32,7 @@ vi.mock("../shops", () => ({ applyAccountStatus: vi.fn() }));
 vi.mock("../inventory", () => ({ lockOrder: vi.fn(), commitSale: vi.fn(), refreshSoldOut: vi.fn(), restock: vi.fn(), retakeSale: vi.fn(), OutOfStockError: class extends Error {} }));
 vi.mock("../stripe", () => ({
   retrieveConnectStatus: vi.fn(),
-  createRefund: vi.fn(),
+  createRefund: m.createRefund,
   expireCheckoutSession: vi.fn(),
   isStripeError: () => false,
   listRefunds: vi.fn(),
@@ -79,6 +81,33 @@ describe("Streitfall verloren", () => {
     expect(tx.payment.update).toHaveBeenCalledWith({ where: { id: "pay1" }, data: { status: "REFUNDED" } });
     expect(tx.order.update).toHaveBeenCalledWith({ where: { id: "o1" }, data: { status: "REFUNDED" } });
     expect(tx.digitalEntitlement.updateMany).toHaveBeenCalled();
+  });
+});
+
+describe("Streitfall gewonnen", () => {
+  it("während des Streitfalls stornierte Bestellung: Betrag jetzt erstatten, Wiederholung neu einplanen", async () => {
+    const tx = disputeTx(5000);
+    tx.order.findUniqueOrThrow.mockResolvedValue({ id: "o1", number: "W-1", status: "CANCELLED", currency: "CHF", shopId: "sh1", restockedAt: new Date() });
+    // initiateRefund lädt die Bestellung erneut (nach dem gewonnenen Streitfall: Zahlung wieder SUCCEEDED)
+    Object.assign(tx.order, { findUnique: vi.fn().mockResolvedValue({ id: "o1", status: "CANCELLED", currency: "CHF", shopId: "sh1" }) });
+    Object.assign(tx.payment, { findMany: vi.fn().mockResolvedValue([{ id: "pay1", status: "SUCCEEDED", provider: "stripe", providerRef: "pi_1", amountMinor: 5000 }]) });
+    Object.assign(tx.orderItem, { findMany: vi.fn().mockResolvedValue([]) });
+    tx.refund.create.mockResolvedValue({ id: "rf1", amountMinor: 5000 });
+    m.db.$transaction.mockImplementation(async (f: (t: typeof tx) => unknown) => f(tx));
+    m.createRefund.mockResolvedValue({ id: "re_1", status: "pending" });
+    await markDisputeClosed("pi_1", { disputeId: "dp_1", status: "won" });
+    expect(tx.payment.update).toHaveBeenCalledWith({ where: { id: "pay1" }, data: { status: "SUCCEEDED", failureReason: null } });
+    expect(tx.order.update).toHaveBeenCalledWith({ where: { id: "o1" }, data: { refundRetryAt: null } });
+    expect(tx.refund.create).toHaveBeenCalledWith({ data: expect.objectContaining({ orderId: "o1", amountMinor: 5000, status: "PENDING" }) });
+    expect(m.createRefund).toHaveBeenCalledWith(expect.objectContaining({ paymentIntentId: "pi_1", amountMinor: 5000 }));
+  });
+
+  it("nicht stornierte Bestellung: nichts erstatten", async () => {
+    const tx = disputeTx(5000);
+    m.db.$transaction.mockImplementation(async (f: (t: typeof tx) => unknown) => f(tx));
+    await markDisputeClosed("pi_1", { disputeId: "dp_1", status: "won" });
+    expect(tx.refund.create).not.toHaveBeenCalled();
+    expect(m.createRefund).not.toHaveBeenCalled();
   });
 });
 

@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { MODERATION_ACTION_LABEL, type ModerationActionKind } from "@werkraum/shared";
 import { adminPage, TARGET_TYPE_LABEL } from "@/server/admin/guard";
-import { listAppeals, reasonLabel } from "@/server/moderation/service";
-import { AdminHeader, Segments } from "@/components/admin/ui";
+import { listAppealsPage, reasonLabel } from "@/server/moderation/service";
+import { AdminHeader, Pager, Segments } from "@/components/admin/ui";
 import { ReasonButton } from "@/components/admin/action-controls";
 import { dateTime } from "@/components/admin/format";
 import { Badge, Empty } from "@/components/ui/misc";
@@ -18,11 +18,11 @@ const TABS = [
   { key: "ALL", label: "Alle" },
 ] as const;
 
-export default async function AppealsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function AppealsPage({ searchParams }: { searchParams: Promise<{ status?: string; seite?: string }> }) {
   const user = await adminPage("PLATFORM_MODERATOR", "/admin/einsprueche");
   const sp = await searchParams;
   const status = TABS.find((t) => t.key === sp.status)?.key ?? "OPEN";
-  const appeals = await listAppeals(user, status);
+  const { rows: appeals, page, pages } = await listAppealsPage(user, status, Number(sp.seite) || 1);
 
   return (
     <div>
@@ -99,6 +99,7 @@ export default async function AppealsPage({ searchParams }: { searchParams: Prom
           })}
         </ol>
       )}
+      <Pager page={page} pages={pages} href={(p) => `/admin/einsprueche?status=${status}&seite=${p}`} />
     </div>
   );
 }

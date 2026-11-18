@@ -13,6 +13,14 @@ import { deleteCatalogAction, upsertCatalogAction } from "./actions";
 
 export const metadata: Metadata = { title: "Kategorien & Materialien" };
 
+// Listen sind auf CATALOG_PAGE_SIZE begrenzt: ehrlich zeigen, wie viele es insgesamt gibt
+const shownOf = (shown: number, total: number) => (shown < total ? `${num(shown)} von ${num(total)}` : num(total));
+
+function TruncatedNote({ shown, total }: { shown: number; total: number }) {
+  if (shown >= total) return null;
+  return <p className="mt-2 text-xs text-muted">Angezeigt werden die ersten {num(shown)} von {num(total)} (alphabetisch). Mit der Suche oben findest du die übrigen.</p>;
+}
+
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const actor = await adminPage("PLATFORM_MODERATOR", "/admin/kategorien");
   const isAdmin = hasRole(actor, "ADMIN");
@@ -100,7 +108,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       <section aria-labelledby="c3" className="mb-12">
         <SectionTitle
           n="03"
-          title={<span id="c3">Materialien ({catalog.materials.length})</span>}
+          title={<span id="c3">Materialien ({shownOf(catalog.materials.length, catalog.materialTotal)})</span>}
           action={categoryOptions.length ? <CatalogDialogButton entity="material" categories={categoryOptions} action={upsertCatalogAction} /> : <span className="text-xs text-muted">Zuerst eine Kategorie anlegen</span>}
         />
         <Table className="mt-3" caption="Materialien">
@@ -146,10 +154,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             ))}
           </tbody>
         </Table>
+        <TruncatedNote shown={catalog.materials.length} total={catalog.materialTotal} />
       </section>
 
       <section aria-labelledby="c4">
-        <SectionTitle n="04" title={<span id="c4">Werkzeuge ({catalog.tools.length})</span>} action={<CatalogDialogButton entity="tool" action={upsertCatalogAction} />} />
+        <SectionTitle n="04" title={<span id="c4">Werkzeuge ({shownOf(catalog.tools.length, catalog.toolTotal)})</span>} action={<CatalogDialogButton entity="tool" action={upsertCatalogAction} />} />
         <Table className="mt-3" caption="Werkzeuge">
           <thead>
             <tr>
@@ -182,6 +191,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             ))}
           </tbody>
         </Table>
+        <TruncatedNote shown={catalog.tools.length} total={catalog.toolTotal} />
       </section>
     </div>
   );

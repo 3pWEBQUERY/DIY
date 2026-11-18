@@ -177,7 +177,7 @@ struct ProjectDetailView: View {
                 Button { router.open(href: r.href) } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.branch").font(.wr(.caption, .semibold))
-                        Text("Nachbau von «\(r.title)»\(r.ownerName.map { " · \($0)" } ?? "")")
+                        Text("Nachbau von «\(r.title)»\((r.ownerName?.nilIfEmpty).map { " · \($0)" } ?? "")")
                             .font(.wr(.footnote, .medium))
                             .multilineTextAlignment(.leading)
                     }
@@ -494,7 +494,7 @@ struct ProjectDetailView: View {
         return ProjectsSection(title: "Nachbauten", number: number(.remix, in: p), subtitle: remixes.isEmpty ? nil : Fmt.plural(remixes.count, "Nachbau", "Nachbauten")) {
             if let r = p.remixOf {
                 VStack(alignment: .leading, spacing: 12) {
-                    LinkedThreadRow(kicker: "Nachbau von\(r.ownerName.map { " · \($0)" } ?? "")", title: r.title, seed: r.id, category: r.category, url: r.coverUrl) {
+                    LinkedThreadRow(kicker: "Nachbau von\((r.ownerName?.nilIfEmpty).map { " · \($0)" } ?? "")", title: r.title, seed: r.id, category: r.category, url: r.coverUrl) {
                         router.open(href: r.href)
                     }
                     if let dev = (r.deviations?.nilIfEmpty ?? p.remixNote?.nilIfEmpty) {

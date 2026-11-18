@@ -26,8 +26,23 @@ struct CommunityEditorSheet: View {
     @State private var originalRules: [CommunityRule] = []
     @State private var fields: [String: String] = [:]
     @State private var saving = false
+    /// Stand nach dem Laden – Grundlage für „ungespeicherte Änderungen“
+    @State private var original: Snapshot?
+    @State private var confirmDiscard = false
 
     private var isEdit: Bool { slug != nil }
+
+    private struct Snapshot: Equatable {
+        var name, slugText, description, category, visibility, region: String
+        var coverMediaId: String?
+        var coverRemoved: Bool
+        var rules: [CommunityRule]
+    }
+    private var snapshot: Snapshot {
+        Snapshot(name: name, slugText: slugText, description: description, category: category, visibility: visibility, region: region,
+                 coverMediaId: coverMediaId, coverRemoved: coverRemoved, rules: rules)
+    }
+    private var hasChanges: Bool { loaded && original != nil && original != snapshot }
 
     private var valid: Bool {
         name.trimmed.count >= 3 && !category.isEmpty && (isEdit || slugText.isEmpty || slugText.count >= 3)
@@ -48,21 +63,28 @@ struct CommunityEditorSheet: View {
             .navigationTitle(isEdit ? "Community bearbeiten" : "Community gründen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { if hasChanges { confirmDiscard = true } else { dismiss() } } }
                 ToolbarItem(placement: .confirmationAction) {
                     AsyncButton(isEdit ? "Sichern" : "Gründen") { await save() }
                         .fontWeight(.semibold)
                         .disabled(!valid || saving)
                 }
             }
+            .confirmationDialog("Änderungen verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Verwerfen", role: .destructive) { dismiss() }
+                Button("Weiter bearbeiten", role: .cancel) {}
+            }
             .task { if !loaded { await load() } }
         }
+        // Wischen schliesst nicht unbemerkt mit ungespeicherten Änderungen
+        .interactiveDismissDisabled(hasChanges)
     }
 
     private func load() async {
         guard let slug else {
             category = app.me?.profile?.categories?.first ?? app.activeCategories.first?.slug ?? ""
             loaded = true
+            original = snapshot
             return
         }
         do {
@@ -79,6 +101,7 @@ struct CommunityEditorSheet: View {
             rules = c.rules ?? []
             originalRules = rules
             loaded = true
+            original = snapshot
         } catch {
             loadError = (error as? APIError)?.message ?? error.localizedDescription
         }

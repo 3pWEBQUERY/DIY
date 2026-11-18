@@ -14,8 +14,13 @@ struct CommunityListView: View {
     @State private var cursor: String?
     @State private var searching = false
     @State private var searched = false
+    /// Filter, für den `results` zuletzt geladen wurde – beim Zurückkehren nicht neu laden (Scrollposition bleibt)
+    @State private var loadedKey: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
 
     private var isFiltering: Bool { query.trimmed.count >= 2 || category != nil }
+    private var filterKey: String { "\(query.trimmed)|\(category ?? "")" }
 
     var body: some View {
         ScrollView {
@@ -73,8 +78,9 @@ struct CommunityListView: View {
         }
         .refreshable { await loadHome(); if isFiltering { await search(reset: true) } }
         .task { if home == nil { await loadHome() } }
-        .task(id: "\(query.trimmed)|\(category ?? "")") {
-            guard isFiltering else { results = []; searched = false; return }
+        .task(id: filterKey) {
+            guard isFiltering else { results = []; searched = false; loadedKey = nil; return }
+            if loadedKey == filterKey { return }
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             await search(reset: true)
@@ -93,16 +99,29 @@ struct CommunityListView: View {
     }
 
     private func search(reset: Bool) async {
+        if !reset && cursor == nil { return }
+        let key = filterKey
         searching = true
         defer { searching = false }
         do {
             let q = query.trimmed.count >= 2 ? query.trimmed : nil
             let p: Page<CommunityCard> = try await APIClient.shared.get("/communities", query: ["q": q, "category": category, "cursor": reset ? nil : cursor])
-            withAnimation(.snappy) { results = reset ? p.items : results + p.items }
+            guard key == filterKey else { return }
+            withAnimation(.snappy) {
+                if reset { results = p.items } else {
+                    let known = Set(results.map(\.id))
+                    results += p.items.filter { !known.contains($0.id) }
+                }
+            }
             cursor = p.nextCursor
             searched = true
+            moreFailed = false
+            loadedKey = key
         } catch is CancellationError {
-        } catch { app.show(error: error) }
+        } catch {
+            guard key == filterKey else { return }
+            if !reset { moreFailed = true } else { app.show(error: error) }
+        }
     }
 
     // MARK: Gefiltert
@@ -118,7 +137,7 @@ struct CommunityListView: View {
             } else {
                 SpecLabel(Fmt.plural(results.count, "Community", "Communities"))
                 ForEach(results) { CommunityCardView(community: $0) }
-                LoadMoreTrigger(hasMore: cursor != nil) { await search(reset: false) }
+                LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await search(reset: false) }
             }
         }
         .padding(.horizontal, Space.gutter)

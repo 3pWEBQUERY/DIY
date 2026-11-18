@@ -283,7 +283,8 @@ struct EventDetailView: View {
                         }
                         if !app.isGuest, app.me != nil, e.organizer.id != app.me?.id {
                             Divider()
-                            Button("Event melden …", systemImage: "flag") { router.present(.report(targetType: "EVENT", targetId: e.id, title: e.title)) }
+                            // Melden sowie Organisator:in stummschalten/blockieren
+                            SafetyMenuItems(targetType: "EVENT", targetId: e.id, authorId: e.organizer.id, authorName: e.organizer.name, allowHide: false)
                         }
                     } label: { Image(systemName: "ellipsis") }
                     .accessibilityLabel("Weitere Aktionen")
@@ -388,7 +389,7 @@ struct EventDetailView: View {
                         Text(e.locationName?.nilIfEmpty ?? "Vor Ort").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
                         if let a = e.address?.nilIfEmpty { Text(a).font(.wr(.footnote)).foregroundStyle(Color.ink2).textSelection(.enabled) }
                         let q = [e.locationName, e.address].compactMap { $0?.nilIfEmpty }.joined(separator: ", ")
-                        if !q.isEmpty, let url = URL(string: "https://maps.apple.com/?q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
+                        if !q.isEmpty, let url = eventMapsURL(q) {
                             Link("Auf der Karte zeigen", destination: url).font(.wr(.footnote, .semibold)).tint(.moss)
                         }
                     }
@@ -539,6 +540,23 @@ struct EventEditorSheet: View {
     @State private var description: String
     @State private var fields: [String: String] = [:]
     @State private var saving = false
+    /// Ausgangsstand (für „ungespeicherte Änderungen“) und Rückfrage beim Abbrechen
+    @State private var original: Snapshot?
+    @State private var confirmDiscard = false
+
+    private struct Snapshot: Equatable {
+        var title: String
+        var kind: EventKind
+        var mode: EventMode
+        var startsAt: Date
+        var endsAt: Date
+        var locationName, address, onlineUrl, capacity, costNote, description: String
+    }
+    private var snapshot: Snapshot {
+        Snapshot(title: title, kind: kind, mode: mode, startsAt: startsAt, endsAt: endsAt, locationName: locationName, address: address,
+                 onlineUrl: onlineUrl, capacity: capacity, costNote: costNote, description: description)
+    }
+    private var hasChanges: Bool { original.map { $0 != snapshot } ?? false }
 
     init(communityId: String, event: CommunityEventDetail?, onSaved: @escaping (String) -> Void) {
         self.communityId = communityId
@@ -629,7 +647,7 @@ struct EventEditorSheet: View {
             .navigationTitle(isEdit ? "Event bearbeiten" : "Neues Event")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { if hasChanges { confirmDiscard = true } else { dismiss() } } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button { Task { await save() } } label: {
                         if saving { ProgressView() } else { Text(isEdit ? "Speichern" : "Erstellen") }
@@ -639,8 +657,14 @@ struct EventEditorSheet: View {
                     .disabled(!valid || saving)
                 }
             }
+            .confirmationDialog("Änderungen verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Verwerfen", role: .destructive) { dismiss() }
+                Button("Weiter bearbeiten", role: .cancel) {}
+            }
         }
-        .interactiveDismissDisabled(!title.trimmed.isEmpty && !isEdit)
+        // Beim Anlegen und beim Bearbeiten: Wischen schliesst nicht mit ungespeicherten Änderungen
+        .interactiveDismissDisabled(hasChanges)
+        .onAppear { if original == nil { original = snapshot } }
     }
 
     private func save() async {
@@ -726,4 +750,13 @@ struct EventCalendarSheet: UIViewControllerRepresentable {
             onDone()
         }
     }
+}
+
+/// Apple-Karten-Suche für Ort/Adresse eines Events – Kommas, „&“, „+“ usw. korrekt kodiert.
+private func eventMapsURL(_ query: String) -> URL? {
+    var c = URLComponents(string: "https://maps.apple.com/")
+    c?.queryItems = [URLQueryItem(name: "q", value: query)]
+    // „+“ wird von URLComponents nicht kodiert, gilt in Abfragen aber als Leerzeichen
+    c?.percentEncodedQuery = c?.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+    return c?.url
 }

@@ -21,6 +21,8 @@ struct TutorialDetailView: View {
     @State private var confirmReset = false
     @State private var showVersions = false
     @State private var celebrate = 0
+    /// Laufende Schritt-Umschaltungen: Die Server-Antwort ersetzt `done` nur, wenn keine weitere mehr läuft
+    @State private var togglesInFlight = 0
 
     var body: some View {
         Group {
@@ -324,7 +326,7 @@ struct TutorialDetailView: View {
             ProjectsSection(title: "Am Faden", number: nil, subtitle: "Projekt und Produkte zu dieser Anleitung") {
                 VStack(alignment: .leading, spacing: 14) {
                     if let p = t.project {
-                        LinkedThreadRow(kicker: "Projekt\(p.ownerName.map { " · \($0)" } ?? "")\(p.status.map { " · \(L.projectStatus($0))" } ?? "")", title: p.title, seed: p.id, category: p.category ?? t.category, url: p.coverUrl) {
+                        LinkedThreadRow(kicker: "Projekt\((p.ownerName?.nilIfEmpty).map { " · \($0)" } ?? "")\(p.status.map { " · \(L.projectStatus($0))" } ?? "")", title: p.title, seed: p.id, category: p.category ?? t.category, url: p.coverUrl) {
                             router.open(href: p.href)
                         }
                     }
@@ -462,11 +464,15 @@ struct TutorialDetailView: View {
         withAnimation(.spring(duration: 0.4, bounce: 0.3)) {
             if next { done.insert(step.stableKey) } else { done.remove(step.stableKey) }
         }
+        togglesInFlight += 1
         do {
             let r: TutorialProgressResult = try await APIClient.shared.post("/tutorials/\(t.id)/steps/\(step.stableKey)", ["done": JSONValue.bool(next)])
-            withAnimation(.snappy) { done = Set(r.completedKeys) }
+            togglesInFlight -= 1
+            // Sonst überschriebe eine ältere Antwort den optimistischen Stand eines schnell folgenden Tipps
+            if togglesInFlight == 0 { withAnimation(.snappy) { done = Set(r.completedKeys) } }
             if next, let total = r.total, r.completedKeys.count == total { Haptics.success() }
         } catch {
+            togglesInFlight -= 1
             withAnimation { if next { done.remove(step.stableKey) } else { done.insert(step.stableKey) } }
             app.show(error: error)
         }

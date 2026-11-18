@@ -57,7 +57,7 @@ struct CommunityDetailView: View {
         .reloadWhenSheetCloses { await load(); await loadTab(force: true) }
         .alert("Beitrag ausblenden", isPresented: Binding(get: { hideTarget != nil }, set: { if !$0 { hideTarget = nil } })) {
             TextField("Grund (für das Protokoll)", text: $hideReason)
-            Button("Abbrechen", role: .cancel) { hideTarget = nil }
+            Button("Abbrechen", role: .cancel) { hideTarget = nil; hideReason = "" }
             Button("Ausblenden", role: .destructive) {
                 if let p = hideTarget { Task { await moderate(p, "hidden", on: true, reason: hideReason) } }
                 hideTarget = nil
@@ -191,8 +191,13 @@ struct CommunityDetailView: View {
                     Button("Community verlassen", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmLeave = true }
                 }
                 Divider()
-                Button("Community melden …", systemImage: "flag") {
-                    router.present(.report(targetType: "COMMUNITY", targetId: d.community.id, title: d.community.name))
+                if let ownerId = d.community.ownerId ?? d.community.owner?.id, ownerId != app.me?.id, app.me != nil {
+                    // Melden sowie Gründer:in stummschalten/blockieren
+                    SafetyMenuItems(targetType: "COMMUNITY", targetId: d.community.id, authorId: ownerId, authorName: d.community.owner?.profile?.displayName, allowHide: false)
+                } else {
+                    Button("Community melden …", systemImage: "flag") {
+                        router.present(.report(targetType: "COMMUNITY", targetId: d.community.id, title: d.community.name))
+                    }
                 }
             } label: { Image(systemName: "ellipsis") }
             .accessibilityLabel("Weitere Aktionen")
@@ -421,7 +426,7 @@ struct CommunityDetailView: View {
                     Image(systemName: "shield.lefthalf.filled").font(.wr(.caption)).foregroundStyle(Color.muted)
                     modButton(p.isPinned == true ? "Lösen" : "Anheften", p.isPinned == true ? "pin.slash" : "pin") { await moderate(p, "pinned", on: p.isPinned != true) }
                     modButton(p.isAnnouncement == true ? "Keine Ankündigung" : "Ankündigung", "megaphone") { await moderate(p, "announcement", on: p.isAnnouncement != true) }
-                    Button { hideTarget = p } label: {
+                    Button { hideReason = ""; hideTarget = p } label: {
                         Label("Ausblenden", systemImage: "eye.slash").font(.wr(.caption, .semibold))
                     }
                     .buttonStyle(.glass).controlSize(.small).tint(.danger)

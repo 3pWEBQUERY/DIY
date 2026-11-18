@@ -32,4 +32,12 @@ describe("purgeDeletedAccount", () => {
     expect(fn("product.findMany")).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ shop: { ownerId: "u1" }, digitalKey: { not: null } }) }));
     expect(fn("media.findMany")).toHaveBeenCalledWith(expect.objectContaining({ where: { ownerId: "u1", productMedia: { none: {} }, id: { notIn: ["file1"] } } }));
   });
+
+  it("entfernt Nachproduktionsanfragen und alte Handles, löst Nutzungsereignisse und anonymisiert Supportanfragen", async () => {
+    await purgeDeletedAccount("u1");
+    expect(fn("restockRequest.deleteMany")).toHaveBeenCalledWith({ where: { userId: "u1" } });
+    expect(fn("handleRedirect.deleteMany")).toHaveBeenCalledWith({ where: { userId: "u1" } });
+    expect(fn("analyticsEvent.updateMany")).toHaveBeenCalledWith({ where: { userId: "u1" }, data: { userId: null } });
+    expect(fn("supportTicket.updateMany")).toHaveBeenCalledWith({ where: { userId: "u1" }, data: expect.objectContaining({ userId: null, email: "", body: "" }) });
+  });
 });

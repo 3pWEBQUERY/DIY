@@ -36,14 +36,19 @@ export async function categoryCounts() {
 
 /* ───────────── Materialdatenbank ───────────── */
 
+export const CATALOG_PAGE_SIZE = 300;
+
+/** Je Liste höchstens CATALOG_PAGE_SIZE Einträge – `materialTotal`/`toolTotal` zeigen, ob mehr vorhanden sind. */
 export async function listMaterialCatalog(q?: string | null) {
   const where = q ? { name: { contains: q, mode: "insensitive" as const } } : {};
-  const [categories, materials, tools] = await Promise.all([
+  const [categories, materials, tools, materialTotal, toolTotal] = await Promise.all([
     db.materialCategory.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { materials: true } } } }),
-    db.material.findMany({ where, orderBy: { name: "asc" }, take: 300, include: { category: { select: { name: true } }, _count: { select: { projectMaterials: true } } } }),
-    db.tool.findMany({ where, orderBy: { name: "asc" }, take: 300, include: { _count: { select: { projectTools: true } } } }),
+    db.material.findMany({ where, orderBy: { name: "asc" }, take: CATALOG_PAGE_SIZE, include: { category: { select: { name: true } }, _count: { select: { projectMaterials: true } } } }),
+    db.tool.findMany({ where, orderBy: { name: "asc" }, take: CATALOG_PAGE_SIZE, include: { _count: { select: { projectTools: true } } } }),
+    db.material.count({ where }),
+    db.tool.count({ where }),
   ]);
-  return { categories, materials, tools };
+  return { categories, materials, tools, materialTotal, toolTotal };
 }
 
 const materialCategorySchema = z.object({ name: z.string().trim().min(2, "Name fehlt").max(80) });
@@ -202,19 +207,25 @@ export async function toggleCollection(actor: Actor, id: string, isActive: boole
 
 /* ───────────── Support ───────────── */
 
-export async function listTickets(actor: Actor, status?: string | null) {
+const TICKETS_PER_PAGE = 50;
+
+export async function listTickets(actor: Actor, status?: string | null, pageInput = 1) {
   mod(actor);
   const s = (SUPPORT_STATUS as readonly string[]).includes(status ?? "") ? status! : null;
-  const [rows, byStatus] = await Promise.all([
+  const page = Math.max(1, Math.floor(pageInput) || 1);
+  const where = s ? { status: s } : { status: { not: "CLOSED" } };
+  const [rows, total, byStatus] = await Promise.all([
     db.supportTicket.findMany({
-      where: s ? { status: s } : { status: { not: "CLOSED" } },
-      orderBy: { createdAt: s === "CLOSED" ? "desc" : "asc" },
-      take: 100,
+      where,
+      orderBy: [{ createdAt: s === "CLOSED" ? "desc" : "asc" }, { id: "asc" }],
+      skip: (page - 1) * TICKETS_PER_PAGE,
+      take: TICKETS_PER_PAGE,
       include: { user: { select: { id: true, profile: { select: { handle: true } } } } },
     }),
+    db.supportTicket.count({ where }),
     db.supportTicket.groupBy({ by: ["status"], _count: { _all: true } }),
   ]);
-  return { rows, byStatus: Object.fromEntries(byStatus.map((b) => [b.status, b._count._all])) as Record<string, number> };
+  return { rows, total, page, pages: Math.max(1, Math.ceil(total / TICKETS_PER_PAGE)), byStatus: Object.fromEntries(byStatus.map((b) => [b.status, b._count._all])) as Record<string, number> };
 }
 
 export async function setTicketStatus(actor: Actor, id: string, status: string) {
