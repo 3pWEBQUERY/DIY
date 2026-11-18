@@ -76,7 +76,7 @@ export default async function ArticlePage({ params }: Props) {
   const outline = articleOutline(a.blocks).filter((o) => o.level === 2);
   const [related, projects] = await Promise.all([
     isLive ? relatedArticles(a, viewerId) : Promise.resolve([]),
-    linkedProjects(a.projects.map((p) => p.projectId)),
+    linkedProjects(a.projects.map((p) => p.projectId), viewer?.id ?? null),
   ]);
   if (isLive && !isAuthor) await recordViewAfter({ viewerId: viewer?.id ?? null, targetType: "ARTICLE", targetId: a.id });
   const viewerLite = viewer?.profile ? { id: viewer.id, displayName: viewer.profile.displayName, avatarUrl: viewer.profile.avatarUrl } : null;
