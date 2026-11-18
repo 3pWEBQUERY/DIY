@@ -754,9 +754,10 @@ struct EventCalendarSheet: UIViewControllerRepresentable {
 
 /// Apple-Karten-Suche für Ort/Adresse eines Events – Kommas, „&“, „+“ usw. korrekt kodiert.
 private func eventMapsURL(_ query: String) -> URL? {
-    var c = URLComponents(string: "https://maps.apple.com/")
-    c?.queryItems = [URLQueryItem(name: "q", value: query)]
+    guard var c = URLComponents(string: "https://maps.apple.com/") else { return nil }
+    c.queryItems = [URLQueryItem(name: "q", value: query)]
     // „+“ wird von URLComponents nicht kodiert, gilt in Abfragen aber als Leerzeichen
-    c?.percentEncodedQuery = c?.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
-    return c?.url
+    let encoded = c.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+    c.percentEncodedQuery = encoded
+    return c.url
 }

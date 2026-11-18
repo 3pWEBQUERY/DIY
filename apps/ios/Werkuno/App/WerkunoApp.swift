@@ -123,7 +123,7 @@ struct RootView: View {
             guard app.me != nil else { return }
             await DigitalStore.shared.retryUnfinished()
             // Creator Pro: aktuellen App-Store-Stand melden (Verlängerungen, Abo auf einem anderen Gerät)
-            if app.flags["pro"] ?? true { try? await ProStore.shared.syncEntitlements() }
+            if app.flags["pro"] ?? true { _ = try? await ProStore.shared.syncEntitlements() }
         }
         // Abmelden, abgelaufene Sitzung oder anderes Konto: Navigation des vorherigen Kontos verwerfen
         .onChange(of: app.me?.id) { old, new in if old != nil, old != new { router.reset() } }

@@ -70,7 +70,7 @@ struct StudioProView: View {
             .task { if data == nil { await load() } }
             .refreshable { await load() }
             .manageSubscriptionsSheet(isPresented: $showManage)
-            .onChange(of: showManage) { _, open in if !open { Task { try? await ProStore.shared.syncEntitlements(); await load() } } }
+            .onChange(of: showManage) { _, open in if !open { Task { _ = try? await ProStore.shared.syncEntitlements(); await load() } } }
             .onReceive(NotificationCenter.default.publisher(for: ProStore.changedNotification)) { _ in Task { await load() } }
             .confirmationDialog("Creator Pro kündigen?", isPresented: $confirmCancel, titleVisibility: .visible) {
                 Button("Kündigen", role: .destructive) { Task { await setCancel(true) } }
