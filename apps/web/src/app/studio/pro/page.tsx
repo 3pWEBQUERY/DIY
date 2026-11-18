@@ -133,7 +133,9 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
       )}
       {status.pastDue && (
         <Notice tone="warn" className="mb-8" title="Zahlung fehlgeschlagen">
-          Die letzte Zahlung konnte nicht eingezogen werden. Bitte aktualisiere dein Zahlungsmittel – Pro bleibt solange aktiv.
+          {status.provider === "apple"
+            ? "Apple konnte die letzte Zahlung nicht einziehen. Bitte prüfe deine Zahlungsangaben im App Store – Pro bleibt solange aktiv."
+            : "Die letzte Zahlung konnte nicht eingezogen werden. Bitte aktualisiere dein Zahlungsmittel – Pro bleibt solange aktiv."}
         </Notice>
       )}
 

@@ -151,6 +151,27 @@ Einrichtung in App Store Connect:
 3. Optional `APPLE_IAP_BUNDLE_ID` (Standard `ch.werkuno.app`).
 
 Sandbox-Käufe (TestFlight, App Review) schalten den Download frei, lösen aber keine Überweisung aus.
+
+### Creator Pro als App-Store-Abo
+
+In der iOS-App wird Creator Pro nur als Auto-Renewable Subscription über Apple verkauft (Guideline 3.1.1);
+im Web weiterhin über Stripe. Es gilt immer nur ein Abo pro Konto: Läuft eines über das Web, zeigt die App
+keinen Kauf an (und der Server übernimmt ein trotzdem gekauftes Apple-Abo nicht, sondern meldet es unter
+Admin → Fehler zur Erstattung). Läuft eines über Apple, lehnt der Web-Checkout ab.
+
+1. In App Store Connect eine Abo-Gruppe **Creator Pro** mit zwei Abos anlegen:
+   `ch.werkuno.app.pro.monthly` (1 Monat) und `ch.werkuno.app.pro.yearly` (1 Jahr), beide auf derselben
+   Stufe. Preise frei wählbar (Web: `pro.priceMonthMinor` / `pro.priceYearMinor`); die App zeigt immer
+   den Apple-Preis. Produkt-IDs stehen in `src/server/pro/apple.ts` und `ProStore.swift`.
+2. Für die App-Prüfung Screenshot des Abo-Bildschirms und Review-Hinweis hinterlegen; das Abo
+   verwendet die Standard-EULA von Apple, AGB und Datenschutz sind in der App verlinkt.
+3. Die Server-Benachrichtigungen (siehe oben, gleiche URL) melden Verlängerung, Kündigung, Ablauf,
+   Zahlungsprobleme und Erstattungen. Zusätzlich meldet die App den Stand beim Start; der tägliche
+   Worker beendet Apple-Abos, deren Periode ohne gemeldete Verlängerung abgelaufen ist.
+
+Zuordnung: Die App kauft mit `appAccountToken` = HMAC(Konto, `SESSION_SECRET`). **Wird
+`SESSION_SECRET` geändert, lassen sich bestehende Apple-Abos nicht mehr wiederherstellen** (laufende
+Abos bleiben über die gespeicherte ursprüngliche Transaktion zugeordnet).
 Lokal: Xcode-Schema nutzt `apps/ios/StoreKit/Werkuno.storekit`; der lokale Server nimmt solche
 Testbelege nur mit `APPLE_IAP_ALLOW_XCODE=true` an (nie in Produktion).
 

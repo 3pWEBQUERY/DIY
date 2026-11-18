@@ -20,7 +20,7 @@ type Group = { id: string; title: string; items: Q[] };
 // Akkusativ: „3 Tage nach dem Abschluss“
 const tage = (n: number) => `${n} ${n === 1 ? "Tag" : "Tage"}`;
 
-function groups(s: { minAge: number; holdDays: number; autoCompleteDays: number; priceMonth: number; priceYear: number }): Group[] {
+function groups(s: { minAge: number; holdDays: number; autoCompleteDays: number; priceMonth: number; priceYear: number; inApp: boolean }): Group[] {
   return [
     {
       id: "konto",
@@ -76,7 +76,15 @@ function groups(s: { minAge: number; holdDays: number; autoCompleteDays: number;
         { q: "Muss ich ein Gewerbe haben?", a: <>Nein. Du kannst privat oder gewerblich verkaufen und gibst das bei der Shop-Eröffnung an. Wer regelmässig mit Gewinnabsicht verkauft, gilt in der Regel als gewerblich – kläre im Zweifel deine Pflichten (z. B. MWST) mit einer Fachperson.</> },
         { q: "Wann wird mein Shop freigeschaltet?", a: <>Sobald du deine E-Mail-Adresse bestätigt, die Shop-Angaben eingereicht und die Verifizierung bei Stripe abgeschlossen hast. Den Stand siehst du im Studio unter Shop; fehlen bei Stripe noch Angaben, siehst du das dort.</> },
         { q: "Wann erhalte ich mein Geld?", a: <>{s.holdDays > 0 ? <>Der Erlös einer Bestellung wird {tage(s.holdDays)} nach ihrem Abschluss auszahlbar – abgeschlossen ist sie mit der Erhaltsbestätigung, spätestens automatisch {tage(s.autoCompleteDays)} nach dem Versand. Digitale Produkte: {tage(s.holdDays)} nach dem Kauf. </> : null}Freigegebenes Guthaben zahlen wir nach deinem Auszahlungsplan oder auf Anfrage auf dein Bankkonto aus. Den Stand siehst du im Studio unter Einnahmen.</> },
-        { q: "Was bringt Creator Pro?", a: <>Schaufenster und Pro-Kennzeichen im Profil, Medienkit, Statistiken über 12 Monate, längere Videos und eine tiefere Provision – für {formatMoney(s.priceMonth, "CHF")} pro Monat oder {formatMoney(s.priceYear, "CHF")} pro Jahr. Jederzeit kündbar auf das Ende der Laufzeit unter <Link href="/studio/pro">Studio → Creator Pro</Link>.</> },
+        {
+          q: "Was bringt Creator Pro?",
+          // In der iOS-App geöffnet: keine Web-Preise und kein Link zum Web-Checkout (App Store Guideline 3.1.1/3.1.3)
+          a: s.inApp ? (
+            <>Schaufenster und Pro-Kennzeichen im Profil, Medienkit, Statistiken über 12 Monate, längere Videos und eine tiefere Provision. In der App abonnierst und verwaltest du Creator Pro unter Ich › Studio › Creator Pro.</>
+          ) : (
+            <>Schaufenster und Pro-Kennzeichen im Profil, Medienkit, Statistiken über 12 Monate, längere Videos und eine tiefere Provision – für {formatMoney(s.priceMonth, "CHF")} pro Monat oder {formatMoney(s.priceYear, "CHF")} pro Jahr. Jederzeit kündbar auf das Ende der Laufzeit unter <Link href="/studio/pro">Studio → Creator Pro</Link>.</>
+          ),
+        },
       ],
     },
     {
@@ -94,7 +102,8 @@ function groups(s: { minAge: number; holdDays: number; autoCompleteDays: number;
 // Provision, Fristen und Preise aus den Systemeinstellungen: regelmässig neu rendern statt beim Build einfrieren
 export const revalidate = 300;
 
-export default async function HelpPage() {
+export default async function HelpPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const inApp = (await searchParams).app === "ios";
   const [minAge, holdDays, autoCompleteDays, priceMonth, priceYear] = await Promise.all([
     getSetting("signup.minAge"),
     getSetting("commerce.payoutHoldDays"),
@@ -102,7 +111,7 @@ export default async function HelpPage() {
     getSetting("pro.priceMonthMinor"),
     getSetting("pro.priceYearMinor"),
   ]);
-  const GROUPS = groups({ minAge, holdDays, autoCompleteDays, priceMonth, priceYear });
+  const GROUPS = groups({ minAge, holdDays, autoCompleteDays, priceMonth, priceYear, inApp });
   return (
     <div className="mx-auto max-w-[1120px] px-4 py-10 sm:px-6 md:py-14 lg:px-10">
       <header className="mb-12 max-w-3xl">

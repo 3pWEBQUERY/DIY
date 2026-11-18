@@ -2286,7 +2286,7 @@ model Subscription {
   interval          String
   /// active | trialing | past_due | canceled | incomplete | incomplete_expired | unpaid
   status            String
-  /// stripe | simulated | comp
+  /// stripe | simulated | comp | apple (In-App-Abo über den App Store)
   provider          String
   customerId        String?
   subscriptionId    String?   @unique
@@ -2298,6 +2298,11 @@ model Subscription {
   cancelAtPeriodEnd Boolean   @default(false)
   grantedById       String?
   note              String?
+  /// App-Store-Abo: ursprüngliche Transaktion (bleibt über alle Verlängerungen gleich) und Umgebung
+  appleOriginalTransactionId String? @unique
+  appleEnvironment  String?
+  /// Signierzeitpunkt des zuletzt übernommenen Apple-Standes (verspätete Meldungen überschreiben nichts)
+  appleSignedAt     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

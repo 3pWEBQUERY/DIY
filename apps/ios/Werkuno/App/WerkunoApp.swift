@@ -118,7 +118,12 @@ struct RootView: View {
             // Käufe, deren Verbuchung scheiterte (offline, anderes Konto), beim Zurückkehren nachholen
             if p == .active, app.phase == .ready { Task { await DigitalStore.shared.retryUnfinished() } }
         }
-        .task(id: app.me?.id) { if app.me != nil { await DigitalStore.shared.retryUnfinished() } }
+        .task(id: app.me?.id) {
+            guard app.me != nil else { return }
+            await DigitalStore.shared.retryUnfinished()
+            // Creator Pro: aktuellen App-Store-Stand melden (Verlängerungen, Abo auf einem anderen Gerät)
+            if app.flags["pro"] ?? true { try? await ProStore.shared.syncEntitlements() }
+        }
         // Abmelden, abgelaufene Sitzung oder anderes Konto: Navigation des vorherigen Kontos verwerfen
         .onChange(of: app.me?.id) { old, new in if old != nil, old != new { router.reset() } }
     }

@@ -125,7 +125,12 @@ final class DigitalStore {
 
     private func deliverQuietly(_ verification: VerificationResult<Transaction>) async {
         let transaction = verification.unsafePayloadValue
-        // Nur Werkuno-Verbrauchsartikel; widerrufene Käufe abschliessen, ohne zu verbuchen
+        // Creator-Pro-Abo (Kauf ausserhalb des Dialogs, Verlängerung): an den Abo-Speicher weitergeben
+        if transaction.productType == .autoRenewable, ProStore.productIds.contains(transaction.productID) {
+            await ProStore.shared.deliverQuietly(verification)
+            return
+        }
+        // Sonst nur Werkuno-Verbrauchsartikel; widerrufene Käufe abschliessen, ohne zu verbuchen
         guard transaction.productType == .consumable else { return }
         if transaction.revocationDate != nil {
             await transaction.finish()

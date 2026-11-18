@@ -62,7 +62,7 @@ struct GuestMeView: View {
                     AppearancePicker().cardSurface()
                 }
                 VStack(spacing: 0) {
-                    ForEach([("Hilfe", "/hilfe"), ("Community-Richtlinien", "/richtlinien/community"), ("Datenschutz", "/rechtliches/datenschutz"), ("AGB", "/rechtliches/agb"), ("Impressum", "/rechtliches/impressum")], id: \.1) { item in
+                    ForEach([("Hilfe", "/hilfe?app=ios"), ("Community-Richtlinien", "/richtlinien/community"), ("Datenschutz", "/rechtliches/datenschutz"), ("AGB", "/rechtliches/agb"), ("Impressum", "/rechtliches/impressum")], id: \.1) { item in
                         Button { router.open(.web(path: item.1)) } label: {
                             HStack { Text(item.0).foregroundStyle(Color.ink); Spacer(); Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.muted) }
                                 .padding(.vertical, 14).contentShape(.rect)

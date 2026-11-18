@@ -16,6 +16,7 @@ import { feeForShop } from "./fees";
 import { formatOrderNumber } from "./rules";
 import { createSellerTransfer, isStripeError, paymentsMode, reverseSellerTransfer } from "./stripe";
 import { AppStoreVerificationError, verifyAppStoreJws, type AppStoreNotification, type AppStoreTransaction } from "./appstore-verify";
+import { handleAppleProNotification, isProAppleProduct } from "@/server/pro/apple";
 
 /**
  * Digitale Produkte in der iOS-App: Kauf ausschliesslich über Apple (In-App-Kauf, App Review
@@ -466,7 +467,12 @@ export async function handleAppStoreNotification(body: { signedPayload?: unknown
     if (seen?.processedAt) return 200;
   }
   try {
-    if ((n.notificationType === "REFUND" || n.notificationType === "REVOKE") && n.data?.signedTransactionInfo) {
+    const sub = n.data?.signedTransactionInfo ? verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo) : null;
+    if (sub && isProAppleProduct(sub.productId)) {
+      // Creator Pro (Abo): Verlängerung, Kündigung, Ablauf, Zahlungsproblem, Erstattung
+      const known = await handleAppleProNotification(n.notificationType, sub, n.data?.signedRenewalInfo);
+      log("info", "appstore_pro_notification", { type: n.notificationType, subtype: n.subtype, known });
+    } else if ((n.notificationType === "REFUND" || n.notificationType === "REVOKE") && n.data?.signedTransactionInfo) {
       const t = verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo);
       await revokePurchase(t.transactionId, n.notificationType === "REFUND" ? "Erstattung durch Apple" : "Kauf widerrufen");
     } else {

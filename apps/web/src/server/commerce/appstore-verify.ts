@@ -44,6 +44,22 @@ export type AppStoreTransaction = {
   signedDate?: number;
   revocationDate?: number;
   revocationReason?: number;
+  /** Abos: Ende der bezahlten Periode */
+  expiresDate?: number;
+};
+
+/** Verlängerungsstatus eines Abos (JWSRenewalInfoDecodedPayload, Auszug). */
+export type AppStoreRenewalInfo = {
+  originalTransactionId: string;
+  productId?: string;
+  autoRenewProductId?: string;
+  /** 1 = verlängert sich automatisch, 0 = gekündigt (läuft zum Periodenende aus) */
+  autoRenewStatus?: number;
+  isInBillingRetryPeriod?: boolean;
+  gracePeriodExpiresDate?: number;
+  expirationIntent?: number;
+  environment?: AppStoreEnvironment;
+  signedDate?: number;
 };
 
 /** Server-Benachrichtigung V2 (ResponseBodyV2DecodedPayload, Auszug). */
@@ -52,7 +68,7 @@ export type AppStoreNotification = {
   subtype?: string;
   notificationUUID: string;
   signedDate?: number;
-  data?: { bundleId?: string; environment?: AppStoreEnvironment; signedTransactionInfo?: string };
+  data?: { bundleId?: string; environment?: AppStoreEnvironment; signedTransactionInfo?: string; signedRenewalInfo?: string };
 };
 
 function b64url(input: string) {

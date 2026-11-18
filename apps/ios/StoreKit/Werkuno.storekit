@@ -551,7 +551,65 @@
     "_storefront": "CHE",
     "_storeKitErrors": []
   },
-  "subscriptionGroups": [],
+  "subscriptionGroups": [
+    {
+      "id": "21500001",
+      "localizations": [
+        {
+          "description": "Werkzeuge für Creator auf Werkuno",
+          "displayName": "Creator Pro",
+          "locale": "de_CH"
+        }
+      ],
+      "name": "Creator Pro",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "90.00",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6740100002",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "Schaufenster, Medienkit, Jahresstatistik, längere Videos und tiefere Shop-Provision",
+              "displayName": "Creator Pro – jährlich",
+              "locale": "de_CH"
+            }
+          ],
+          "productID": "ch.werkuno.app.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Creator Pro jährlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "9.00",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6740100001",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "Schaufenster, Medienkit, Jahresstatistik, längere Videos und tiefere Shop-Provision",
+              "displayName": "Creator Pro – monatlich",
+              "locale": "de_CH"
+            }
+          ],
+          "productID": "ch.werkuno.app.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Creator Pro monatlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
   "version": {
     "major": 4,
     "minor": 0

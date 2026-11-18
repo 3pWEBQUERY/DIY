@@ -1,9 +1,11 @@
 import SwiftUI
+import StoreKit
 
 // MARK: - Creator Pro (Studio, §5)
-// Status, Vorteile und Verwaltung. App-Store-Regel 3.1.1: Creator Pro ist ein digitales Abo –
-// in der App deshalb KEIN Kaufen-Button, KEINE Preise zum Abschliessen und KEIN Link zum Web-Checkout.
-// Wer im Web abschliesst, ist in der App automatisch Pro.
+// Status, Vorteile, Abschluss und Verwaltung. App-Store-Regeln 3.1.1/3.1.2: In der App wird Creator Pro
+// ausschliesslich als Abo über Apple verkauft (StoreKit, siehe ProStore) – mit Preis und Laufzeit,
+// Hinweis zur automatischen Verlängerung, AGB/Datenschutz, „Käufe wiederherstellen“ und Verwaltung
+// über Apple. Kein Link zum Web-Checkout. Ein im Web abgeschlossenes Abo gilt in der App ebenfalls.
 
 struct MeProOverview: Decodable, Sendable {
     struct Status: Decodable, Sendable {
@@ -19,6 +21,10 @@ struct MeProOverview: Decodable, Sendable {
     }
     var status: Status
     var enabled: Bool?
+    /// Abschluss über den App Store (Produkte + Konto-Token); nil, wenn Pro nicht angeboten wird
+    var apple: ProAppleOffer?
+    /// Hinweis zur Verwaltung eines Apple-Abos (Kündigen nur bei Apple)
+    var manageHint: String?
     var featuredProjectIds: [String]
     var mediaKitPublic: Bool
     var mediaKitUrl: String?
@@ -41,6 +47,10 @@ struct StudioProView: View {
     @State private var selection: [String] = []
     @State private var mediaKitPublic = false
     @State private var confirmCancel = false
+    @State private var plans: [Product] = []
+    @State private var selectedPlan: String?
+    @State private var purchasing = false
+    @State private var showManage = false
 
     private func benefits(max: Int) -> [MeProBenefit] {
         [
@@ -59,6 +69,9 @@ struct StudioProView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task { if data == nil { await load() } }
             .refreshable { await load() }
+            .manageSubscriptionsSheet(isPresented: $showManage)
+            .onChange(of: showManage) { _, open in if !open { Task { try? await ProStore.shared.syncEntitlements(); await load() } } }
+            .onReceive(NotificationCenter.default.publisher(for: ProStore.changedNotification)) { _ in Task { await load() } }
             .confirmationDialog("Creator Pro kündigen?", isPresented: $confirmCancel, titleVisibility: .visible) {
                 Button("Kündigen", role: .destructive) { Task { await setCancel(true) } }
                 Button("Pro behalten", role: .cancel) {}
@@ -77,6 +90,12 @@ struct StudioProView: View {
                 projects = Array(all.filter { $0.state == "PUBLISHED" && $0.visibility == "PUBLIC" }
                     .sorted { ($0.viewCount ?? 0) > ($1.viewCount ?? 0) }
                     .prefix(24))
+            }
+            if !d.status.active, d.enabled != false, let offer = d.apple {
+                plans = await ProStore.shared.products(offer.productIds)
+                if selectedPlan == nil || !plans.contains(where: { $0.id == selectedPlan }) {
+                    selectedPlan = (plans.first { $0.isYearly } ?? plans.first)?.id
+                }
             }
             selection = d.featuredProjectIds.filter { id in projects.contains { $0.id == id } }
             mediaKitPublic = d.mediaKitPublic
@@ -99,7 +118,9 @@ struct StudioProView: View {
 
                 if d.status.active {
                     if d.status.pastDue == true {
-                        NoticeView(tone: .warn, title: "Zahlung fehlgeschlagen", message: "Die letzte Zahlung konnte nicht eingezogen werden. Bitte aktualisiere dein Zahlungsmittel – Pro bleibt solange aktiv.")
+                        NoticeView(tone: .warn, title: "Zahlung fehlgeschlagen", message: d.status.provider == "apple"
+                            ? "Apple konnte die letzte Zahlung nicht einziehen. Bitte prüfe deine Zahlungsangaben in den Einstellungen deines Apple-Accounts – Pro bleibt solange aktiv."
+                            : "Die letzte Zahlung konnte nicht eingezogen werden. Bitte aktualisiere dein Zahlungsmittel – Pro bleibt solange aktiv.")
                     }
                     subscription(d)
                     showcase(max: max, initial: d.featuredProjectIds)
@@ -109,6 +130,12 @@ struct StudioProView: View {
                         benefitList(max: max)
                         Button { router.open(.studioSection(.stats)) } label: { Label("Zur Statistik", systemImage: "arrow.right") }
                             .font(.wr(.subheadline, .semibold)).foregroundStyle(Color.moss)
+                    }
+                } else if let offer = d.apple, d.enabled != false, !plans.isEmpty {
+                    subscribeCard(offer)
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionHeader("Das bietet Creator Pro")
+                        benefitList(max: max)
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
@@ -139,7 +166,7 @@ struct StudioProView: View {
         let s = d.status
         let plan: String = {
             if s.provider == "comp" { return "Geschenkt von Werkuno" + (endLabel.map { " · gültig bis \($0)" } ?? " · unbefristet") }
-            var t = s.interval == "year" ? "Jährlich" : "Monatlich"
+            var t = (s.interval == "year" ? "Jährlich" : "Monatlich") + (s.provider == "apple" ? " über den App Store" : "")
             if let p = s.priceMinor { t += " · \(Fmt.money(p, currency: s.currency ?? "CHF"))" }
             if let e = endLabel { t += s.cancelAtPeriodEnd == true ? " · gekündigt, aktiv bis \(e)" : " · nächste Abrechnung am \(e)" }
             return t
@@ -150,7 +177,13 @@ struct StudioProView: View {
                 Text(plan).font(.wr(.headline, .semibold)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                 if s.provider == "simulated" { Text("Testmodus – es wird nichts abgebucht.").font(.wr(.caption)).foregroundStyle(Color.muted) }
             }
-            if s.provider != "comp" {
+            if s.provider == "apple" {
+                Text(d.manageHint ?? "Dein Abo läuft über den App Store.")
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button { showManage = true } label: { Label("Abo verwalten", systemImage: "arrow.up.forward.app").frame(maxWidth: .infinity) }
+                    .primaryButton()
+            } else if s.provider != "comp" {
                 if s.cancelAtPeriodEnd == true {
                     AsyncButton { await setCancel(false) } label: { Text("Kündigung zurücknehmen").frame(maxWidth: .infinity) }
                         .primaryButton()
@@ -171,6 +204,110 @@ struct StudioProView: View {
             _ = try await APIClient.shared.post("/studio/pro/cancel", ["cancel": JSONValue.bool(cancel)]) as JSONValue
         }
         if ok { await load() }
+    }
+
+    // MARK: Abschliessen (App Store)
+
+    private func subscribeCard(_ offer: ProAppleOffer) -> some View {
+        let monthly = plans.first { !$0.isYearly }
+        let chosen = plans.first { $0.id == selectedPlan } ?? plans.first
+        return VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                SpecLabel("Creator Pro abonnieren")
+                Text("Wähle deine Laufzeit").font(.wr(.headline, .semibold)).foregroundStyle(Color.ink)
+            }
+            VStack(spacing: 10) {
+                ForEach(plans, id: \.id) { p in planRow(p, monthly: monthly) }
+            }
+            if let chosen {
+                AsyncButton { await buy(chosen, offer: offer) } label: {
+                    Text("Abonnieren · \(chosen.displayPrice) \(chosen.proPeriodLabel)").frame(maxWidth: .infinity)
+                }
+                .primaryButton()
+                .disabled(purchasing)
+            }
+            Text("Das Abo verlängert sich automatisch um die gewählte Laufzeit zum angezeigten Preis, solange du es nicht spätestens 24 Stunden vor Ablauf kündigst. Die Zahlung wird deinem Apple-Account belastet. Kündigen und verwalten kannst du das Abo jederzeit in den Einstellungen deines Apple-Accounts.")
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            FlowLayout(spacing: 14, lineSpacing: 8) {
+                Button("AGB") { router.open(.web(path: "/rechtliches/agb")) }
+                Button("Datenschutz") { router.open(.web(path: "/rechtliches/datenschutz")) }
+                Link("Nutzungsbedingungen (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                AsyncButton { await restore() } label: { Text("Käufe wiederherstellen") }
+            }
+            .font(.wr(.footnote, .semibold))
+            .foregroundStyle(Color.moss)
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+    }
+
+    private func planRow(_ p: Product, monthly: Product?) -> some View {
+        let on = p.id == selectedPlan
+        let saving: String? = {
+            guard p.isYearly, let m = monthly else { return nil }
+            let diff = m.price * 12 - p.price
+            return diff > 0 ? "Du sparst \(diff.formatted(p.priceFormatStyle)) pro Jahr" : nil
+        }()
+        return Button {
+            Haptics.selection()
+            selectedPlan = p.id
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: on ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(on ? Color.moss : Color.lineStrong)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(p.isYearly ? "Jährlich" : "Monatlich").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                    if let saving { Text(saving).font(.wr(.caption)).foregroundStyle(Color.moss) }
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(p.displayPrice).font(.wr(.headline, .semibold)).foregroundStyle(Color.ink).monospacedDigit()
+                    Text(p.proPeriodLabel).font(.wr(.caption)).foregroundStyle(Color.muted)
+                }
+            }
+            .padding(14)
+            .frame(minHeight: 44)
+            .background(on ? Color.mossSoft.opacity(0.6) : Color.clear, in: .rect(cornerRadius: Radius.inner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).stroke(on ? Color.moss : Color.line, lineWidth: on ? 1.5 : 1))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(p.isYearly ? "Jährlich" : "Monatlich"), \(p.displayPrice) \(p.proPeriodLabel)")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func buy(_ p: Product, offer: ProAppleOffer) async {
+        purchasing = true
+        defer { purchasing = false }
+        do {
+            switch try await ProStore.shared.purchase(p, offer: offer) {
+            case .purchased:
+                app.show("Willkommen bei Creator Pro! Deine Pro-Werkzeuge sind freigeschaltet.")
+                await app.refresh()
+                await load()
+            case .pending:
+                app.show("Der Kauf wartet noch auf eine Bestätigung (z. B. Kaufanfrage der Familienfreigabe).")
+            case .cancelled:
+                break
+            }
+        } catch {
+            app.show(error: error)
+        }
+    }
+
+    private func restore() async {
+        do {
+            try await ProStore.shared.restore()
+            app.show("Dein Creator-Pro-Abo ist wiederhergestellt.")
+            await app.refresh()
+            await load()
+        } catch {
+            app.show(error: error)
+        }
     }
 
     // MARK: 01 Schaufenster
