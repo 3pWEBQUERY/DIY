@@ -33,8 +33,12 @@ import { handleAppleProNotification, isProAppleProduct } from "@/server/pro/appl
  * - Erstattungen meldet Apple per Server-Benachrichtigung V2 (/api/webhooks/apple).
  */
 
-/** Preisstufen in Franken – jede ist ein Produkt in App Store Connect. */
-export const APP_STORE_TIERS_CHF = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 25, 28, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 120, 150, 200] as const;
+/**
+ * Preisstufen in Franken – jede ist ein Produkt in App Store Connect. Nur Beträge, die Apple in CHF
+ * anbietet (zwischen 10 und 20 gibt es z. B. nur 12, 15, 18), und nur die angelegten Produkte.
+ * Weitere Stufen (35, 40, 45, 50 …) erst hier ergänzen, wenn sie in App Store Connect existieren.
+ */
+export const APP_STORE_TIERS_CHF = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30] as const;
 export const APP_STORE_PRODUCT_PREFIX = "ch.werkuno.app.digital.chf";
 
 const INTENT_MINUTES = 60;

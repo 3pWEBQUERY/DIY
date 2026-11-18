@@ -44,13 +44,13 @@ Zeichengrenzen von Apple sind jeweils angegeben und eingehalten.
 ### 1.3 In-App-Käufe: digitale Produkte (Verbrauchsartikel)
 Für jede Preisstufe einen **Consumable** anlegen. Produkt-ID `ch.werkuno.app.digital.chf<Betrag>`,
 Preis in CHF genau dieser Betrag (Liste: `APP_STORE_TIERS_CHF` in `apps/web/src/server/commerce/appstore.ts`):
-1–20, 22, 25, 28, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 120, 150, 200.
+1–10, 12, 15, 18, 20, 25, 30 (nur Beträge, die Apple in CHF anbietet; weitere Stufen zuerst in `APP_STORE_TIERS_CHF` ergänzen).
 
-| Feld | Wert (Beispiel CHF 13) |
+| Feld | Wert (Beispiel CHF 15) |
 |---|---|
-| Referenzname | Digital CHF 13 |
-| Produkt-ID | ch.werkuno.app.digital.chf13 |
-| Anzeigename (de-CH, max. 30) | Digitales Produkt CHF 13 |
+| Referenzname | Digital CHF 15 |
+| Produkt-ID | ch.werkuno.app.digital.chf15 |
+| Anzeigename (de-CH, max. 30) | Digitales Produkt CHF 15 |
 | Beschreibung (max. 45) | Download aus einem Werkuno-Shop |
 | Review-Screenshot | Produktseite eines digitalen Produkts mit Kaufleiste |
 | Hinweis für Review | siehe Abschnitt 5 (gleicher Text für alle Stufen genügt) |
@@ -76,7 +76,7 @@ Preis in CHF genau dieser Betrag (Liste: `APP_STORE_TIERS_CHF` in `apps/web/src/
 Lege in der Produktion ein eigenes Konto an, z. B. `review@werkuno.ch` (kein Demo-Seed – der ist in
 der Produktion aus). Für dieses Konto:
 - E-Mail bestätigt, Alter 18+ bestätigt, **keine** Zwei-Faktor-Anmeldung (sonst kommt Apple nicht hinein).
-- Ein **aktiver Shop** mit je einem physischen und einem digitalen Produkt (digitales Produkt mit Preis, z. B. CHF 10 → App-Preis CHF 13).
+- Ein **aktiver Shop** mit je einem physischen und einem digitalen Produkt (digitales Produkt mit Preis, z. B. CHF 10 → App-Preis CHF 15).
 - Ein paar Projekte, ein Beitrag, Mitglied in einer Community, eine laufende Story.
 - **Feature-Flags** (Admin → System) für alle eingeschaltet: `stories`, `marketplace`, `pro`
   (bzw. mindestens für das Prüfkonto). Sonst fehlen Funktionen, die Apple prüft (Guideline 2.3.1).
