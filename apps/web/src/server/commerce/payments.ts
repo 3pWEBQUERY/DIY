@@ -484,13 +484,14 @@ export async function markDisputed(paymentIntentId: string, d: { disputeId: stri
 }
 
 export async function markDisputeClosed(paymentIntentId: string, d: { disputeId: string; status: string; amountMinor?: number }) {
-  const lost = await db.$transaction(async (tx) => {
+  const closed = await db.$transaction(async (tx) => {
     // Einzelabfragen statt verschachteltem include: Prisma würde die Relationen sonst parallel über
     // dieselbe Transaktionsverbindung abfragen (pg-Warnung „client.query() while executing“)
     const payment = await tx.payment.findUnique({ where: { providerRef: paymentIntentId } });
     if (!payment || payment.status !== "DISPUTED") return null;
     await lockOrder(tx, payment.orderId);
     let lostMinor = 0;
+    let refundCancelledMinor = 0;
     const won = d.status === "won" || d.status === "warning_closed";
     const base = await tx.order.findUniqueOrThrow({ where: { id: payment.orderId }, select: { id: true, number: true, status: true, currency: true, shopId: true, restockedAt: true } });
     const refunds = await tx.refund.findMany({ where: { orderId: base.id } });
@@ -501,6 +502,13 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
       const refunded = order.refunds.filter((r) => r.status === "SUCCEEDED").reduce((s, r) => s + r.amountMinor, 0);
       await tx.payment.update({ where: { id: payment.id }, data: { status: paymentStatusAfterRefund(payment.amountMinor, refunded), failureReason: null } });
       await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to: order.status, note: "Streitfall zugunsten des Shops entschieden" } });
+      // Während des Streitfalls storniert (bzw. Erstattung damals gescheitert): das Geld ist wieder da und gehört
+      // der Käuferin – jetzt erstatten. refundRetryAt zurücksetzen (und updatedAt frisch), damit der Worker
+      // (retryCancelledRefunds) nachfasst, falls die Erstattung gleich scheitert.
+      if (order.status === "CANCELLED" && payment.provider !== "apple") {
+        refundCancelledMinor = refundableAmount(payment.amountMinor, order.refunds);
+        if (refundCancelledMinor > 0) await tx.order.update({ where: { id: order.id }, data: { refundRetryAt: null } });
+      }
     } else {
       // Verloren: Betrag ist an die Karteninhaberin zurückgebucht → wie eine Erstattung verbuchen
       // (Umsatz/Guthaben sinken). Folgen wie bei applyRefunds: nur eine vollständige Rückbuchung widerruft
@@ -523,8 +531,15 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
       await notify({ recipientId: order.shop.ownerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, status: to, note: `Der Streitfall ist verloren. ${money(amount, order.currency)} wurden zurückgebucht.`, href: `/studio/bestellungen/${order.id}` } }, tx);
     }
     await audit({ action: "payment.dispute.closed", targetType: "Order", targetId: payment.orderId, meta: { disputeId: d.disputeId, status: d.status } }, tx);
-    return lostMinor > 0 && payment.provider === "stripe" ? { orderId: payment.orderId, lostMinor } : null;
+    return { lost: lostMinor > 0 && payment.provider === "stripe" ? { orderId: payment.orderId, lostMinor } : null, refundCancelled: refundCancelledMinor > 0 ? { orderId: payment.orderId, amountMinor: refundCancelledMinor } : null };
   });
+  if (closed?.refundCancelled) {
+    const rc = closed.refundCancelled;
+    await initiateRefund(rc.orderId, { amountMinor: rc.amountMinor, reason: "Erstattung der stornierten Bestellung nach gewonnenem Streitfall", actorId: null, system: true }).catch((e) =>
+      log("warn", "dispute_won_refund_deferred", { orderId: rc.orderId, err: e instanceof Error ? e.message : String(e) }),
+    );
+  }
+  const lost = closed?.lost;
   // Ausserhalb der Transaktion (Netzwerk): Verkäuferanteil vom Connect-Konto zurückholen – sonst trägt die
   // Plattform den Verlust, während der Verkäufer das Geld behält und auszahlen kann
   if (lost) {

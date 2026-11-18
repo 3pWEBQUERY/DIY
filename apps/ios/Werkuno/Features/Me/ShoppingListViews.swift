@@ -269,7 +269,9 @@ struct ShoppingListView: View {
         HStack(spacing: 12) {
             Button {
                 Haptics.selection()
-                Task { await patch(it, ["purchased": .bool(!it.purchased)]) }
+                // Erledigt (gekauft oder „Habe ich“) → beides zurücksetzen; offen → als gekauft abhaken
+                let body: [String: JSONValue] = it.isDone ? ["purchased": .bool(false), "haveIt": .bool(false)] : ["purchased": .bool(true)]
+                Task { await patch(it, body) }
             } label: {
                 Image(systemName: it.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.wr(.title3))
@@ -279,7 +281,7 @@ struct ShoppingListView: View {
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(it.purchased ? "Als nicht gekauft markieren" : "Als gekauft abhaken")
+            .accessibilityLabel(it.isDone ? "Wieder als offen markieren" : "Als gekauft abhaken")
             VStack(alignment: .leading, spacing: 2) {
                 Text(it.name)
                     .font(.wr(.body))

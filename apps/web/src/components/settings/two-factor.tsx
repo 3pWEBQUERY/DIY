@@ -78,7 +78,9 @@ function RecoveryCodes({ codes, email, onDone }: { codes: string[]; email: strin
             a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
             a.download = "werkuno-wiederherstellungscodes.txt";
             a.click();
-            URL.revokeObjectURL(a.href);
+            // Erst nach dem Start des Downloads freigeben – sofortiges Freigeben bricht ihn in manchen Browsern ab
+            const href = a.href;
+            setTimeout(() => URL.revokeObjectURL(href), 1000);
           }}
         >
           <Download size={14} aria-hidden /> Als Datei speichern

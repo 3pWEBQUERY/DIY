@@ -10,6 +10,7 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { humanCode } from "@/server/crypto";
 import { getSetting } from "@/server/settings";
+import { requireFlag } from "@/server/flags";
 import { isBlockedBetween } from "@/server/visibility";
 import { captureError } from "@/server/monitoring";
 import { feeForShop } from "./fees";
@@ -130,6 +131,8 @@ async function loadBuyableProduct(buyerId: string, productId: string) {
 export async function createPurchaseIntent(user: Buyer, input: { productId?: unknown }) {
   const productId = typeof input.productId === "string" ? input.productId : "";
   if (!productId) throw fail.invalid("Produkt fehlt.", { productId: "Pflichtfeld" });
+  // Notschalter des Marktplatzes stoppt auch neue In-App-Käufe (das Verbuchen bereits bezahlter bleibt offen)
+  await requireFlag("marketplace", user.id);
   const s = await appStoreSettings();
   if (!s.enabled) throw fail.unavailable("Digitale Produkte können in der App derzeit nicht gekauft werden.");
   const p = await loadBuyableProduct(user.id, productId);
@@ -211,7 +214,10 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
   const intent = await db.appStorePurchase.findUnique({ where: { token } });
   if (!intent || intent.userId !== user.id) throw fail.forbidden("Dieser Kauf gehört zu einem anderen Konto.");
   if (intent.appleProductId !== t.productId) throw fail.invalid("Der Kaufbeleg passt nicht zum Produkt.");
-  if (intent.status === "COMPLETED" && intent.transactionId !== t.transactionId) throw fail.conflict("Dieser Kauf wurde bereits verbucht.");
+  if (intent.status === "COMPLETED" && intent.transactionId !== t.transactionId) {
+    await reportSecondTransaction(intent.id, intent.transactionId, t.transactionId, t.environment);
+    throw fail.conflict("Dieser Kauf wurde bereits verbucht.");
+  }
   // Abgelaufene Absicht: Apple hat trotzdem kassiert → verbuchen (Preis wie festgehalten)
 
   const product = await db.product.findUniqueOrThrow({
@@ -223,6 +229,7 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
   const transferStatus = transferStatusFor(environment);
   const isTest = environment !== "Production";
 
+  let secondTransactionOf: string | null = null;
   const orderId = await db.$transaction(
     async (tx) => {
       // Gleichzeitige Meldung derselben Transaktion: nur eine gewinnt (Unique auf transactionId)
@@ -238,7 +245,9 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
         },
       });
       if (!claimed.count) {
-        const again = await tx.appStorePurchase.findUnique({ where: { id: intent.id }, select: { orderId: true } });
+        const again = await tx.appStorePurchase.findUnique({ where: { id: intent.id }, select: { orderId: true, transactionId: true } });
+        // Andere Transaktion hat dieselbe Kaufabsicht beansprucht: Apple hat zweimal kassiert → melden
+        if (again?.transactionId && again.transactionId !== t.transactionId) secondTransactionOf = again.transactionId;
         return again?.orderId ?? null;
       }
       const now = new Date(t.purchaseDate || Date.now());
@@ -302,6 +311,8 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
     { timeout: 20_000 },
   );
 
+  if (secondTransactionOf) await reportSecondTransaction(intent.id, secondTransactionOf, t.transactionId, environment);
+
   // Erstattung traf ein, während wir verbucht haben (Benachrichtigung sah den Kauf noch nicht): sofort zurücknehmen
   const late = await db.appStoreRevocation.findUnique({ where: { transactionId: t.transactionId }, select: { reason: true } });
   if (late) {
@@ -314,6 +325,19 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
   return purchaseResult(orderId, product.id, user.id);
 }
 
+/**
+ * Zweite Apple-Transaktion für eine bereits verbuchte Kaufabsicht (appAccountToken): Apple hat zweimal
+ * kassiert, verbucht ist nur der erste Kauf. Zur manuellen Erstattung melden (nur Apple kann erstatten).
+ */
+async function reportSecondTransaction(purchaseId: string, firstTransactionId: string | null, secondTransactionId: string, environment: string) {
+  log("warn", "appstore_second_transaction", { purchaseId, firstTransactionId, secondTransactionId, environment });
+  await captureError(new Error("Zweite Apple-Transaktion für dieselbe Kaufabsicht – doppelt kassiert, bitte prüfen"), {
+    source: "SERVER",
+    path: "appstore.duplicate_transaction",
+    meta: { purchaseId, firstTransactionId, secondTransactionId, environment },
+  });
+}
+
 async function purchaseResult(orderId: string | null, productId: string, userId: string) {
   const e = await db.digitalEntitlement.findUnique({ where: { userId_productId: { userId, productId } }, select: { id: true, revokedAt: true } });
   return { orderId, entitlementId: e && !e.revokedAt ? e.id : null };
@@ -323,15 +347,37 @@ async function purchaseResult(orderId: string | null, productId: string, userId:
 
 const MAX_TRANSFER_ATTEMPTS = 24;
 const MAX_REVERSAL_ATTEMPTS = MAX_TRANSFER_ATTEMPTS * 4;
+const TRANSFER_HELD = "Zurückgehalten: Shop gesperrt bzw. Konto gebannt oder gelöscht";
 
 /** Shop-Anteil überweisen (Stripe Connect). Fehler → FAILED, der Worker versucht es erneut. */
 export async function sendSellerTransfer(purchaseId: string) {
   const p = await db.appStorePurchase.findUnique({
     where: { id: purchaseId },
-    select: { id: true, status: true, transferStatus: true, transferAttempts: true, transferId: true, sellerNetMinor: true, currency: true, order: { select: { id: true, number: true, shop: { select: { stripeAccountId: true, name: true } } } } },
+    select: {
+      id: true,
+      status: true,
+      transferStatus: true,
+      transferAttempts: true,
+      transferId: true,
+      transferError: true,
+      sellerNetMinor: true,
+      currency: true,
+      order: { select: { id: true, number: true, shop: { select: { id: true, stripeAccountId: true, name: true, status: true, owner: { select: { status: true } } } } } },
+    },
   });
   if (!p || p.status !== "COMPLETED" || !p.order) return "skipped" as const;
   if (p.transferStatus !== "PENDING" && p.transferStatus !== "FAILED") return "skipped" as const;
+  // Gesperrter Shop bzw. gebanntes/gelöschtes Konto: nichts überweisen, sondern zurückhalten (Status bleibt
+  // offen, kein Versuch wird verbraucht) – wird der Shop wieder freigegeben, holt der Worker es nach
+  const shop = p.order.shop;
+  if (shop.status === "SUSPENDED" || shop.owner.status === "BANNED" || shop.owner.status === "DELETED") {
+    // Immer schreiben (updatedAt): der Worker wählt reihum nach updatedAt – zurückgehaltene Zeilen verdrängen sonst andere
+    await db.appStorePurchase.update({ where: { id: p.id }, data: { transferError: TRANSFER_HELD } });
+    if (p.transferError !== TRANSFER_HELD) {
+      await captureError(new Error("Überweisung an gesperrten Shop zurückgehalten – bitte klären"), { source: "SERVER", path: "appstore.transfer_held", meta: { purchaseId: p.id, shopId: shop.id, shopStatus: shop.status, ownerStatus: shop.owner.status } });
+    }
+    return "held" as const;
+  }
   const accountId = p.order.shop.stripeAccountId;
   if (!accountId || p.sellerNetMinor <= 0) {
     await db.appStorePurchase.update({ where: { id: p.id }, data: { transferStatus: "FAILED", transferAttempts: { increment: 1 }, transferError: "Shop hat kein Auszahlungskonto" } });

@@ -2,10 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { act, fail } from "@/server/errors";
+import { act, AppError, fail } from "@/server/errors";
 import { completePinterestSignUp, decodePending, PINTEREST_PENDING_COOKIE } from "@/server/identity/pinterest";
 import * as identity from "@/server/identity/service";
-import { destroySession } from "@/server/auth/session";
+import { clientIpHash, destroySession } from "@/server/auth/session";
+import { rateLimit } from "@/server/ratelimit";
 import { verifyMfaLogin } from "@/server/auth/mfa";
 
 import { safeNext } from "@/lib/safe-next";
@@ -38,7 +39,14 @@ export async function pinterestSignUpAction(input: Record<string, unknown>) {
   });
 }
 
+/** Live-Prüfung des Benutzernamens (ohne Anmeldung) – je Netzwerkadresse begrenzt, gegen Abfragen aller Namen. */
 export async function checkHandleAction(handle: string) {
+  try {
+    await rateLimit(`handleCheck:${await clientIpHash().catch(() => "anon")}`, 120, 600);
+  } catch (e) {
+    if (e instanceof AppError && e.code === "RATE_LIMITED") return { ok: false as const, reason: e.message };
+    throw e;
+  }
   return identity.isHandleAvailable(handle);
 }
 

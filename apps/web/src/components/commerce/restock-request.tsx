@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BellRing, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
@@ -26,6 +26,7 @@ export function RestockRequest({
   requested: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [requested, setRequested] = useState(initialRequested);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -77,7 +78,7 @@ export function RestockRequest({
         <p className="mt-1 text-[13.5px] text-muted">Frag {shopName} an. Du wirst benachrichtigt, sobald es wieder verfügbar ist.</p>
       </div>
       {!signedIn ? (
-        <Link href="/anmelden" className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-moss bg-moss px-5 text-sm font-semibold text-paper hover:bg-moss-ink">
+        <Link href={`/anmelden?weiter=${encodeURIComponent(pathname)}`} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-moss bg-moss px-5 text-sm font-semibold text-paper hover:bg-moss-ink">
           <BellRing size={16} aria-hidden /> Anmelden und anfragen
         </Link>
       ) : open ? (

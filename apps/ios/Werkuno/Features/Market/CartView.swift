@@ -69,7 +69,7 @@ struct CartView: View {
                     }
                     if hasDigital(c) {
                         // Digitale Produkte werden in der App nicht verkauft (App Store 3.1.1)
-                        NoticeView(tone: .info, title: "Digitale Anleitungen", message: "Digitale Anleitungen sind in der App nicht erhältlich. Entferne sie aus dem Warenkorb, um die übrigen Artikel zu bestellen.")
+                        NoticeView(tone: .info, title: "Digitale Anleitungen", message: "Digitale Anleitungen kaufst du auf der Produktseite. Entferne sie aus dem Warenkorb, um die übrigen Artikel zu bestellen.")
                     }
                     ForEach(c.groups) { g in groupCard(g, feeBps: c.feeBps) }
                     if !c.groups.isEmpty { summary(c) }
@@ -154,9 +154,11 @@ struct CartView: View {
             .hairline()
             ForEach(g.lines) { l in line(l) }
             VStack(spacing: 6) {
-                MarketAmountRow(label: "Warenwert", value: Fmt.money(g.fees.subtotal))
+                // Beträge ohne digitale Positionen (deren Preis gilt nur über Apple auf der Produktseite)
+                let digital = digitalMinor(g.lines)
+                MarketAmountRow(label: "Warenwert", value: Fmt.money(max(0, g.fees.subtotal - digital)))
                 MarketAmountRow(label: "Versand (kombiniert)", value: g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping))
-                MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(g.fees.total), strong: false)
+                MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(max(0, g.fees.total - digital)), strong: false)
                 if let d = g.shop.processingDays, g.lines.contains(where: { !$0.isDigital }) {
                     Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.wr(.caption)).foregroundStyle(Color.muted).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -180,11 +182,14 @@ struct CartView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(l.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2)
                     if let v = l.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
-                    Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
-                    if l.isDigital { Label("In der App nicht erhältlich", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
+                    // Digital: kein Preis hier – der Kauf läuft über Apple auf der Produktseite
+                    if !l.isDigital {
+                        Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
+                    }
+                    if l.isDigital { Label("Kauf auf der Produktseite", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
                 }
                 Spacer(minLength: 6)
-                Text(Fmt.money(l.lineMinor)).font(.wr(.subheadline, .semibold)).monospacedDigit()
+                if !l.isDigital { Text(Fmt.money(l.lineMinor)).font(.wr(.subheadline, .semibold)).monospacedDigit() }
             }
             if let p = l.problem {
                 Label(p, systemImage: "exclamationmark.triangle.fill").font(.wr(.caption, .medium)).foregroundStyle(Color.danger)
@@ -234,7 +239,8 @@ struct CartView: View {
 
     private func summary(_ c: MarketCart) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total)
+            let digital = c.groups.reduce(0) { $0 + digitalMinor($1.lines) }
+            MarketFeeSummary(subtotal: max(0, c.totals.subtotal - digital), shipping: c.totals.shipping, total: max(0, c.totals.total - digital))
             if c.groups.count > 1 {
                 Label("\(c.groups.count) Shops – du erhältst \(c.groups.count) getrennte Bestellungen, jede mit eigener Zahlung.", systemImage: "square.stack")
                     .font(.wr(.footnote)).foregroundStyle(Color.ink2)
@@ -252,11 +258,14 @@ struct CartView: View {
 
     private func hasDigital(_ c: MarketCart) -> Bool { c.groups.contains { $0.lines.contains(where: \.isDigital) } }
 
+    /// Summe der digitalen Positionen (Web-Preis) – wird in der App nicht angezeigt
+    private func digitalMinor(_ lines: [MarketCartLine]) -> Int { lines.filter(\.isDigital).reduce(0) { $0 + $1.lineMinor } }
+
     private func checkoutBar(_ c: MarketCart) -> some View {
         let blocked = c.hasProblems || c.mode == "disabled" || hasDigital(c)
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(Fmt.money(c.totals.total)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+                Text(Fmt.money(max(0, c.totals.total - c.groups.reduce(0) { $0 + digitalMinor($1.lines) }))).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
                 Text("\(Fmt.plural(c.count, "Artikel", "Artikel")) · inkl. Versand").font(.wr(.caption2)).foregroundStyle(Color.muted)
             }
             Spacer()

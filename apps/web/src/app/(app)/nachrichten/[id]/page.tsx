@@ -5,13 +5,14 @@ import { AppError } from "@/server/errors";
 import { getThread, inboxCounts, listConversations } from "@/server/messaging/service";
 import { InboxPane, boxFromParam } from "@/components/messages/inbox";
 import { ThreadView } from "@/components/messages/thread-view";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Nachrichten", robots: { index: false } };
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ ordner?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ ordner?: string | string[] }> };
 
 export default async function ThreadPage({ params, searchParams }: Props) {
-  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const [{ id }, sp] = await Promise.all([params, searchParams.then((s) => flatSearchParams(s))]);
   const user = await currentUser();
   if (!user?.profile) redirect(`/anmelden?weiter=/nachrichten/${id}`);
   const thread = await getThread(user, id).catch((e) => {

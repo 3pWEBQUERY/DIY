@@ -15,6 +15,7 @@ import { PgBoss } from "pg-boss";
 import { db, Prisma } from "@/server/db";
 import { sendEmails } from "@/server/notifications-mail";
 import { processMedia } from "@/server/media/process";
+import { mediaInUse } from "@/server/media/service";
 import { notify, notifyMany } from "@/server/notifications";
 import { storage } from "@/server/storage";
 import { track, isQualifiedComment } from "@/server/analytics/service";
@@ -261,20 +262,20 @@ async function fanoutPost(postId: string, authorId: string) {
 async function cleanup() {
   const day = 86400_000;
   const stale = await db.media.findMany({
-    where: { OR: [{ state: "PENDING", createdAt: { lt: new Date(Date.now() - day) } }, { state: "FAILED", createdAt: { lt: new Date(Date.now() - day) } }, { attachedAt: null, state: "READY", createdAt: { lt: new Date(Date.now() - 14 * day) }, updatedAt: { lt: new Date(Date.now() - 14 * day) }, isPrivate: false }] },
+    // Auch private Dateien (digitale Produkte): nach dem Ersetzen bzw. Löschen des Produkts sonst für immer liegen
+    where: { OR: [{ state: "PENDING", createdAt: { lt: new Date(Date.now() - day) } }, { state: "FAILED", createdAt: { lt: new Date(Date.now() - day) } }, { attachedAt: null, state: "READY", createdAt: { lt: new Date(Date.now() - 14 * day) }, updatedAt: { lt: new Date(Date.now() - 14 * day) } }] },
     take: 500,
-    select: { id: true, storageKey: true, variants: true, ownerId: true },
+    select: { id: true, storageKey: true, variants: true, ownerId: true, state: true },
   });
+  // Fertige Medien vor dem Löschen auf tatsächliche Verwendung prüfen (Profil, Cover, Stories, digitale
+  // Produktdateien, JSON-Felder …) – `attachedAt` allein ist nicht verlässlich; ein gelöschtes Medium
+  // nähme per Cascade z. B. Stories samt Highlights mit
+  const inUse = await mediaInUse(stale.filter((m) => m.state === "READY").map((m) => m.id));
   for (const m of stale) {
-    // Profilbilder sind nicht über attachedAt verknüpft → schützen, wenn noch referenziert
     const v = Object.values((m.variants ?? {}) as Record<string, string>);
-    if (v.length) {
-      const inUse = await db.userProfile.count({ where: { OR: [{ avatarUrl: { in: v } }, { coverUrl: { in: v } }] } });
-      const inProject = await db.project.count({ where: { coverUrl: { in: v } } });
-      if (inUse || inProject) {
-        await db.media.update({ where: { id: m.id }, data: { attachedAt: new Date() } });
-        continue;
-      }
+    if (inUse.has(m.id)) {
+      await db.media.update({ where: { id: m.id }, data: { attachedAt: new Date() } });
+      continue;
     }
     const st = storage();
     await st.del(m.storageKey).catch(() => {});

@@ -88,16 +88,43 @@ struct ProductEditorSheet: View {
             ctx = c
             loadError = nil
             if category.isEmpty { category = c.categories.first?.slug ?? "" }
-            if c.shop.status != "ACTIVE" { status = "DRAFT" }
             if let p = c.product {
                 apply(p)
                 struct R: Decodable { var items: [MarketRestockRequest] }
                 restockRequests = ((try? await APIClient.shared.get("/studio/products/\(p.id)/restock-requests", as: R.self))?.items) ?? []
             }
+            // Erst nach apply(): „Aktiv“ ist nur bei aktivem Shop erlaubt (Server lehnt es sonst ab)
+            status = Self.allowedStatus(status, shopStatus: c.shop.status, isNew: c.product == nil)
         } catch is CancellationError {
         } catch {
             loadError = (error as? APIError)?.message ?? error.localizedDescription
         }
+    }
+
+    /// Status, den der Server für diesen Shop annimmt: „Aktiv“ nur bei aktivem Shop. Bei pausiertem
+    /// Shop bleiben bestehende aktive Produkte pausiert, neue werden Entwürfe; bei noch nicht
+    /// verifizierten Shops (Entwurf, in Prüfung) wird alles als Entwurf vorbereitet.
+    static func allowedStatus(_ status: String, shopStatus: String, isNew: Bool) -> String {
+        if shopStatus == "ACTIVE" { return status }
+        if statusLocked(shopStatus) { return status == "ACTIVE" ? "DRAFT" : status }
+        guard status == "ACTIVE" else { return status }
+        return isNew ? "DRAFT" : "PAUSED"
+    }
+
+    /// Statuswahl gesperrt, solange der Shop noch nicht verifiziert ist
+    static func statusLocked(_ shopStatus: String) -> Bool {
+        shopStatus == "DRAFT" || shopStatus == "PENDING_VERIFICATION"
+    }
+
+    /// Hinweis oben im Formular, passend zum Shop-Status
+    static func shopHint(_ shopStatus: String) -> (title: String, message: String) {
+        if statusLocked(shopStatus) {
+            return ("Shop noch nicht aktiv", "Du kannst Produkte als Entwurf vorbereiten. Veröffentlichen kannst du sie, sobald dein Shop verifiziert ist.")
+        }
+        if shopStatus == "PAUSED" {
+            return ("Shop pausiert", "Du kannst Produkte bearbeiten und als pausiert oder Entwurf speichern. Aktivieren kannst du sie wieder, sobald dein Shop nicht mehr pausiert ist.")
+        }
+        return ("Shop nicht aktiv", "Veröffentlichen kannst du Produkte erst, wenn dein Shop wieder aktiv ist. Speichere sie solange als pausiert oder Entwurf.")
     }
 
     private func apply(_ p: MarketEditorProduct) {
@@ -166,7 +193,7 @@ struct ProductEditorSheet: View {
         Form {
             if c.shop.status != "ACTIVE" {
                 Section {
-                    NoticeView(tone: .info, title: "Shop noch nicht aktiv", message: "Du kannst Produkte als Entwurf vorbereiten. Veröffentlichen kannst du sie, sobald dein Shop verifiziert ist.")
+                    NoticeView(tone: .info, title: Self.shopHint(c.shop.status).title, message: Self.shopHint(c.shop.status).message)
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                 }
             }
@@ -270,12 +297,13 @@ struct ProductEditorSheet: View {
 
             Section {
                 Picker("Status", selection: $status) {
-                    Text("Aktiv").tag("ACTIVE")
+                    // „Aktiv“ nimmt der Server nur bei aktivem Shop an
+                    if c.shop.status == "ACTIVE" { Text("Aktiv").tag("ACTIVE") }
                     Text("Pausiert").tag("PAUSED")
                     Text("Entwurf").tag("DRAFT")
                 }
                 .pickerStyle(.segmented)
-                .disabled(c.shop.status != "ACTIVE")
+                .disabled(Self.statusLocked(c.shop.status))
                 if status == "ACTIVE" && c.shop.status == "ACTIVE" {
                     Toggle("Im Feed ankündigen", isOn: $announce.animation())
                     if announce {

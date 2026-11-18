@@ -688,7 +688,10 @@ struct ProjectDetailView: View {
         let ok = await app.run(status == "COMPLETED" ? "Abgeschlossen – herzlichen Glückwunsch!" : "Status: \(L.projectStatus(status))") {
             _ = try await APIClient.shared.post("/projects/\(p.id)/status", ["status": JSONValue.string(status)]) as JSONValue
         }
-        if ok { await load() }
+        if ok {
+            NotificationCenter.default.post(name: .projectsChanged, object: p.id)
+            await load()
+        }
     }
 
     private func deleteEntry(_ e: ProjectJournalEntry) async {
@@ -707,6 +710,9 @@ struct ProjectDetailView: View {
         let ok = await app.run("Projekt gelöscht.") {
             _ = try await APIClient.shared.delete("/projects/\(p.id)") as JSONValue
         }
-        if ok { dismiss() }
+        if ok {
+            NotificationCenter.default.post(name: .projectsChanged, object: p.id)
+            dismiss()
+        }
     }
 }

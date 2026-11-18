@@ -384,7 +384,7 @@ export default async function ProductPage({ params }: Params) {
                 Zum Shop „{p.shop.name}“ →
               </Link>
               {!p.isOwner && (
-                <Link href={`/nachrichten/neu?an=${encodeURIComponent(owner.handle)}`} className="text-muted hover:text-ink hover:underline">
+                <Link href={`/nachrichten/neu?an=${encodeURIComponent(owner.handle)}&produkt=${encodeURIComponent(p.id)}`} className="text-muted hover:text-ink hover:underline">
                   Frage zum Produkt stellen
                 </Link>
               )}

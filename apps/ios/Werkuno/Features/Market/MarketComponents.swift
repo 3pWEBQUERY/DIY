@@ -56,7 +56,7 @@ enum MarketStatusTone {
         case "PENDING_PAYMENT": .warn
         case "NEW": .slate
         case "IN_PROGRESS": .clay
-        case "READY_TO_SHIP": .ochre
+        case "READY_TO_SHIP": .ochreText
         case "SHIPPED", "COMPLETED": .moss
         case "REFUNDED": .plum
         case "PROBLEM": .danger
@@ -89,7 +89,7 @@ enum MarketStatusTone {
         switch s {
         case "ACTIVE": .moss
         case "PENDING_VERIFICATION": .warn
-        case "PAUSED": .ochre
+        case "PAUSED": .ochreText
         case "SUSPENDED": .danger
         default: .slate
         }
@@ -242,8 +242,14 @@ struct MarketOrderTotals: View {
         VStack(spacing: 8) {
             MarketFeeSummary(subtotal: order.subtotalMinor, shipping: order.shippingMinor, total: order.totalMinor, currency: order.currency)
             if seller, let fee = order.platformFeeMinor {
-                MarketAmountRow(label: "Plattformgebühr (\(Fmt.percent(bps: order.feeBps ?? 0)) auf den Warenwert)", value: "− " + Fmt.money(fee, currency: order.currency), muted: true)
-                MarketAmountRow(label: "Dein Anteil vor Zahlungsgebühren", value: Fmt.money(order.totalMinor - fee, currency: order.currency))
+                if order.isApplePayment {
+                    // Apple-Kauf: einbehaltener Betrag deckt Apples Anteil und die Provision
+                    MarketAmountRow(label: "Apple-Anteil und Provision", value: "− " + Fmt.money(fee, currency: order.currency), muted: true)
+                    MarketAmountRow(label: "Dein Anteil", value: Fmt.money(order.totalMinor - fee, currency: order.currency))
+                } else {
+                    MarketAmountRow(label: "Plattformgebühr (\(Fmt.percent(bps: order.feeBps ?? 0)) auf den Warenwert)", value: "− " + Fmt.money(fee, currency: order.currency), muted: true)
+                    MarketAmountRow(label: "Dein Anteil vor Zahlungsgebühren", value: Fmt.money(order.totalMinor - fee, currency: order.currency))
+                }
             }
             let refunded = (order.refunds ?? []).filter { $0.status == "SUCCEEDED" }.reduce(0) { $0 + $1.amountMinor }
             if refunded > 0 { MarketAmountRow(label: "Erstattet", value: "− " + Fmt.money(refunded, currency: order.currency), muted: true) }
@@ -317,9 +323,15 @@ struct MarketSection<Content: View>: View {
 struct MarketAddressBlock: View {
     var address: MarketAddress?
     var body: some View {
+        // Auch ein leeres Objekt (z. B. Apple-Kauf ohne Adresse) zeigt den Platzhalter
+        let lines = address?.lines ?? []
         VStack(alignment: .leading, spacing: 2) {
-            ForEach(address?.lines ?? ["Keine Adresse hinterlegt"], id: \.self) { l in
-                Text(l).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+            if lines.isEmpty {
+                Text("Keine Adresse hinterlegt").font(.wr(.subheadline)).foregroundStyle(Color.muted)
+            } else {
+                ForEach(lines, id: \.self) { l in
+                    Text(l).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+                }
             }
         }
         .textSelection(.enabled)
@@ -547,9 +559,9 @@ struct MarketReceiptSheet: View {
                 MarketOrderTotals(order: o, seller: seller)
                 VStack(alignment: .leading, spacing: 6) {
                     if let p = o.latestPayment {
-                        Text("Zahlung: \(L.paymentStatus[p.status] ?? p.status)\(p.provider == "stripe" ? " · über Stripe" : p.provider == "simulated" ? " · TESTMODUS (keine echte Zahlung)" : "")")
+                        Text("Zahlung: \(L.paymentStatus[p.status] ?? p.status)\(p.provider == "stripe" ? " · über Stripe" : p.provider == "apple" ? " · über Apple" : p.provider == "simulated" ? " · TESTMODUS (keine echte Zahlung)" : "")")
                     }
-                    Text("Vertragspartner ist der oben genannte Verkäufer. Werkuno vermittelt den Kauf und wickelt die Zahlung über Stripe ab. Dieser Beleg ist keine Rechnung im mehrwertsteuerrechtlichen Sinn, sofern der Verkäufer keine MWST-Nummer ausweist.")
+                    Text("Vertragspartner ist der oben genannte Verkäufer. Werkuno vermittelt den Kauf und wickelt die Zahlung \(o.isApplePayment ? "über Apple" : "über Stripe") ab. Dieser Beleg ist keine Rechnung im mehrwertsteuerrechtlichen Sinn, sofern der Verkäufer keine MWST-Nummer ausweist.")
                 }
                 .font(.wr(.caption)).foregroundStyle(Color.muted)
             }

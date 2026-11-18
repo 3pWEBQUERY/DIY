@@ -172,7 +172,7 @@ struct ProductCardView: View {
                         Text(Fmt.money(product.priceMinor, currency: product.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
                         Spacer()
                         if let r = product.ratingAvg, (product.ratingCount ?? 0) > 0 {
-                            Label(String(format: "%.1f", r), systemImage: "star.fill").font(.wr(.caption2)).foregroundStyle(Color.ochre).labelStyle(.compact)
+                            Label(String(format: "%.1f", r), systemImage: "star.fill").font(.wr(.caption2)).foregroundStyle(Color.ochreText).labelStyle(.compact)
                         }
                     }
                 }

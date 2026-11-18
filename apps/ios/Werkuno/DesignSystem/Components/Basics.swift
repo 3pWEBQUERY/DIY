@@ -405,6 +405,8 @@ struct ToastOverlay: ViewModifier {
                 .onTapGesture { withAnimation { app.toast = nil } }
                 .task(id: t.id) {
                     if t.style == .error { Haptics.warning() } else { Haptics.success() }
+                    // VoiceOver: Meldung vorlesen – der Toast erhält keinen Fokus und verschwindet von selbst
+                    UIAccessibility.post(notification: .announcement, argument: t.style == .error ? "Fehler: \(t.message)" : t.message)
                     try? await Task.sleep(for: .seconds(t.style == .error ? 4.5 : 2.6))
                     withAnimation(.easeOut) { if app.toast?.id == t.id { app.toast = nil } }
                 }

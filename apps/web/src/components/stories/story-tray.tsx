@@ -9,6 +9,7 @@ import { StoryAvatar } from "./story-avatar";
 import { StoryComposer } from "./story-composer";
 import { consumeStoriesChanged, rememberStoryReturn } from "./story-return";
 import { storyTrayAction } from "@/app/(app)/stories/actions";
+import { callData } from "@/lib/use-action";
 
 /**
  * Story-Kreis oben im Feed: eigene Story (mit Plus zum Erstellen) und die aktiven Stories der
@@ -20,7 +21,8 @@ export function StoryTray({ tray: initial, projects }: { tray: TrayData; project
   useEffect(() => setTray(initial), [initial]);
   // Zurück aus dem Betrachter (Seite aus dem Router-Cache): gesehene Stories grau zeigen
   useEffect(() => {
-    if (consumeStoriesChanged()) void storyTrayAction().then(setTray);
+    // Nur Auffrischung: bei Netzfehler bleibt der zuletzt geladene Story-Kreis stehen (keine unbehandelte Ausnahme)
+    if (consumeStoriesChanged()) void callData(() => storyTrayAction()).then((r) => r.ok && setTray(r.data));
   }, []);
   if (!tray.enabled || !tray.own) return null;
   const own = tray.own;

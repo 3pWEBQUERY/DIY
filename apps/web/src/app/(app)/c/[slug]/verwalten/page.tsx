@@ -13,13 +13,14 @@ import { BannedList, ChallengesManager, InvitePanel, MembersManager, RequestsLis
 import { HiddenPosts } from "@/components/communities/community-feed";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Community verwalten", robots: { index: false } };
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ bereich?: string; q?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ bereich?: string | string[]; q?: string | string[] }> };
 
 export default async function ManageCommunityPage({ params, searchParams }: Props) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  const [{ slug }, sp] = await Promise.all([params, searchParams.then((s) => flatSearchParams(s))]);
   const viewer = await currentUser();
   if (!viewer?.profile) redirect(`/anmelden?weiter=/c/${slug}/verwalten`);
   const data = await getCommunityPage(slug, viewer);

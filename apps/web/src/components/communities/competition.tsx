@@ -18,15 +18,16 @@ import { callAction } from "@/lib/use-action";
 
 type Option = { id: string; title: string; coverUrl: string | null };
 
+// Dunkle Schrift auf Gold/Silber/Bronze: ≥ 5.4:1 (WCAG AA), weiss wäre < 3:1
 const PLACE_STYLE: Record<number, string> = {
-  1: "bg-[#C9A227] text-white",
-  2: "bg-[#9AA3AD] text-white",
-  3: "bg-[#B07A4F] text-white",
+  1: "bg-[#C9A227] text-ink",
+  2: "bg-[#9AA3AD] text-ink",
+  3: "bg-[#C68D5E] text-ink",
 };
 
 export function PlaceBadge({ place, className }: { place: number; className?: string }) {
   return (
-    <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold shadow-[0_1px_2px_rgb(0_0_0/0.15)]", PLACE_STYLE[place] ?? "bg-ink text-paper", className)}>
+    <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold", PLACE_STYLE[place] ?? "bg-ink text-paper", className)}>
       <Medal size={14} aria-hidden /> {place}. Platz
     </span>
   );
@@ -269,7 +270,7 @@ export function EntriesGrid({ c }: { c: CompetitionView }) {
                 {jury && (
                   <span role="radiogroup" aria-label={`Platz für ${e.project!.title}`} className="inline-flex rounded-xl bg-sunken p-1 text-[12.5px]">
                     {[0, 1, 2, 3].map((pl) => (
-                      <button key={pl} type="button" role="radio" aria-checked={(places[e.id] ?? 0) === pl} onClick={() => setPlace(e.id, pl)} className={cn("h-7 min-w-9 rounded-lg px-2 font-semibold text-muted", (places[e.id] ?? 0) === pl && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
+                      <button key={pl} type="button" role="radio" aria-checked={(places[e.id] ?? 0) === pl} onClick={() => setPlace(e.id, pl)} className={cn("h-7 min-w-9 rounded-lg px-2 font-semibold text-muted", (places[e.id] ?? 0) === pl && "bg-card text-ink ring-1 ring-line-strong")}>
                         {pl ? `${pl}.` : "–"}
                       </button>
                     ))}

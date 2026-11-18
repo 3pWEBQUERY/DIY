@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bold, Italic, Link2, List, ListOrdered, Unlink } from "lucide-react";
-import { parseInline, safeHref, type Inline } from "@/lib/inline-marks";
+import { markupHref, parseInline, safeHref, type Inline } from "@/lib/inline-marks";
 import { parseRichBlocks } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +84,7 @@ function inlineToMarkup(node: Node): string {
   if (tag === "A") {
     const href = safeHref(node.getAttribute("href") ?? "");
     const text = kids();
-    return href && text.trim() ? `[${text}](${href})` : text;
+    return href && text.trim() ? `[${text}](${markupHref(href)})` : text;
   }
   let s = kids();
   if (italic) s = wrap(s, "*");

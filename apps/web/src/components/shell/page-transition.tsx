@@ -75,7 +75,6 @@ export function NavProgress() {
       <div
         data-state={state}
         className="h-full origin-left bg-moss opacity-0 data-[state=done]:opacity-0 data-[state=loading]:opacity-100 data-[state=loading]:[transition:transform_8s_cubic-bezier(0.1,0.7,0.2,1),opacity_0.2s_ease_0.15s] data-[state=done]:[transition:transform_0.25s_ease-out,opacity_0.3s_ease_0.15s] data-[state=done]:scale-x-100 data-[state=idle]:scale-x-0 data-[state=loading]:scale-x-[0.86]"
-        style={{ boxShadow: "0 0 10px rgb(182 75 58 / 0.45)" }}
       />
     </div>
   );

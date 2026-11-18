@@ -3,14 +3,14 @@ import { cn } from "@/lib/utils";
 
 /**
  * Statusmarke im Werkbuch-Stil: ein Knoten wie auf dem Projektfaden.
- * Idee/Planung hohl, in Arbeit Terrakotta, abgeschlossen Moos.
+ * Idee/Planung hohl, in Arbeit Coral, abgeschlossen Tanne (clay = moss → eigener Ton für „fertig“).
  */
 const MARK: Record<ProjectStatus, string> = {
   IDEA: "border border-rule bg-transparent rounded-full",
   PLANNING: "border border-rule bg-transparent rounded-2xl",
   IN_PROGRESS: "bg-clay",
   PAUSED: "border border-muted bg-line-strong rounded-2xl",
-  COMPLETED: "bg-moss",
+  COMPLETED: "bg-pine",
   ARCHIVED: "bg-muted",
 };
 

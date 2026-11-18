@@ -80,8 +80,8 @@ export const identityRoutes: RouteDef[] = [
     await identity.requestPasswordReset(String(email ?? ""));
     return { message: "Falls ein Konto existiert, haben wir dir eine E-Mail geschickt." };
   }),
-  // Optional (neuere App-Versionen): `nonce` (Roh-Nonce, Token-Claim = SHA-256 hex) und `authorizationCode`
-  // (für den Widerruf bei Kontolöschung) – ältere Versionen senden nur das identityToken.
+  // `nonce` (Roh-Nonce, Token-Claim = SHA-256 hex) ist Pflicht (Replay-Schutz); `authorizationCode` optional
+  // (für den Widerruf bei Kontolöschung)
   POST("/auth/apple", async (c) => {
     const b = await c.body({
       identityToken: z.string().max(10_000).optional(),

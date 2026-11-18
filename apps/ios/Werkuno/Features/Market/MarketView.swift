@@ -35,7 +35,10 @@ struct MarketFilters: Equatable {
 
     private static func number(_ s: String) -> String? {
         let t = s.replacingOccurrences(of: ",", with: ".").trimmed
-        guard let d = Double(t), d >= 0 else { return nil }
+        // Wie Fmt.parseMoney: nur Ziffern und ein Dezimalpunkt (kein „inf“, „1e300“), Betrag begrenzt –
+        // sonst stürzt `Int(d)` bei riesigen Werten ab
+        guard !t.isEmpty, t.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }), t.filter({ $0 == "." }).count <= 1 else { return nil }
+        guard let d = Double(t), d.isFinite, d >= 0, d <= Double(Fmt.maxMoneyMinor) / 100 else { return nil }
         return d == d.rounded() ? String(Int(d)) : String(format: "%.2f", d)
     }
 }

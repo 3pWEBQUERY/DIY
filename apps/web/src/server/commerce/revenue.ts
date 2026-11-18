@@ -1,6 +1,6 @@
 import "server-only";
-import { REAL_ORDER } from "./real-orders";
-import { db } from "@/server/db";
+import { REAL_ORDER, REAL_ORDER_SQL } from "./real-orders";
+import { db, Prisma } from "@/server/db";
 import { netPlatformFee } from "./rules";
 
 /**
@@ -13,8 +13,24 @@ import { netPlatformFee } from "./rules";
  */
 export type RevenueRange = "30" | "90" | "365" | "alle";
 
+const ROW_LIMIT = 100;
+
 export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
   const since = range === "alle" ? null : new Date(Date.now() - Number(range) * 86400_000);
+  // Summen in der Datenbank statt alle Bestellungen zu laden („alle“ wächst unbegrenzt). Provision wie
+  // netPlatformFee je Bestellung (anteilig nach Erstattung, gerundet), dann summiert.
+  const [agg] = await db.$queryRaw<{ n: bigint; gross: bigint | null; refunds: bigint | null; fees: bigint | null }[]>`
+    SELECT COUNT(*) AS n,
+           SUM("Order"."totalMinor") AS gross,
+           SUM(COALESCE(r.refunded, 0)) AS refunds,
+           SUM(CASE WHEN "Order"."totalMinor" <= 0 THEN 0
+                    ELSE "Order"."platformFeeMinor" - ROUND("Order"."platformFeeMinor" * LEAST(1, GREATEST(0, COALESCE(r.refunded, 0)::numeric / "Order"."totalMinor"))) END)::bigint AS fees
+    FROM "Order"
+    LEFT JOIN (SELECT "orderId", SUM("amountMinor") AS refunded FROM "Refund" WHERE "status" = 'SUCCEEDED' GROUP BY "orderId") r ON r."orderId" = "Order"."id"
+    WHERE "Order"."shopId" = ${shopId} AND "Order"."paidAt" IS NOT NULL ${since ? Prisma.sql`AND "Order"."paidAt" >= ${since}` : Prisma.empty} ${REAL_ORDER_SQL}`;
+  const gross = Number(agg?.gross ?? 0);
+  const refunds = Number(agg?.refunds ?? 0);
+  const fees = Number(agg?.fees ?? 0);
   const orders = await db.order.findMany({
     where: { shopId, paidAt: since ? { gte: since } : { not: null }, ...REAL_ORDER },
     select: {
@@ -30,17 +46,12 @@ export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
       feeBps: true,
       refunds: { where: { status: "SUCCEEDED" }, select: { amountMinor: true } },
     },
-    orderBy: { paidAt: "desc" },
+    orderBy: [{ paidAt: "desc" }, { id: "desc" }],
+    take: ROW_LIMIT,
   });
-  let gross = 0;
-  let refunds = 0;
-  let fees = 0;
   const rows = orders.map((o) => {
     const refunded = o.refunds.reduce((s, r) => s + r.amountMinor, 0);
     const fee = netPlatformFee(o.platformFeeMinor, o.totalMinor, refunded);
-    gross += o.totalMinor;
-    refunds += refunded;
-    fees += fee;
     return { ...o, refunded, fee, net: o.totalMinor - refunded - fee };
   });
   const [pendingRefunds, payouts, shop] = await Promise.all([
@@ -56,11 +67,11 @@ export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
     refunds,
     fees,
     net: gross - refunds - fees,
-    orderCount: orders.length,
+    orderCount: Number(agg?.n ?? 0),
     pendingRefunds: pendingRefunds._sum.amountMinor ?? 0,
     paidOut,
     payouts,
-    rows: rows.slice(0, 100),
+    rows,
     payoutsEnabled: !!shop?.payoutsEnabled,
     connected: !!shop?.stripeAccountId,
   };

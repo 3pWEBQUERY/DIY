@@ -23,18 +23,24 @@ export function CoauthorDialog({ postId, open, onClose }: { postId: string; open
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [handles, setHandles] = useState<string[]>([]);
   const [pending, start] = useTransition();
+  const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Netz-/Serverfehler als Fehlerzustand mit „Erneut versuchen“ statt unbehandelter Ausnahme
   const load = () =>
-    void listCoauthorsAction(postId).then((r) => {
-      if (r.ok) setRows(r.data);
+    void callAction(() => listCoauthorsAction(postId)).then((r) => {
+      if (r.ok) {
+        setRows(r.data);
+        setLoadError(null);
+      } else if (rows == null) setLoadError(r.error);
       else toast(r.error, "error");
     });
 
   useEffect(() => {
     if (!open) return;
     setHandles([]);
+    setLoadError(null);
     load();
-    void coauthorCandidatesAction().then((r) => r.ok && setCandidates(r.data));
+    void callAction(() => coauthorCandidatesAction()).then((r) => r.ok && setCandidates(r.data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, postId]);
 
@@ -60,7 +66,21 @@ export function CoauthorDialog({ postId, open, onClose }: { postId: string; open
 
   return (
     <Dialog open={open} onClose={onClose} title="Koautor:innen" description={`Bis zu ${MAX} Personen. Sie erscheinen am Beitrag, sobald sie bestätigt haben – bearbeiten kannst nur du.`}>
-      {rows == null ? (
+      {rows == null && loadError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-muted">
+          {loadError}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setLoadError(null);
+              load();
+            }}
+          >
+            Erneut versuchen
+          </Button>
+        </div>
+      ) : rows == null ? (
         <div className="h-16 animate-pulse rounded-xl bg-sunken" aria-busy />
       ) : (
         <>

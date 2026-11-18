@@ -10,13 +10,16 @@ import { NewConversationComposer } from "@/components/messages/new-conversation"
 import { Avatar, Notice } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Neue Nachricht", robots: { index: false } };
 
 type SP = { an?: string; bestellung?: string; produkt?: string };
+/** Werte können bei doppelten Schlüsseln Arrays sein → mit flatSearchParams auf je einen Wert bringen */
+type RawSP = { [K in keyof SP]?: string | string[] };
 
-export default async function NewMessagePage({ searchParams }: { searchParams: Promise<SP> }) {
-  const sp = await searchParams;
+export default async function NewMessagePage({ searchParams }: { searchParams: Promise<RawSP> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   const self = `/nachrichten/neu?${new URLSearchParams(Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][])}`;
   if (!user?.profile) redirect(`/anmelden?weiter=${encodeURIComponent(self)}`);

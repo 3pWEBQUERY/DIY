@@ -367,7 +367,7 @@ private struct ProjectsLineRow: View {
                     Button("Nach unten", systemImage: "arrow.down") { move(1) }
                     Button("Entfernen", systemImage: "trash", role: .destructive, action: remove)
                 } label: {
-                    Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted).frame(width: 36, height: 36).contentShape(.rect)
+                    Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
                 }
                 .accessibilityLabel("Zeile \(index + 1) bearbeiten")
             }

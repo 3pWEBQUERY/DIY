@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { MoreMenu, type MenuItem } from "@/components/social/actions";
 import { toast } from "@/components/ui/toast";
+import { callAction } from "@/lib/use-action";
+import type { ActionResult } from "@/server/errors";
 import { deleteProductAction, setProductStatusAction, setSoldOutVisibilityAction } from "@/app/studio/produkte/actions";
 
 /** Schnellaktionen in der Produkttabelle (Status, Ansehen, Löschen). */
@@ -27,13 +29,14 @@ export function ProductRowActions({
 }) {
   const router = useRouter();
   const [, start] = useTransition();
-  const run = (p: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
+  const run = <T,>(p: () => Promise<ActionResult<T>>) =>
     start(async () => {
-      const r = await p();
+      // Netz-/Serverfehler als Hinweis statt Fehlerseite
+      const r = await callAction(p);
       if (r.ok) {
         if (r.message) toast(r.message);
         router.refresh();
-      } else toast(r.error ?? "Fehler", "error");
+      } else toast(r.error, "error");
     });
   const items: MenuItem[] = [{ label: "Bearbeiten", onSelect: () => router.push(`/studio/produkte/${id}`) }];
   if (status === "ACTIVE" || status === "SOLD_OUT") items.push({ label: "Im Marktplatz ansehen", onSelect: () => router.push(href) });

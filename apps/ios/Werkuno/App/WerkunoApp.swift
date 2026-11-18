@@ -67,9 +67,10 @@ enum PushRegistration {
         _ = try? await APIClient.shared.patch("/devices/push", ["token": JSONValue.string(token), "environment": .string(environment)]) as JSONValue
     }
 
-    static func unregister() async {
-        guard let token, APIClient.shared.isSignedIn else { return }
-        _ = try? await APIClient.shared.send("DELETE", "/devices/push", body: ["token": JSONValue.string(token)]) as JSONValue
+    /// `bearer`: beim Abmelden das bisherige Token (das gespeicherte ist dann schon entfernt).
+    static func unregister(bearer: String? = nil) async {
+        guard let token, bearer != nil || APIClient.shared.isSignedIn else { return }
+        _ = try? await APIClient.shared.send("DELETE", "/devices/push", body: ["token": JSONValue.string(token)], bearer: bearer) as JSONValue
     }
 }
 

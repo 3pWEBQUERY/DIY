@@ -73,6 +73,9 @@ struct FeedView: View {
                 withAnimation(.snappy) { posts.removeAll { $0.id == p.id }; posts.insert(p, at: 0) }
             } else if let deletedId = note.object as? String, note.userInfo?["deleted"] as? Bool == true {
                 remove(deletedId)
+            } else if let changedId = note.object as? String, posts.contains(where: { $0.id == changedId }) {
+                // Nur eine ID (z. B. Umfrage, Koautor:in) → nur diesen Beitrag neu laden statt des ganzen Feeds
+                Task { await reloadPost(changedId) }
             } else {
                 Task { await loadFeed(reset: true) }
             }
@@ -95,16 +98,17 @@ struct FeedView: View {
             Button { router.open(.notifications) } label: {
                 Image(systemName: app.unreadNotifications > 0 ? "bell.badge" : "bell")
             }
-            .badge(app.unreadNotifications)
             .accessibilityLabel(app.unreadNotifications > 0 ? "Benachrichtigungen, \(app.unreadNotifications) ungelesen" : "Benachrichtigungen")
         }
+        // `.badge` am Button wird in der Toolbar nicht gezeigt – iOS 26 badgt das ToolbarItem selbst
+        .badge(app.unreadNotifications)
         ToolbarItem(placement: .topBarTrailing) {
             Button { router.open(.conversations) } label: {
                 Image(systemName: "bubble.left.and.bubble.right")
             }
-            .badge(app.unreadMessages)
             .accessibilityLabel(app.unreadMessages > 0 ? "Nachrichten, \(app.unreadMessages) ungelesen" : "Nachrichten")
         }
+        .badge(app.unreadMessages)
     }
 
     // MARK: Inhalt
@@ -220,6 +224,16 @@ struct FeedView: View {
             loaded = true
             if !reset || !posts.isEmpty { app.show(error: error) }
         }
+    }
+
+    /// Einen Beitrag im Feed aktualisieren; ist er nicht mehr sichtbar (404), verschwindet er.
+    private func reloadPost(_ id: String) async {
+        do {
+            let p: PostItem = try await APIClient.shared.get("/posts/\(id)")
+            if let i = posts.firstIndex(where: { $0.id == id }) { withAnimation(.snappy) { posts[i] = p } }
+        } catch let e as APIError where e.status == 404 || e.code == "NOT_FOUND" {
+            remove(id)
+        } catch {}
     }
 
     private func remove(_ id: String) {

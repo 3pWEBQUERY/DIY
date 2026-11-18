@@ -4,11 +4,12 @@ import { currentUser, getPendingMfaSession } from "@/server/auth/session";
 import { features } from "@/server/env";
 import { SignInForm } from "./sign-in-form";
 import { safeNext } from "@/lib/safe-next";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Anmelden", robots: { index: false } };
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ weiter?: string; fehler?: string }> }) {
-  const sp = await searchParams;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ weiter?: string | string[]; fehler?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   if (await currentUser()) redirect(safeNext(sp.weiter, "/feed")!);
   // Passwort schon geprüft, Code fehlt noch → direkt zur Code-Eingabe
   if (await getPendingMfaSession()) redirect(`/anmelden/zwei-faktor?weiter=${encodeURIComponent(safeNext(sp.weiter, "/feed")!)}`);

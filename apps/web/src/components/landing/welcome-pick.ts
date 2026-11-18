@@ -18,8 +18,14 @@ export function pickWelcomeBackground(el: Element | null, n: number) {
   if (forced >= 1 && forced <= n) {
     i = forced - 1;
   } else {
-    i = Math.floor(Math.random() * (n - 1));
-    if (last >= 0 && last < n && i >= last) i++;
+    if (n > 1 && last >= 0 && last < n) {
+      // aus den n − 1 übrigen Bildern wählen, das zuletzt gezeigte überspringen
+      i = Math.floor(Math.random() * (n - 1));
+      if (i >= last) i++;
+    } else {
+      // noch nichts gespeichert (oder ungültig) → aus allen n Bildern
+      i = Math.floor(Math.random() * n);
+    }
     try {
       window.localStorage.setItem(key, String(i));
     } catch (e) {}

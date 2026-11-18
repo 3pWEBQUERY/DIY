@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { zurichDayKey, zurichWeekDays } from "../tz";
+import { addDaysToDayKey, zurichDateTimeIso, zurichDayKey, zurichWeekDays } from "../tz";
 
 describe("zurichDayKey", () => {
   it("zählt kurz nach Mitternacht Zürcher Zeit zum neuen Tag", () => {
@@ -25,5 +25,23 @@ describe("zurichWeekDays", () => {
     const days = zurichWeekDays(3, new Date("2026-04-01T12:00:00Z"));
     expect(new Set(days).size).toBe(21);
     expect(days).toContain("2026-03-29");
+  });
+});
+
+describe("zurichDateTimeIso", () => {
+  it("rechnet Zürcher Wandzeit in UTC um (Winter- und Sommerzeit)", () => {
+    expect(zurichDateTimeIso("2026-01-15", "00:00:00")).toBe("2026-01-14T23:00:00.000Z");
+    expect(zurichDateTimeIso("2026-07-15", "23:59:59")).toBe("2026-07-15T21:59:59.000Z");
+  });
+  it("liefert null statt RangeError bei leerem/ungültigem Tag", () => {
+    expect(zurichDateTimeIso("")).toBeNull();
+    expect(zurichDateTimeIso("2026-13-99x")).toBeNull();
+  });
+});
+
+describe("addDaysToDayKey", () => {
+  it("zählt Kalendertage, auch über die Zeitumstellung", () => {
+    expect(addDaysToDayKey("2026-03-25", 7)).toBe("2026-04-01");
+    expect(addDaysToDayKey("", 7)).toBe("");
   });
 });

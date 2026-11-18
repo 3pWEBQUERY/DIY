@@ -23,7 +23,7 @@ import { JsonLd, absUrl, isoDuration } from "@/components/projects/json-ld";
 import { AddToShoppingList } from "@/components/materials/add-to-list";
 import { StockToggle } from "@/components/materials/stock";
 import { stockLookup } from "@/server/materials/stock";
-import { cn, formatDate, formatMinutes, pad, relativeTime } from "@/lib/utils";
+import { cn, formatDate, formatMinutes, pad, pluralize, relativeTime } from "@/lib/utils";
 
 type Params = { params: Promise<{ handle: string; slug: string }> };
 
@@ -508,10 +508,10 @@ function Materials({ p, have }: { p: ProjectPageView; have: Set<string> | null }
         <div className="min-w-0">
           <div className="overflow-x-auto"><table className="w-full border-collapse text-[14px]">
             <caption className="spec mb-2 text-left">
-              Material · {p.materials.length} Positionen
+              Material · {pluralize(p.materials.length, "Position", "Positionen")}
               {have && have.size > 0 && (
                 <span className="ml-2 normal-case tracking-normal text-moss-ink">
-                  · {have.size === p.materials.length ? "alles in deinem Bestand" : `${have.size} hast du schon, ${p.materials.length - have.size} fehlen`}
+                  · {have.size === p.materials.length ? "alles in deinem Bestand" : `${have.size} hast du schon, ${p.materials.length - have.size} ${p.materials.length - have.size === 1 ? "fehlt" : "fehlen"}`}
                 </span>
               )}
             </caption>

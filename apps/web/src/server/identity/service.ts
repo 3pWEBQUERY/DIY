@@ -211,7 +211,19 @@ export async function resetPassword(raw: string, password: string) {
     // Einmal-Link: nur wer ihn zuerst einlöst, setzt das Passwort
     const claimed = await tx.verificationToken.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date() } });
     if (!claimed.count) throw invalid();
-    await tx.user.update({ where: { id: t.userId }, data: { passwordHash } });
+    const u = await tx.user.findUniqueOrThrow({ where: { id: t.userId }, select: { emailVerifiedAt: true } });
+    if (!u.emailVerifiedAt) {
+      // Der Link beweist den Zugriff aufs Postfach → Adresse gilt als bestätigt. Was vorher am unbestätigten
+      // Konto hing, kann von jemand anderem stammen, der es vorab angelegt hat (Kontoübernahme): verknüpfte
+      // Anmeldungen (z. B. Pinterest), 2FA, offene Links und Push-Geräte entfernen – wie bei apple.ts.
+      await tx.user.update({ where: { id: t.userId }, data: { passwordHash, emailVerifiedAt: new Date(), totpSecret: null, totpEnabledAt: null, totpLastStep: null } });
+      await tx.mfaRecoveryCode.deleteMany({ where: { userId: t.userId } });
+      await tx.authAccount.deleteMany({ where: { userId: t.userId } });
+      await tx.pushDevice.deleteMany({ where: { userId: t.userId } });
+      await tx.verificationToken.deleteMany({ where: { userId: t.userId, id: { not: t.id } } });
+    } else {
+      await tx.user.update({ where: { id: t.userId }, data: { passwordHash } });
+    }
     // Sessionwiderruf (§25.5): alle Sitzungen beenden, weitere Reset- und E-Mail-Wechsel-Links entwerten
     await securityReset(t.userId, { exceptTokenId: t.id, tx });
   });

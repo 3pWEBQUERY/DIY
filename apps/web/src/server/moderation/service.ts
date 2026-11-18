@@ -292,6 +292,9 @@ type Prior =
 
 async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HIDE" | "REMOVE" | "LIMIT_REACH" | "DISABLE_LISTING"): Promise<Prior> {
   const contentState = action === "REMOVE" ? "REMOVED" : "HIDDEN";
+  // Verbergen ist milder als Entfernen: Ein bereits entfernter (bzw. deaktivierter) Inhalt bleibt es.
+  // Sonst würde er „nur noch verborgen“ – und ein Einspruch gegen das Verbergen stellte ihn sogar wieder her.
+  const keep = (current: string) => action === "HIDE" && (current === "REMOVED" || current === "DISABLED");
   switch (type) {
     case "POST": {
       const p = await tx.post.findUniqueOrThrow({ where: { id }, select: { state: true, reachLimited: true } });
@@ -299,12 +302,14 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
         await tx.post.update({ where: { id }, data: { reachLimited: true } });
         return { kind: "content", model: "post", id, field: "reachLimited", value: p.reachLimited };
       }
+      if (keep(p.state)) return { kind: "none" };
       await tx.post.update({ where: { id }, data: { state: contentState } });
       await syncPostCount(tx, (await tx.post.findUniqueOrThrow({ where: { id }, select: { authorId: true } })).authorId);
       return { kind: "content", model: "post", id, field: "state", value: p.state };
     }
     case "COMMENT": {
       const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true, targetType: true, targetId: true, parentId: true } });
+      if (keep(c.state)) return { kind: "none" };
       await tx.comment.update({ where: { id }, data: { state: contentState } });
       // Kommentarzähler nur beim Übergang aus „sichtbar“ – samt der Antworten, die mit dem Hauptkommentar verschwinden
       if (c.state === "PUBLISHED") {
@@ -315,6 +320,7 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
     }
     case "PROJECT": {
       const p = await tx.project.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      if (keep(p.state)) return { kind: "none" };
       await tx.project.update({ where: { id }, data: { state: contentState, isFeatured: false } });
       await syncProjectCount(tx, (await tx.project.findUniqueOrThrow({ where: { id }, select: { ownerId: true } })).ownerId);
       return { kind: "content", model: "project", id, field: "state", value: p.state };
@@ -323,37 +329,43 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
     case "TUTORIAL_STEP": {
       const tid = type === "TUTORIAL" ? id : (await tx.tutorialStep.findUniqueOrThrow({ where: { id }, select: { version: { select: { tutorialId: true } } } })).version.tutorialId;
       const t = await tx.tutorial.findUniqueOrThrow({ where: { id: tid }, select: { state: true } });
+      if (keep(t.state)) return { kind: "none" };
       await tx.tutorial.update({ where: { id: tid }, data: { state: contentState, isFeatured: false } });
       return { kind: "content", model: "tutorial", id: tid, field: "state", value: t.state };
     }
     case "ARTICLE": {
       const a = await tx.blogArticle.findUniqueOrThrow({ where: { id }, select: { state: true } });
-      // Artikel kennen kein REMOVED – entfernt = verborgen
-      await tx.blogArticle.update({ where: { id }, data: { state: "HIDDEN", isFeatured: false } });
+      if (keep(a.state)) return { kind: "none" };
+      await tx.blogArticle.update({ where: { id }, data: { state: contentState, isFeatured: false } });
       return { kind: "content", model: "blogArticle", id, field: "state", value: a.state };
     }
     case "COMMUNITY": {
       const c = await tx.community.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      if (keep(c.state)) return { kind: "none" };
       await tx.community.update({ where: { id }, data: { state: contentState, isFeatured: false } });
       return { kind: "content", model: "community", id, field: "state", value: c.state };
     }
     case "MESSAGE": {
       const m = await tx.message.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      if (keep(m.state)) return { kind: "none" };
       await tx.message.update({ where: { id }, data: { state: contentState } });
       return { kind: "content", model: "message", id, field: "state", value: m.state };
     }
     case "REVIEW": {
       const r = await tx.review.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      if (keep(r.state)) return { kind: "none" };
       await tx.review.update({ where: { id }, data: { state: contentState } });
       return { kind: "content", model: "review", id, field: "state", value: r.state };
     }
     case "STORY": {
       const s = await tx.story.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      if (keep(s.state)) return { kind: "none" };
       await tx.story.update({ where: { id }, data: { state: contentState } });
       return { kind: "content", model: "story", id, field: "state", value: s.state };
     }
     case "PRODUCT": {
       const p = await tx.product.findUniqueOrThrow({ where: { id }, select: { status: true } });
+      if (keep(p.status)) return { kind: "none" };
       await tx.product.update({ where: { id }, data: { status: action === "HIDE" ? "PAUSED" : "DISABLED", isFeatured: false } });
       return { kind: "content", model: "product", id, field: "status", value: p.status };
     }
@@ -402,10 +414,11 @@ async function applyToUser(tx: Tx, userId: string, action: "RESTRICT_MESSAGING" 
 }
 
 /** Zustand, den eine Inhaltsmassnahme gesetzt hat – nur dann darf ein Einspruch zurücksetzen. */
-function appliedValue(model: string, field: string, action: string): string | boolean | null {
+function appliedValue(model: string, field: string, action: string): string | boolean | string[] | null {
   if (field === "reachLimited") return true;
+  // Früher setzte „entfernen“ Artikel nur auf HIDDEN – solche Fälle bleiben aufhebbar
+  if (model === "blogArticle" && action === "REMOVE") return ["REMOVED", "HIDDEN"];
   if (model === "product") return action === "HIDE" ? "PAUSED" : "DISABLED";
-  if (model === "blogArticle") return "HIDDEN";
   if (model === "communityEvent" || model === "communityChallenge") return "REMOVED";
   if (action === "HIDE") return "HIDDEN";
   if (action === "REMOVE") return "REMOVED";
@@ -417,29 +430,41 @@ function appliedValue(model: string, field: string, action: string): string | bo
  * der von dieser Massnahme gesetzte ist. Wurde seither anders entschieden (z. B. inzwischen gebannt
  * oder vom Admin entfernt), bleibt der neuere Zustand bestehen. Gibt zurück, ob zurückgesetzt wurde.
  */
-async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolean> {
+async function revertPrior(tx: Tx, prior: Prior, action: string, applied: { until: Date | null; at: Date | null } = { until: null, at: null }): Promise<boolean> {
   if (prior.kind === "none") return false;
   if (prior.kind === "user") {
+    // Nur zurücksetzen, solange der aktuelle Zustand noch genau von dieser Massnahme stammt (gleiches „bis“) –
+    // eine inzwischen verlängerte bzw. neu verhängte Beschränkung oder Sperre bleibt bestehen
     if (action === "RESTRICT_MESSAGING") {
-      await tx.user.update({ where: { id: prior.userId }, data: { messagingRestrictedUntil: prior.messagingRestrictedUntil ? new Date(prior.messagingRestrictedUntil) : null } });
-      return true;
+      if (!applied.until) return false;
+      const r = await tx.user.updateMany({
+        where: { id: prior.userId, messagingRestrictedUntil: applied.until },
+        data: { messagingRestrictedUntil: prior.messagingRestrictedUntil ? new Date(prior.messagingRestrictedUntil) : null },
+      });
+      return r.count > 0;
     }
-    const expected = action === "BAN" ? "BANNED" : "SUSPENDED";
+    if (action === "SUSPEND" && !applied.until) return false;
     // Zurück auf den Stand vor dieser Massnahme (z. B. Bann → vorherige befristete Sperre bleibt)
     const target = (["ACTIVE", "SUSPENDED", "BANNED"].includes(prior.status) ? prior.status : "ACTIVE") as "ACTIVE" | "SUSPENDED" | "BANNED";
     const r = await tx.user.updateMany({
-      where: { id: prior.userId, status: expected },
+      where: action === "BAN" ? { id: prior.userId, status: "BANNED" } : { id: prior.userId, status: "SUSPENDED", suspendedUntil: applied.until },
       data: { status: target, suspendedUntil: target === "SUSPENDED" && prior.suspendedUntil ? new Date(prior.suspendedUntil) : null },
     });
     if (!r.count) return false;
     for (const sh of prior.shops ?? []) {
+      // Nur Shops, die noch von diesem Bann gesperrt sind: Hat die Moderation den Shop seither selbst
+      // entschieden (z. B. reaktiviert und erneut gesperrt), bleibt deren Entscheidung bestehen
+      if (applied.at) {
+        const later = await tx.auditEvent.findFirst({ where: { targetType: "SHOP", targetId: sh.id, action: { startsWith: "admin.shop_" }, createdAt: { gt: applied.at } }, select: { id: true } });
+        if (later) continue;
+      }
       await tx.shop.updateMany({ where: { id: sh.id, status: "SUSPENDED" }, data: { status: sh.status as "ACTIVE" | "PENDING_VERIFICATION" | "PAUSED" } });
     }
     return true;
   }
   const expected = appliedValue(prior.model, prior.field, action);
   if (expected === null) return false;
-  const where = { id: prior.id, [prior.field]: expected };
+  const where = { id: prior.id, [prior.field]: Array.isArray(expected) ? { in: expected } : expected };
   const data = { [prior.field]: prior.value };
   const args = { where, data } as never;
   let count = 0;
@@ -689,12 +714,17 @@ export async function decideAppeal(actor: Actor, appealId: string, input: unknow
   const applied = ((appeal.case.snapshot ?? {}) as { applied?: { prior?: Prior; action?: string } }).applied;
   // Banns hebt nur die Administration auf (wie beim direkten Entsperren)
   if (data.decision === "OVERTURNED" && applied?.action === "BAN" && !hasRole(actor, "ADMIN")) throw fail.forbidden("Einen dauerhaften Bann kann nur die Administration aufheben.");
+  // Kontomassnahmen gegen Teammitglieder hebt nur auf, wer sie auch verhängen darf (siehe decideCase)
+  if (data.decision === "OVERTURNED" && ["RESTRICT_MESSAGING", "SUSPEND", "BAN"].includes(applied?.action ?? "") && appeal.case.subjectUserId && !hasRole(actor, "SUPERADMIN")) {
+    const subject = await db.user.findUnique({ where: { id: appeal.case.subjectUserId }, select: { role: true } });
+    if (subject && subject.role !== "MEMBER") throw fail.forbidden("Kontomassnahmen gegen Teammitglieder darf nur die Superadministration aufheben.");
+  }
 
   await db.$transaction(async (tx) => {
     const upd = await tx.appeal.updateMany({ where: { id: appealId, status: "OPEN" }, data: { status: data.decision, decidedBy: actor.id, decision: data.note, decidedAt: new Date() } });
     if (upd.count !== 1) throw fail.conflict("Über diesen Einspruch wurde bereits entschieden.");
     if (data.decision === "OVERTURNED") {
-      const reverted = applied?.prior ? await revertPrior(tx, applied.prior, applied.action ?? "") : false;
+      const reverted = applied?.prior ? await revertPrior(tx, applied.prior, applied.action ?? "", { until: original?.until ?? null, at: original?.createdAt ?? null }) : false;
       await tx.moderationAction.create({
         data: {
           caseId: appeal.caseId,

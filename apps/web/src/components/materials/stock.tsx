@@ -82,11 +82,27 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
     setEntries(initial);
   }
 
+  // Neu-Einhängen der unkontrollierten Felder nach einem Rollback (sonst bliebe der ungespeicherte Wert stehen)
+  const [rev, setRev] = useState<Record<string, number>>({});
   const patch = (id: string, p: { quantity?: string; note?: string }) => {
+    const before = entries.find((x) => x.id === id);
+    if (!before) return;
     setEntries((xs) => xs.map((x) => (x.id === id ? { ...x, ...p } : x)));
     start(async () => {
       const r = await callAction(() => updateStockAction(id, p));
-      if (!r.ok) toast(r.error, "error");
+      if (!r.ok) {
+        // Nur die geänderten Felder zurücksetzen – und nur, falls sie seither nicht erneut geändert wurden
+        setEntries((xs) =>
+          xs.map((x) => {
+            if (x.id !== id) return x;
+            const back = { ...x };
+            for (const k of Object.keys(p) as (keyof typeof p)[]) if (x[k] === p[k]) back[k] = before[k];
+            return back;
+          }),
+        );
+        setRev((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
+        toast(r.error, "error");
+      }
     });
   };
   const remove = async (e: StockEntry) => {
@@ -130,7 +146,7 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
             setMaterialId(s.id);
           }}
         />
-        <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={40} placeholder="Menge (optional)" aria-label="Menge" className="h-10 w-full rounded-2xl border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss" />
+        <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={40} placeholder="Menge (optional)" aria-label="Menge" className="h-10 w-full rounded-2xl border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss" />
         <Button type="submit" disabled={pending || !name.trim()} className="col-span-2 sm:col-span-1">
           {pending ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} Hinzufügen
         </Button>
@@ -139,7 +155,7 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
       {entries.length > 8 && (
         <div className="relative mt-6 max-w-sm">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Im Bestand suchen …" aria-label="Im Bestand suchen" className="h-10 w-full rounded-2xl border border-line-strong bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-moss" />
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Im Bestand suchen …" aria-label="Im Bestand suchen" className="h-10 w-full rounded-2xl border border-field bg-card pl-9 pr-3 text-[14px] outline-none hover:border-muted focus:border-moss" />
         </div>
       )}
 
@@ -170,20 +186,22 @@ export function StockManager({ initial }: { initial: StockEntry[] }) {
                       {e.type && <span className="spec">{[e.type, e.unit].filter(Boolean).join(" · ")}</span>}
                     </div>
                     <input
+                      key={`q-${rev[e.id] ?? 0}`}
                       defaultValue={e.quantity}
                       onBlur={(ev) => ev.target.value.trim() !== e.quantity && patch(e.id, { quantity: ev.target.value.trim() })}
                       maxLength={40}
                       placeholder="Menge"
                       aria-label={`Menge von ${e.name}`}
-                      className="col-start-1 h-9 w-full rounded-xl border border-line bg-card px-2.5 text-[13px] outline-none hover:border-line-strong focus:border-moss sm:col-start-auto"
+                      className="col-start-1 h-9 w-full rounded-xl border border-field bg-card px-2.5 text-[13px] outline-none hover:border-muted focus:border-moss sm:col-start-auto"
                     />
                     <input
+                      key={`n-${rev[e.id] ?? 0}`}
                       defaultValue={e.note}
                       onBlur={(ev) => ev.target.value.trim() !== e.note && patch(e.id, { note: ev.target.value.trim() })}
                       maxLength={200}
                       placeholder="Notiz, z. B. Farbe, Lagerort"
                       aria-label={`Notiz zu ${e.name}`}
-                      className="col-span-2 h-9 w-full rounded-xl border border-line bg-card px-2.5 text-[13px] outline-none hover:border-line-strong focus:border-moss sm:col-span-1"
+                      className="col-span-2 h-9 w-full rounded-xl border border-field bg-card px-2.5 text-[13px] outline-none hover:border-muted focus:border-moss sm:col-span-1"
                     />
                     <button type="button" onClick={() => void remove(e)} className="col-start-2 row-start-1 grid size-8 place-items-center rounded-xl text-muted hover:bg-sunken hover:text-danger sm:col-start-auto sm:row-start-auto" aria-label={`${e.name} entfernen`} title="Entfernen">
                       <X size={15} />

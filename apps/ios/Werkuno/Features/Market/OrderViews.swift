@@ -387,7 +387,7 @@ struct MarketPaymentList: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
                     MarketStatusPill.payment(p.status)
-                    Text([p.provider == "simulated" ? "Testmodus" : p.provider == "stripe" ? "Stripe" : p.provider, Optional(Fmt.dateTime(p.createdAt))].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
+                    Text([p.providerLabel, Optional(Fmt.dateTime(p.createdAt))].compactMap { $0?.nilIfEmpty }.joined(separator: " · "))
                         .font(.wr(.caption)).foregroundStyle(Color.muted)
                     if let f = p.failureReason?.nilIfEmpty { Text(f).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 }

@@ -4,13 +4,14 @@ import { currentUser } from "@/server/auth/session";
 import { getBuyerOrder } from "@/server/commerce/orders";
 import { AbandonOrderButton, ResumePaymentButton } from "@/components/commerce/payment-actions";
 import { LinkButton } from "@/components/ui/button";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Zahlung abgebrochen", robots: { index: false } };
 
 /** Rückkehr nach Abbruch: Zahlung erneut versuchen oder Bestellung verwerfen (gibt Reservierung sofort frei). */
-export default async function CheckoutCancelledPage({ searchParams }: { searchParams: Promise<{ bestellung?: string; grund?: string }> }) {
-  const [{ bestellung, grund }, user] = await Promise.all([searchParams, currentUser()]);
-  if (!user) redirect("/anmelden");
+export default async function CheckoutCancelledPage({ searchParams }: { searchParams: Promise<{ bestellung?: string | string[]; grund?: string | string[] }> }) {
+  const [{ bestellung, grund }, user] = await Promise.all([searchParams.then((s) => flatSearchParams(s)), currentUser()]);
+  if (!user) redirect(`/anmelden?weiter=${encodeURIComponent(`/kasse/abgebrochen${bestellung || grund ? `?${new URLSearchParams({ ...(bestellung ? { bestellung } : {}), ...(grund ? { grund } : {}) })}` : ""}`)}`);
   const order = bestellung ? await getBuyerOrder(user.id, bestellung) : null;
   const open = order?.status === "PENDING_PAYMENT" && !!order.reservationExpiresAt && order.reservationExpiresAt > new Date();
 

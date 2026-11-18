@@ -26,6 +26,29 @@ export function safeHref(raw: string): string | null {
   return null;
 }
 
+/**
+ * Link-Ziel für die Auszeichnung `[Text](Ziel)`: runde Klammern prozentkodieren, sonst beendet die erste „)“
+ * den Link (z. B. Wikipedia: `…/wiki/Hobel_(Werkzeug)`). Browser und Server lösen %28/%29 identisch auf.
+ */
+export function markupHref(href: string): string {
+  return href.replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+/** Ende eines Link-Ziels ab `from` (erste Stelle nach „](“): runde Klammern im Ziel dürfen ausgeglichen vorkommen. */
+function linkEnd(src: string, from: number): number {
+  let depth = 0;
+  for (let j = from; j < src.length; j++) {
+    const c = src[j];
+    if (c === "\n") return -1;
+    if (c === "(") depth++;
+    else if (c === ")") {
+      if (depth === 0) return j;
+      depth--;
+    }
+  }
+  return -1;
+}
+
 /** Relativer Pfad dieser Seite (`/…`), der beim Auflösen nicht auf einen fremden Ursprung zeigt. */
 export function isInternalHref(href: string): boolean {
   if (!/^\/(?![/\\])/.test(href) || /[\\\u0000-\u001f\u007f]/.test(href)) return false;
@@ -91,7 +114,7 @@ export function parseInline(src: string, depth = 0): Inline[] {
       const close = src.indexOf("](", i + 1);
       const nl = src.indexOf("\n", i);
       if (close > i + 1 && (nl === -1 || nl > close)) {
-        const end = src.indexOf(")", close + 2);
+        const end = linkEnd(src, close + 2);
         if (end > close + 2) {
           const href = safeHref(src.slice(close + 2, end));
           if (href) {

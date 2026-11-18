@@ -475,7 +475,7 @@ struct CommunityDetailView: View {
                 Menu {
                     Button("Aus Community entfernen", systemImage: "minus.circle", role: .destructive) { Task { await unshare(p, d) } }
                 } label: {
-                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(width: 36, height: 44)
+                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
                 }
                 .accessibilityLabel("Projektaktionen")
             }

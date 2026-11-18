@@ -27,8 +27,9 @@ import { Cover } from "@/components/ui/media";
 import { LinkButton } from "@/components/ui/button";
 import { formatDate, pluralize } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
+import { flatSearchParams } from "@/lib/search-params";
 
-type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ tab?: string; nach?: string; zeit?: string }> };
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ tab?: string | string[]; nach?: string | string[]; zeit?: string | string[] }> };
 
 const load = cache(async (slug: string) => {
   const viewer = await currentUser();
@@ -105,7 +106,7 @@ function RulesList({ rules }: { rules: CommunityPageData["community"]["rules"] }
 }
 
 export default async function CommunityPage({ params, searchParams }: Props) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  const [{ slug }, sp] = await Promise.all([params, searchParams.then((s) => flatSearchParams(s))]);
   const { viewer, data } = await load(slug);
   if (!data) notFound();
   const { community: c, membership, canView, isMember, isMod, muted } = data;
@@ -320,7 +321,7 @@ export default async function CommunityPage({ params, searchParams }: Props) {
               <h1 className="display mt-2 text-[2.4rem] text-balance sm:text-5xl">{c.name}</h1>
               <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
                 <span className="num"><strong className="font-semibold text-ink">{c.memberCount}</strong> {c.memberCount === 1 ? "Mitglied" : "Mitglieder"}</span>
-                {canView && <span className="num"><strong className="font-semibold text-ink">{data.projectCount}</strong> Projekte</span>}
+                {canView && <span className="num"><strong className="font-semibold text-ink">{data.projectCount}</strong> {data.projectCount === 1 ? "Projekt" : "Projekte"}</span>}
                 {isMember && membership && membership.role !== "MEMBER" && <Badge tone="moss">{COMMUNITY_ROLE_LABEL[membership.role]}</Badge>}
               </p>
             </div>

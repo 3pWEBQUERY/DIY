@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { LogOut, Pencil, ShieldCheck, UserMinus, UserPlus } from "lucide-react";
 import { GROUP_MAX_MEMBERS } from "@werkraum/shared";
 import type { ThreadData } from "@/server/messaging/service";
+import type { ActionResult } from "@/server/errors";
 import { Dialog } from "@/components/ui/dialog";
 import { Avatar, Badge } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
@@ -30,9 +31,10 @@ export function GroupInfo({ open, onClose, conversationId, group }: { open: bool
   const members = [...group.members].sort((a, b) => Number(b.role === "ADMIN") - Number(a.role === "ADMIN") || Number(a.pending) - Number(b.pending) || a.displayName.localeCompare(b.displayName, "de"));
   const room = GROUP_MAX_MEMBERS - group.members.length;
 
-  const exec = <T,>(fn: () => Promise<{ ok: true; data: T; message?: string } | { ok: false; error: string }>, after?: (d: T) => void) =>
+  const exec = <T,>(fn: () => Promise<ActionResult<T>>, after?: (d: T) => void) =>
     start(async () => {
-      const r = await fn();
+      // Netz-/Serverfehler → Toast statt Fehlerseite
+      const r = await callAction(fn);
       if (!r.ok) return toast(r.error, "error");
       if (r.message) toast(r.message);
       after?.(r.data);

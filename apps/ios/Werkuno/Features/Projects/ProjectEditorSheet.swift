@@ -396,6 +396,7 @@ struct ProjectEditorSheet: View {
                 result = try await APIClient.shared.post("/projects", body)
             }
             Haptics.success()
+            NotificationCenter.default.post(name: .projectsChanged, object: projectId)
             app.show(isEdit ? "Änderungen gespeichert." : isRemix ? "Nachbau angelegt – viel Freude beim Bauen!" : "Projekt angelegt.")
             dismiss()
             if !isEdit {

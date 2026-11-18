@@ -9,11 +9,12 @@ import { Placeholder } from "@/components/ui/media";
 import { Empty } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Meine Bestellungen", robots: { index: false } };
 
-export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ cursor?: string }> }) {
-  const [sp, user] = await Promise.all([searchParams, currentUser()]);
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ cursor?: string | string[] }> }) {
+  const [sp, user] = await Promise.all([searchParams.then((s) => flatSearchParams(s)), currentUser()]);
   if (!user) redirect("/anmelden?weiter=/bestellungen");
   const { items, nextCursor } = await listBuyerOrders(user.id, sp.cursor ?? null);
 

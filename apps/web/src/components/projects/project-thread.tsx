@@ -12,7 +12,7 @@ import { cn, formatDate, formatMinutes, pad } from "@/lib/utils";
  *
  * Knoten-Grammatik:
  *  ▢ hohl  = Anfang / noch offen      ■ Tinte = Station
- *  ■ Moos  = Wissen & Abschluss        ■ Terrakotta = Community & Markt
+ *  ■ Tanne = Wissen & Abschluss          ■ Terrakotta = Community & Markt
  *  ◆ Terrakotta = Meilenstein          ┆ gestrichelt = Faden läuft weiter
  */
 
@@ -21,7 +21,7 @@ type Marker = "hollow" | "ink" | "moss" | "clay" | "diamond" | "dot" | "ghost";
 const markerClass: Record<Marker, string> = {
   hollow: "size-[11px] border border-rule bg-paper rounded-full",
   ink: "size-[11px] bg-ink rounded-full",
-  moss: "size-[11px] bg-moss rounded-full",
+  moss: "size-[11px] bg-pine rounded-full",
   clay: "size-[11px] bg-clay rounded-full",
   diamond: "size-[8px] rotate-45 bg-clay",
   dot: "size-[7px] rounded-full border border-rule bg-paper",

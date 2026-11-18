@@ -315,7 +315,7 @@ struct TutorialEditorSheet: View {
                 Divider()
                 Button("Löschen", systemImage: "trash", role: .destructive) { withAnimation(.snappy) { steps.removeAll { $0.id == s.id } } }
             } label: {
-                Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted).frame(width: 36, height: 36).contentShape(.rect)
+                Image(systemName: "ellipsis").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.muted).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
             }
             .accessibilityLabel("Aktionen für Schritt \(i + 1)")
         }

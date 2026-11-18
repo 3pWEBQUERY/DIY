@@ -8,6 +8,7 @@ import { notify } from "@/server/notifications";
 import { rateLimit } from "@/server/ratelimit";
 import type { SessionUser } from "@/server/auth/session";
 import { hasRole } from "@/server/authz";
+import { assertNotOwn } from "@/server/admin/own";
 import { lockOrder } from "./inventory";
 import { orderWith, initiateRefund, grantMissingEntitlementsTx, restockOrderTx, APPLE_REFUND_MESSAGE } from "./payments";
 import { canReview, canSellerCancel, canTransition, refundableAmount, SELLER_ORDER_TABS } from "./rules";
@@ -262,6 +263,8 @@ export async function refundOrder(user: SessionUser, orderId: string, input: unk
   return initiateRefund(orderId, { amountMinor: data.amountMinor, reason: data.reason, actorId: user.id });
 }
 
+const DISPUTED_CANCEL_MESSAGE = "Die Zahlung ist angefochten. Solange der Streitfall läuft, kann die Bestellung weder storniert noch erstattet werden – das Ergebnis wird automatisch verbucht.";
+
 /**
  * Stornierung vor dem Versand: Bestand zurückbuchen, digitale Berechtigungen widerrufen,
  * verbleibenden Betrag vollständig erstatten. Auditpflichtig.
@@ -276,6 +279,8 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
     const full = (await orderWith(tx, orderId))!;
     // App-Store-Kauf: nicht stornieren (Lizenz weg, Geld nicht zurück) – nur Apple erstattet
     if (full.payments[0]?.provider === "apple") throw fail.conflict(APPLE_REFUND_MESSAGE);
+    // Angefochten: eine Erstattung ist jetzt nicht möglich – storniert würde die Bestellung ohne Rückzahlung
+    if (full.payments[0]?.status === "DISPUTED") throw fail.conflict(DISPUTED_CANCEL_MESSAGE);
     // Genau einmal zurückbuchen (z. B. nicht erneut, wenn eine frühere Vollerstattung es schon getan hat)
     await restockOrderTx(tx, full);
     const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
@@ -311,7 +316,14 @@ export async function refundOrderByAdmin(actor: Pick<SessionUser, "id" | "role">
     const full = await orderWith(tx, orderId);
     if (!full) throw fail.notFound();
     if (full.status === "PENDING_PAYMENT") throw fail.conflict("Die Bestellung ist noch nicht bezahlt.");
+    // Vier-Augen-Prinzip: eigene Käufe bzw. den eigenen Shop erstattet eine andere Person
+    assertNotOwn(actor, full.buyerId, full.shop.ownerId);
     if (full.payments[0]?.provider === "apple") throw fail.conflict(APPLE_REFUND_MESSAGE);
+    if (full.payments[0]?.status === "DISPUTED") throw fail.conflict(DISPUTED_CANCEL_MESSAGE);
+    // Vor jeder Änderung prüfen: ohne erstattbaren Betrag weder stornieren noch Bestand/Lizenzen anfassen
+    const payment = full.payments[0];
+    const refundable = payment && ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status) ? refundableAmount(payment.amountMinor, full.refunds) : 0;
+    if (refundable <= 0) throw fail.conflict("Für diese Bestellung gibt es keinen erstattbaren Betrag mehr.");
     const shipped = (await tx.shipment.count({ where: { orderId } })) > 0;
     const cancel = canSellerCancel(full.status, shipped);
     if (cancel) {
@@ -325,11 +337,8 @@ export async function refundOrderByAdmin(actor: Pick<SessionUser, "id" | "role">
     await audit({ actorId: actor.id, action: "order.refund.admin", targetType: "Order", targetId: orderId, meta: { from: full.status, cancelled: cancel, reason: why.slice(0, 500) } }, tx);
     await notifyBuyer(tx, full, cancel ? "CANCELLED" : full.status, "Die Plattform hat die Bestellung storniert. Der Betrag wird erstattet.");
     await notifySeller(tx, full, full.shop.ownerId, cancel ? "CANCELLED" : full.status, "Die Plattform hat diese Bestellung erstattet.");
-    const payment = full.payments[0];
-    const refundable = payment && ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status) ? refundableAmount(payment.amountMinor, full.refunds) : 0;
     return { refundable, currency: full.currency };
   });
-  if (result.refundable <= 0) throw fail.conflict("Für diese Bestellung gibt es keinen erstattbaren Betrag mehr.");
   // Scheitert die Erstattung beim Anbieter, holt retryCancelledRefunds sie bei stornierten Bestellungen nach
   await initiateRefund(orderId, { amountMinor: result.refundable, reason: `Plattform: ${why}`, actorId: actor.id });
   return { refundedMinor: result.refundable, label: money(result.refundable, result.currency) };

@@ -15,13 +15,14 @@ import { EditCollectionButtons, NewCollectionButton, SavedItemControls } from "@
 import { cn } from "@/lib/utils";
 import { db } from "@/server/db";
 import { AddToShoppingList } from "@/components/materials/add-to-list";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Gespeichert", robots: { index: false } };
 
 const PARAM: Record<SavedType, string> = { POST: "beitraege", PROJECT: "projekte", TUTORIAL: "anleitungen", PRODUCT: "produkte", ARTICLE: "artikel" };
 
-export default async function SavedPage({ searchParams }: { searchParams: Promise<{ typ?: string; sammlung?: string; seite?: string }> }) {
-  const sp = await searchParams;
+export default async function SavedPage({ searchParams }: { searchParams: Promise<{ typ?: string | string[]; sammlung?: string | string[]; seite?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/gespeichert");
   const collections = await listCollections(user.id);

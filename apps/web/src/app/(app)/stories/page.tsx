@@ -6,12 +6,13 @@ import { storyArchive } from "@/server/stories/service";
 import { myHighlights } from "@/server/stories/highlights";
 import { Page, PageHeader } from "@/components/shell/page";
 import { StoryArchive } from "@/components/stories/story-archive";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Deine Stories", robots: { index: false } };
 
 /** Eigene Stories: neue Story, Archiv und Highlights fürs Profil. */
-export default async function StoriesPage({ searchParams }: { searchParams: Promise<{ neu?: string }> }) {
-  const sp = await searchParams;
+export default async function StoriesPage({ searchParams }: { searchParams: Promise<{ neu?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/stories");
   const u = user as typeof user & { profile: NonNullable<typeof user.profile> };

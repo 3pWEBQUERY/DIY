@@ -630,7 +630,7 @@ private struct BlogBlockEditor: View {
                     Divider()
                     Button("Block löschen", systemImage: "trash", role: .destructive, action: remove)
                 } label: {
-                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(width: 36, height: 30).contentShape(.rect)
+                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Blockaktionen: \(BlogBlock.label(block.type))")

@@ -67,28 +67,52 @@ async function access(ch: Awaited<ReturnType<typeof loadChallenge>>, viewer: Vie
 
 /* ───────────────────────── Lesen ───────────────────────── */
 
+/** Einreichungen je Wettbewerbsseite; `entryTotal` nennt die Gesamtzahl. */
+export const COMPETITION_ENTRY_LIMIT = 200;
+
+/**
+ * Abstimmung vorbei, aber noch nicht ausgewertet (Worker läuft alle 5 Min.): Die Phase bleibt aus
+ * Kompatibilität „ended“, Stimmenzahlen und Plätze bleiben aber bis zum Ergebnis verborgen –
+ * die Rohzahlen enthalten noch ungültige Stimmen (siehe finalizeVotes).
+ */
+export function isEvaluating(c: ChallengeRow, now = new Date()) {
+  return c.judging === "VOTES" && competitionPhase(c, now) === "ended" && !(c.resultsAt && c.resultsAt <= now);
+}
+
 export async function getCompetition(challengeId: string, viewer: Viewer) {
   const ch = await loadChallenge(challengeId).catch(() => null);
   if (!ch) return null;
   const a = await access(ch, viewer);
   if (!a.canView) return null;
-  const phase = competitionPhase(ch);
-  const entries = await db.challengeEntry.findMany({
-    where: { challengeId, state: "ACTIVE" },
-    orderBy: [{ place: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
-    select: { id: true, userId: true, projectId: true, note: true, voteCount: true, place: true, createdAt: true },
-  });
+  const now = new Date();
+  const phase = competitionPhase(ch, now);
+  const evaluating = isEvaluating(ch, now);
+  const entrySelect = { id: true, userId: true, projectId: true, note: true, voteCount: true, place: true, createdAt: true } as const;
+  const [entries, entryTotal] = await Promise.all([
+    db.challengeEntry.findMany({
+      where: { challengeId, state: "ACTIVE" },
+      orderBy: [{ place: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }, { id: "desc" }],
+      take: COMPETITION_ENTRY_LIMIT,
+      select: entrySelect,
+    }),
+    db.challengeEntry.count({ where: { challengeId, state: "ACTIVE" } }),
+  ]);
   const cards = await getProjectCards(entries.map((e) => e.projectId), viewer?.id);
   const byProject = new Map(cards.map((c) => [c.id, c]));
-  const showCounts = phase === "ended" && ch.judging === "VOTES";
+  const decided = phase === "ended" && !evaluating;
+  const showCounts = decided && ch.judging === "VOTES";
   let list = entries
-    .map((e) => ({ id: e.id, userId: e.userId, note: e.note, place: phase === "ended" ? e.place : null, votes: showCounts ? e.voteCount : null, project: byProject.get(e.projectId) ?? null, mine: e.userId === viewer?.id }))
+    .map((e) => ({ id: e.id, userId: e.userId, note: e.note, place: decided ? e.place : null, votes: showCounts ? e.voteCount : null, project: byProject.get(e.projectId) ?? null, mine: e.userId === viewer?.id }))
     .filter((e) => e.project);
   if (phase === "voting") list = shuffle(list, `${viewer?.id ?? "anon"}:${challengeId}`);
   if (phase === "ended") list.sort((x, y) => (x.place ?? 99) - (y.place ?? 99) || (y.votes ?? 0) - (x.votes ?? 0));
 
   const myVotes = viewer && ch.judging === "VOTES" ? (await db.challengeVote.findMany({ where: { challengeId, userId: viewer.id }, select: { entryId: true } })).map((v) => v.entryId) : [];
-  const myEntry = viewer ? entries.find((e) => e.userId === viewer.id) ?? null : null;
+  // Die eigene Einreichung auch dann, wenn sie ausserhalb der geladenen Liste liegt
+  const myEntry = viewer
+    ? (entries.find((e) => e.userId === viewer.id) ??
+      (entryTotal > entries.length ? await db.challengeEntry.findFirst({ where: { challengeId, userId: viewer.id, state: "ACTIVE" }, select: entrySelect }) : null))
+    : null;
   return {
     id: ch.id,
     title: ch.title,
@@ -101,8 +125,12 @@ export async function getCompetition(challengeId: string, viewer: Viewer) {
     votingEndsAt: ch.votingEndsAt,
     resultsAt: ch.resultsAt,
     phase,
+    /** Abstimmung vorbei, Ergebnis folgt (Phase bleibt „ended“). Zusätzlich, optional für Clients. */
+    evaluating,
     community: { id: ch.community.id, slug: ch.community.slug, name: ch.community.name },
     entries: list,
+    /** Alle aktiven Einreichungen; `entries` enthält höchstens COMPETITION_ENTRY_LIMIT. Zusätzlich, optional für Clients. */
+    entryTotal,
     viewer: {
       isMember: a.isMember,
       isMod: a.isMod,

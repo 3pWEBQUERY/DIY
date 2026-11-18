@@ -69,12 +69,18 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     if (h === profile.handle) return setHandleState({ status: "idle" });
     if (h.length < 3) return setHandleState({ status: "error", reason: "Mindestens 3 Zeichen" });
     setHandleState({ status: "checking" });
+    let stale = false;
     const t = setTimeout(async () => {
       const r = await callAction(() => checkHandleAction(h));
+      // Antwort zu einer inzwischen geänderten Eingabe verwerfen
+      if (stale) return;
       if (!r.ok) return setHandleState({ status: "error", reason: r.error });
       setHandleState(r.data.ok ? { status: "ok" } : { status: "error", reason: r.data.reason });
     }, 350);
-    return () => clearTimeout(t);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
   }, [handle, profile.handle]);
 
   return (
@@ -255,7 +261,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         </div>
       </SettingsSection>
 
-      <div className="sticky bottom-[4.75rem] z-10 flex items-center justify-end gap-3 rounded-2xl border border-line bg-card/95 px-4 py-3 shadow-float backdrop-blur md:bottom-4">
+      <div className="sticky bottom-[4.75rem] z-10 flex items-center justify-end gap-3 rounded-2xl border border-line bg-card/95 px-4 py-3 backdrop-blur md:bottom-4">
         <Button type="submit" variant="ink" disabled={pending || avatar.img.busy || cover.img.busy || handleState.status === "checking" || handleState.status === "error"} aria-busy={pending}>
           {pending ? "Speichert …" : "Profil speichern"}
         </Button>

@@ -117,7 +117,7 @@ struct CheckoutView: View {
             // Digitale Produkte werden in der App nicht verkauft (App Store 3.1.1) – keine Kasse dafür.
             VStack(alignment: .leading, spacing: 16) {
                 NoticeView(tone: .info, title: "Digitale Anleitungen",
-                           message: (p.digitalOnly ?? false) ? "In der App nicht erhältlich." : "Digitale Anleitungen sind in der App nicht erhältlich. Entferne sie aus dem Warenkorb, um die übrigen Artikel zu bestellen.")
+                           message: (p.digitalOnly ?? false) ? "Digitale Anleitungen kaufst du auf der Produktseite." : "Digitale Anleitungen kaufst du auf der Produktseite. Entferne sie aus dem Warenkorb, um die übrigen Artikel zu bestellen.")
                 Button("Zum Warenkorb") { router.open(.cart) }.buttonStyle(.glass)
                 Spacer()
             }

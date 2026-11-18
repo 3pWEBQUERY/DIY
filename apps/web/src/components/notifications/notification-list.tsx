@@ -84,14 +84,19 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
     g.items.push(n);
   }
 
-  async function open(n: NotificationView) {
-    if (!n.read) {
-      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-      adjustCounts({ notifications: -1 }); // Badge sofort, ohne auf den Server zu warten
-      await callAction(() => markReadAction([n.id]));
-      refreshCounts();
-    }
+  function open(n: NotificationView) {
+    // Sofort navigieren – „gelesen“ läuft im Hintergrund und wird bei einem Fehler zurückgenommen
     router.push(n.href);
+    if (n.read) return;
+    setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+    adjustCounts({ notifications: -1 }); // Badge sofort, ohne auf den Server zu warten
+    void callAction(() => markReadAction([n.id])).then((r) => {
+      if (!r.ok) {
+        setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
+        adjustCounts({ notifications: 1 });
+      }
+      refreshCounts();
+    });
   }
 
   function loadMore() {
@@ -122,7 +127,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                     onClick={(e) => {
                       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
                       e.preventDefault();
-                      void open(n);
+                      open(n);
                     }}
                     className={cn(
                       "group relative flex gap-3.5 overflow-hidden rounded-l-none rounded-r-2xl py-3.5 pl-4 pr-3 transition-colors hover:bg-sunken focus-visible:bg-sunken",

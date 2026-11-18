@@ -112,6 +112,12 @@ struct SocialPollView: View {
     private var signedIn: Bool { app.me != nil }
     private var canVote: Bool { signedIn && !poll.isEnded && poll.myVotes.isEmpty }
     private var showResults: Bool { poll.showResults == true && !canVote }
+    /// Server gibt Ergebnisse frei (z. B. für die Autorin/den Autor), obwohl noch abgestimmt werden kann →
+    /// Auswahl bleibt bedienbar, zeigt aber Anteil und Balken.
+    private var resultsWhileVoting: Bool { poll.showResults == true && canVote }
+    private func share(_ o: SocialPoll.Option) -> Double {
+        poll.voters > 0 ? Double(o.votes ?? 0) / Double(poll.voters) : 0
+    }
     private var maxVotes: Int { max(1, poll.options.map { $0.votes ?? 0 }.max() ?? 0) }
 
     var body: some View {
@@ -159,6 +165,7 @@ struct SocialPollView: View {
 
     private func choice(_ o: SocialPoll.Option) -> some View {
         let on = picked.contains(o.id)
+        let pct = Int((share(o) * 100).rounded())
         return Button {
             guard canVote else { return }
             Haptics.selection()
@@ -181,17 +188,31 @@ struct SocialPollView: View {
                 .frame(width: 18, height: 18)
                 Text(o.label).font(.wr(.subheadline)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
+                if resultsWhileVoting {
+                    Text("\(pct) %").font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink2)
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .frame(minHeight: 44)
-            .background(on ? Color.mossSoft : Color.card, in: .rect(cornerRadius: Radius.inner, style: .continuous))
+            .background(alignment: .leading) {
+                ZStack(alignment: .leading) {
+                    on ? Color.mossSoft : Color.card
+                    if resultsWhileVoting {
+                        GeometryReader { g in
+                            Rectangle().fill(Color.sunken).frame(width: g.size.width * share(o))
+                        }
+                    }
+                }
+            }
+            .clipShape(.rect(cornerRadius: Radius.inner, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).stroke(on ? Color.moss : Color.lineStrong, lineWidth: 1) }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .disabled(!canVote)
         .accessibilityAddTraits(on ? [.isSelected] : [])
+        .accessibilityValue(resultsWhileVoting ? "\(pct) Prozent" : "")
         .accessibilityHint(poll.isMultiple ? "Auswählen" : "Abstimmen")
     }
 
@@ -380,7 +401,7 @@ struct SocialPeoplePicker: View {
             .overlay { RoundedRectangle(cornerRadius: Radius.small, style: .continuous).stroke(Color.lineStrong, lineWidth: 1) }
 
             if full {
-                Text(max == 1 ? "Du kannst noch eine Person auswählen – entferne sie, um eine andere zu wählen." : "Höchstens \(max) Personen. Entferne jemanden, um eine andere Person zu wählen.")
+                Text(max == 1 ? "Eine Person ist ausgewählt – entferne sie, um eine andere zu wählen." : "Höchstens \(max) Personen. Entferne jemanden, um eine andere Person zu wählen.")
                     .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
 
@@ -584,6 +605,7 @@ struct SocialCoauthorSheet: View {
             let names = r.invited ?? []
             Haptics.success()
             app.show(r.queued == true ? "Vorgemerkt – die Einladung geht beim Veröffentlichen raus."
+                     : names.isEmpty ? "Bereits eingeladen."
                      : names.count == 1 ? "\(names[0]) wurde eingeladen." : "\(names.count) Personen wurden eingeladen.")
             selection = []
             await load()

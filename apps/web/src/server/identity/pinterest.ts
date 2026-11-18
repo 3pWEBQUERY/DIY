@@ -3,13 +3,15 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { env } from "@/server/env";
 import { db } from "@/server/db";
-import { fail, uniqueViolation } from "@/server/errors";
+import { AppError, fail, uniqueViolation } from "@/server/errors";
 import { audit } from "@/server/audit";
 import { hmac } from "@/server/crypto";
 import { slugify } from "@/lib/utils";
 import { requireFlag } from "@/server/flags";
 import { limit } from "@/server/ratelimit";
 import { clientIpHash, createSession } from "@/server/auth/session";
+import { assertReauthenticated, REAUTH_MINUTES, type ReauthProof } from "@/server/auth/reauth";
+import { warnLoginLinked } from "@/server/auth/new-device";
 import { isHandleAvailable, sendVerification } from "./service";
 
 /**
@@ -17,7 +19,9 @@ import { isHandleAvailable, sendVerification } from "./service";
  *
  * Pinterest gibt KEINE E-Mail-Adresse heraus (nur Kennung, Benutzername, Profilbild). Deshalb:
  * - Bereits verknüpft → anmelden.
- * - Angemeldet und „verbinden“ → mit dem eigenen Konto verknüpfen (Einstellungen → Konto).
+ * - Angemeldet und „verbinden“ → mit dem eigenen Konto verknüpfen (Einstellungen → Konto), nur nach
+ *   erneuter Bestätigung (beginPinterestLink): Sonst verschaffte sich, wer eine Sitzung stiehlt, mit
+ *   dem eigenen Pinterest-Konto einen dauerhaften Zugang.
  * - Neu → kurzlebiges, signiertes Cookie mit der Pinterest-Kennung; auf /registrieren/pinterest gibt die
  *   Person ihre E-Mail-Adresse an (Bestätigungslink wie bei der normalen Registrierung). Mit einem
  *   bestehenden Konto wird NIE automatisch über die E-Mail verknüpft (Pinterest hat sie nicht bestätigt →
@@ -92,6 +96,44 @@ export function decodePending(raw: string | undefined | null): PinterestPending 
   }
 }
 
+// ───────────── Verknüpfen nur nach erneuter Bestätigung ─────────────
+
+export const PINTEREST_LINK_COOKIE = "wr_pinterest_link";
+const LINK_TTL_MS = REAUTH_MINUTES * 60_000;
+// An die Sitzung gebunden: Das Cookie gilt nur für die Sitzung, die sich gerade bestätigt hat
+const signLink = (sessionId: string, exp: number) => hmac(env().SESSION_SECRET, `pinterest-link:${sessionId}:${exp}`);
+
+export type PinterestLinkStart = { ok: true; grant: string } | { ok: false; need: "password" | "fresh_login" };
+
+/**
+ * Verknüpfen beginnen: Konten mit Passwort bestätigen mit dem Passwort, Konten ohne Passwort mit einer
+ * frischen Anmeldung (assertReauthenticated). Gibt den Wert für PINTEREST_LINK_COOKIE zurück, den der
+ * Callback erneut prüft (pinterestLinkGranted). Falsches Passwort → wirft.
+ */
+export async function beginPinterestLink(userId: string, sessionId: string, proof: ReauthProof = {}): Promise<PinterestLinkStart> {
+  const u = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
+  if (u.passwordHash && !proof.password) return { ok: false, need: "password" };
+  try {
+    await assertReauthenticated(userId, sessionId, proof);
+  } catch (e) {
+    if (e instanceof AppError && e.fields?.reauth) return { ok: false, need: "fresh_login" };
+    throw e;
+  }
+  const exp = Date.now() + LINK_TTL_MS;
+  return { ok: true, grant: `${exp}.${signLink(sessionId, exp)}` };
+}
+
+/** Gilt die Bestätigung aus beginPinterestLink noch – für dieselbe Sitzung? */
+export function pinterestLinkGranted(raw: string | undefined | null, sessionId: string, now = Date.now()) {
+  if (!raw) return false;
+  const [expRaw, sig] = raw.split(".");
+  const exp = Number(expRaw);
+  if (!sig || !Number.isFinite(exp) || exp < now) return false;
+  const expected = Buffer.from(signLink(sessionId, exp));
+  const given = Buffer.from(sig);
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
+
 // ───────────── Anmelden / Verknüpfen ─────────────
 
 export type PinterestResolution =
@@ -100,7 +142,10 @@ export type PinterestResolution =
   | { kind: "taken" }
   | { kind: "signup" };
 
-/** Kennung zuordnen: anmelden, mit dem angemeldeten Konto verknüpfen oder Registrierung beginnen. */
+/**
+ * Kennung zuordnen: anmelden, mit dem angemeldeten Konto verknüpfen oder Registrierung beginnen.
+ * `currentUserId` nur nach geprüfter Bestätigung (pinterestLinkGranted) übergeben.
+ */
 export async function resolvePinterest(a: PinterestAccount, currentUserId: string | null): Promise<PinterestResolution> {
   const linked = await db.authAccount.findUnique({ where: { provider_providerAccountId: { provider: PINTEREST_PROVIDER, providerAccountId: a.sub } }, select: { userId: true } });
   if (currentUserId) {
@@ -114,6 +159,7 @@ export async function resolvePinterest(a: PinterestAccount, currentUserId: strin
       throw e;
     }
     await audit({ actorId: currentUserId, action: "account.pinterest_linked", targetType: "USER", targetId: currentUserId });
+    await warnLoginLinked(currentUserId, "Pinterest");
     return { kind: "linked", userId: currentUserId };
   }
   if (linked) return { kind: "signed_in", userId: linked.userId };

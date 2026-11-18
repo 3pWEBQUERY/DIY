@@ -184,7 +184,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                   </header>
 
                   {s.safety && (
-                    <div role="alert" className="mt-6 border border-danger/40 border-l-[3px] border-l-danger bg-danger-soft px-4 py-3 rounded-2xl">
+                    <div role="note" aria-label="Sicherheitshinweis" className="mt-6 border border-danger/40 border-l-[3px] border-l-danger bg-danger-soft px-4 py-3 rounded-2xl">
                       <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-danger">Sicherheitshinweis</span>
                         {s.safetyKinds.map((k) => (

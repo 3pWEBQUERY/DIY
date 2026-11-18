@@ -119,7 +119,7 @@ function Bubble({ m, otherName, onReport, showTime, sender, status }: { m: Messa
           )}
         </div>
         {!m.mine && !m.removed && (
-          <button type="button" onClick={onReport} className="mb-1 shrink-0 p-1 text-muted opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100" aria-label="Nachricht melden">
+          <button type="button" onClick={onReport} className="mb-1 shrink-0 p-1 text-muted opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100" aria-label="Nachricht melden">
             <Flag size={13} />
           </button>
         )}
@@ -183,7 +183,9 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
 
   // Beim Öffnen als gelesen markieren
   useEffect(() => {
-    void markReadAction(thread.id).then(() => {
+    // Netzfehler → still ignorieren (nächster Versuch beim nächsten Abruf), keine unbehandelte Ablehnung
+    void callAction(() => markReadAction(thread.id)).then((r) => {
+      if (!r.ok) return;
       refreshCounts();
       router.refresh();
     });
@@ -442,7 +444,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
           })}
         </ol>
         {newBelow && (
-          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 rounded-full bg-moss px-3.5 py-1.5 text-xs font-semibold text-paper shadow-float">
+          <button type="button" onClick={() => scrollToBottom(true)} className="sticky bottom-2 left-full ml-auto mt-2 flex items-center gap-1.5 rounded-full bg-moss px-3.5 py-1.5 text-xs font-semibold text-paper">
             <ArrowDown size={13} /> Neue Nachrichten
           </button>
         )}

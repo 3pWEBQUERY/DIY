@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboard, FileText, Medal } from "lucide-react";
-import { categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
+import { VISIBILITY_LABEL, categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
-import { isBlockedBetween, relationsFor } from "@/server/visibility";
+import { relationsFor } from "@/server/visibility";
+import { listPublicCollections } from "@/server/collections/service";
 import { listProjects } from "@/server/projects/service";
 import { listTutorials } from "@/server/tutorials/service";
 import { listPosts, byAuthorsWhere, baseFeedWhere } from "@/server/social/posts";
@@ -26,7 +27,7 @@ import { profileAwards } from "@/server/communities/competitions";
 import { ProMark } from "@/components/pro/pro-mark";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { GivenReviewList, RatingSummary, ReceivedReviewList, Stars } from "@/components/commerce/profile-reviews";
-import { cn, formatDate, compactNumber } from "@/lib/utils";
+import { cn, formatDate, compactNumber, pluralize } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
 import { features } from "@/server/env";
 import { profileSubdomainUrl } from "@/lib/subdomains";
@@ -34,8 +35,9 @@ import { publicProductWhere } from "@/server/commerce/restock";
 import { isStoryMuted, storyRing } from "@/server/stories/service";
 import { listHighlights } from "@/server/stories/highlights";
 import { ProfileHighlights, StoryAvatarLink } from "@/components/stories/profile-stories";
+import { flatSearchParams } from "@/lib/search-params";
 
-type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string; art?: string }> };
+type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string | string[]; art?: string | string[] }> };
 
 async function load(handle: string) {
   const profile = await db.userProfile.findUnique({
@@ -69,7 +71,7 @@ type Tab = (typeof TAB_KEYS)[number];
 /** Creator-Profil (UI-04, PRD §12). Nicht genutzte Bereiche werden ausgeblendet. */
 export default async function ProfilePage({ params, searchParams }: Params) {
   const { handle } = await params;
-  const sp = await searchParams;
+  const sp = flatSearchParams(await searchParams);
   const profile = await load(handle);
   if (!profile) notFound();
   const ownUrl = profileSubdomainUrl(profile.subdomain, features.profileDomain());
@@ -77,7 +79,12 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   const viewerId = viewer?.id ?? null;
   const userId = profile.userId;
   const isSelf = viewerId === userId;
-  const blocked = viewerId && !isSelf ? await isBlockedBetween(viewerId, userId) : false;
+  // Blockierung in eine der beiden Richtungen; nur wer selbst blockiert hat, kann sie hier aufheben
+  const blocks = viewerId && !isSelf
+    ? await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId, blockedId: userId }, { blockerId: userId, blockedId: viewerId }] }, select: { blockerId: true } })
+    : [];
+  const blocked = blocks.length > 0;
+  const blockedByMe = blocks.some((b) => b.blockerId === viewerId);
 
   const rel = await relationsFor(viewerId);
   const following = rel.following.includes(userId);
@@ -103,8 +110,9 @@ export default async function ProfilePage({ params, searchParams }: Params) {
         profile.user.shop?.status === "ACTIVE"
           ? db.product.findMany({ where: { shop: { ownerId: userId }, ...publicProductWhere }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
           : Promise.resolve([]),
-        db.collection.findMany({ where: { ownerId: userId, ...(isSelf ? {} : { visibility: "PUBLIC" }) }, orderBy: { updatedAt: "desc" }, include: { _count: { select: { items: true } } } }),
-        db.blogArticle.count({ where: { authorId: userId, state: "PUBLISHED" } }),
+        listPublicCollections(userId, viewerId),
+        // Wie die Blog-Liste (/u/[handle]/blog): nur veröffentlichte, bereits erschienene Artikel
+        db.blogArticle.count({ where: { authorId: userId, state: "PUBLISHED", publishedAt: { lte: new Date() }, author: { status: { in: ["ACTIVE", "SUSPENDED"] } } } }),
         viewerId && !isSelf ? db.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: viewerId } } }).then(Boolean) : Promise.resolve(false),
       ]);
 
@@ -202,12 +210,12 @@ export default async function ProfilePage({ params, searchParams }: Params) {
               <LinkButton href={`/anmelden?weiter=/u/${profile.handle}`} variant="ink">Folgen</LinkButton>
             ) : null}
             <ShareButton variant="button" url={ownUrl ?? `/u/${profile.handle}`} title={`${profile.displayName} auf ${BRAND.name}`} image={profile.avatarUrl} />
-            {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={!!blocked && false} muted={muted} storiesMuted={storiesMuted} />}
+            {viewer && !isSelf && <ProfileSafetyMenu userId={userId} name={profile.displayName} blocked={blockedByMe} muted={muted} storiesMuted={storiesMuted} />}
           </div>
         </header>
 
         {blocked ? (
-          <Empty className="my-16" title="Dieses Profil ist nicht verfügbar" body="Zwischen euch besteht eine Blockierung. Blockierungen kannst du in den Einstellungen unter Privatsphäre verwalten." />
+          <Empty className="my-16" title="Dieses Profil ist nicht verfügbar" body={blockedByMe ? "Du hast dieses Profil blockiert. Über die Profilaktionen (···) oder in den Einstellungen unter Privatsphäre kannst du die Blockierung aufheben." : "Zwischen euch besteht eine Blockierung. Blockierungen kannst du in den Einstellungen unter Privatsphäre verwalten."} />
         ) : (
           <div className="grid gap-10 py-8 lg:grid-cols-[1fr_280px]">
             <div className="min-w-0">
@@ -276,7 +284,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                             aria-current={reviewView === k ? "page" : undefined}
                             scroll={false}
                             href={`/u/${profile.handle}?tab=bewertungen${k === "abgegeben" ? "&art=abgegeben" : ""}`}
-                            className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted transition-colors hover:text-ink", reviewView === k && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}
+                            className={cn("rounded-lg px-3.5 py-1.5 font-medium text-muted transition-colors hover:text-ink", reviewView === k && "bg-card text-ink")}
                           >
                             {l}
                           </Link>
@@ -304,9 +312,9 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                   <ul className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
                     {collections.map((c) => (
                       <li key={c.id}>
-                        <Link href={`/sammlungen/${c.id}`} className="block bg-paper p-5 hover:bg-card">
+                        <Link href={c.href} className="block bg-paper p-5 hover:bg-card">
                           <p className="headline text-xl">{c.title}</p>
-                          <p className="spec mt-1">{c._count.items} Einträge · {c.visibility === "PUBLIC" ? "Öffentlich" : "Privat"}</p>
+                          <p className="spec mt-1">{pluralize(c.count, "Eintrag", "Einträge")} · {VISIBILITY_LABEL[c.visibility]}</p>
                         </Link>
                       </li>
                     ))}

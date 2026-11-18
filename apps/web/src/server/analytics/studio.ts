@@ -290,7 +290,7 @@ export async function listMedia(userId: string, filter: "all" | "unused" | "imag
       alt: true,
       attachedAt: true,
       createdAt: true,
-      _count: { select: { postMedia: true, projectMedia: true, productMedia: true, tutorialMedia: true } },
+      _count: { select: { postMedia: true, projectMedia: true, productMedia: true, tutorialMedia: true, stories: { where: { state: { not: "REMOVED" } } } } },
     },
   });
   const [covers, profile] = await Promise.all([
@@ -298,7 +298,7 @@ export async function listMedia(userId: string, filter: "all" | "unused" | "imag
     db.userProfile.findUnique({ where: { userId }, select: { avatarUrl: true, coverUrl: true } }),
   ]);
   const coverIds = new Set(covers.map((c) => c.coverMediaId));
-  const directUses = (m: (typeof rows)[number]) => m._count.postMedia + m._count.projectMedia + m._count.productMedia + m._count.tutorialMedia + (coverIds.has(m.id) ? 1 : 0);
+  const directUses = (m: (typeof rows)[number]) => m._count.postMedia + m._count.projectMedia + m._count.productMedia + m._count.tutorialMedia + m._count.stories + (coverIds.has(m.id) ? 1 : 0);
   const profileUse = (m: (typeof rows)[number]) => Object.values((m.variants ?? {}) as Record<string, string>).some((u) => u && (u === profile?.avatarUrl || u === profile?.coverUrl));
   // `attachedAt` bleibt nach dem Löschen des Inhalts gesetzt → für Medien ohne direkte Verknüpfung die
   // tatsächliche Verwendung (JSON-Felder, URL-Verweise) nachprüfen, statt sie für immer „verwendet“ zu zeigen
@@ -313,6 +313,7 @@ export async function listMedia(userId: string, filter: "all" | "unused" | "imag
       (m._count.projectMedia || coverIds.has(m.id)) && "Projekt",
       m._count.tutorialMedia && "Anleitung",
       m._count.productMedia && "Produkt",
+      m._count.stories && "Story",
       isProfile && "Profil",
     ].filter(Boolean) as string[];
     return {

@@ -2,7 +2,7 @@
 
 import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ChevronDown, Copy, Eye, Plus, Trash2 } from "lucide-react";
 import { CATEGORIES, DIFFICULTY, DIFFICULTY_LABEL, SAFETY_KINDS, SAFETY_LABEL, type SafetyKind } from "@werkraum/shared";
@@ -37,12 +37,16 @@ type StepState = {
   open: boolean;
 };
 
-const emptyStep = (open = true): StepState => ({ uid: crypto.randomUUID(), title: "", body: "", minutes: "", tip: "", safety: "", safetyKinds: [], media: [], materials: [], tools: [], open });
+/** Nur im Browser (Klick-Handler) aufrufen – im Initialzustand wären Zufallswerte ein Hydration-Mismatch. */
+const newUid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `n-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
 
+const emptyStep = (open = true, uid: string = newUid()): StepState => ({ uid, title: "", body: "", minutes: "", tip: "", safety: "", safetyKinds: [], media: [], materials: [], tools: [], open });
+
+/** Anfangszustand: deterministische Schlüssel (Server und Browser rendern identisch). */
 function fromValues(v?: Values): StepState[] {
-  if (!v?.steps.length) return [emptyStep()];
+  if (!v?.steps.length) return [emptyStep(true, "init-0")];
   return v.steps.map((s, i) => ({
-    uid: crypto.randomUUID(),
+    uid: `init-${i}-${s.stableKey ?? ""}`,
     stableKey: s.stableKey,
     title: s.title,
     body: s.body,
@@ -285,7 +289,7 @@ export function TutorialEditor({
                 onPatch={(p) => patchStep(s.uid, p)}
                 onMedia={(next) => setSteps((prev) => prev.map((x) => (x.uid === s.uid ? { ...x, media: typeof next === "function" ? next(x.media) : next } : x)))}
                 onMove={(d) => moveStep(i, d)}
-                onDuplicate={() => setSteps((prev) => [...prev.slice(0, i + 1), { ...s, uid: crypto.randomUUID(), stableKey: undefined, title: `${s.title} (Kopie)`.slice(0, 140), media: [], open: true }, ...prev.slice(i + 1)])}
+                onDuplicate={() => setSteps((prev) => [...prev.slice(0, i + 1), { ...s, uid: newUid(), stableKey: undefined, title: `${s.title} (Kopie)`.slice(0, 140), media: [], open: true }, ...prev.slice(i + 1)])}
                 onRemove={async () => steps.length > 1 && (await confirmDialog(`Schritt ${i + 1} entfernen?`)) && setSteps((prev) => prev.filter((x) => x.uid !== s.uid))}
               />
             ))}
@@ -355,7 +359,7 @@ export function TutorialEditor({
           )}
           <Checkbox label="Im Feed ankündigen" checked={shareToFeed} onChange={(e) => setShareToFeed(e.target.checked)} />
           <Button className="w-full" onClick={() => save(true)} disabled={pending || uploading}>
-            {pending ? "Veröffentlicht …" : "Jetzt veröffentlichen"}
+            {pending ? "Wird veröffentlicht …" : "Jetzt veröffentlichen"}
           </Button>
         </div>
       </Dialog>
@@ -389,7 +393,8 @@ function StepCard({
   onRemove: () => void;
 }) {
   const err = (k: string) => errors[`steps.${i}.${k}`];
-  const id = `step-${s.uid}`;
+  // DOM-ID über useId: stabil zwischen Server und Browser (Karte ist per uid geschlüsselt)
+  const id = `step-${useId().replace(/:/g, "")}`;
   const toggleIn = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const allMaterials = [...new Set([...materialNames, ...s.materials])];
   const allTools = [...new Set([...toolNames, ...s.tools])];
@@ -456,7 +461,7 @@ function StepCard({
                       maxLength={500}
                       placeholder={`Bildbeschreibung Abb. ${i + 1}.${mi + 1}`}
                       aria-label={`Bildbeschreibung für Bild ${mi + 1} in Schritt ${i + 1}`}
-                      className="h-9 w-full border border-line px-2.5 text-[13px] outline-none focus:border-moss rounded-2xl"
+                      className="h-9 w-full border border-field px-2.5 text-[13px] outline-none focus:border-moss rounded-2xl"
                     />
                   ) : null,
                 )}

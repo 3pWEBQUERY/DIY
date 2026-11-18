@@ -1,7 +1,8 @@
-export function AppleButton() {
+/** „Mit Apple fortfahren“ – `href` trägt wie beim Pinterest-Knopf ein `?weiter=` zur Rückkehr nach der Anmeldung. */
+export function AppleButton({ href = "/api/auth/apple" }: { href?: string }) {
   return (
     <a
-      href="/api/auth/apple"
+      href={href}
       className="flex h-12 w-full items-center justify-center gap-3 bg-ink text-[15px] font-semibold text-paper hover:bg-ink-2 rounded-xl"
     >
       <svg width="16" height="19" viewBox="0 0 16 19" aria-hidden fill="currentColor">

@@ -6,12 +6,13 @@ import { activeCategories, categoryOptions } from "@/server/categories/settings"
 import { Page, PageHeader } from "@/components/shell/page";
 import { Notice } from "@/components/ui/misc";
 import { ProjectEditor } from "@/components/projects/project-editor";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Neues Projekt", robots: { index: false } };
 
 /** Projekt anlegen (PRD §10.2). `?nachbau=<projectId>` startet einen Nachbau (§10.6). */
-export default async function NewProjectPage({ searchParams }: { searchParams: Promise<{ nachbau?: string; kategorie?: string }> }) {
-  const sp = await searchParams;
+export default async function NewProjectPage({ searchParams }: { searchParams: Promise<{ nachbau?: string | string[]; kategorie?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   if (!user?.profile) redirect(`/anmelden?weiter=${encodeURIComponent(`/projekte/neu${sp.nachbau ? `?nachbau=${sp.nachbau}` : ""}`)}`);
   const source = sp.nachbau ? await getRemixSource(user.id, sp.nachbau) : null;

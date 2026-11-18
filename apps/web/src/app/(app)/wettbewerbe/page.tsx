@@ -6,13 +6,14 @@ import { CompetitionCard } from "@/components/communities/competition-card";
 import { Empty, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Wettbewerbe", description: `Wettbewerbe aus den ${BRAND.name}-Communities: Projekt einreichen, abstimmen, gewinnen.` };
 export const dynamic = "force-dynamic";
 
 /** Übersicht aller laufenden, kommenden und kürzlich entschiedenen Wettbewerbe. */
-export default async function CompetitionsPage({ searchParams }: { searchParams: Promise<{ community?: string }> }) {
-  const [viewer, sp] = await Promise.all([currentUser(), searchParams]);
+export default async function CompetitionsPage({ searchParams }: { searchParams: Promise<{ community?: string | string[] }> }) {
+  const [viewer, sp] = await Promise.all([currentUser(), searchParams.then((s) => flatSearchParams(s))]);
   const all = (await listCompetitions(viewer, { includeEnded: !!sp.community })).filter((c) => !sp.community || c.community.slug === sp.community);
   const running = all.filter((c) => c.phase === "open" || c.phase === "voting" || c.phase === "jury");
   const upcoming = all.filter((c) => c.phase === "upcoming");

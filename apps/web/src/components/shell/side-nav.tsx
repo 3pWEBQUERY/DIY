@@ -386,7 +386,8 @@ export function BottomNav({ user, hide = [] }: { user: ShellUser; hide?: string[
   const items = MAIN_NAV.filter((i) => MOBILE_NAV.includes(i.href) && !hide.includes(i.href));
   return (
     <nav aria-label="Navigation" className="fixed inset-x-0 bottom-0 z-40 print:hidden border-t border-line bg-paper safe-bottom md:hidden">
-      <ul className="grid grid-cols-5">
+      {/* Spaltenzahl aus der Anzahl Einträge (ausgeblendete Punkte hinterlassen keine Lücke) */}
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, items.length)}, minmax(0, 1fr))` }}>
         {items.map((item) => {
           const href = !user && item.auth ? "/anmelden" : item.href;
           const active = isActive(pathname, item.href, item.match);

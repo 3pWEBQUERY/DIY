@@ -423,6 +423,16 @@ struct MarketPayment: Decodable, Hashable, Identifiable, Sendable {
     var applicationFeeMinor: Int?
     var failureReason: String?
     var createdAt: Date?
+
+    /// Lesbarer Name des Zahlungswegs
+    var providerLabel: String? {
+        switch provider {
+        case "apple": return "Apple (In-App-Kauf)"
+        case "stripe": return "Stripe"
+        case "simulated": return "Testmodus"
+        default: return provider
+        }
+    }
 }
 
 struct MarketRefund: Decodable, Hashable, Identifiable, Sendable {
@@ -515,6 +525,8 @@ struct MarketOrderDetail: Decodable, Hashable, Identifiable, Sendable {
     var refundedOrPending: Int { (refunds ?? []).filter { $0.status != "FAILED" }.reduce(0) { $0 + $1.amountMinor } }
     var refundable: Int { max(0, (latestPayment?.amountMinor ?? totalMinor) - refundedOrPending) }
     var isDigitalOnly: Bool { !items.isEmpty && items.allSatisfy(\.isDigital) }
+    /// In der iOS-App über Apple bezahlt (In-App-Kauf) – Erstattung nur über Apple
+    var isApplePayment: Bool { (payments ?? []).contains { $0.provider == "apple" } }
 }
 
 struct MarketBuyerOrderEnvelope: Decodable, Sendable {
@@ -595,7 +607,7 @@ struct MarketStudioProduct: Decodable, Hashable, Identifiable, Sendable {
     var count: Count?
 
     enum CodingKeys: String, CodingKey {
-        case id, slug, title, priceMinor, currency, kind, category, status, coverUrl, ratingAvg, ratingCount, publishedAt, updatedAt, viewCount, saveCount, shop, media, inventory, orderItems
+        case id, slug, title, priceMinor, currency, kind, category, status, coverUrl, ratingAvg, ratingCount, publishedAt, updatedAt, viewCount, saveCount, shop, media, hideWhenSoldOut, restockPendingCount, inventory, orderItems
         case count = "_count"
     }
 

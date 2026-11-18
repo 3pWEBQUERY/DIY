@@ -180,9 +180,17 @@ export async function deleteComment(user: SessionUser, commentId: string) {
       const other = await tx.comment.updateMany({ where: { id: commentId, state: { not: "REMOVED" } }, data: { state: "REMOVED" } });
       if (!other.count) return;
     }
-    // Antworten verschwinden mit dem Kommentar aus der Liste – also auch aus dem Zähler
-    const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: commentId, state: "PUBLISHED" } });
-    const by = (visible.count ? 1 : 0) + replies;
+    // Nur ein bisher gezählter Kommentar wird abgezogen. Antworten zählen nur, solange ihr Hauptkommentar
+    // sichtbar ist (wie in der Moderation): Verschwindet er, gehen seine sichtbaren Antworten mit aus dem Zähler;
+    // eine Antwort unter einem bereits entfernten/ausgeblendeten Hauptkommentar wurde schon abgezogen.
+    if (!visible.count) return;
+    let by = 1;
+    if (c.parentId) {
+      const parent = await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true } });
+      if (parent?.state !== "PUBLISHED") by = 0;
+    } else {
+      by += await tx.comment.count({ where: { parentId: commentId, state: "PUBLISHED" } });
+    }
     if (by) await bumpCounter(tx, c.targetType, c.targetId, "comment", -by);
   });
 }

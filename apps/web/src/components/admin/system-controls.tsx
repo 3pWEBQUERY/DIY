@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import type { ActionResult } from "@/server/errors";
 import { useAction } from "@/lib/use-action";
@@ -56,6 +56,14 @@ export function SettingControl({
   const s = useAction(save);
   const r = useAction(reset);
   const [draft, setDraft] = useState(String(value));
+  // Optimistisch auf den Standard setzen – schlägt das Zurücksetzen fehl, die vorherige Eingabe wiederherstellen
+  const resetToDefault = () => {
+    const prev = draft;
+    setDraft(String(defaultValue));
+    void r.run(settingKey).then((res) => {
+      if (!res.ok) setDraft(prev);
+    });
+  };
   if (typeof value === "boolean") {
     return (
       <div className="flex items-center justify-end gap-3">
@@ -96,10 +104,7 @@ export function SettingControl({
             size="sm"
             variant="ghost"
             disabled={r.pending || !!locked}
-            onClick={() => {
-              setDraft(String(defaultValue));
-              r.run(settingKey);
-            }}
+            onClick={resetToDefault}
           >
             Leeren
           </Button>
@@ -141,10 +146,7 @@ export function SettingControl({
           size="sm"
           variant="ghost"
           disabled={r.pending || !!locked}
-          onClick={() => {
-            setDraft(String(defaultValue));
-            r.run(settingKey);
-          }}
+          onClick={resetToDefault}
         >
           Standard ({String(defaultValue)})
         </Button>
@@ -188,11 +190,21 @@ export function FlagRollout({ flagKey, rollout, save }: { flagKey: string; rollo
 
 export function TicketStatusSelect({ id, status, options, action }: { id: string; status: string; options: { value: string; label: string }[]; action: (id: string, status: string) => Promise<ActionResult<unknown>> }) {
   const { run, pending } = useAction(action);
+  // Kontrolliert: zeigt den gespeicherten Status; bei Fehler zurück auf den vorherigen Wert
+  const [current, setCurrent] = useState(status);
+  useEffect(() => setCurrent(status), [status]);
   return (
     <Select
-      defaultValue={status}
+      value={current}
       disabled={pending}
-      onChange={(e) => run(id, e.target.value)}
+      onChange={(e) => {
+        const prev = current;
+        const next = e.target.value;
+        setCurrent(next);
+        void run(id, next).then((res) => {
+          if (!res.ok) setCurrent(prev);
+        });
+      }}
       aria-label="Status ändern"
       className="h-9 w-auto min-w-[150px] text-[13px]"
     >

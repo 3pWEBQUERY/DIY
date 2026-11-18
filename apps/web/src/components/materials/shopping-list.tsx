@@ -69,6 +69,8 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
     }
   };
 
+  // Neu-Einhängen der unkontrollierten Mengenfelder nach einem Rollback (sonst bliebe der ungespeicherte Wert stehen)
+  const [rev, setRev] = useState<Record<string, number>>({});
   const patch = (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => {
     const before = items.find((x) => x.id === id);
     if (!before) return;
@@ -86,6 +88,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
             return back;
           }),
         );
+        if ("quantity" in p) setRev((m) => ({ ...m, [id]: (m[id] ?? 0) + 1 }));
         toast(r.error, "error");
       }
     });
@@ -229,7 +232,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
             if (!qty && s.unit) setQty(`1 ${s.unit}`);
           }}
         />
-        <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={40} placeholder="Menge" aria-label="Menge" className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl" />
+        <input value={qty} onChange={(e) => setQty(e.target.value)} maxLength={40} placeholder="Menge" aria-label="Menge" className="h-10 w-full border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl" />
         <Button type="submit" disabled={pending || !name.trim()}>Hinzufügen</Button>
       </form>
 
@@ -237,11 +240,11 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
         <p className="py-10 text-center text-sm text-muted">Die Liste ist leer. Füge Positionen hinzu oder übernimm die Materialliste eines Projekts.</p>
       ) : (
         <>
-          <ItemTable items={open} onPatch={patch} onRemove={remove} />
+          <ItemTable items={open} rev={rev} onPatch={patch} onRemove={remove} />
           {done.length > 0 && (
             <>
               <p className="spec mt-10 border-b border-line pb-2">Erledigt · {done.length}</p>
-              <ItemTable items={done} onPatch={patch} onRemove={remove} muted />
+              <ItemTable items={done} rev={rev} onPatch={patch} onRemove={remove} muted />
             </>
           )}
         </>
@@ -281,7 +284,7 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
   );
 }
 
-function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch: (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => void; onRemove: (id: string) => void; muted?: boolean }) {
+function ItemTable({ items, rev, onPatch, onRemove, muted }: { items: Item[]; rev: Record<string, number>; onPatch: (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => void; onRemove: (id: string) => void; muted?: boolean }) {
   const [stocked, setStocked] = useState<Set<string>>(new Set());
   const [busy, start] = useTransition();
   if (!items.length) return null;
@@ -305,12 +308,13 @@ function ItemTable({ items, onPatch, onRemove, muted }: { items: Item[]; onPatch
             {(it.sourceTitle || it.category) && <p className="spec truncate">{[it.category, it.sourceTitle && `aus ${it.sourceTitle}`].filter(Boolean).join(" · ")}</p>}
           </div>
           <input
+            key={`q-${rev[it.id] ?? 0}`}
             defaultValue={it.quantity}
             onBlur={(e) => e.target.value.trim() !== it.quantity && onPatch(it.id, { quantity: e.target.value.trim() })}
             maxLength={40}
             aria-label={`Menge für ${it.name}`}
             placeholder="Menge"
-            className="col-start-2 h-9 w-full border border-line bg-card px-2 text-[13px] outline-none hover:border-line-strong focus:border-moss sm:col-start-auto print:border-0 rounded-2xl"
+            className="col-start-2 h-9 w-full border border-field bg-card px-2 text-[13px] outline-none hover:border-muted focus:border-moss sm:col-start-auto print:border-0 rounded-2xl"
           />
           <div className="col-start-3 row-start-1 flex items-center gap-1 sm:col-start-auto sm:row-start-auto print:hidden">
             <ToggleChip active={it.haveIt} onClick={() => onPatch(it.id, { haveIt: !it.haveIt })} label="Habe ich" />

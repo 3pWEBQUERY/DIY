@@ -12,6 +12,7 @@ import { getCustomerDetails } from "@/server/account/customer";
 import { CustomerDetailsForm } from "@/components/settings/customer-details-form";
 import { UnlinkPinterestButton } from "@/components/settings/pinterest-link";
 import { features } from "@/server/env";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Konto & Daten" };
 
@@ -21,8 +22,8 @@ const PINTEREST_NOTICE: Record<string, { tone: "moss" | "warn" | "danger"; text:
   fehler: { tone: "danger", text: "Die Verbindung mit Pinterest ist fehlgeschlagen oder wurde abgebrochen. Bitte versuche es erneut." },
 };
 
-export default async function AccountSettingsPage({ searchParams }: { searchParams: Promise<{ pinterest?: string }> }) {
-  const sp = await searchParams;
+export default async function AccountSettingsPage({ searchParams }: { searchParams: Promise<{ pinterest?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const pinterestNotice = sp.pinterest ? PINTEREST_NOTICE[sp.pinterest] : undefined;
   const user = await requirePageUser("/einstellungen/konto", { allowSuspended: true });
   const [a, details, session] = await Promise.all([accountOverview(user.id), getCustomerDetails(user.id), getSession()]);

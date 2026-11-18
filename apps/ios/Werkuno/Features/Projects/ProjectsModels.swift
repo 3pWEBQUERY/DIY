@@ -410,3 +410,9 @@ extension Array where Element == ProjectsLineValue {
         })
     }
 }
+
+extension Notification.Name {
+    /// Projekt angelegt, bearbeitet, Status geändert, Eintrag ergänzt oder gelöscht (`object`: Projekt-ID, optional).
+    /// Hält z. B. die Werkbank-Leiste über der Tab-Leiste aktuell.
+    static let projectsChanged = Notification.Name("werkuno.projectsChanged")
+}

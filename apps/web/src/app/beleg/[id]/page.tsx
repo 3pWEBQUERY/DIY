@@ -57,7 +57,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           <div>
             <p className="spec mb-2">Verkäufer</p>
             <p className="text-[14px] font-semibold">{o.shop.sellerType === "BUSINESS" && v?.businessName ? v.businessName : o.shop.name}</p>
-            {v && (
+            {/* Privatverkäufer:innen: nur Shopname – Name und Wohnadresse werden nicht gezeigt (Datenschutzerklärung) */}
+            {v && o.shop.sellerType === "BUSINESS" && (
               <address className="not-italic text-[13.5px] leading-relaxed text-ink-2">
                 {v.legalName && <span className="block">{v.legalName}</span>}
                 {v.addressLine && <span className="block">{v.addressLine}</span>}

@@ -4,12 +4,13 @@ import { currentUser, getPendingMfaSession } from "@/server/auth/session";
 import { maskEmail } from "@/server/admin/guard";
 import { safeNext } from "@/lib/safe-next";
 import { MfaForm } from "./mfa-form";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Zwei-Faktor-Anmeldung", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default async function MfaPage({ searchParams }: { searchParams: Promise<{ weiter?: string }> }) {
-  const sp = await searchParams;
+export default async function MfaPage({ searchParams }: { searchParams: Promise<{ weiter?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const next = safeNext(sp.weiter, "/feed")!;
   if (await currentUser()) redirect(next);
   const pending = await getPendingMfaSession();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Camera } from "lucide-react";
 import { CATEGORIES, categoryBySlug, listCategories } from "@werkraum/shared";
@@ -129,7 +130,8 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
 
           {step === 1 && (
             <ul className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3 rounded-2xl overflow-hidden">
-              {listCategories({ activeOnly: true }).filter((c) => c.isActive || data.interests.includes(c.slug)).map((c) => {
+              {/* Alle Kategorien laden: deaktivierte bleiben sichtbar (und abwählbar), solange sie gewählt sind */}
+              {listCategories().filter((c) => c.isActive || data.interests.includes(c.slug)).map((c) => {
                 const on = data.interests.includes(c.slug);
                 return (
                   <li key={c.slug}>
@@ -241,13 +243,13 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                 ["/entdecken", "Erst einmal stöbern", "Projekte, Anleitungen und Creator entdecken."],
                 ["/feed", "Zum Feed", "Sehen, was in deinen Werkstätten passiert."],
               ].map(([href, t, b], i) => (
-                <button key={href} type="button" onClick={() => router.push(href)} className="group bg-paper p-6 text-left hover:bg-card">
+                <Link key={href} href={href} className="group block bg-paper p-6 text-left hover:bg-card">
                   <span className="font-mono text-xs text-clay">{pad(i + 1)}</span>
                   <span className="mt-4 flex items-center justify-between text-lg font-semibold">
                     {t} <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                   </span>
                   <span className="mt-1 block text-sm text-muted">{b}</span>
-                </button>
+                </Link>
               ))}
             </div>
           )}

@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/server/db";
+import { db, type Prisma } from "@/server/db";
 import { getSetting } from "@/server/settings";
 import { holdState, scaleSettlement, sellerShare, type HoldConfig } from "./escrow-rules";
 import { paymentsMode, sellerSettlement, transferSettlement } from "./stripe";
@@ -31,40 +31,64 @@ export type HeldOrder = {
   apple: { transferId: string | null } | null;
 };
 
+/** Kandidaten seitenweise laden; über HELD_SCAN_MAX hinaus gilt der Rest als unbekannt (alles zurückhalten). */
+const HELD_PAGE = 1000;
+const HELD_SCAN_MAX = 20_000;
+
 /** Bezahlte Bestellungen des Shops, deren Erlös noch zurückgehalten wird. */
 export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }, now: Date = new Date()): Promise<HeldOrder[]> {
+  return (await scanHeldOrders(shop, now)).orders;
+}
+
+async function scanHeldOrders(shop: { id: string; payoutHoldWaived: boolean }, now: Date): Promise<{ orders: HeldOrder[]; truncated: boolean }> {
   const cfg = await holdConfig(shop);
   const since = new Date(now.getTime() - (cfg.holdDays + 1) * 86_400_000);
-  // Kandidaten: alles Offene plus kürzlich Abgeschlossene (ältere Abschlüsse sind sicher frei)
-  const orders = await db.order.findMany({
-    where: {
-      shopId: shop.id,
-      paidAt: { not: null },
-      OR: [{ status: { in: ["NEW", "IN_PROGRESS", "READY_TO_SHIP", "SHIPPED", "PROBLEM"] } }, { status: "COMPLETED", completedAt: { gte: since } }, { payments: { some: { status: "DISPUTED" } } }],
-      // Testkäufe (Apple Sandbox) bringen kein Geld aufs Konto – nichts zurückhalten
-      AND: [REAL_ORDER],
-    },
-    select: {
-      id: true,
-      number: true,
-      status: true,
-      currency: true,
-      paidAt: true,
-      shippedAt: true,
-      completedAt: true,
-      totalMinor: true,
-      platformFeeMinor: true,
-      refunds: { where: { status: "SUCCEEDED" }, select: { amountMinor: true } },
-      payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, provider: true, providerRef: true, sellerAmountMinor: true, sellerCurrency: true } },
-      appStorePurchase: { select: { transferId: true, transferStatus: true } },
-    },
-    take: 2000,
-  });
+  // Kandidaten: alles Offene plus kürzlich Abgeschlossene (ältere Abschlüsse sind sicher frei), dazu
+  // Storniertes/Erstattetes, dessen Zahlung noch nicht vollständig zurückerstattet ist
+  const where = {
+    shopId: shop.id,
+    paidAt: { not: null },
+    OR: [
+      { status: { in: ["NEW", "IN_PROGRESS", "READY_TO_SHIP", "SHIPPED", "PROBLEM"] } },
+      { status: "COMPLETED", completedAt: { gte: since } },
+      { payments: { some: { status: "DISPUTED" } } },
+      { status: { in: ["CANCELLED", "REFUNDED"] }, payments: { some: { status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] } } } },
+    ],
+    // Testkäufe (Apple Sandbox) bringen kein Geld aufs Konto – nichts zurückhalten
+    AND: [REAL_ORDER],
+  } satisfies Prisma.OrderWhereInput;
+  const select = {
+    id: true,
+    number: true,
+    status: true,
+    currency: true,
+    paidAt: true,
+    shippedAt: true,
+    completedAt: true,
+    totalMinor: true,
+    platformFeeMinor: true,
+    refunds: { where: { status: "SUCCEEDED" }, select: { amountMinor: true } },
+    payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, provider: true, providerRef: true, amountMinor: true, sellerAmountMinor: true, sellerCurrency: true } },
+    appStorePurchase: { select: { transferId: true, transferStatus: true } },
+  } satisfies Prisma.OrderSelect;
+  const orders: Prisma.OrderGetPayload<{ select: typeof select }>[] = [];
+  let truncated = false;
+  for (let cursor: string | null = null; ; ) {
+    const page: Prisma.OrderGetPayload<{ select: typeof select }>[] = await db.order.findMany({ where, select, orderBy: { id: "asc" }, take: HELD_PAGE, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
+    orders.push(...page);
+    if (page.length < HELD_PAGE) break;
+    if (orders.length >= HELD_SCAN_MAX) {
+      truncated = true;
+      break;
+    }
+    cursor = page[page.length - 1]!.id;
+  }
   const out: HeldOrder[] = [];
   for (const o of orders) {
     const p = o.payments[0];
     const refundedMinor = o.refunds.reduce((s, r) => s + r.amountMinor, 0);
-    const h = { ...o, refundedMinor, disputed: p?.status === "DISPUTED" };
+    const refundOpen = !!p && (p.status === "SUCCEEDED" || p.status === "PARTIALLY_REFUNDED") && (p.amountMinor ?? o.totalMinor) - refundedMinor > 0;
+    const h = { ...o, refundedMinor, disputed: p?.status === "DISPUTED", refundOpen };
     const state = holdState(h, cfg, now);
     if (!state.held) continue;
     out.push({
@@ -81,7 +105,7 @@ export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }
       apple: p?.provider === "apple" ? { transferId: o.appStorePurchase?.transferStatus === "SENT" ? o.appStorePurchase.transferId : null } : null,
     });
   }
-  return out;
+  return { orders: out, truncated };
 }
 
 /**
@@ -91,9 +115,10 @@ export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }
  * zurückgehalten (`unknown`) – lieber später auszahlen als zu früh.
  */
 export async function heldAmount(shop: { id: string; currency: string; stripeAccountId: string | null; payoutHoldWaived: boolean }, balanceCurrency: string, now: Date = new Date()) {
-  const held = await heldOrders(shop, now);
+  const { orders: held, truncated } = await scanHeldOrders(shop, now);
   let sum = 0;
-  let unknown = false;
+  // Nicht alle Kandidaten geprüft → lieber gar nichts als zu viel auszahlen
+  let unknown = truncated;
   for (const o of held) {
     // Apple-Kauf noch nicht überwiesen → der Anteil liegt (noch) nicht im Guthaben, nichts zurückhalten
     if (o.apple && !o.apple.transferId) continue;

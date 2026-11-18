@@ -57,6 +57,8 @@ export async function exportUserData(userId: string) {
         id: true, slug: true, name: true, tagline: true, description: true, country: true, currency: true, shippingPolicy: true, returnPolicy: true, processingDays: true, status: true, createdAt: true,
         products: { select: { id: true, slug: true, title: true, description: true, priceMinor: true, currency: true, status: true, createdAt: true } },
         orders: { select: { id: true, number: true, status: true, totalMinor: true, currency: true, createdAt: true, paidAt: true } },
+        verification: { select: { state: true, legalName: true, businessName: true, vatId: true, addressLine: true, postalCode: true, city: true, country: true, reviewedAt: true, createdAt: true, updatedAt: true } },
+        payouts: { orderBy: { createdAt: "desc" }, select: { amountMinor: true, currency: true, status: true, arrivalAt: true, automatic: true, failureMessage: true, createdAt: true } },
       },
     }),
     db.order.findMany({ where: { buyerId: userId }, include: { items: true, shipments: true, refunds: { select: { amountMinor: true, status: true, createdAt: true } } } }),
@@ -73,6 +75,18 @@ export async function exportUserData(userId: string) {
     db.storyHighlight.findMany({ where: { ownerId: userId }, select: { id: true, title: true, createdAt: true, items: { orderBy: { position: "asc" }, select: { storyId: true } } } }),
   ]);
 
+  const [appStorePurchases, restockRequests, handleRedirects, analyticsEvents] = await Promise.all([
+    db.appStorePurchase.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { productId: true, appleProductId: true, priceMinor: true, currency: true, status: true, transactionId: true, environment: true, storefront: true, orderId: true, createdAt: true, completedAt: true, revokedAt: true },
+    }),
+    db.restockRequest.findMany({ where: { userId }, select: { productId: true, note: true, createdAt: true, notifiedAt: true } }),
+    db.handleRedirect.findMany({ where: { userId }, select: { oldHandle: true, createdAt: true } }),
+    // Eigene Nutzungsereignisse (Aufrufe, Interaktionen) – die jüngsten 5000
+    db.analyticsEvent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 5000, select: { name: true, targetType: true, targetId: true, props: true, createdAt: true } }),
+  ]);
+
   const [reports, appeals, tickets, notifications] = await Promise.all([
     db.report.findMany({ where: { reporterId: userId }, select: { targetType: true, targetId: true, reason: true, details: true, createdAt: true } }),
     db.appeal.findMany({ where: { userId }, select: { caseId: true, statement: true, decision: true, createdAt: true, decidedAt: true } }),
@@ -83,12 +97,13 @@ export async function exportUserData(userId: string) {
   return {
     exportedAt: new Date().toISOString(),
     hinweis: `Datenauskunft von ${BRAND.name}. Nicht enthalten: Passwort, Zwei-Faktor-Schlüssel und Zugangstokens (aus Sicherheitsgründen) sowie Inhalte anderer Personen.`,
-    konto: { user, preference, customerDetails, subscription, sessions, devices, loginProviders: authAccounts },
+    konto: { user, preference, customerDetails, subscription, sessions, devices, loginProviders: authAccounts, previousHandles: handleRedirects },
     inhalte: { posts, coauthorships, projects, contributions, tutorials, tutorialProgress, articles, comments, reactions, pollVotes, media, stories, storyViews, highlights },
     netzwerk: { following: follows, followerCount: followers, blocks, mutes, memberships, eventAttendance, challengeEntries, challengeVotes },
     sammlungen: { bookmarks, collections, shoppingLists, materialStock },
     nachrichten: { messages, conversations },
-    marktplatz: { shop, orders, reviews, entitlements },
+    marktplatz: { shop, orders, reviews, entitlements, appStorePurchases, restockRequests },
+    nutzung: analyticsEvents,
     verfahren: { reports, appeals, supportTickets: tickets },
     benachrichtigungen: notifications,
   };

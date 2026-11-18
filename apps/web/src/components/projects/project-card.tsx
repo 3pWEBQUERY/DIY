@@ -34,7 +34,7 @@ function Difficulty({ level }: { level: number }) {
   );
 }
 
-const chip = "inline-flex h-6 items-center gap-1.5 rounded-full bg-card/92 px-2.5 text-[11.5px] font-medium leading-none text-ink shadow-[0_1px_2px_rgb(0_0_0/0.08)] backdrop-blur-sm";
+const chip = "inline-flex h-6 items-center gap-1.5 rounded-full bg-card/92 px-2.5 text-[11.5px] font-medium leading-none text-ink ring-1 ring-line backdrop-blur-sm";
 
 /**
  * Projektkarte (Profil, Entdecken, Suche, Sammlungen): Das Bild ist die Karte – mit Status,

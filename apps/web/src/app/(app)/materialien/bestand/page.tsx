@@ -4,11 +4,13 @@ import { requirePageUser } from "@/server/auth/session";
 import { listStock } from "@/server/materials/stock";
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { StockManager } from "@/components/materials/stock";
+import { isSuspended, SuspendedNotice } from "@/app/(app)/_components/suspended";
 
 export const metadata: Metadata = { title: "Mein Bestand", robots: { index: false } };
 
 export default async function StockPage() {
-  const user = await requirePageUser("/materialien/bestand");
+  const user = await requirePageUser("/materialien/bestand", { allowSuspended: true });
+  const suspended = isSuspended(user);
   const entries = await listStock(user.id);
   return (
     <Page width="wide">
@@ -31,7 +33,11 @@ export default async function StockPage() {
           { key: "listen", label: "Einkaufslisten", href: "/einkaufslisten" },
         ]}
       />
-      <StockManager initial={entries} />
+      {suspended && <SuspendedNotice until={user.suspendedUntil} className="mb-8" />}
+      {/* Gesperrte Konten dürfen ihren Bestand sehen, Änderungen lehnt der Server ab */}
+      <fieldset disabled={suspended} className="contents">
+        <StockManager initial={entries} />
+      </fieldset>
     </Page>
   );
 }

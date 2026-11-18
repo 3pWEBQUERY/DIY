@@ -19,13 +19,18 @@ export type HoldOrder = {
   platformFeeMinor: number;
   refundedMinor: number;
   disputed: boolean;
+  /** Zahlung eingegangen, aber (noch) nicht vollständig erstattet – Erstattung offen, gescheitert oder zurückgestellt */
+  refundOpen?: boolean;
 };
 
 export type HoldConfig = { holdDays: number; autoCompleteDays: number; waived: boolean };
 
 /** Zurückgehalten? Und ab wann voraussichtlich frei (null = erst nach Abschluss bzw. Klärung). */
 export function holdState(o: HoldOrder, cfg: HoldConfig, now: Date = new Date()): { held: boolean; releaseAt: Date | null } {
-  if (!o.paidAt || o.status === "PENDING_PAYMENT" || o.status === "CANCELLED" || o.status === "REFUNDED") return { held: false, releaseAt: null };
+  if (!o.paidAt || o.status === "PENDING_PAYMENT") return { held: false, releaseAt: null };
+  // Storniert/erstattet: erst frei, wenn das Geld tatsächlich zurück ist – solange eine Erstattung offen,
+  // gescheitert oder zurückgestellt ist bzw. die Zahlung angefochten ist, haftet sonst die Plattform
+  if (o.status === "CANCELLED" || o.status === "REFUNDED") return o.disputed || o.refundOpen ? { held: true, releaseAt: null } : { held: false, releaseAt: null };
   // Angefochtene Zahlungen und Problemfälle nie auszahlen, auch nicht bei erlassener Frist
   if (o.disputed || o.status === "PROBLEM") return { held: true, releaseAt: null };
   if (cfg.waived) return { held: false, releaseAt: null };

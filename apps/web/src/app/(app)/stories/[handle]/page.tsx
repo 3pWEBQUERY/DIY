@@ -3,14 +3,15 @@ import { currentUser } from "@/server/auth/session";
 import { storyGroup, storySequence } from "@/server/stories/service";
 import { StoryViewer } from "@/components/stories/story-viewer";
 import { StoryGone } from "@/components/stories/story-gone";
+import { flatSearchParams } from "@/lib/search-params";
 
-type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ story?: string }> };
+type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ story?: string | string[] }> };
 
 export const metadata: Metadata = { title: "Stories", robots: { index: false, follow: false } };
 
 /** Story-Betrachter im Vollbild – vom Story-Kreis, vom Profil oder per geteiltem Link. */
 export default async function StoryPage({ params, searchParams }: Params) {
-  const [{ handle }, sp, user] = await Promise.all([params, searchParams, currentUser()]);
+  const [{ handle }, sp, user] = await Promise.all([params, searchParams.then((s) => flatSearchParams(s)), currentUser()]);
   const [group, sequence] = await Promise.all([storyGroup(user?.id ?? null, handle, { focusId: sp.story ?? null }), storySequence(user, handle)]);
   if (!group) return <StoryGone handle={handle} />;
   return (

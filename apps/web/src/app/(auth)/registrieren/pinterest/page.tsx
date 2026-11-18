@@ -28,7 +28,12 @@ export default async function PinterestSignUpPage() {
       <p className="spec mb-3">Fast geschafft · ab 18 Jahren</p>
       <h1 className="display text-5xl">Konto erstellen</h1>
       <p className="mt-3 text-muted">
-        Du bist bei Pinterest als <strong className="text-ink">{pending.username ? `@${pending.username}` : "angemeldet"}</strong> angemeldet. Pinterest gibt keine E-Mail-Adresse weiter – wir brauchen sie für Bestellbestätigungen und Sicherheitshinweise.
+        {pending.username ? (
+          <>Du bist bei Pinterest als <strong className="text-ink">@{pending.username}</strong> angemeldet.</>
+        ) : (
+          <>Du bist bei Pinterest angemeldet.</>
+        )}{" "}
+        Pinterest gibt keine E-Mail-Adresse weiter – wir brauchen sie für Bestellbestätigungen und Sicherheitshinweise.
       </p>
       <PinterestSignUpForm suggestedName={pending.username} />
     </>

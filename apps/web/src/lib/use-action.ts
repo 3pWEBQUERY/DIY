@@ -78,15 +78,22 @@ export function useAction<A extends unknown[], T>(
   return { run, pending, fields, error, setError };
 }
 
-/** FormData → Objekt (inkl. Checkboxen & Mehrfachwerte mit `name[]`). */
+/**
+ * FormData → Objekt (inkl. Checkboxen & Mehrfachwerte mit `name[]`).
+ * Nur Checkboxen ohne eigenes `value` („on“) werden zu `true` – ein Textfeld mit dem Inhalt „on“ bleibt Text.
+ * Bei reinem FormData (ohne Formular) ist der Feldtyp unbekannt: dann bleibt „on“ ein String.
+ */
 export function formToObject(form: HTMLFormElement | FormData) {
-  const fd = form instanceof FormData ? form : new FormData(form);
+  const el = form instanceof FormData ? null : form;
+  const fd = el ? new FormData(el) : (form as FormData);
+  const checkboxes = new Set<string>();
+  if (el) for (const c of Array.from(el.elements)) if (c instanceof HTMLInputElement && c.type === "checkbox" && c.name) checkboxes.add(c.name);
   const out: Record<string, unknown> = {};
   for (const [k, v] of fd.entries()) {
     if (k.endsWith("[]")) {
       const key = k.slice(0, -2);
       (out[key] as unknown[] | undefined) ? (out[key] as unknown[]).push(v) : (out[key] = [v]);
-    } else if (v === "on") out[k] = true;
+    } else if (v === "on" && checkboxes.has(k)) out[k] = true;
     else out[k] = v;
   }
   return out;

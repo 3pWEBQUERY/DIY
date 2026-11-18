@@ -11,13 +11,14 @@ import { Notice, SectionTitle } from "@/components/ui/misc";
 import { BRAND } from "@/config/brand";
 import { formatDate } from "@/lib/utils";
 import { AppealForm } from "./appeal-form";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Einspruch", robots: { index: false } };
 
 /** Einspruch gegen eine Moderationsentscheidung (PRD §24.1 Nr. 7) – nur für die betroffene Person. */
-export default async function AppealPage({ params, searchParams }: { params: Promise<{ caseId: string }>; searchParams: Promise<{ t?: string }> }) {
+export default async function AppealPage({ params, searchParams }: { params: Promise<{ caseId: string }>; searchParams: Promise<{ t?: string | string[] }> }) {
   const { caseId } = await params;
-  const { t } = await searchParams;
+  const { t } = flatSearchParams(await searchParams);
   const user = await currentUser();
   // Ohne Anmeldung (z. B. dauerhaft gesperrtes Konto): signierter Link aus der Moderationsmail
   const userId = user?.id ?? (await resolveAppealUser(caseId, t));

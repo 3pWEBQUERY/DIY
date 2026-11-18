@@ -103,7 +103,7 @@ export function MarqueeGroup({ children, label, className, dark = false }: { chi
             aria-pressed={paused}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold transition-colors",
-              dark ? "border-white/20 text-paper/70 hover:border-white/40 hover:text-paper" : "border-line-strong bg-card text-muted shadow-xs hover:border-rule-strong hover:text-ink",
+              dark ? "border-white/20 text-paper/70 hover:border-white/40 hover:text-paper" : "border-line-strong bg-card text-muted hover:border-rule-strong hover:text-ink",
             )}
           >
             {paused ? <Play size={12} aria-hidden /> : <Pause size={12} aria-hidden />}

@@ -121,7 +121,8 @@ export async function updateProfile(user: U, input: unknown) {
     });
     // Interessen (Feed) und kreative Kategorien (Profil) bleiben synchron
     await tx.userPreference.upsert({ where: { userId: user.id }, create: { userId: user.id, interests: d.categories }, update: { interests: d.categories } });
-    if (handleChanged) await audit({ actorId: user.id, action: "account.handle_changed", targetType: "USER", targetId: user.id, meta: { from: current.handle, to: d.handle } }, tx);
+    // Ohne alte/neue Handles: das Audit-Protokoll ist unveränderlich und überdauert eine Kontolöschung
+    if (handleChanged) await audit({ actorId: user.id, action: "account.handle_changed", targetType: "USER", targetId: user.id }, tx);
   });
   return { handle: d.handle, handleChanged };
 }
@@ -184,12 +185,15 @@ export async function revokeOtherSessions(user: U, currentSessionId: string) {
 }
 
 export async function securityEvents(userId: string) {
-  return db.notification.findMany({
+  const rows = await db.notification.findMany({
     where: { recipientId: userId, type: "SECURITY" },
     orderBy: { createdAt: "desc" },
-    take: 12,
+    take: 36,
     select: { id: true, data: true, createdAt: true, readAt: true },
   });
+  // Pro-Hinweise laufen (noch) als SECURITY ohne eigenen Typ – gehören aber nicht ins Sicherheitsprotokoll.
+  // In JS gefiltert: ein JSON-NOT in SQL schlösse Einträge ohne „kind“ ebenfalls aus (NULL-Vergleich).
+  return rows.filter((r) => (r.data as { kind?: unknown } | null)?.kind !== "PRO").slice(0, 12);
 }
 
 /* ───────────── Benachrichtigungen ───────────── */

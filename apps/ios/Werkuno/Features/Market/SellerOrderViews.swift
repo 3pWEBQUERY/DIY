@@ -208,7 +208,8 @@ struct SellerOrderDetailView: View {
         let generic = next.filter { ["IN_PROGRESS", "READY_TO_SHIP", "COMPLETED", "PROBLEM"].contains($0) }
         let canShip = next.contains("SHIPPED")
         let canCancel = next.contains("CANCELLED") && (o.shipments ?? []).isEmpty && o.status != "PENDING_PAYMENT"
-        let canRefund = o.isPaid && o.refundable > 0
+        // Apple-Käufe erstattet nur Apple (Antrag der Käufer:in bei Apple) – kein „Erstatten“ hier
+        let canRefund = o.isPaid && o.refundable > 0 && !o.isApplePayment
         let primary: String? = generic.first { $0 != "PROBLEM" } ?? (canShip ? "SHIPPED" : nil)
         let secondary = generic.filter { $0 != primary }
         if primary != nil || !secondary.isEmpty || canShip || canCancel || canRefund {

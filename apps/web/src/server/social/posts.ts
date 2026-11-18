@@ -21,7 +21,7 @@ export const postInclude = {
   product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, hideWhenSoldOut: true, shop: { select: { slug: true, name: true, status: true } } } },
   article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
-  coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
+  coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
   poll: { select: { id: true, endsAt: true, multiple: true, voterCount: true, options: { orderBy: { position: "asc" }, select: { id: true, label: true, voteCount: true } } } },
   repostOf: {
     select: {
@@ -78,7 +78,8 @@ function toView(p: PostRow, viewer: ViewerState) {
     publishedAt: p.publishedAt.toISOString(),
     editedAt: p.editedAt?.toISOString() ?? null,
     author: { id: p.author.id, handle: p.author.profile?.handle ?? "unbekannt", displayName: p.author.profile?.displayName ?? "Unbekannt", avatarUrl: p.author.profile?.avatarUrl ?? null },
-    coauthors: p.coauthors.filter((c) => c.user.profile).map((c) => ({ id: c.user.id, handle: c.user.profile!.handle, displayName: c.user.profile!.displayName, avatarUrl: c.user.profile!.avatarUrl })),
+    // Wie beim Repost-Original: keine blockierten bzw. blockierenden Personen, keine gesperrten (BANNED) oder gelöschten Konten
+    coauthors: p.coauthors.filter((c) => c.user.profile && !viewer.blocked?.has(c.user.id) && (c.user.status === "ACTIVE" || c.user.status === "SUSPENDED")).map((c) => ({ id: c.user.id, handle: c.user.profile!.handle, displayName: c.user.profile!.displayName, avatarUrl: c.user.profile!.avatarUrl })),
     media: p.media
       .filter((m) => m.media.state === "READY" || m.media.state === "PROCESSING")
       .map((m) => ({ id: m.mediaId, alt: m.alt, kind: m.media.kind, variants: m.media.variants as Record<string, string>, width: m.media.width, height: m.media.height })),
@@ -522,11 +523,11 @@ export async function votePoll(user: SessionUser, postId: string, optionIds: str
   return view?.poll ?? null;
 }
 
-/** Beendete Umfragen: Autor:in benachrichtigen (Worker, minütlich). */
+/** Beendete Umfragen: Autor:in benachrichtigen (Worker, minütlich). Nur veröffentlichte Beiträge – Entwürfe laufen erst ab der Veröffentlichung. */
 export async function notifyEndedPolls() {
-  const ended = await db.poll.findMany({ where: { endsAt: { lte: new Date() }, endNotifiedAt: null }, take: 100, select: { id: true, voterCount: true, post: { select: { id: true, authorId: true, body: true } } } });
+  const ended = await db.poll.findMany({ where: { endsAt: { lte: new Date() }, endNotifiedAt: null, post: { state: "PUBLISHED" } }, take: 100, select: { id: true, voterCount: true, post: { select: { id: true, authorId: true, body: true } } } });
   for (const p of ended) {
-    const claimed = await db.poll.updateMany({ where: { id: p.id, endNotifiedAt: null }, data: { endNotifiedAt: new Date() } });
+    const claimed = await db.poll.updateMany({ where: { id: p.id, endNotifiedAt: null, post: { state: "PUBLISHED" } }, data: { endNotifiedAt: new Date() } });
     if (!claimed.count) continue;
     await notify({
       recipientId: p.post.authorId,
@@ -553,7 +554,8 @@ async function publishDraftNow(postId: string) {
     if (!p || p.state !== "DRAFT") return null;
     const claimed = await tx.post.updateMany({ where: { id: postId, state: "DRAFT" }, data: { state: "PUBLISHED", publishedAt: now, scheduledAt: null } });
     if (!claimed.count) return null;
-    if (p.poll) await tx.poll.update({ where: { id: p.poll.id }, data: { endsAt: new Date(p.poll.endsAt.getTime() + (now.getTime() - p.createdAt.getTime())) } });
+    // Neue Laufzeit → das Ende wird (wieder) gemeldet, auch wenn ein früherer Lauf den Entwurf schon markiert hat
+    if (p.poll) await tx.poll.update({ where: { id: p.poll.id }, data: { endsAt: new Date(p.poll.endsAt.getTime() + (now.getTime() - p.createdAt.getTime())), endNotifiedAt: null } });
     await tx.userProfile.update({ where: { userId: p.authorId }, data: { postCount: { increment: 1 } } });
     // Geplanter Repost zählt erst jetzt beim Original (wie beim sofortigen Teilen)
     if (p.repostOfId) await tx.post.update({ where: { id: p.repostOfId }, data: { repostCount: { increment: 1 } } });

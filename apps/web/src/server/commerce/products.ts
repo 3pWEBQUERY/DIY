@@ -1,5 +1,5 @@
 import "server-only";
-import { track } from "@/server/analytics/service";
+import { recordView, viewRequest, type ViewRequest } from "@/server/analytics/service";
 import { z } from "zod";
 import { productUpsertSchema, SHIP_COUNTRIES, PRODUCT_KIND, CATEGORY_SLUGS, type ProductKind } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
@@ -201,6 +201,8 @@ export async function listProducts(
 
 /* ───────────────────────── Studio: Lesen ───────────────────────── */
 
+const MY_PRODUCTS_LIMIT = 500;
+
 export async function listMyProducts(user: Pick<SessionUser, "id">, opts: { status?: string } = {}) {
   const shop = await db.shop.findUnique({ where: { ownerId: user.id }, select: { id: true } });
   if (!shop) return [];
@@ -213,13 +215,23 @@ export async function listMyProducts(user: Pick<SessionUser, "id">, opts: { stat
       viewCount: true,
       saveCount: true,
       inventory: { select: { onHand: true, reserved: true } },
-      orderItems: { where: { order: { paidAt: { not: null }, status: { notIn: ["CANCELLED", "REFUNDED"] } } }, select: { quantity: true } },
       _count: { select: { orderItems: true, variants: true } },
       hideWhenSoldOut: true,
     },
+    // Ohne Seitenblättern in Web/App: auf die zuletzt bearbeiteten begrenzen
+    take: MY_PRODUCTS_LIMIT,
   });
-  const restock = await pendingRestockCounts(rows.map((r) => r.id));
-  return rows.map((r) => ({ ...r, restockPendingCount: restock.get(r.id) ?? 0 }));
+  const ids = rows.map((r) => r.id);
+  // Verkaufte Stück als Summe in der Datenbank statt aller Bestellpositionen je Produkt
+  const [restock, sold] = await Promise.all([
+    pendingRestockCounts(ids),
+    ids.length
+      ? db.orderItem.groupBy({ by: ["productId"], where: { productId: { in: ids }, order: { paidAt: { not: null }, status: { notIn: ["CANCELLED", "REFUNDED"] } } }, _sum: { quantity: true } })
+      : Promise.resolve([]),
+  ]);
+  const soldBy = new Map(sold.map((g) => [g.productId, g._sum.quantity ?? 0]));
+  // `orderItems` bleibt als Liste erhalten (Antwortform für Web und App), mit einer Summenzeile
+  return rows.map((r) => ({ ...r, orderItems: [{ quantity: soldBy.get(r.id) ?? 0 }], restockPendingCount: restock.get(r.id) ?? 0 }));
 }
 
 /** Produkt inkl. Varianten, Bestand und Medien für den Editor (nur Eigentümer). */
@@ -285,7 +297,7 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
   const extra = extraSchema.parse(extraInput);
   const shop = await requireOwnShop(user, { writable: true });
   const existing = productId
-    ? await db.product.findUnique({ where: { id: productId }, include: { variants: { include: { inventory: true } }, inventory: true } })
+    ? await db.product.findUnique({ where: { id: productId }, include: { variants: { include: { inventory: true } }, inventory: true, media: { select: { mediaId: true } } } })
     : null;
   if (productId && (!existing || existing.shopId !== shop.id)) throw fail.notFound();
   if (existing?.status === "DISABLED") throw fail.forbidden("Dieses Angebot wurde von der Moderation deaktiviert und kann nicht bearbeitet werden.");
@@ -423,6 +435,12 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
     });
   });
 
+  // Entfernte Bilder und eine ersetzte digitale Datei freigeben – sonst bleiben sie für immer „verknüpft“
+  if (existing) {
+    const kept = new Set(data.media.map((m) => m.id));
+    await releaseMedia([...existing.media.map((m) => m.mediaId).filter((id) => !kept.has(id)), existing.digitalKey && existing.digitalKey !== product.digitalKey ? existing.digitalKey : null]);
+  }
+
   // Wieder Bestand → wer eine Nachproduktion angefragt hat, wird informiert
   if (product.status === "ACTIVE") await notifyBackInStock([product.id]).catch(() => {});
 
@@ -459,6 +477,8 @@ export async function setSoldOutVisibility(user: SessionUser, productId: string,
   return r;
 }
 
+const OPEN_INTENT_DAYS = 30;
+
 /** Löschen nur ohne Bestellhistorie – sonst pausieren (Belege bleiben nachvollziehbar). */
 export async function deleteProduct(user: SessionUser, productId: string) {
   const shop = await requireOwnShop(user, { writable: true });
@@ -471,9 +491,10 @@ export async function deleteProduct(user: SessionUser, productId: string) {
     // (Belege), offene Kaufabsichten werden verworfen – sonst scheitert das Löschen am Fremdschlüssel
     const purchases = await tx.appStorePurchase.groupBy({ by: ["status"], where: { productId }, _count: true });
     if (purchases.some((g) => g.status === "COMPLETED" || g.status === "REFUNDED")) throw fail.conflict(soldMsg);
-    // Noch gültige Absicht: jemand kauft gerade in der App – Apple würde kassieren, ohne dass sich der Kauf verbuchen liesse
-    if (await tx.appStorePurchase.count({ where: { productId, status: "PENDING", expiresAt: { gt: new Date() } } })) {
-      throw fail.conflict("Dieses Produkt wird gerade in der App gekauft. Pausiere es und versuche es in einer Stunde erneut.");
+    // Offene bzw. abgelaufene Absicht der letzten 30 Tage: Apple kann einen Kauf noch spät melden
+    // (fulfillAppStoreTransaction verbucht auch verspätete Belege) – ohne Produkt liesse er sich nicht verbuchen
+    if (await tx.appStorePurchase.count({ where: { productId, status: { in: ["PENDING", "EXPIRED"] }, createdAt: { gt: new Date(Date.now() - OPEN_INTENT_DAYS * 86_400_000) } } })) {
+      throw fail.conflict(`Ein In-App-Kauf für dieses Produkt ist noch offen. Pausiere es stattdessen – löschen kannst du es ${OPEN_INTENT_DAYS} Tage nach dem letzten Kaufversuch in der App.`);
     }
     await tx.appStorePurchase.deleteMany({ where: { productId, status: { in: ["PENDING", "EXPIRED"] } } });
     await tx.product.delete({ where: { id: productId } });
@@ -545,10 +566,17 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
 
 export type ProductPage = NonNullable<Awaited<ReturnType<typeof getProductPage>>>;
 
-/** Aufrufzähler – unkritisch, deshalb ohne Transaktion und Fehler werden geschluckt. */
-export async function countProductView(productId: string) {
-  const r = await db.product.update({ where: { id: productId }, data: { viewCount: { increment: 1 } }, select: { shop: { select: { ownerId: true } } } }).catch(() => null);
-  if (r) await track("view", { targetType: "PRODUCT", targetId: productId, ownerId: r.shop.ownerId });
+/**
+ * Aufruf zählen – wie bei Projekten/Anleitungen über recordView (Bot-Filter, 30-Min.-Dedupe je Betrachter,
+ * eigene Aufrufe zählen nicht). Fehler werden geschluckt. Ohne lesbare Anfragedaten (z. B. in `after()`
+ * einer Server-Komponente) wird nicht gezählt – dort `recordViewAfter` verwenden.
+ */
+export async function countProductView(productId: string, viewerId: string | null = null, request?: ViewRequest) {
+  try {
+    await recordView({ viewerId, targetType: "PRODUCT", targetId: productId, request: request ?? (await viewRequest()) });
+  } catch {
+    /* Zähler sind Komfort */
+  }
 }
 
 /** Weitere Produkte desselben Shops (ruhige Querverweise statt aggressiver Empfehlungen). */

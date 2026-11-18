@@ -54,7 +54,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
         .$queryRaw<{ id: string; title: string; slug: string; category: string; coverUrl: string | null; handle: string; difficulty: number; status: string; score: number }[]>`
         SELECT p.id, p.title, p.slug, p.category, p."coverUrl", up.handle, p.difficulty, p.status::text AS status,
           (ts_rank(p.search, ${tsQuery(q)}) * 2 + similarity(p.title, ${q}) + p."qualityScore" * 0.1)::float AS score
-        FROM "Project" p JOIN "UserProfile" up ON up."userId" = p."ownerId" JOIN "User" au ON au.id = p."ownerId" AND au.status = 'ACTIVE'
+        FROM "Project" p JOIN "UserProfile" up ON up."userId" = p."ownerId" JOIN "User" au ON au.id = p."ownerId" AND au.status IN ('ACTIVE', 'SUSPENDED')
         WHERE p.state = 'PUBLISHED' AND p.visibility = 'PUBLIC' AND p."ownerId" NOT IN (${Prisma.join(blocked)})
           AND (p.search @@ ${tsQuery(q)} OR p.title % ${q} OR p.title ILIKE ${like})
           ${f.category ? Prisma.sql`AND p.category = ${f.category}` : Prisma.empty}
@@ -73,7 +73,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
         .$queryRaw<{ id: string; title: string; slug: string; category: string; coverUrl: string | null; minutes: number | null; difficulty: number; handle: string; isPaid: boolean; score: number }[]>`
         SELECT t.id, t.title, t.slug, t.category, t."coverUrl", t.minutes, t.difficulty, up.handle, t."isPaid",
           (ts_rank(t.search, ${tsQuery(q)}) * 2 + similarity(t.title, ${q}))::float AS score
-        FROM "Tutorial" t JOIN "UserProfile" up ON up."userId" = t."authorId" JOIN "User" au ON au.id = t."authorId" AND au.status = 'ACTIVE'
+        FROM "Tutorial" t JOIN "UserProfile" up ON up."userId" = t."authorId" JOIN "User" au ON au.id = t."authorId" AND au.status IN ('ACTIVE', 'SUSPENDED')
         WHERE t.state = 'PUBLISHED' AND t."authorId" NOT IN (${Prisma.join(blocked)})
           AND (t.search @@ ${tsQuery(q)} OR t.title % ${q} OR t.title ILIKE ${like})
           ${f.category ? Prisma.sql`AND t.category = ${f.category}` : Prisma.empty}
@@ -112,7 +112,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
         SELECT up."userId", up.handle, up."displayName", up."avatarUrl", up.bio, up."followerCount",
           GREATEST(similarity(up.handle, ${q}), similarity(up."displayName", ${q}))::float AS score
         FROM "UserProfile" up JOIN "User" u ON u.id = up."userId"
-        WHERE u.status = 'ACTIVE' AND up."userId" NOT IN (${Prisma.join(blocked)})
+        WHERE u.status IN ('ACTIVE', 'SUSPENDED') AND up."userId" NOT IN (${Prisma.join(blocked)})
           AND (up.handle % ${q} OR up."displayName" % ${q} OR up.handle ILIKE ${like} OR up."displayName" ILIKE ${like})
         ORDER BY score DESC, up."followerCount" DESC LIMIT ${limit}`
         .then((rows) => {
@@ -125,7 +125,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
       db
         .$queryRaw<{ id: string; title: string; slug: string; dek: string; handle: string; coverUrl: string | null; score: number }[]>`
         SELECT a.id, a.title, a.slug, a.dek, up.handle, a."coverUrl", ts_rank(a.search, ${tsQuery(q)})::float AS score
-        FROM "BlogArticle" a JOIN "UserProfile" up ON up."userId" = a."authorId" JOIN "User" au ON au.id = a."authorId" AND au.status = 'ACTIVE'
+        FROM "BlogArticle" a JOIN "UserProfile" up ON up."userId" = a."authorId" JOIN "User" au ON au.id = a."authorId" AND au.status IN ('ACTIVE', 'SUSPENDED')
         WHERE a.state = 'PUBLISHED' AND a."authorId" NOT IN (${Prisma.join(blocked)})
           AND (a.search @@ ${tsQuery(q)} OR a.title ILIKE ${like})
         ORDER BY score DESC LIMIT ${limit}`
@@ -153,7 +153,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
       db
         .$queryRaw<{ id: string; body: string; handle: string; score: number }[]>`
         SELECT p.id, p.body, up.handle, ts_rank(p.search, ${tsQuery(q)})::float AS score
-        FROM "Post" p JOIN "UserProfile" up ON up."userId" = p."authorId" JOIN "User" au ON au.id = p."authorId" AND au.status = 'ACTIVE'
+        FROM "Post" p JOIN "UserProfile" up ON up."userId" = p."authorId" JOIN "User" au ON au.id = p."authorId" AND au.status IN ('ACTIVE', 'SUSPENDED')
         WHERE p.state = 'PUBLISHED' AND p.visibility = 'PUBLIC' AND p."communityId" IS NULL AND p."authorId" NOT IN (${Prisma.join(blocked)})
           AND p.search @@ ${tsQuery(q)} AND p."publishedAt" >= ${since}
         ORDER BY score DESC, p."publishedAt" DESC LIMIT ${limit}`

@@ -92,7 +92,7 @@ export function CommunityComposer({ communityId, communityName, viewer, isMod }:
               )}
               <Button variant="ghost" onClick={() => setOpen(false)}>Abbrechen</Button>
               <Button disabled={!canPost || pending} onClick={submit}>
-                {uploading ? "Lädt hoch …" : pending ? "Veröffentlicht …" : "Veröffentlichen"}
+                {uploading ? "Lädt hoch …" : pending ? "Wird veröffentlicht …" : "Veröffentlichen"}
               </Button>
             </div>
           </div>

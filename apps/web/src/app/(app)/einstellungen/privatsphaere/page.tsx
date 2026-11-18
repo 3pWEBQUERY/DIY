@@ -7,14 +7,19 @@ import { SettingsSection } from "@/components/settings/section";
 import { UnblockButton } from "@/components/settings/relation-buttons";
 import { Avatar } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
+import { isSuspended, SuspendedNotice } from "@/app/(app)/_components/suspended";
 
 export const metadata: Metadata = { title: "Privatsphäre" };
 
 export default async function PrivacySettingsPage() {
-  const user = await requirePageUser("/einstellungen/privatsphaere");
+  const user = await requirePageUser("/einstellungen/privatsphaere", { allowSuspended: true });
+  const suspended = isSuspended(user);
   const s = await getPrivacySettings(user.id);
   return (
     <div>
+      {suspended && <SuspendedNotice until={user.suspendedUntil} className="mb-8" />}
+      {/* Gesperrte Konten dürfen lesen, Änderungen lehnt der Server ab – Bedienelemente deaktivieren */}
+      <fieldset disabled={suspended} className="contents">
       <PrivacyForm dmPolicy={s.dmPolicy} reduceMotion={s.reduceMotion} readReceipts={s.readReceipts} showOnline={s.showOnline} />
       <SettingsSection n="04" title="Blockierte Profile" description="Blockieren wirkt in beide Richtungen: Ihr seht keine Inhalte voneinander, könnt euch nicht folgen und nicht schreiben. Die Person wird nicht benachrichtigt.">
         {s.blocked.length ? (
@@ -37,6 +42,7 @@ export default async function PrivacySettingsPage() {
           Mehr dazu, wie wir deine Daten schützen: <Link href="/rechtliches/datenschutz" className="underline">Datenschutzerklärung</Link>
         </p>
       </SettingsSection>
+      </fieldset>
     </div>
   );
 }
