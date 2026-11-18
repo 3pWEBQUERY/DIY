@@ -2,7 +2,8 @@ import "server-only";
 import { db } from "@/server/db";
 import { getSetting } from "@/server/settings";
 import { holdState, scaleSettlement, sellerShare, type HoldConfig } from "./escrow-rules";
-import { paymentsMode, sellerSettlement } from "./stripe";
+import { paymentsMode, sellerSettlement, transferSettlement } from "./stripe";
+import { REAL_ORDER } from "./real-orders";
 
 /**
  * Haltefrist für Verkäufererlöse (§13.6) – Datenbankteil. Regeln: ./escrow-rules.ts.
@@ -15,7 +16,20 @@ export async function holdConfig(shop: { payoutHoldWaived: boolean }): Promise<H
   return { holdDays, autoCompleteDays, waived: shop.payoutHoldWaived };
 }
 
-export type HeldOrder = { id: string; number: string; shareMinor: number; currency: string; releaseAt: Date | null; status: string; paymentRef: string | null; settled: { amountMinor: number; currency: string } | null; refundedMinor: number; totalMinor: number };
+export type HeldOrder = {
+  id: string;
+  number: string;
+  shareMinor: number;
+  currency: string;
+  releaseAt: Date | null;
+  status: string;
+  paymentRef: string | null;
+  settled: { amountMinor: number; currency: string } | null;
+  refundedMinor: number;
+  totalMinor: number;
+  /** Apple-Kauf: Shop-Anteil kommt per eigener Überweisung (null = noch nicht überwiesen), nicht aus einer Zahlung */
+  apple: { transferId: string | null } | null;
+};
 
 /** Bezahlte Bestellungen des Shops, deren Erlös noch zurückgehalten wird. */
 export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }, now: Date = new Date()): Promise<HeldOrder[]> {
@@ -27,6 +41,8 @@ export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }
       shopId: shop.id,
       paidAt: { not: null },
       OR: [{ status: { in: ["NEW", "IN_PROGRESS", "READY_TO_SHIP", "SHIPPED", "PROBLEM"] } }, { status: "COMPLETED", completedAt: { gte: since } }, { payments: { some: { status: "DISPUTED" } } }],
+      // Testkäufe (Apple Sandbox) bringen kein Geld aufs Konto – nichts zurückhalten
+      AND: [REAL_ORDER],
     },
     select: {
       id: true,
@@ -39,7 +55,8 @@ export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }
       totalMinor: true,
       platformFeeMinor: true,
       refunds: { where: { status: "SUCCEEDED" }, select: { amountMinor: true } },
-      payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, providerRef: true, sellerAmountMinor: true, sellerCurrency: true } },
+      payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, provider: true, providerRef: true, sellerAmountMinor: true, sellerCurrency: true } },
+      appStorePurchase: { select: { transferId: true, transferStatus: true } },
     },
     take: 2000,
   });
@@ -61,6 +78,7 @@ export async function heldOrders(shop: { id: string; payoutHoldWaived: boolean }
       settled: p?.sellerAmountMinor != null && p.sellerCurrency ? { amountMinor: p.sellerAmountMinor, currency: p.sellerCurrency } : null,
       refundedMinor,
       totalMinor: o.totalMinor,
+      apple: p?.provider === "apple" ? { transferId: o.appStorePurchase?.transferStatus === "SENT" ? o.appStorePurchase.transferId : null } : null,
     });
   }
   return out;
@@ -77,12 +95,21 @@ export async function heldAmount(shop: { id: string; currency: string; stripeAcc
   let sum = 0;
   let unknown = false;
   for (const o of held) {
+    // Apple-Kauf noch nicht überwiesen → der Anteil liegt (noch) nicht im Guthaben, nichts zurückhalten
+    if (o.apple && !o.apple.transferId) continue;
     if (balanceCurrency.toUpperCase() === o.currency.toUpperCase()) {
       sum += o.shareMinor;
       continue;
     }
     let settled = o.settled;
-    if (!settled && o.paymentRef && shop.stripeAccountId && paymentsMode() === "stripe") {
+    if (o.apple?.transferId) {
+      // Apple-Kauf: keine Stripe-Zahlung (providerRef „apple:…“ kennt Stripe nicht) – massgeblich ist die
+      // tatsächliche Gutschrift der Überweisung des Shop-Anteils
+      if (!settled && shop.stripeAccountId && paymentsMode() === "stripe") {
+        settled = await transferSettlement(o.apple.transferId, shop.stripeAccountId).catch(() => null);
+        if (settled) await db.payment.updateMany({ where: { orderId: o.id, provider: "apple" }, data: { sellerAmountMinor: settled.amountMinor, sellerCurrency: settled.currency } });
+      }
+    } else if (!settled && o.paymentRef && shop.stripeAccountId && paymentsMode() === "stripe") {
       settled = await sellerSettlement(o.paymentRef, shop.stripeAccountId).catch(() => null);
       if (settled) await db.payment.updateMany({ where: { providerRef: o.paymentRef }, data: { sellerAmountMinor: settled.amountMinor, sellerCurrency: settled.currency } });
     }

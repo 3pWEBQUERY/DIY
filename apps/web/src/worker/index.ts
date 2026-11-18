@@ -86,6 +86,18 @@ type ContentNotifyJob =
  */
 const PURGE_JOB = { retryLimit: 12, retryDelay: 60, retryBackoff: true, retryDelayMax: 6 * 3600, expireInSeconds: 3600 } as const;
 
+/**
+ * Medienverarbeitung: Transkodierung bis 12 Min. plus Up-/Download bis 1 GB. Ohne eigene Frist gilt bei
+ * pg-boss 15 Min. – danach liefe der Job erneut, parallel zum noch laufenden ersten Durchgang.
+ */
+const MEDIA_JOB = { retryLimit: 3, retryDelay: 30, expireInSeconds: 45 * 60 } as const;
+
+/** Medien, die so lange in Verarbeitung hängen (Absturz, aufgegebener Job), gelten als gescheitert. */
+const MEDIA_STUCK_MS = 24 * 3600_000;
+
+/** Unverarbeitete Webhook-Ereignisse enthalten Kundendaten – nach dieser Frist löschen (Datensparsamkeit). */
+const WEBHOOK_FAILED_RETENTION_DAYS = 90;
+
 /** Wie lange das Herunterfahren auf laufende Arbeit wartet – unter RAILWAY_DEPLOYMENT_DRAINING_SECONDS (45 s). */
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
@@ -165,7 +177,7 @@ async function dispatchOutboxOnce(boss: PgBoss) {
       // Markieren als erledigt fehl, reiht die Wiederholung den Job nicht ein zweites Mal ein.
       switch (e.type) {
         case "MediaUploaded":
-          await boss.send(Q.media, { mediaId: p.mediaId }, { id: stableUuid(e.id, Q.media), retryLimit: 3, retryDelay: 30 });
+          await boss.send(Q.media, { mediaId: p.mediaId }, { id: stableUuid(e.id, Q.media), ...MEDIA_JOB });
           break;
         // Konto gelöscht: Abo beenden, persönliche Daten und Medien entfernen (§23.1). Kann Minuten dauern →
         // eigene Queue mit Wiederholungen, damit Medien und Beiträge in der Outbox nicht warten müssen
@@ -269,6 +281,14 @@ async function cleanup() {
     for (const url of v) await st.del(url.replace(/^\/media\//, "")).catch(() => {});
     await db.media.delete({ where: { id: m.id } }).catch(() => {});
   }
+  // Seit über 24 Std. in Verarbeitung: Job abgestürzt bzw. aufgegeben → als gescheitert markieren (die Person
+  // sieht den Fehler, die Bereinigung entfernt das Medium später) und die Rohdatei sofort löschen
+  const stuck = await db.media.findMany({ where: { state: "PROCESSING", updatedAt: { lt: new Date(Date.now() - MEDIA_STUCK_MS) } }, take: 500, select: { id: true, storageKey: true } });
+  for (const m of stuck) {
+    const r = await db.media.updateMany({ where: { id: m.id, state: "PROCESSING" }, data: { state: "FAILED", processingError: "Die Datei konnte nicht verarbeitet werden. Bitte lade sie erneut hoch." } });
+    // Nur Rohdateien (raw/…) – fertige Dateien liegen unter m/… bzw. private/…
+    if (r.count && m.storageKey.startsWith("raw/")) await storage().del(m.storageKey).catch(() => {});
+  }
   const [sessions, tokens, buckets, idem] = await Promise.all([
     db.session.deleteMany({ where: { OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { lt: new Date(Date.now() - 30 * day) } }] } }),
     db.verificationToken.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 7 * day) } } }),
@@ -290,9 +310,23 @@ async function cleanup() {
   };
   const outbox = await batchDelete(Prisma.sql`DELETE FROM "OutboxEvent" WHERE id IN (SELECT id FROM "OutboxEvent" WHERE "publishedAt" < now() - interval '7 days' LIMIT 5000)`);
   const webhooks = await batchDelete(Prisma.sql`DELETE FROM "WebhookEvent" WHERE id IN (SELECT id FROM "WebhookEvent" WHERE "processedAt" IS NOT NULL AND "createdAt" < now() - interval '30 days' LIMIT 5000)`);
+  // Nie verarbeitete Ereignisse enthalten vollständige Stripe-Payloads (Kundendaten) – nicht ewig aufbewahren.
+  // Vor dem Löschen melden: jedes davon ist ein nie verbuchtes Zahlungs-/Erstattungsereignis.
+  const failedCutoff = new Date(Date.now() - WEBHOOK_FAILED_RETENTION_DAYS * day);
+  const failedWebhooks = await db.webhookEvent.groupBy({ by: ["provider", "type"], where: { processedAt: null, createdAt: { lt: failedCutoff } }, _count: true });
+  let webhooksFailed = 0;
+  if (failedWebhooks.length) {
+    const total = failedWebhooks.reduce((s, g) => s + g._count, 0);
+    await captureError(new Error(`${total} nie verarbeitete Webhook-Ereignisse älter als ${WEBHOOK_FAILED_RETENTION_DAYS} Tage werden gelöscht`), {
+      source: "WORKER",
+      path: "cleanup.webhooks",
+      meta: { total, byType: failedWebhooks.map((g) => ({ provider: g.provider, type: g.type, count: g._count })) },
+    });
+    webhooksFailed = await batchDelete(Prisma.sql`DELETE FROM "WebhookEvent" WHERE id IN (SELECT id FROM "WebhookEvent" WHERE "processedAt" IS NULL AND "createdAt" < ${failedCutoff} LIMIT 5000)`);
+  }
   // Gelesene Benachrichtigungen nach 180 Tagen (ungelesene bleiben)
   const notes = await batchDelete(Prisma.sql`DELETE FROM "Notification" WHERE id IN (SELECT id FROM "Notification" WHERE "readAt" < now() - interval '180 days' LIMIT 5000)`);
-  log("cleanup", { errors: errs.count, media: stale.length, sessions: sessions.count, tokens: tokens.count, buckets: buckets.count, idem: idem.count, outbox, webhooks, notifications: notes });
+  log("cleanup", { errors: errs.count, media: stale.length, sessions: sessions.count, tokens: tokens.count, buckets: buckets.count, idem: idem.count, outbox, webhooks, webhooksFailed, mediaStuck: stuck.length, notifications: notes });
 }
 
 async function optional<T>(path: string, fn: string): Promise<(() => Promise<T>) | null> {
@@ -342,7 +376,9 @@ async function main() {
   const boss = new PgBoss({ connectionString: process.env.DATABASE_URL!, schema: "pgboss", max: 3 });
   boss.on("error", (e) => warn("pgboss_error", { err: String(e) }));
   await boss.start();
-  for (const q of Object.values(Q)) await boss.createQueue(q, q === Q.accountPurge ? PURGE_JOB : undefined).catch(() => {});
+  for (const q of Object.values(Q)) await boss.createQueue(q, q === Q.accountPurge ? PURGE_JOB : q === Q.media ? MEDIA_JOB : undefined).catch(() => {});
+  // Bestehende Queue (vor dieser Einstellung angelegt): Frist nachziehen – createQueue ändert sie nicht
+  await boss.updateQueue(Q.media, { expireInSeconds: MEDIA_JOB.expireInSeconds }).catch((e) => warn("pgboss_update_queue_failed", { queue: Q.media, err: String(e) }));
 
   await boss.work<{ mediaId: string }>(Q.media, { batchSize: 2 }, guarded(Q.media, async (jobs) => {
     for (const j of jobs) await processMedia(j.data.mediaId);

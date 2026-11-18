@@ -6,7 +6,9 @@ import { hasRole, communityRole } from "@/server/authz";
 import { rateLimit } from "@/server/ratelimit";
 import { notify, notifyMany } from "@/server/notifications";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { canViewCommunityContent, isModRole, isMuted } from "./service";
+import { relationsFor } from "@/server/visibility";
 
 /**
  * Events in Communities: Treffen, Workshops, Tauschbörsen – vor Ort oder online.
@@ -87,10 +89,12 @@ export async function getEvent(eventId: string, viewer: Viewer) {
   if (!canViewCommunityContent(e.community, m, viewer)) return null;
   const isMod = isModRole(m) || platformMod;
   const isOrganizer = viewer?.id === e.organizerId;
+  const rel = await relationsFor(viewer?.id);
   const [mine, going] = await Promise.all([
     viewer ? db.eventAttendee.findUnique({ where: { eventId_userId: { eventId, userId: viewer.id } }, select: { status: true } }) : null,
     db.eventAttendee.findMany({
-      where: { eventId, status: "GOING" },
+      // Ohne Blockierte (beide Richtungen) und ohne gesperrte/gelöschte Konten
+      where: { eventId, status: "GOING", user: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { userId: { notIn: rel.blocked } } : {}) },
       orderBy: { createdAt: "asc" },
       take: 24,
       select: { user: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } },
@@ -193,6 +197,8 @@ function clean(data: ReturnType<typeof eventUpsertSchema.parse>) {
 }
 
 export async function createEvent(user: SessionUser, communityId: string, input: unknown) {
+  // 18+ im Dienst selbst – Web-Server-Actions laufen nicht durch die zentrale Prüfung der Mobile-API
+  await requireAdult(user);
   const data = eventUpsertSchema.parse(input);
   await requireActiveMember(user, communityId);
   if (data.startsAt.getTime() < Date.now() - 5 * 60_000) throw fail.invalid("Der Beginn liegt in der Vergangenheit.", { startsAt: "Liegt in der Vergangenheit" });

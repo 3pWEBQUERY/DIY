@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { EyeOff, Megaphone, Pin, PinOff, RotateCcw } from "lucide-react";
 import type { PostView } from "@/server/social/posts";
+import type { ActionResult } from "@/server/errors";
 import { PostCard } from "@/components/social/post-card";
 import { MediaPicker, type UploadedMedia } from "@/components/media/uploader";
 import { PollEditor, emptyPoll, pollReady, type PollDraft } from "@/components/social/poll-editor";
@@ -21,7 +22,8 @@ import {
   setPostHiddenAction,
   setPostPinnedAction,
 } from "@/app/(app)/communities/actions";
-import { callAction } from "@/lib/use-action";
+import { callAction, callData } from "@/lib/use-action";
+import { usePagedList } from "@/lib/use-paged-list";
 
 type Viewer = { id: string; displayName: string; avatarUrl: string | null } | null;
 
@@ -105,13 +107,13 @@ function ModBar({ communityId, post, isMod }: { communityId: string; post: PostV
   const [pending, start] = useTransition();
   const [hideOpen, setHideOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const run = (p: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
+  const run = <T,>(p: () => Promise<ActionResult<T>>) =>
     start(async () => {
-      const r = await p();
+      const r = await callAction(p);
       if (r.ok) {
         if (r.message) toast(r.message);
         router.refresh();
-      } else toast(r.error ?? "Fehler", "error");
+      } else toast(r.error, "error");
     });
   const flags = (post.isPinned || post.isAnnouncement) && (
     <span className="flex items-center gap-3">
@@ -178,25 +180,17 @@ export function CommunityFeed({
   viewer: Viewer;
   isMod: boolean;
 }) {
-  const [items, setItems] = useState(initial);
-  const [cursor, setCursor] = useState(initialCursor);
+  // Neu beginnen nur bei anderer Gemeinschaft; router.refresh() mischt die erste Seite ein
+  const { items, cursor, append } = usePagedList(initial, initialCursor, communityId);
   const [pending, start] = useTransition();
   const sentinel = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setItems(initial);
-    setCursor(initialCursor);
-  }, [initial, initialCursor]);
 
   const more = () => {
     if (!cursor || pending) return;
     start(async () => {
-      const r = await loadCommunityPostsAction(communityId, cursor);
-      setItems((prev) => {
-        const ids = new Set(prev.map((p) => p.id));
-        return [...prev, ...r.items.filter((p) => !ids.has(p.id))];
-      });
-      setCursor(r.nextCursor);
+      const r = await callData(() => loadCommunityPostsAction(communityId, cursor));
+      if (!r.ok) return void toast(r.error, "error");
+      append(r.data.items, r.data.nextCursor);
     });
   };
 

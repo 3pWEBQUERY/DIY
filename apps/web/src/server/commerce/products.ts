@@ -4,7 +4,7 @@ import { z } from "zod";
 import { productUpsertSchema, SHIP_COUNTRIES, PRODUCT_KIND, CATEGORY_SLUGS, type ProductKind } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
-import { attachMedia } from "@/server/media/service";
+import { attachMedia, releaseMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
 import { relationsFor, isBlockedBetween } from "@/server/visibility";
 import { createPost } from "@/server/social/posts";
@@ -462,10 +462,24 @@ export async function setSoldOutVisibility(user: SessionUser, productId: string,
 /** Löschen nur ohne Bestellhistorie – sonst pausieren (Belege bleiben nachvollziehbar). */
 export async function deleteProduct(user: SessionUser, productId: string) {
   const shop = await requireOwnShop(user, { writable: true });
-  const p = await db.product.findUnique({ where: { id: productId }, select: { shopId: true, _count: { select: { orderItems: true } } } });
+  const p = await db.product.findUnique({ where: { id: productId }, select: { shopId: true, digitalKey: true, media: { select: { mediaId: true } }, _count: { select: { orderItems: true } } } });
   if (!p || p.shopId !== shop.id) throw fail.notFound();
-  if (p._count.orderItems > 0) throw fail.conflict("Dieses Produkt wurde bereits verkauft und kann nicht gelöscht werden. Pausiere es stattdessen.");
-  await db.product.delete({ where: { id: productId } });
+  const soldMsg = "Dieses Produkt wurde bereits verkauft und kann nicht gelöscht werden. Pausiere es stattdessen.";
+  if (p._count.orderItems > 0) throw fail.conflict(soldMsg);
+  await db.$transaction(async (tx) => {
+    // App-Käufe verweisen mit Restrict auf das Produkt: abgeschlossene bzw. erstattete blockieren das Löschen
+    // (Belege), offene Kaufabsichten werden verworfen – sonst scheitert das Löschen am Fremdschlüssel
+    const purchases = await tx.appStorePurchase.groupBy({ by: ["status"], where: { productId }, _count: true });
+    if (purchases.some((g) => g.status === "COMPLETED" || g.status === "REFUNDED")) throw fail.conflict(soldMsg);
+    // Noch gültige Absicht: jemand kauft gerade in der App – Apple würde kassieren, ohne dass sich der Kauf verbuchen liesse
+    if (await tx.appStorePurchase.count({ where: { productId, status: "PENDING", expiresAt: { gt: new Date() } } })) {
+      throw fail.conflict("Dieses Produkt wird gerade in der App gekauft. Pausiere es und versuche es in einer Stunde erneut.");
+    }
+    await tx.appStorePurchase.deleteMany({ where: { productId, status: { in: ["PENDING", "EXPIRED"] } } });
+    await tx.product.delete({ where: { id: productId } });
+  });
+  // Bilder und digitale Datei freigeben (digitalKey ist kein Fremdschlüssel) – sonst bleiben sie als „verknüpft“ liegen
+  await releaseMedia([...p.media.map((m) => m.mediaId), p.digitalKey]);
 }
 
 /* ───────────────────────── Öffentlich: Detailseite ───────────────────────── */

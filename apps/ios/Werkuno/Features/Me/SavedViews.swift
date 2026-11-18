@@ -110,6 +110,11 @@ struct SavedView: View {
     @State private var counts: [String: Int] = [:]
     @State private var page = 1
     @State private var hasMore = false
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
+    /// Seit dem letzten Laden lokal entfernte Einträge: Der Server blättert nur nach Seitennummer
+    /// (kein Offset) – danach rutschen Einträge eine Seite nach vorne und würden übersprungen.
+    @State private var removedSinceLoad = 0
     @State private var unavailable = 0
     @State private var error: String?
     @State private var collections: [MeCollectionSummary] = []
@@ -253,7 +258,7 @@ struct SavedView: View {
                             actionBar(e)
                         }
                     }
-                    LoadMoreTrigger(hasMore: hasMore) { await load(reset: false) }
+                    LoadMoreTrigger(hasMore: hasMore, failed: moreFailed) { await load(reset: false) }
                 }
             }
         } else if let error {
@@ -299,6 +304,11 @@ struct SavedView: View {
     // MARK: Aktionen
 
     private func load(reset: Bool) async {
+        // Nach lokalem Entfernen stimmt die Seitenaufteilung nicht mehr: Seiten 1…n+1 neu laden statt Seite n+1
+        if !reset && removedSinceLoad > 0 {
+            await reloadThrough(page + 1)
+            return
+        }
         let next = reset ? 1 : page + 1
         do {
             let r: MeSavedPage = try await APIClient.shared.get("/saved", query: ["type": type, "collection": filter, "page": String(next)])
@@ -306,6 +316,7 @@ struct SavedView: View {
                 section = r.content
                 meta = r.meta
                 unavailable = r.unavailable ?? 0
+                removedSinceLoad = 0
             } else {
                 section?.append(r.content)
                 meta.merge(r.meta) { _, b in b }
@@ -314,9 +325,48 @@ struct SavedView: View {
             counts = r.counts
             page = r.page
             hasMore = r.hasMore
+            moreFailed = false
             error = nil
+        } catch is CancellationError {
         } catch {
-            if reset && section == nil { self.error = MeErr.text(error) } else { hasMore = false; app.show(error: error) }
+            if reset && section == nil { self.error = MeErr.text(error) } else {
+                if !reset { moreFailed = true }
+                app.show(error: error)
+            }
+        }
+    }
+
+    /// Seiten 1…`last` neu laden und die Liste ersetzen (gleiche ids → die Scrollposition bleibt).
+    private func reloadThrough(_ last: Int) async {
+        let t = type, f = filter
+        let removedAtStart = removedSinceLoad
+        var combined: MeSavedSection?
+        var newMeta: [String: MeSavedPage.Meta] = [:]
+        var lost = 0
+        var latest: MeSavedPage?
+        do {
+            for p in 1...max(1, last) {
+                let r: MeSavedPage = try await APIClient.shared.get("/saved", query: ["type": t, "collection": f, "page": String(p)])
+                if combined == nil { combined = r.content } else { combined?.append(r.content) }
+                newMeta.merge(r.meta) { _, b in b }
+                lost += r.unavailable ?? 0
+                latest = r
+                if !r.hasMore { break }
+            }
+            guard t == type, f == filter, let combined, let latest else { return }
+            section = combined
+            meta = newMeta
+            unavailable = lost
+            counts = latest.counts
+            page = latest.page
+            hasMore = latest.hasMore
+            removedSinceLoad = max(0, removedSinceLoad - removedAtStart)
+            moreFailed = false
+            error = nil
+        } catch is CancellationError {
+        } catch {
+            moreFailed = true
+            app.show(error: error)
         }
     }
 
@@ -331,7 +381,10 @@ struct SavedView: View {
         guard ok else { return }
         Haptics.soft()
         meta[e.id] = MeSavedPage.Meta(collectionId: collectionId, savedAt: meta[e.id]?.savedAt)
-        if let f = filter, f != (collectionId ?? "ohne") { withAnimation(.snappy) { section?.remove(id: e.id) } }
+        if let f = filter, f != (collectionId ?? "ohne") {
+            withAnimation(.snappy) { section?.remove(id: e.id) }
+            removedSinceLoad += 1
+        }
         await loadCollections()
     }
 
@@ -342,6 +395,7 @@ struct SavedView: View {
             section?.remove(id: e.id)
             counts[e.type] = max(0, (counts[e.type] ?? 1) - 1)
         }
+        removedSinceLoad += 1
         await loadCollections()
     }
 

@@ -37,6 +37,7 @@ import { uploadFile } from "@/components/media/uploader";
 import { Placeholder } from "@/components/ui/media";
 import { Kbd } from "@/components/ui/misc";
 import { cn, pad } from "@/lib/utils";
+import { useObjectUrls } from "@/lib/use-object-urls";
 
 /* ─────────────────────────── Modell ─────────────────────────── */
 
@@ -789,11 +790,13 @@ const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/avif";
 
 function ImageBlock({ b, ctx }: { b: Of<"image">; ctx: BlockCtx }) {
   const up = useUpload();
+  const blobs = useObjectUrls();
   const [preview, setPreview] = useState<string | null>(null);
   const onFiles = async (files: File[]) => {
     const f = files[0];
     if (!f) return;
-    setPreview(URL.createObjectURL(f));
+    blobs.revoke(preview);
+    setPreview(blobs.create(f));
     const r = await up.run(f);
     if (r) ctx.patch(b.id, { mediaId: r.mediaId, url: variantUrl(r.variants, "") });
   };
@@ -822,13 +825,14 @@ function ImageBlock({ b, ctx }: { b: Of<"image">; ctx: BlockCtx }) {
 
 function GalleryBlock({ b, ctx }: { b: Of<"gallery">; ctx: BlockCtx }) {
   const up = useUpload();
+  const blobs = useObjectUrls();
   const imagesRef = useRef(b.images);
   imagesRef.current = b.images;
   const set = (images: Of<"gallery">["images"]) => ctx.patch(b.id, { images });
   const onFiles = async (files: File[]) => {
     for (const f of files.slice(0, 24 - imagesRef.current.length)) {
       const r = await up.run(f);
-      if (r) set([...imagesRef.current, { mediaId: r.mediaId, url: variantUrl(r.variants, URL.createObjectURL(f)), alt: "", caption: "" }]);
+      if (r) set([...imagesRef.current, { mediaId: r.mediaId, url: variantUrl(r.variants, "") || blobs.create(f), alt: "", caption: "" }]);
     }
   };
   const move = (i: number, dir: -1 | 1) => {
@@ -851,7 +855,7 @@ function GalleryBlock({ b, ctx }: { b: Of<"gallery">; ctx: BlockCtx }) {
                 <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-focus-within/img:opacity-100 group-hover/img:opacity-100">
                   <button type="button" onClick={() => move(i, -1)} className="grid size-7 place-items-center bg-card" aria-label={`Bild ${i + 1} nach vorne`}><ArrowLeft size={13} /></button>
                   <button type="button" onClick={() => move(i, 1)} className="grid size-7 place-items-center bg-card" aria-label={`Bild ${i + 1} nach hinten`}><ArrowRight size={13} /></button>
-                  <button type="button" onClick={() => set(b.images.filter((_, j) => j !== i))} className="grid size-7 place-items-center bg-card" aria-label={`Bild ${i + 1} entfernen`}><X size={13} /></button>
+                  <button type="button" onClick={() => { blobs.revoke(img.url); set(b.images.filter((_, j) => j !== i)); }} className="grid size-7 place-items-center bg-card" aria-label={`Bild ${i + 1} entfernen`}><X size={13} /></button>
                 </div>
               </div>
               <input value={img.alt} maxLength={500} onChange={(e) => set(b.images.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)))} aria-label={`Alt-Text für Bild ${i + 1}`} placeholder="Alt-Text" className="h-8 w-full border-t border-line px-2 text-[12px] outline-none focus:bg-sunken" />
@@ -868,11 +872,13 @@ function GalleryBlock({ b, ctx }: { b: Of<"gallery">; ctx: BlockCtx }) {
 
 function VideoBlock({ b, ctx }: { b: Of<"video">; ctx: BlockCtx }) {
   const up = useUpload();
+  const blobs = useObjectUrls();
   const [preview, setPreview] = useState<string | null>(null);
   const onFiles = async (files: File[]) => {
     const f = files[0];
     if (!f) return;
-    setPreview(URL.createObjectURL(f));
+    blobs.revoke(preview);
+    setPreview(blobs.create(f));
     const r = await up.run(f);
     if (r) ctx.patch(b.id, { mediaId: r.mediaId, url: r.variants?.video ?? "" });
   };

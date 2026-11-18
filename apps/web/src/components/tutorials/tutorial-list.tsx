@@ -1,30 +1,26 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 import type { TutorialCardData, TutorialFilters } from "@/server/tutorials/service";
 import { loadTutorialsAction } from "@/app/(app)/anleitungen/actions";
+import { callData } from "@/lib/use-action";
+import { usePagedList } from "@/lib/use-paged-list";
+import { toast } from "@/components/ui/toast";
 import { TutorialCard, TutorialGrid } from "./tutorial-card";
 
 /** Anleitungsraster mit Cursor-„Mehr laden“. */
 export function TutorialList({ initial, cursor: initialCursor, filters }: { initial: TutorialCardData[]; cursor: string | null; filters: TutorialFilters }) {
-  const [items, setItems] = useState(initial);
-  const [cursor, setCursor] = useState(initialCursor);
+  // Neu beginnen nur bei anderen Filtern; router.refresh() mischt die erste Seite ein
+  const { items, cursor, append } = usePagedList(initial, initialCursor, JSON.stringify(filters));
   const [pending, start] = useTransition();
-
-  useEffect(() => {
-    setItems(initial);
-    setCursor(initialCursor);
-  }, [initial, initialCursor]);
 
   const more = () =>
     cursor &&
+    !pending &&
     start(async () => {
-      const r = await loadTutorialsAction(filters, cursor);
-      setItems((prev) => {
-        const ids = new Set(prev.map((p) => p.id));
-        return [...prev, ...r.items.filter((p) => !ids.has(p.id))];
-      });
-      setCursor(r.nextCursor);
+      const r = await callData(() => loadTutorialsAction(filters, cursor));
+      if (!r.ok) return void toast(r.error, "error");
+      append(r.data.items, r.data.nextCursor);
     });
 
   return (

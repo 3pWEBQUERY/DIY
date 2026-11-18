@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, X, ArrowLeft, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { backoffDelay, isTransientStatus } from "@/lib/backoff";
@@ -77,6 +77,31 @@ export function MediaPicker({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  // Lokale Vorschauen (Object URLs): url → schon in `value` gesehen? Freigeben, sobald sie nicht mehr
+  // angezeigt werden (ersetzt durch Server-Vorschau, entfernt, nach dem Senden geleert) bzw. beim Aushängen.
+  const blobs = useRef(new Map<string, boolean>());
+  // Hintergrund-Abfragen (Videoverarbeitung) beim Aushängen beenden
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    abort.current = ctrl;
+    const map = blobs.current;
+    return () => {
+      ctrl.abort();
+      map.forEach((_, url) => URL.revokeObjectURL(url));
+      map.clear();
+    };
+  }, []);
+  useEffect(() => {
+    const shown = new Set(value.map((m) => m.preview));
+    blobs.current.forEach((seen, url) => {
+      if (shown.has(url)) blobs.current.set(url, true);
+      else if (seen) {
+        URL.revokeObjectURL(url);
+        blobs.current.delete(url);
+      }
+    });
+  }, [value]);
 
   async function add(files: FileList | null) {
     if (!files) return;
@@ -86,12 +111,14 @@ export function MediaPicker({
       const tmpId = `tmp-${crypto.randomUUID()}`;
       const kind = file.type.startsWith("video/") ? "VIDEO" : "IMAGE";
       const preview = URL.createObjectURL(file);
+      blobs.current.set(preview, false);
       onChange((prev) => [...prev, { id: tmpId, alt: "", preview, state: "uploading", progress: 0, kind }]);
       try {
         const r = await uploadFile(file, "public", (p) => onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, progress: p } : m))));
         onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, id: r.mediaId, state: "ready", progress: 1, preview: r.variants?.sm ?? preview } : m)));
-        if (kind === "VIDEO") void watchVideo(r.mediaId);
+        if (kind === "VIDEO") void watchVideo(r.mediaId, abort.current?.signal);
       } catch (e) {
+        if (abort.current?.signal.aborted) return;
         setError(e instanceof Error ? e.message : "Upload fehlgeschlagen");
         onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, state: "error" } : m)));
       }
@@ -99,13 +126,15 @@ export function MediaPicker({
   }
 
   /** Videos werden im Hintergrund umgewandelt – eine Ablehnung (z. B. zu lang) sofort anzeigen. */
-  async function watchVideo(mediaId: string) {
+  async function watchVideo(mediaId: string, signal?: AbortSignal) {
     // Netzwerkfehler/Serverfehler (z. B. kurz offline, Deploy) beenden die Abfrage nicht mehr:
     // mit wachsendem Abstand erneut versuchen; nur echte 4xx-Antworten (gelöscht, kein Zugriff) beenden sie.
     let failures = 0;
     for (let i = 0; i < 90; i++) {
       await new Promise((r) => setTimeout(r, failures > 0 ? backoffDelay(failures - 1) : i < 10 ? 1500 : 4000));
-      const res = await fetch(`/api/v1/media/${mediaId}/status`, { cache: "no-store" }).catch(() => null);
+      if (!signal || signal.aborted) return;
+      const res = await fetch(`/api/v1/media/${mediaId}/status`, { cache: "no-store", signal }).catch(() => null);
+      if (signal.aborted) return;
       if (!res?.ok) {
         if (!isTransientStatus(res?.status) || ++failures > 8) return;
         continue;

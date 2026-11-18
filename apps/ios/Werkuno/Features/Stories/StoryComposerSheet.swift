@@ -262,10 +262,14 @@ struct StoryComposerSheet: View {
 
     private func ingest(_ item: PhotosPickerItem) async {
         if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+            // Laden und Upload sollen nicht abbrechen, wenn die App in den Hintergrund geht
+            let background = BackgroundActivity("Werkuno-Story-Video")
+            defer { background.end() }
             guard let movie = try? await item.loadTransferable(type: PickedMovie.self) else {
                 upload = .failed("Das Video konnte nicht gelesen werden.")
                 return
             }
+            defer { try? FileManager.default.removeItem(at: movie.url) }  // temporäre Kopie (werkuno-video-*) wird danach nicht mehr gebraucht
             let asset = AVURLAsset(url: movie.url)
             if let d = try? await asset.load(.duration), d.seconds.isFinite, d.seconds > StoryRules.videoMaxSeconds + 1 {
                 upload = .failed("Das Video ist \(Int(d.seconds)) Sekunden lang. Story-Videos dürfen höchstens \(Int(StoryRules.videoMaxSeconds)) Sekunden lang sein – längere Videos teilst du als Beitrag.")

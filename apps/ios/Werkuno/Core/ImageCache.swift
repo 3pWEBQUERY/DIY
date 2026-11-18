@@ -69,6 +69,8 @@ struct RemoteImage<Placeholder: View>: View {
             guard let url = AppConfig.resolve(path) else { image = nil; return }
             if let c = ImageCache.shared.cached(url) { image = c; return }
             let img = await ImageCache.shared.load(url)
+            // Überholter Ladevorgang (Pfad inzwischen gewechselt): neueres Bild nicht überschreiben
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.25)) { image = img; failed = img == nil }
         }
     }

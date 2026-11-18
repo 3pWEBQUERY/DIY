@@ -23,7 +23,10 @@ vi.mock("@/server/audit", () => ({ audit: async () => ({}) }));
 vi.mock("@/server/flags", () => ({ requireFlag: async () => {} }));
 vi.mock("@/server/account/deletion", () => ({ assertAccountDeletable: async () => {} }));
 
-const users: Record<string, { id: string; email: string; status: string }> = { "da@werkuno.test": { id: "u1", email: "da@werkuno.test", status: "ACTIVE" } };
+const users: Record<string, { id: string; email: string; status: string; emailVerifiedAt: Date | null }> = {
+  "da@werkuno.test": { id: "u1", email: "da@werkuno.test", status: "ACTIVE", emailVerifiedAt: new Date() },
+  "offen@werkuno.test": { id: "u2", email: "offen@werkuno.test", status: "ACTIVE", emailVerifiedAt: null },
+};
 const tokens = new Map<string, { id: string; userId: string; purpose: string; usedAt: Date | null; expiresAt: Date }>();
 const verified: string[] = [];
 const tx = {
@@ -78,6 +81,13 @@ describe("requestPasswordReset (A-12)", () => {
     await afterTasks[0]!();
     expect(tokens.size).toBe(0);
     expect(mails).toHaveLength(0);
+  });
+  it("unbestätigte Adresse: Link geht trotzdem raus (er beweist den Zugriff aufs Postfach)", async () => {
+    await requestPasswordReset("offen@werkuno.test");
+    expect(afterTasks).toHaveLength(1);
+    await afterTasks[0]!();
+    expect(tokens.size).toBe(1);
+    expect(mails).toHaveLength(1);
   });
 });
 

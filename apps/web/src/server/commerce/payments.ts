@@ -492,9 +492,9 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
     await lockOrder(tx, payment.orderId);
     let lostMinor = 0;
     const won = d.status === "won" || d.status === "warning_closed";
-    const base = await tx.order.findUniqueOrThrow({ where: { id: payment.orderId }, select: { id: true, number: true, status: true, currency: true, shopId: true } });
+    const base = await tx.order.findUniqueOrThrow({ where: { id: payment.orderId }, select: { id: true, number: true, status: true, currency: true, shopId: true, restockedAt: true } });
     const refunds = await tx.refund.findMany({ where: { orderId: base.id } });
-    const items = await tx.orderItem.findMany({ where: { orderId: base.id }, select: { id: true, isDigital: true } });
+    const items = await tx.orderItem.findMany({ where: { orderId: base.id }, select: { id: true, isDigital: true, productId: true, variantId: true, quantity: true } });
     const shop = await tx.shop.findUniqueOrThrow({ where: { id: base.shopId }, select: { ownerId: true } });
     const order = { ...base, refunds, items, shop };
     if (won) {
@@ -503,16 +503,20 @@ export async function markDisputeClosed(paymentIntentId: string, d: { disputeId:
       await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to: order.status, note: "Streitfall zugunsten des Shops entschieden" } });
     } else {
       // Verloren: Betrag ist an die Karteninhaberin zurückgebucht → wie eine Erstattung verbuchen
-      // (Umsatz/Guthaben sinken, digitale Lizenzen werden widerrufen, Bestellung gilt als erstattet).
+      // (Umsatz/Guthaben sinken). Folgen wie bei applyRefunds: nur eine vollständige Rückbuchung widerruft
+      // Lizenzen, bucht Ware zurück und setzt die Bestellung auf „Erstattet“ – ein Teilverlust nicht.
       const already = order.refunds.filter((r) => r.status !== "FAILED").reduce((s, r) => s + r.amountMinor, 0);
       const amount = Math.max(0, Math.min(d.amountMinor ?? payment.amountMinor, payment.amountMinor - already));
       if (amount > 0) await tx.refund.create({ data: { orderId: order.id, providerRef: `dispute:${d.disputeId}`, amountMinor: amount, reason: "Streitfall verloren (Rückbuchung)", status: "SUCCEEDED" } });
       lostMinor = d.amountMinor ?? payment.amountMinor;
       const refunded = already + amount;
-      await tx.payment.update({ where: { id: payment.id }, data: { status: paymentStatusAfterRefund(payment.amountMinor, refunded) } });
+      const shipped = (await tx.shipment.count({ where: { orderId: order.id } })) > 0;
+      const fx = refundEffects({ orderStatus: order.status, paymentMinor: payment.amountMinor, refundedMinor: refunded, shipped, restocked: !!base.restockedAt });
+      await tx.payment.update({ where: { id: payment.id }, data: { status: fx.payStatus } });
       const digital = order.items.filter((i) => i.isDigital).map((i) => i.id);
-      if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital }, revokedAt: null }, data: { revokedAt: new Date() } });
-      const to = order.status === "CANCELLED" ? order.status : "REFUNDED";
+      if (fx.full && digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital }, revokedAt: null }, data: { revokedAt: new Date() } });
+      if (fx.restock) await restockOrderTx(tx, { id: order.id, shopId: order.shopId, items: order.items });
+      const to = fx.toRefunded ? "REFUNDED" : order.status;
       if (to !== order.status) await tx.order.update({ where: { id: order.id }, data: { status: to } });
       await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to, note: `Streitfall verloren – ${money(amount, order.currency)} wurden zurückgebucht` } });
       if (to !== order.status) await emit({ type: "OrderStatusChanged", orderId: order.id, to }, tx);
@@ -777,7 +781,7 @@ export async function processStripeWebhook(event: Stripe.Event): Promise<{ statu
       if ((e as { code?: string }).code !== "P2002") throw e;
     }
   }
-  await db.webhookEvent.update({ where: { id: event.id }, data: { attempts: { increment: 1 } } });
+  const { attempts } = await db.webhookEvent.update({ where: { id: event.id }, data: { attempts: { increment: 1 } }, select: { attempts: true } });
   try {
     await handleStripeEvent(event);
     await db.webhookEvent.update({ where: { id: event.id }, data: { processedAt: new Date(), error: null } });
@@ -786,9 +790,17 @@ export async function processStripeWebhook(event: Stripe.Event): Promise<{ statu
     const message = e instanceof Error ? e.message : String(e);
     await db.webhookEvent.update({ where: { id: event.id }, data: { error: message.slice(0, 2000) } }).catch(() => {});
     log("error", "webhook_failed", { eventId: event.id, type: event.type, err: message });
+    // Einzelne Fehler heilt die Wiederholung durch Stripe; scheitert ein Event wiederholt, braucht es
+    // eine manuelle Klärung (Admin → Fehler) – sonst bliebe z. B. eine bezahlte Bestellung unbemerkt liegen
+    if (attempts >= WEBHOOK_ALERT_ATTEMPTS) {
+      await captureError(e, { source: "SERVER", path: "/api/webhooks/stripe", meta: { eventId: event.id, type: event.type, attempts } });
+    }
     return { status: 500 };
   }
 }
+
+/** Ab so vielen gescheiterten Zustellungen wird ein Webhook-Event in der Fehlerüberwachung gemeldet. */
+export const WEBHOOK_ALERT_ATTEMPTS = 3;
 
 /** Transaktions-Helfer für andere Module (z. B. Bestellverwaltung). */
 export type { Tx };

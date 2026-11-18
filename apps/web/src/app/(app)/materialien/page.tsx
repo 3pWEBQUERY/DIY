@@ -11,11 +11,14 @@ import { browseMaterials, listMaterialCategories } from "@/server/materials/serv
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { ChipLink, ChipRow } from "@/components/ui/chips";
 import { Empty } from "@/components/ui/misc";
+import { flatSearchParams } from "@/lib/search-params";
 
 type SP = { kategorie?: string; q?: string; nach?: string };
+/** Werte können bei doppelten Schlüsseln Arrays sein → mit flatSearchParams auf je einen Wert bringen */
+type RawSP = { [K in keyof SP]?: string | string[] };
 
-export async function generateMetadata({ searchParams }: { searchParams: Promise<SP> }): Promise<Metadata> {
-  const sp = await searchParams;
+export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSP> }): Promise<Metadata> {
+  const sp = flatSearchParams(await searchParams);
   return { title: sp.q ? `Material «${sp.q}»` : "Materialien", description: "Die Materialdatenbank der Community: Garne, Stoffe, Hölzer, Farben und mehr – mit Einheiten, Eigenschaften und Sicherheitshinweisen." };
 }
 
@@ -25,8 +28,8 @@ function formatProp(v: unknown) {
   return String(v);
 }
 
-export default async function MaterialsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const sp = await searchParams;
+export default async function MaterialsPage({ searchParams }: { searchParams: Promise<RawSP> }) {
+  const sp = flatSearchParams(await searchParams);
   const q = sp.q?.trim().slice(0, 60) || undefined;
   const [categories, result] = await Promise.all([listMaterialCategories(), browseMaterials({ categorySlug: sp.kategorie, q, cursor: sp.nach ?? null })]);
   const user = await currentUser();

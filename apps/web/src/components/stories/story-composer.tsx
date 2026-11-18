@@ -20,6 +20,7 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { uploadFile } from "@/components/media/uploader";
 import { createStoryAction } from "@/app/(app)/stories/actions";
+import { callAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { StoryMedia, StoryText } from "./story-content";
 
@@ -72,6 +73,13 @@ export function StoryComposer({
   const input = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const uploadSeq = useRef(0);
+  /** Aktuelle Vorschau-URL (Object URL) – beim Ersetzen, Zurücksetzen und Aushängen freigeben */
+  const previewUrl = useRef<string | null>(null);
+  function setPreviewUrl(url: string | null) {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = url;
+  }
+  useEffect(() => () => setPreviewUrl(null), []);
 
   useEffect(() => {
     if (open && mode === "TEXT") textRef.current?.focus();
@@ -81,6 +89,7 @@ export function StoryComposer({
     uploadSeq.current++;
     setMode("MEDIA");
     setUpload({ status: "idle" });
+    setPreviewUrl(null);
     setAlt("");
     setCaption("");
     setText("");
@@ -107,6 +116,7 @@ export function StoryComposer({
     }
     const seq = ++uploadSeq.current;
     const preview = URL.createObjectURL(file);
+    setPreviewUrl(preview);
     setUpload({ status: "uploading", kind, preview, progress: 0 });
     try {
       const r = await uploadFile(file, "public", (p) => seq === uploadSeq.current && setUpload((u) => (u.status === "uploading" ? { ...u, progress: p } : u)));
@@ -115,6 +125,7 @@ export function StoryComposer({
       setUpload({ status: "ready", kind, preview, progress: 1, mediaId: done.mediaId, processing: done.state !== "READY", width: done.width, height: done.height });
     } catch (e) {
       if (seq !== uploadSeq.current) return;
+      setPreviewUrl(null);
       setUpload({ status: "error", message: e instanceof Error ? e.message : "Upload fehlgeschlagen. Bitte versuche es erneut." });
     }
   }
@@ -124,10 +135,12 @@ export function StoryComposer({
   function submit() {
     if (!ready || pending) return;
     start(async () => {
-      const r = await createStoryAction(
-        mode === "MEDIA" && upload.status === "ready"
-          ? { kind: "MEDIA", media: { id: upload.mediaId, alt }, text: caption, visibility, projectId: projectId || undefined }
-          : { kind: "TEXT", text, background, visibility, projectId: projectId || undefined },
+      const r = await callAction(() =>
+        createStoryAction(
+          mode === "MEDIA" && upload.status === "ready"
+            ? { kind: "MEDIA", media: { id: upload.mediaId, alt }, text: caption, visibility, projectId: projectId || undefined }
+            : { kind: "TEXT", text, background, visibility, projectId: projectId || undefined },
+        ),
       );
       if (!r.ok) {
         toast(r.error, "error");

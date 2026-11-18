@@ -8,7 +8,8 @@ import { emit } from "@/server/events";
 import { relationsFor } from "@/server/visibility";
 import { attachMedia } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
-import type { SessionUser } from "@/server/auth/session";
+import { currentUser, type SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { readingMinutes, slugify } from "@/lib/utils";
 import { stripInline } from "@/lib/inline-marks";
 import { publicProductWhere } from "@/server/commerce/restock";
@@ -231,6 +232,8 @@ async function ownArticle(user: Pick<SessionUser, "id">, id: string) {
  * (identische Stände werden nicht doppelt abgelegt); es bleiben die letzten 30 erhalten.
  */
 export async function saveArticle(user: SessionUser, id: string | null, input: unknown) {
+  // 18+ im Dienst selbst – Web-Server-Actions laufen nicht durch die zentrale Prüfung der Mobile-API
+  await requireAdult(user);
   const data = articleUpsertSchema.parse(input);
   const existing = id ? await ownArticle(user, id) : null;
   // Wie Projekte/Anleitungen: neue Artikel zählen gegen das Beitragslimit (Speichern bestehender nicht – Autosave)
@@ -350,6 +353,7 @@ async function takeAnnounceMarker(authorId: string, articleId: string) {
 }
 
 export async function publishArticle(user: SessionUser, id: string, input: unknown) {
+  await requireAdult(user);
   const opts = articlePublishSchema.parse(input ?? {});
   const a = await ownArticle(user, id);
   if (a.state === "HIDDEN" || a.state === "REMOVED") throw fail.forbidden("Dieser Artikel wurde von der Moderation ausgeblendet.");
@@ -660,10 +664,16 @@ export async function relatedArticles(article: { id: string; authorId: string; c
   return [...primary, ...more].map(toCard);
 }
 
-export async function linkedProjects(projectIds: string[]) {
+/**
+ * Verknüpfte Projekte eines Artikels – ohne Projekte gesperrter/gelöschter Konten und ohne Blockierte
+ * (beide Richtungen), wie visibleProjectsWhere. Ohne `viewerId` gilt die angemeldete Person der Anfrage.
+ */
+export async function linkedProjects(projectIds: string[], viewerId?: string | null) {
   if (!projectIds.length) return [];
+  const vid = viewerId === undefined ? ((await currentUser())?.id ?? null) : viewerId;
+  const rel = await relationsFor(vid);
   const rows = await db.project.findMany({
-    where: { id: { in: projectIds }, visibility: "PUBLIC", state: "PUBLISHED" },
+    where: { id: { in: projectIds }, visibility: "PUBLIC", state: "PUBLISHED", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) },
     select: { id: true, slug: true, title: true, status: true, category: true, coverUrl: true, difficulty: true, owner: { select: { profile: { select: { handle: true } } } } },
   });
   return rows.map((p) => ({ ...p, href: `/u/${p.owner.profile?.handle}/${p.slug}` }));

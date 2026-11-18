@@ -12,8 +12,11 @@ import { Empty } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { ProjectList } from "@/components/projects/project-list";
 import { StatusMark } from "@/components/projects/status";
+import { flatSearchParams } from "@/lib/search-params";
 
 type SP = { kategorie?: string; stufe?: string; status?: string; anleitung?: string; sort?: string; q?: string };
+/** Werte können bei doppelten Schlüsseln Arrays sein → mit flatSearchParams auf je einen Wert bringen */
+type RawSP = { [K in keyof SP]?: string | string[] };
 
 const SORTS: { key: ProjectSort; label: string; param: string }[] = [
   { key: "new", label: "Neu", param: "neu" },
@@ -21,8 +24,8 @@ const SORTS: { key: ProjectSort; label: string; param: string }[] = [
   { key: "completed", label: "Abgeschlossen", param: "abgeschlossen" },
 ];
 
-export async function generateMetadata({ searchParams }: { searchParams: Promise<SP> }): Promise<Metadata> {
-  const sp = await searchParams;
+export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSP> }): Promise<Metadata> {
+  const sp = flatSearchParams(await searchParams);
   const cat = await effectiveCategory(sp.kategorie);
   return {
     title: cat ? `${cat.name} – Projekte` : "Projekte",
@@ -31,8 +34,8 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-export default async function ProjectsIndex({ searchParams }: { searchParams: Promise<SP> }) {
-  const sp = await searchParams;
+export default async function ProjectsIndex({ searchParams }: { searchParams: Promise<RawSP> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   const [cat, cats] = await Promise.all([effectiveCategory(sp.kategorie), browseCategories(sp.kategorie)]);
   const level = DIFFICULTY.find((d) => String(d) === sp.stufe);

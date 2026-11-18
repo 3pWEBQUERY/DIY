@@ -249,7 +249,7 @@ const changeEmailSchema = z.object({
 
 /**
  * E-Mail-Adresse eines Kontos ändern (Support, z. B. Tippfehler bei der Registrierung oder verlorene Adresse).
- * Nur Administration; Konten mit gleicher oder höherer Rolle nur durch die Superadministration; nie das eigene.
+ * Nur Superadministration (sonst Kontoübernahme über eine eigene Adresse möglich); nie das eigene Konto.
  * Offene Bestätigungs- und Passwort-Links verfallen. Alte und neue Adresse werden informiert; ohne
  * „bestätigt“ geht ein Bestätigungslink an die neue Adresse.
  */
@@ -260,6 +260,9 @@ export async function changeUserEmail(actor: Actor, userId: string, input: unkno
   // Direkt bestätigen = sofort anmeldbar (z. B. über „Passwort vergessen“) → nur Superadministration.
   // Sonst muss die neue Adresse ihren Link selbst bestätigen.
   if (data.markVerified && !hasRole(actor, "SUPERADMIN")) throw fail.forbidden("Direkt bestätigen darf nur die Superadministration – ohne Häkchen erhält die neue Adresse einen Bestätigungslink.");
+  // Auch ohne Häkchen nur Superadministration: Wer die Adresse auf ein eigenes Postfach setzt, erhält den
+  // Bestätigungslink selbst und übernimmt damit das Konto. Gleiche Regel wie verifyEmailManually.
+  if (!hasRole(actor, "SUPERADMIN")) throw fail.forbidden("E-Mail-Adressen anderer Konten ändert nur die Superadministration.");
   const t = await db.user.findUnique({ where: { id: userId }, select: { email: true, role: true, status: true, subscription: { select: { customerId: true, provider: true } } } });
   if (!t) throw fail.notFound();
   if (t.status === "DELETED") throw fail.conflict("Gelöschte Konten können nicht geändert werden.");

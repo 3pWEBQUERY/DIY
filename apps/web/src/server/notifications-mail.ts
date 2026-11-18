@@ -105,6 +105,15 @@ export async function sendEmails(mode: "instant" | "digest") {
   }
 }
 
+/**
+ * Endgültige Ablehnung durch Resend: 4xx ausser 429 (Rate-Limit) und 408 (Zeitüberschreitung).
+ * 401 (Schlüssel ungültig) betrifft alle Mails und ist eine Konfigurationsfrage – wie ein fehlender
+ * Schlüssel offen lassen, damit die Mails nach der Korrektur noch rausgehen.
+ */
+export function isPermanentMailFailure(status: number | undefined) {
+  return !!status && status >= 400 && status < 500 && status !== 429 && status !== 408 && status !== 401;
+}
+
 async function mailBatch(pending: PendingMail[]) {
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const byUser = new Map<string, typeof pending>();
@@ -138,9 +147,10 @@ async function mailBatch(pending: PendingMail[]) {
         cta: { label: list.length === 1 ? "Ansehen" : "Alle Benachrichtigungen", url: `${appUrl}${target}` },
         unsubscribeUrl: optional ? unsubscribeUrl(list[0]!.recipientId) : undefined,
       });
-      // Bei Versandfehler offen lassen → nächster Lauf versucht es erneut; nach 48 Std. aufgeben
-      // (sonst Endlosschleife, z. B. solange die Absender-Domain nicht bestätigt ist)
-      const failed = "failed" in r && r.failed;
+      // Vorübergehender Versandfehler (429, 5xx, Netzwerk) → offen lassen, nächster Lauf versucht es erneut;
+      // nach 48 Std. aufgeben. Endgültige Ablehnung (4xx, z. B. 422 ungültige Adresse, 403 Domain) → als
+      // erledigt markieren, sonst würde dieselbe Mail 48 Std. lang alle 2 Min. erneut abgelehnt.
+      const failed = "failed" in r && r.failed && !isPermanentMailFailure("status" in r ? r.status : undefined);
       const stale = list.filter((n) => n.createdAt.getTime() < Date.now() - 48 * 3600_000).map((n) => n.id);
       const done = failed ? stale : list.map((n) => n.id);
       if (done.length) await db.notification.updateMany({ where: { id: { in: done } }, data: { emailedAt: new Date() } });

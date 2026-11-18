@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Eye, Heart, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { HIGHLIGHT_TITLE_MAX } from "@werkraum/shared";
@@ -19,6 +19,8 @@ import { StoryComposer } from "./story-composer";
 import { StoryThumb } from "./story-thumb";
 import { HighlightCover } from "./highlight-cover";
 import { rememberStoryReturn } from "./story-return";
+import { callAction } from "@/lib/use-action";
+import { usePagedList } from "@/lib/use-paged-list";
 
 function stamp(iso: string) {
   return new Date(iso).toLocaleDateString("de-CH", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Zurich" });
@@ -48,21 +50,18 @@ export function StoryArchive({
   openComposer?: boolean;
 }) {
   const router = useRouter();
-  const [items, setItems] = useState(initial);
-  const [cursor, setCursor] = useState(initialCursor);
+  // router.refresh() (neue Story, Highlight gespeichert) mischt die erste Seite ein – Cursor bleibt passend
+  const { items, cursor, append, replace } = usePagedList(initial, initialCursor, handle);
   const [loadingMore, startMore] = useTransition();
   const [composer, setComposer] = useState(!!openComposer);
   const [editor, setEditor] = useState<null | { id: string | null; title: string; storyIds: string[]; coverStoryId: string | null }>(null);
 
-  useEffect(() => setItems(initial), [initial]);
-
   function more() {
     if (!cursor) return;
     startMore(async () => {
-      const r = await storyArchiveAction(cursor);
+      const r = await callAction(() => storyArchiveAction(cursor));
       if (!r.ok) return toast(r.error, "error");
-      setItems((it) => [...it, ...r.data.items.filter((n) => !it.some((o) => o.id === n.id))]);
-      setCursor(r.data.nextCursor);
+      append(r.data.items, r.data.nextCursor);
     });
   }
 
@@ -71,19 +70,22 @@ export function StoryArchive({
     let next = cursor;
     let all = items;
     for (let i = 0; next && i < 30; i++) {
-      const r = await storyArchiveAction(next);
-      if (!r.ok) break;
+      const c = next;
+      const r = await callAction(() => storyArchiveAction(c));
+      if (!r.ok) {
+        toast(r.error, "error");
+        break;
+      }
       all = [...all, ...r.data.items.filter((n) => !all.some((o) => o.id === n.id))];
       next = r.data.nextCursor;
     }
-    setItems(all);
-    setCursor(next);
+    replace(all, next);
     setEditor(state);
   }
 
   async function removeHighlight(h: OwnHighlight) {
     if (!(await confirmDialog({ title: `Highlight „${h.title}“ löschen?`, body: "Die Stories selbst bleiben in deinem Archiv." }))) return;
-    const r = await deleteHighlightAction(h.id);
+    const r = await callAction(() => deleteHighlightAction(h.id));
     if (!r.ok) return toast(r.error, "error");
     toast("Highlight gelöscht.");
     router.refresh();
@@ -193,12 +195,16 @@ function HighlightEditor({ state, items, onClose }: { state: { id: string | null
         return (ib === -1 ? -1 : ib) - (ia === -1 ? -1 : ia);
       });
       if (state.id) {
-        const r = await updateHighlightAction(state.id, { title, storyIds: ordered, coverStoryId: cover });
+        const id = state.id;
+        const r = await callAction(() => updateHighlightAction(id, { title, storyIds: ordered, coverStoryId: cover }));
         if (!r.ok) return toast(r.error, "error");
       } else {
-        const r = await createHighlightAction({ title, storyIds: ordered });
+        const r = await callAction(() => createHighlightAction({ title, storyIds: ordered }));
         if (!r.ok) return toast(r.error, "error");
-        if (cover) await updateHighlightAction(r.data.id, { coverStoryId: cover });
+        if (cover) {
+          const c = await callAction(() => updateHighlightAction(r.data.id, { coverStoryId: cover }));
+          if (!c.ok) toast(`Highlight angelegt, Titelbild nicht gespeichert: ${c.error}`, "error");
+        }
       }
       toast(state.id ? "Highlight gespeichert." : "Highlight angelegt.");
       router.refresh();

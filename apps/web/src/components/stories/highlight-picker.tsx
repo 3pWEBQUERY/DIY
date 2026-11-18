@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { addToHighlightAction, myHighlightsAction, removeFromHighlightAction } from "@/app/(app)/stories/actions";
+import { callAction } from "@/lib/use-action";
 import { HighlightCover } from "./highlight-cover";
 
 type Own = Extract<Awaited<ReturnType<typeof myHighlightsAction>>, { ok: true }>["data"][number];
@@ -25,13 +26,21 @@ export function HighlightPickerDialog({ open, storyId, onClose }: { open: boolea
     if (!open) return;
     setList(null);
     setTitle("");
-    void myHighlightsAction(storyId).then((r) => setList(r.ok ? r.data : []));
+    let live = true;
+    void callAction(() => myHighlightsAction(storyId)).then((r) => {
+      if (!live) return;
+      if (!r.ok) toast(r.error, "error");
+      setList(r.ok ? r.data : []);
+    });
+    return () => {
+      live = false;
+    };
   }, [open, storyId]);
 
   function toggle(h: Own) {
     setBusyId(h.id);
     start(async () => {
-      const r = h.contains ? await removeFromHighlightAction(h.id, storyId) : await addToHighlightAction({ storyId, highlightId: h.id });
+      const r = h.contains ? await callAction(() => removeFromHighlightAction(h.id, storyId)) : await callAction(() => addToHighlightAction({ storyId, highlightId: h.id }));
       setBusyId(null);
       if (!r.ok) return toast(r.error, "error");
       setList((l) =>
@@ -49,7 +58,7 @@ export function HighlightPickerDialog({ open, storyId, onClose }: { open: boolea
     const t = title.trim();
     if (!t) return;
     start(async () => {
-      const r = await addToHighlightAction({ storyId, title: t });
+      const r = await callAction(() => addToHighlightAction({ storyId, title: t }));
       if (!r.ok) return toast(r.error, "error");
       toast(`Highlight „${t}“ angelegt.`);
       router.refresh();

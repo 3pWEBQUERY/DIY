@@ -5,6 +5,7 @@ import { db, Prisma, type CommunityRoleKind, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { hasRole, communityRole, requireCommunityModerator } from "@/server/authz";
 import { requireUser, type SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { notify } from "@/server/notifications";
 import { rateLimit } from "@/server/ratelimit";
 import { relationsFor, isBlockedBetween } from "@/server/visibility";
@@ -191,20 +192,24 @@ export async function getCommunityPage(slug: string, viewer: SessionUser | null)
   const platformMod = !!viewer && hasRole(viewer, "PLATFORM_MODERATOR");
   if (c.state === "HIDDEN" && !platformMod) return null;
   const m = viewer ? await communityRole(c.id, viewer.id) : null;
+  const canView = canViewCommunityContent(c, m, viewer);
   const now = new Date();
   const [challenge, pending, projectCount] = await Promise.all([
-    db.communityChallenge.findFirst({
-      // Laufend (Einreichung/Abstimmung/Jury), bald startend oder vor kurzem entschieden
-      where: { communityId: c.id, state: "ACTIVE", startsAt: { lte: new Date(now.getTime() + 14 * 86400_000) }, OR: [{ endsAt: { gte: now } }, { resultsAt: null }, { resultsAt: { gte: new Date(now.getTime() - 7 * 86400_000) } }] },
-      orderBy: { endsAt: "asc" },
-    }),
+    // Challenge (Titel, Regeln, Preis) ist Community-Inhalt → bei privaten Communities nur für Mitglieder
+    canView
+      ? db.communityChallenge.findFirst({
+          // Laufend (Einreichung/Abstimmung/Jury), bald startend oder vor kurzem entschieden
+          where: { communityId: c.id, state: "ACTIVE", startsAt: { lte: new Date(now.getTime() + 14 * 86400_000) }, OR: [{ endsAt: { gte: now } }, { resultsAt: null }, { resultsAt: { gte: new Date(now.getTime() - 7 * 86400_000) } }] },
+          orderBy: { endsAt: "asc" },
+        })
+      : Promise.resolve(null),
     isModRole(m) || platformMod ? db.communityMember.count({ where: { communityId: c.id, state: "PENDING" } }) : Promise.resolve(0),
     db.communityProject.count({ where: { communityId: c.id, project: { visibility: "PUBLIC", state: "PUBLISHED" } } }),
   ]);
   return {
     community: c,
     membership: m,
-    canView: canViewCommunityContent(c, m, viewer),
+    canView,
     isMember: m?.state === "ACTIVE",
     isMod: isModRole(m) || platformMod,
     isManager: isManagerRole(m) || (!!viewer && hasRole(viewer, "ADMIN")),
@@ -264,7 +269,11 @@ export async function listMembers(communityId: string, opts: { q?: string; take?
       communityId,
       state: "ACTIVE",
       ...(rel.blocked.length ? { userId: { notIn: rel.blocked } } : {}),
-      ...(opts.q ? { user: { profile: { OR: [{ displayName: { contains: opts.q, mode: "insensitive" } }, { handle: { contains: opts.q.toLowerCase() } }] } } } : {}),
+      // Gesperrte (BANNED) und gelöschte Konten nicht als Mitglieder zeigen – wie Feed und Profil
+      user: {
+        status: { in: ["ACTIVE", "SUSPENDED"] },
+        ...(opts.q ? { profile: { OR: [{ displayName: { contains: opts.q, mode: "insensitive" } }, { handle: { contains: opts.q.toLowerCase() } }] } } : {}),
+      },
     },
     orderBy: [{ role: "asc" }, { joinedAt: "asc" }, { userId: "asc" }],
     take: take + 1,
@@ -355,7 +364,8 @@ export async function moderationLog(communityId: string, take = 100) {
 export async function listCommunityProjects(communityId: string, viewerId: string | null) {
   const rel = await relationsFor(viewerId);
   const rows = await db.communityProject.findMany({
-    where: { communityId, project: { visibility: "PUBLIC", state: "PUBLISHED", ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) } },
+    // Wie visibleProjectsWhere: keine Projekte gesperrter/gelöschter oder blockierter Konten
+    where: { communityId, project: { visibility: "PUBLIC", state: "PUBLISHED", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) } },
     orderBy: { addedAt: "desc" },
     take: 60,
     select: {
@@ -384,6 +394,8 @@ export async function listChallenges(communityId: string) {
 // ───────────────────────── Schreiben: Community ─────────────────────────
 
 export async function createCommunity(user: SessionUser, input: unknown) {
+  // 18+ im Dienst selbst – Web-Server-Actions laufen nicht durch die zentrale Prüfung der Mobile-API
+  await requireAdult(user);
   const data = communityUpsertSchema.parse(input);
   await requireFlag("communities.create", user.id);
   await assertCategoryAllowed(data.category);

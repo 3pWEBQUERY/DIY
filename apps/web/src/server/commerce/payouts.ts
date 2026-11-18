@@ -298,15 +298,34 @@ export async function requestPayout(user: Pick<SessionUser, "id">, input: unknow
   const mode = paymentsMode();
   if (mode !== "simulated" && (mode !== "stripe" || !shop.stripeAccountId)) throw fail.invalid("Es ist noch kein Auszahlungskonto verbunden.");
   if (mode === "stripe" && !shop.payoutsEnabled) throw fail.invalid("Auszahlungen sind bei Stripe noch nicht freigeschaltet. Schau unter „Shopverwaltung“, ob noch Angaben fehlen.");
-  const b = await stripeCall(user, "balance", () => balanceOf(shop), "Dein Guthaben konnte gerade nicht abgefragt werden.");
-  const amount = data.amountMinor ?? b.available;
-  if (amount < 100) throw fail.invalid(holdMessage(b));
-  if (amount > b.available) throw fail.invalid(b.held > 0 ? `Der Betrag ist höher als dein auszahlbares Guthaben (${formatMoney(b.available, b.currency as Currency)}). ${holdMessage(b)}` : "Der Betrag ist höher als dein verfügbares Guthaben.");
-  if (mode === "stripe" && b.settings?.schedule && b.settings.schedule.interval !== "manual") {
-    await stripeCall(user, "payout-schedule", () => updatePayoutSchedule(shop.stripeAccountId!, { interval: "manual" }), "Der Auszahlungsplan konnte gerade nicht geändert werden.");
-  }
-  const p = await createPayout(shop, amount, b.currency, `payout:${shop.id}:${amount}:${Math.floor(Date.now() / 60_000)}`, false);
+  // Guthaben erst unter der Shop-Sperre berechnen – sonst zahlen ein Antrag und der Plan-Lauf (oder zwei
+  // Anträge) gleichzeitig dasselbe freigegebene Guthaben aus
+  const p = await withPayoutLock(shop.id, async () => {
+    const b = await stripeCall(user, "balance", () => balanceOf(shop), "Dein Guthaben konnte gerade nicht abgefragt werden.");
+    const amount = data.amountMinor ?? b.available;
+    if (amount < 100) throw fail.invalid(holdMessage(b));
+    if (amount > b.available) throw fail.invalid(b.held > 0 ? `Der Betrag ist höher als dein auszahlbares Guthaben (${formatMoney(b.available, b.currency as Currency)}). ${holdMessage(b)}` : "Der Betrag ist höher als dein verfügbares Guthaben.");
+    if (mode === "stripe" && b.settings?.schedule && b.settings.schedule.interval !== "manual") {
+      await stripeCall(user, "payout-schedule", () => updatePayoutSchedule(shop.stripeAccountId!, { interval: "manual" }), "Der Auszahlungsplan konnte gerade nicht geändert werden.");
+    }
+    return createPayout(shop, amount, b.currency, `payout:${shop.id}:${amount}:${Math.floor(Date.now() / 60_000)}`, false);
+  });
   return { amountMinor: p.amountMinor, currency: p.currency, arrivalAt: p.arrivalAt };
+}
+
+/**
+ * Auszahlungen je Shop nacheinander: Postgres-Sperre (pg_advisory_xact_lock) für die Dauer von
+ * Guthabenberechnung und Auszahlung. Die Transaktion dient nur der Sperre; `fn` arbeitet mit `db`.
+ */
+export async function withPayoutLock<T>(shopId: string, fn: () => Promise<T>): Promise<T> {
+  return db.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`payout:${shopId}`}))`;
+      return fn();
+    },
+    // Guthabenabfrage und Auszahlung laufen über Stripe (Netzwerk) – grosszügige Frist
+    { timeout: 60_000, maxWait: 30_000 },
+  );
 }
 
 /** Auszahlung beim Anbieter auslösen (bzw. im Testmodus simulieren) und verbuchen. */
@@ -378,12 +397,18 @@ export async function runScheduledPayouts(now: Date = new Date()) {
   for (const s of shops) {
     if (!isPayoutDue({ interval: s.payoutInterval, weeklyAnchor: s.payoutWeeklyAnchor, monthlyAnchor: s.payoutMonthlyAnchor }, s.lastAutoPayoutAt, now)) continue;
     try {
-      const b = await balanceOf(s);
-      // Tag als erledigt markieren (auch ohne Betrag) – höchstens ein Versuch pro Tag
-      await db.$executeRaw`UPDATE "Shop" SET "lastAutoPayoutAt" = ${now} WHERE "id" = ${s.id}`;
-      if (b.available < 100) continue;
-      await createPayout(s, b.available, b.currency, `auto-payout:${s.id}:${zurichDayKey(now)}`, true);
-      n++;
+      const paid = await withPayoutLock(s.id, async () => {
+        // Unter der Sperre neu prüfen: ein paralleler Lauf kann den Tag inzwischen erledigt haben
+        const fresh = await db.shop.findUnique({ where: { id: s.id }, select: { lastAutoPayoutAt: true } });
+        if (!fresh || !isPayoutDue({ interval: s.payoutInterval, weeklyAnchor: s.payoutWeeklyAnchor, monthlyAnchor: s.payoutMonthlyAnchor }, fresh.lastAutoPayoutAt, now)) return false;
+        const b = await balanceOf(s);
+        // Tag als erledigt markieren (auch ohne Betrag) – höchstens ein Versuch pro Tag
+        await db.$executeRaw`UPDATE "Shop" SET "lastAutoPayoutAt" = ${now} WHERE "id" = ${s.id}`;
+        if (b.available < 100) return false;
+        await createPayout(s, b.available, b.currency, `auto-payout:${s.id}:${zurichDayKey(now)}`, true);
+        return true;
+      });
+      if (paid) n++;
     } catch (e) {
       if (isForeignAccountError(e)) {
         await disconnectForeignStripeAccount(s.id);

@@ -5,6 +5,7 @@ import { ImagePlus, LoaderCircle, SendHorizontal, X } from "lucide-react";
 import { uploadFile } from "@/components/media/uploader";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useObjectUrls } from "@/lib/use-object-urls";
 
 type Attachment = { key: string; id: string | null; preview: string; progress: number; error?: boolean };
 
@@ -21,6 +22,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
     const [sending, setSending] = useState(false);
     const area = useRef<HTMLTextAreaElement>(null);
     const input = useRef<HTMLInputElement>(null);
+    const blobs = useObjectUrls();
     useImperativeHandle(ref, () => ({ focus: () => area.current?.focus() }));
 
     const uploading = files.some((f) => !f.id && !f.error);
@@ -35,10 +37,13 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
           continue;
         }
         const key = crypto.randomUUID();
-        setFiles((p) => [...p, { key, id: null, preview: URL.createObjectURL(file), progress: 0 }]);
+        const local = blobs.create(file);
+        setFiles((p) => [...p, { key, id: null, preview: local, progress: 0 }]);
         try {
           const r = await uploadFile(file, "public", (progress) => setFiles((p) => p.map((f) => (f.key === key ? { ...f, progress } : f))));
           setFiles((p) => p.map((f) => (f.key === key ? { ...f, id: r.mediaId, progress: 1, preview: r.variants?.sm ?? f.preview } : f)));
+          // Vorschau vom Server da → lokale Kopie freigeben (das <img> wechselt im selben Render)
+          if (r.variants?.sm) requestAnimationFrame(() => blobs.revoke(local));
         } catch (e) {
           toast(e instanceof Error ? e.message : "Upload fehlgeschlagen", "error");
           setFiles((p) => p.map((f) => (f.key === key ? { ...f, error: true } : f)));
@@ -49,11 +54,19 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
     async function send() {
       if (!canSend) return;
       setSending(true);
-      const ok = await onSend(body.trim(), ready.map((f) => ({ id: f.id!, alt: "" })));
-      setSending(false);
+      const sentBody = body;
+      const sent = new Set(ready.map((f) => f.key));
+      let ok = false;
+      try {
+        ok = await onSend(body.trim(), ready.map((f) => ({ id: f.id!, alt: "" })));
+      } finally {
+        setSending(false);
+      }
       if (ok) {
-        setBody("");
-        setFiles([]);
+        // Nur Gesendetes entfernen: was währenddessen neu getippt oder angehängt wurde, bleibt stehen
+        setBody((cur) => (cur === sentBody ? "" : cur));
+        ready.forEach((f) => blobs.revoke(f.preview));
+        setFiles((p) => p.filter((f) => !sent.has(f.key)));
       }
       requestAnimationFrame(() => area.current?.focus());
     }
@@ -72,7 +85,10 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
                 <img src={f.preview} alt="" className={cn("h-full w-full object-cover", !f.id && "opacity-60")} />
                 {!f.id && !f.error && <LoaderCircle size={16} className="absolute inset-0 m-auto animate-spin text-ink" />}
                 {f.error && <span className="absolute inset-0 grid place-items-center bg-danger/80 text-[10px] font-semibold text-paper">Fehler</span>}
-                <button type="button" onClick={() => setFiles((p) => p.filter((x) => x.key !== f.key))} className="absolute right-0 top-0 grid size-5 place-items-center bg-card" aria-label={`Bild ${i + 1} entfernen`}>
+                <button type="button" onClick={() => {
+                    blobs.revoke(f.preview);
+                    setFiles((p) => p.filter((x) => x.key !== f.key));
+                  }} className="absolute right-0 top-0 grid size-5 place-items-center bg-card" aria-label={`Bild ${i + 1} entfernen`}>
                   <X size={11} />
                 </button>
               </li>

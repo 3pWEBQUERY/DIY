@@ -19,6 +19,7 @@ import { audit } from "@/server/audit";
 import { attachMedia } from "@/server/media/service";
 import { flagEnabled, requireFlag } from "@/server/flags";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 
 /**
  * Stories (Foto, Video, Text) – 24 Stunden im Story-Kreis der Follower, danach nur noch im
@@ -135,6 +136,8 @@ const activeWhere = (): Prisma.StoryWhereInput => ({ expiresAt: { gt: new Date()
 
 export async function createStory(user: SessionUser, input: unknown) {
   await requireFlag("stories", user.id);
+  // 18+ im Dienst selbst – Web-Server-Actions laufen nicht durch die zentrale Prüfung der Mobile-API
+  await requireAdult(user);
   const data = storyCreateSchema.parse(input);
   await limit("story", user.id);
   const recent = await db.story.count({ where: { authorId: user.id, createdAt: { gte: new Date(Date.now() - 24 * 3600_000) }, state: { not: "REMOVED" } } });

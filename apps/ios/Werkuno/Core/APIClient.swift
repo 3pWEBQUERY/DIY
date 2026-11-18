@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Security
 import UniformTypeIdentifiers
 
@@ -454,6 +455,9 @@ final class APIClient: @unchecked Sendable {
 
     /// Anfordern (`POST /api/v1/media`) → hochladen (vorab signierte URL, sonst Server-Fallback) → abschliessen.
     private func upload(mime: String, bytes: Int, purpose: String, durationSec: Double?, transfer: (URLRequest) async throws -> (Data, URLResponse)) async throws -> (id: String, result: UploadResult) {
+        // Zusätzliche Laufzeit, falls die App während des Uploads in den Hintergrund geht
+        let background = await BackgroundActivity("Werkuno-Upload")
+        defer { Task { @MainActor in background.end() } }
         var body: [String: JSONValue] = ["mime": .string(mime), "bytes": .number(Double(bytes)), "purpose": .string(purpose)]
         if let durationSec, durationSec.isFinite, durationSec > 0 { body["durationSec"] = .number(durationSec) }
         let ticket: UploadTicket = try await send("POST", "/media", body: body, root: "/api/v1")
@@ -486,6 +490,27 @@ final class APIClient: @unchecked Sendable {
         }
         let result: UploadResult = try await send("POST", "/media/\(ticket.mediaId)/complete", body: [String: String](), root: "/api/v1")
         return (ticket.mediaId, result)
+    }
+}
+
+/// Zusätzliche Laufzeit im Hintergrund (`beginBackgroundTask`), damit z. B. ein Video-Upload nicht
+/// abbricht, sobald die App in den Hintergrund geht. iOS gewährt damit nur begrenzt Zeit (kein
+/// Hintergrund-URLSession); läuft sie ab, wird die Aktivität sauber beendet.
+@MainActor
+final class BackgroundActivity {
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    init(_ name: String) {
+        id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    /// Mehrfaches Aufrufen ist unbedenklich.
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
     }
 }
 

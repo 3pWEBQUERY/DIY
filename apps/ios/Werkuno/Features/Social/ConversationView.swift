@@ -105,7 +105,7 @@ struct ConversationView: View {
         .fullScreenCover(item: $viewerMedia) { v in MediaViewer(media: v.items, start: v.start) }
         .sheet(isPresented: $showGroupInfo) {
             if let g = thread?.group {
-                GroupInfoSheet(conversationId: id, group: g, reload: { await load(); return thread?.group }, onLeft: {
+                GroupInfoSheet(conversationId: id, group: g, reload: { await reloadGroup(); return thread?.group }, onLeft: {
                     Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(350))
                         dismiss()
@@ -532,8 +532,9 @@ struct ConversationView: View {
             }
             guard !r.messages.isEmpty else { return }
             merge(r.messages)
-            // Gruppenereignis (hinzugefügt, umbenannt, verlassen …): Kopf und Mitglieder neu laden
-            if thread?.group != nil, r.messages.contains(where: \.isSystem) { await load() }
+            // Gruppenereignis (hinzugefügt, umbenannt, verlassen …): Kopf und Mitglieder neu laden,
+            // geladene ältere Nachrichten bleiben erhalten
+            if thread?.group != nil, r.messages.contains(where: \.isSystem) { await reloadGroup() }
             if r.messages.contains(where: { !$0.mine && !$0.isSystem }) {
                 Haptics.soft()
                 scrollTarget = "bottom"
@@ -547,10 +548,30 @@ struct ConversationView: View {
         }
     }
 
-    private func merge(_ new: [SocialMessage]) {
+    /// Kopf, Mitglieder und Status der Unterhaltung neu holen, ohne den geladenen Verlauf zu ersetzen.
+    private func reloadGroup() async {
+        do {
+            let t: SocialThread = try await APIClient.shared.get("/conversations/\(id)")
+            withAnimation(.snappy) {
+                thread = t
+                isRequest = t.me.isRequest
+                archived = t.me.archived
+                receipts = t.receipts
+                otherPending = t.other?.pendingRequest ?? false
+            }
+            merge(t.messages)
+        } catch {
+            // nächster Versuch beim nächsten Gruppenereignis
+        }
+    }
+
+    /// `advanceCursor: false` für eigene, gerade gesendete Nachrichten: der Polling-Cursor
+    /// (`lastAt`) darf nicht über Nachrichten der anderen Seite springen, die seit dem letzten
+    /// Abruf entstanden, aber noch nicht geladen sind.
+    private func merge(_ new: [SocialMessage], advanceCursor: Bool = true) {
         let known = Set(messages.map(\.id))
         let add = new.filter { !known.contains($0.id) }
-        if let last = new.map(\.createdAt).max(), lastAt.map({ last > $0 }) ?? true { lastAt = last }
+        if advanceCursor, let last = new.map(\.createdAt).max(), lastAt.map({ last > $0 }) ?? true { lastAt = last }
         guard !add.isEmpty else { return }
         withAnimation(.snappy) {
             messages = (messages + add).sorted { $0.createdAt < $1.createdAt }
@@ -575,7 +596,7 @@ struct ConversationView: View {
             Haptics.tap()
             text = ""
             attachments = []
-            merge([m])
+            merge([m], advanceCursor: false)
             if isRequest { withAnimation(.snappy) { isRequest = false } }
             if archived { archived = false }
             scrollTarget = "bottom"

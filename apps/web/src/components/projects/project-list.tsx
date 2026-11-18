@@ -1,30 +1,26 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 import type { ProjectCardData, ProjectFilters } from "@/server/projects/service";
 import { loadProjectsAction } from "@/app/(app)/projekte/actions";
+import { callData } from "@/lib/use-action";
+import { usePagedList } from "@/lib/use-paged-list";
+import { toast } from "@/components/ui/toast";
 import { ProjectCard, ProjectGrid } from "./project-card";
 
 /** Projektraster mit Cursor-„Mehr laden“ (Filter bleiben serverseitig definiert). */
 export function ProjectList({ initial, cursor: initialCursor, filters }: { initial: ProjectCardData[]; cursor: string | null; filters: ProjectFilters }) {
-  const [items, setItems] = useState(initial);
-  const [cursor, setCursor] = useState(initialCursor);
+  // Neu beginnen nur bei anderen Filtern; router.refresh() mischt die erste Seite ein
+  const { items, cursor, append } = usePagedList(initial, initialCursor, JSON.stringify(filters));
   const [pending, start] = useTransition();
-
-  useEffect(() => {
-    setItems(initial);
-    setCursor(initialCursor);
-  }, [initial, initialCursor]);
 
   const more = () =>
     cursor &&
+    !pending &&
     start(async () => {
-      const r = await loadProjectsAction(filters, cursor);
-      setItems((prev) => {
-        const ids = new Set(prev.map((p) => p.id));
-        return [...prev, ...r.items.filter((p) => !ids.has(p.id))];
-      });
-      setCursor(r.nextCursor);
+      const r = await callData(() => loadProjectsAction(filters, cursor));
+      if (!r.ok) return void toast(r.error, "error");
+      append(r.data.items, r.data.nextCursor);
     });
 
   return (

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { cancelRestockAction, requestRestockAction } from "@/app/(app)/markt/actions";
+import { callAction } from "@/lib/use-action";
 
 /**
  * Ausverkauftes Produkt: „Wird das nachproduziert?“ beim Shop anfragen. Der Shop erhält eine Benachrichtigung;
@@ -32,7 +33,7 @@ export function RestockRequest({
 
   function send() {
     start(async () => {
-      const r = await requestRestockAction(productId, note, location.pathname);
+      const r = await callAction(() => requestRestockAction(productId, note, location.pathname));
       if (r.ok) {
         setRequested(true);
         setOpen(false);
@@ -46,7 +47,7 @@ export function RestockRequest({
 
   function cancel() {
     start(async () => {
-      const r = await cancelRestockAction(productId, location.pathname);
+      const r = await callAction(() => cancelRestockAction(productId, location.pathname));
       if (r.ok) {
         setRequested(false);
         toast("Anfrage zurückgezogen.");

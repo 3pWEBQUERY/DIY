@@ -595,6 +595,8 @@ model PostMedia {
 
   @@id([postId, mediaId])
   @@index([postId, position])
+  /// Verwendungsprüfung je Medium (mediaInUse, isMediaPublic)
+  @@index([mediaId])
 }
 
 model Comment {
@@ -858,6 +860,7 @@ model ProjectMedia {
   caption   String  @default("")
 
   @@id([projectId, mediaId])
+  @@index([mediaId])
 }
 
 model ProjectUpdate {
@@ -1044,6 +1047,7 @@ model TutorialMedia {
   position   Int
 
   @@id([tutorialId, mediaId])
+  @@index([mediaId])
 }
 
 model TutorialAsset {
@@ -1512,6 +1516,7 @@ model ProductMedia {
   alt       String  @default("")
 
   @@id([productId, mediaId])
+  @@index([mediaId])
 }
 
 /// Bestand je Produkt (ohne Variante) bzw. je Variante. `reserved` = in offenen Checkouts gebunden.

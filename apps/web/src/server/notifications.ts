@@ -102,7 +102,9 @@ export async function notify(
 }
 
 export async function unreadCount(userId: string) {
-  return db.notification.count({ where: { recipientId: userId, readAt: null } });
+  // Gleiche Sicht wie der Posteingang: Einträge blockierter bzw. gesperrter Auslöser:innen zählen nicht
+  const { visibleActorWhere } = await import("@/server/notifications-inbox");
+  return db.notification.count({ where: { recipientId: userId, readAt: null, AND: [await visibleActorWhere(userId)] } });
 }
 
 /**

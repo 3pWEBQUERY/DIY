@@ -149,17 +149,24 @@ final class AppState {
     func refresh() async {
         isRefreshing = true
         defer { isRefreshing = false }
+        // Token beim Start merken: Hat sich die Sitzung inzwischen geändert (Abmelden, Kontowechsel),
+        // darf eine späte Antwort weder das alte Konto zurückbringen noch das neue Token löschen
+        let tokenAtStart = api.token
+        func isStale() -> Bool { isSigningOut || api.token != tokenAtStart }
         do {
             let b: Bootstrap = try await api.get("/bootstrap")
+            guard !isStale() else { return }
             needsBootstrap = false
             apply(b)
         } catch let e as APIError where e.isAuth {
+            guard !isStale() else { return }
             needsBootstrap = false
             api.token = nil
             me = nil
             phase = .signedOut
             updateBadge()
         } catch {
+            guard !isStale() else { return }
             lastError = (error as? APIError)?.message ?? error.localizedDescription
             // Offline bzw. Serverfehler ≠ abgemeldet: Token behalten, später erneut versuchen
             if api.isSignedIn && me == nil {
@@ -185,6 +192,9 @@ final class AppState {
         feeBps = b.payments.feeBps
         appleNative = b.features?.appleNative ?? false
         flags = b.flags ?? [:]
+        // Vor dem Überschreiben merken, ob vorher ein Konto angemeldet war (für den Online-Status unten)
+        let wasSignedIn = me != nil
+        let previousToken = api.token
         me = b.me
         liveCounts = nil
         updateBadge()
@@ -201,11 +211,17 @@ final class AppState {
             if isActive { LiveStream.shared.start() }
         } else {
             LiveStream.shared.stop()
-            // Online-Status sofort beenden (ohne Herzschlag liefe er nach gut 2 Minuten ab)
-            if me != nil {
-                Task { _ = try? await api.send("POST", "/me/presence", query: ["state": "offline"], body: Optional<Int>.none, root: "/api/v1") as JSONValue }
+            // Online-Status sofort beenden (ohne Herzschlag liefe er nach gut 2 Minuten ab) –
+            // mit dem bisherigen Token, das oben bereits entfernt wurde
+            if wasSignedIn, let previousToken {
+                Task { await sendOfflinePresence(bearer: previousToken) }
             }
         }
+    }
+
+    /// Online-Status sofort beenden (`POST /api/v1/me/presence?state=offline`).
+    private func sendOfflinePresence(bearer: String? = nil) async {
+        _ = try? await api.send("POST", "/me/presence", query: ["state": "offline"], body: Optional<Int>.none, root: "/api/v1", bearer: bearer) as JSONValue
     }
 
     /// Zähler frisch vom Server (leichtgewichtig, ohne kompletten Bootstrap)
@@ -219,7 +235,8 @@ final class AppState {
             updateBadge()
         } catch let e as APIError where e.status == 404 {
             // Älterer Server ohne /me/counts → Bootstrap
-            if let b: Bootstrap = try? await api.get("/bootstrap"), let m = b.me {
+            let tokenAtStart = api.token
+            if let b: Bootstrap = try? await api.get("/bootstrap"), let m = b.me, !isSigningOut, api.token == tokenAtStart, me != nil {
                 withAnimation(.snappy) { me = m; liveCounts = nil }
                 if let f = b.flags { flags = f }
                 updateBadge()
@@ -258,6 +275,8 @@ final class AppState {
 
     /// App kommt in den Vordergrund / geht in den Hintergrund
     func setActive(_ active: Bool) {
+        // .inactive und danach .background melden beide „nicht aktiv“ – Offline nur einmal senden
+        let wasActive = isActive
         isActive = active
         if active {
             if me != nil { LiveStream.shared.start() }
@@ -265,6 +284,14 @@ final class AppState {
             Task { await refreshCounts() }
         } else {
             LiveStream.shared.stop()
+            // Online-Status sofort beenden; zusätzliche Hintergrundzeit, damit die Anfrage noch rausgeht
+            if wasActive, me != nil, api.isSignedIn {
+                let background = BackgroundActivity("Werkuno-Presence")
+                Task {
+                    await sendOfflinePresence()
+                    background.end()
+                }
+            }
         }
     }
 
@@ -330,6 +357,8 @@ final class AppState {
         defer { isSigningOut = false }
         LiveStream.shared.stop()
         if !sessionRevoked {
+            // Online-Status beenden, solange das Token noch gilt
+            if me != nil { await sendOfflinePresence() }
             await PushRegistration.unregister()
             await api.logout()
         }

@@ -152,17 +152,21 @@ export async function submitEntry(user: SessionUser, challengeId: string, input:
   const project = await db.project.findUnique({ where: { id: data.projectId }, select: { ownerId: true, state: true, visibility: true } });
   if (!project || project.ownerId !== user.id) throw fail.invalid("Du kannst nur eigene Projekte einreichen.", { projectId: "Eigenes Projekt wählen" });
   if (project.state !== "PUBLISHED" || project.visibility !== "PUBLIC") throw fail.invalid("Das Projekt muss veröffentlicht und öffentlich sein.", { projectId: "Projekt ist nicht öffentlich" });
-  const existing = await db.challengeEntry.findUnique({ where: { challengeId_userId: { challengeId, userId: user.id } } });
-  if (existing?.state === "REMOVED") throw fail.forbidden("Deine Einreichung wurde von der Moderation entfernt.");
-  await db.$transaction(async (tx) => {
+  const replaced = await db.$transaction(async (tx) => {
+    // Gleichzeitige erste Einreichungen derselben Person nacheinander: sonst sähen beide „noch keine“
+    // und zählten entryCount doppelt hoch. Die Prüfung läuft deshalb erst unter der Sperre.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`challenge-entry:${challengeId}:${user.id}`}))`;
+    const existing = await tx.challengeEntry.findUnique({ where: { challengeId_userId: { challengeId, userId: user.id } }, select: { state: true } });
+    if (existing?.state === "REMOVED") throw fail.forbidden("Deine Einreichung wurde von der Moderation entfernt.");
     await tx.challengeEntry.upsert({
       where: { challengeId_userId: { challengeId, userId: user.id } },
       create: { challengeId, userId: user.id, projectId: data.projectId, note: data.note },
       update: { projectId: data.projectId, note: data.note },
     });
     if (!existing) await tx.communityChallenge.update({ where: { id: challengeId }, data: { entryCount: { increment: 1 } } });
+    return !!existing;
   });
-  return { replaced: !!existing };
+  return { replaced };
 }
 
 export async function withdrawEntry(user: Pick<SessionUser, "id">, challengeId: string) {

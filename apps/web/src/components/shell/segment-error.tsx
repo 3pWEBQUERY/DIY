@@ -9,7 +9,19 @@ import { Button, buttonClass } from "@/components/ui/button";
  * Fehleranzeige innerhalb eines Bereichs (App, Studio, Admin): Navigation und Kopfzeile
  * bleiben stehen, nur der Inhalt zeigt den Fehler mit „Erneut versuchen“.
  */
-export function SegmentError({ error, reset, home = "/feed" }: { error: Error & { digest?: string }; reset: () => void; home?: string }) {
+export function SegmentError({
+  error,
+  retry,
+  reset,
+  home = "/feed",
+}: {
+  error: Error & { digest?: string };
+  /** Next 16.3+: lädt die Daten neu und rendert erneut (reset() rendert nur neu). */
+  retry?: () => void;
+  reset?: () => void;
+  home?: string;
+}) {
+  const again = retry ?? reset;
   useEffect(() => {
     console.error(error);
     reportClientError(error, "boundary");
@@ -21,7 +33,7 @@ export function SegmentError({ error, reset, home = "/feed" }: { error: Error & 
         <h1 className="display mt-3 text-4xl">Da ist etwas verrutscht.</h1>
         <p className="mt-4 text-muted">Versuch es bitte noch einmal – deine Eingaben sind in der Regel noch da.</p>
         <div className="mt-8 flex justify-center gap-2">
-          <Button onClick={reset}>Erneut versuchen</Button>
+          <Button onClick={() => (again ? again() : location.reload())}>Erneut versuchen</Button>
           <Link href={home} className={buttonClass("outline", "md")}>Zur Übersicht</Link>
         </div>
       </div>

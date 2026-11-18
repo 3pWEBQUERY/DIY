@@ -6,6 +6,7 @@ import { fail } from "@/server/errors";
 import { rateLimit } from "@/server/ratelimit";
 import { canViewContent, isBlockedBetween, relationsFor, visibleContentWhere } from "@/server/visibility";
 import type { SessionUser } from "@/server/auth/session";
+import { requireAdult } from "@/server/auth/adult";
 import { hydratePosts, viewableCommunityIds, type PostView } from "@/server/social/posts";
 import { getProjectCards, type ProjectCardData } from "@/server/projects/service";
 import { getTutorialCards, type TutorialCardData } from "@/server/tutorials/service";
@@ -148,6 +149,8 @@ async function uniqueCollectionSlug(ownerId: string, title: string, excludeId?: 
 }
 
 export async function createCollection(user: SessionUser, input: unknown) {
+  // 18+ im Dienst selbst – Web-Server-Actions laufen nicht durch die zentrale Prüfung der Mobile-API
+  await requireAdult(user);
   const data = collectionUpsertSchema.parse(input);
   await rateLimit(`collection:${user.id}`, 60, 3600);
   const count = await db.collection.count({ where: { ownerId: user.id } });

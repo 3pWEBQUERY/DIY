@@ -35,21 +35,39 @@ enum SocialAPI {
 struct LikeButton: View {
     var type: String
     var id: String
-    @State var liked: Bool
-    @State var count: Int
+    /// Stand vom Server (Props). `@State` übernimmt Props nur beim ersten Erscheinen –
+    /// neue Serverdaten mit gleicher id werden darum per `onChange` nachgezogen.
+    private var serverLiked: Bool
+    private var serverCount: Int
     var showCount = true
+    @State private var liked: Bool
+    @State private var count: Int
+    /// Laufende optimistische Änderungen – solange > 0, überschreiben Props den lokalen Stand nicht
+    @State private var pending = 0
     @Environment(AppState.self) private var app
+
+    init(type: String, id: String, liked: Bool, count: Int, showCount: Bool = true) {
+        self.type = type
+        self.id = id
+        self.serverLiked = liked
+        self.serverCount = count
+        self.showCount = showCount
+        _liked = State(initialValue: liked)
+        _count = State(initialValue: count)
+    }
 
     var body: some View {
         Button {
             let next = !liked
             Haptics.tap()
             withAnimation(.spring(duration: 0.3, bounce: 0.5)) { liked = next; count += next ? 1 : -1 }
+            pending += 1
             Task {
                 do { try await SocialAPI.like(type, id, next) } catch {
                     withAnimation { liked = !next; count += next ? -1 : 1 }
                     app.show(error: error)
                 }
+                pending -= 1
             }
         } label: {
             HStack(spacing: 4) {
@@ -65,27 +83,42 @@ struct LikeButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel(liked ? "Gefällt mir nicht mehr" : "Gefällt mir")
         .accessibilityValue("\(count)")
+        .onChange(of: serverLiked) { _, v in if pending == 0 { liked = v } }
+        .onChange(of: serverCount) { _, v in if pending == 0 { count = v } }
     }
 }
 
 struct SaveButton: View {
     var type: String
     var id: String
-    @State var saved: Bool
+    /// Stand vom Server (Props), siehe `LikeButton`
+    private var serverSaved: Bool
     var label = false
+    @State private var saved: Bool
+    @State private var pending = 0
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+
+    init(type: String, id: String, saved: Bool, label: Bool = false) {
+        self.type = type
+        self.id = id
+        self.serverSaved = saved
+        self.label = label
+        _saved = State(initialValue: saved)
+    }
 
     var body: some View {
         Button {
             let next = !saved
             Haptics.tap()
             withAnimation(.snappy) { saved = next }
+            pending += 1
             Task {
                 do { try await SocialAPI.save(type, id, next); if next { app.show("Gespeichert") } } catch {
                     withAnimation { saved = !next }
                     app.show(error: error)
                 }
+                pending -= 1
             }
         } label: {
             if label {
@@ -105,14 +138,25 @@ struct SaveButton: View {
             Button("In Sammlung speichern …", systemImage: "folder.badge.plus") { router.present(.collectionPicker(type: type, id: id)) }
         }
         .accessibilityLabel(saved ? "Nicht mehr speichern" : "Speichern")
+        .onChange(of: serverSaved) { _, v in if pending == 0 { saved = v } }
     }
 }
 
 struct FollowButton: View {
     var userId: String
-    @State var following: Bool
+    /// Stand vom Server (Props), siehe `LikeButton`
+    private var serverFollowing: Bool
     var compact = false
+    @State private var following: Bool
+    @State private var pending = 0
     @Environment(AppState.self) private var app
+
+    init(userId: String, following: Bool, compact: Bool = false) {
+        self.userId = userId
+        self.serverFollowing = following
+        self.compact = compact
+        _following = State(initialValue: following)
+    }
 
     var body: some View {
         if app.me?.id == userId { EmptyView() } else {
@@ -120,11 +164,13 @@ struct FollowButton: View {
                 let next = !following
                 Haptics.tap()
                 withAnimation(.snappy) { following = next }
+                pending += 1
                 Task {
                     do { try await SocialAPI.follow(userId, next) } catch {
                         withAnimation { following = !next }
                         app.show(error: error)
                     }
+                    pending -= 1
                 }
             } label: {
                 Text(following ? "Folge ich" : "Folgen")
@@ -137,6 +183,7 @@ struct FollowButton: View {
             .tint(following ? nil : .action)
             .controlSize(compact ? .small : .regular)
             .accessibilityLabel(following ? "Entfolgen" : "Folgen")
+            .onChange(of: serverFollowing) { _, v in if pending == 0 { following = v } }
         }
     }
 }
@@ -358,7 +405,14 @@ struct PostCardView: View {
             LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl, kind: .product) { router.open(.product(shopSlug: shop, productSlug: slug)) }
         }
         if let a = post.article {
-            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) { router.open(href: a.href) }
+            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) {
+                // Der Server liefert für verknüpfte Artikel kein `href`, aber Slug und Autor-Handle
+                if let h = a.authorHandle?.nilIfEmpty, let s = a.slug?.nilIfEmpty {
+                    router.open(.article(handle: h, slug: s))
+                } else {
+                    router.open(href: a.href)
+                }
+            }
         }
     }
 

@@ -8,6 +8,8 @@ struct FeedView: View {
     @State private var kind: SocialFeedKind = .forYou
     @State private var posts: [PostItem] = []
     @State private var cursor: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
     @State private var loaded = false
     @State private var error: String?
     @State private var context: SocialFeedContext = .empty
@@ -127,7 +129,7 @@ struct FeedView: View {
                     .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
                 interlude(after: idx)
             }
-            LoadMoreTrigger(hasMore: cursor != nil) { await loadFeed(reset: false) }
+            LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await loadFeed(reset: false) }
             if cursor == nil { trailingModules }
         }
     }
@@ -209,9 +211,11 @@ struct FeedView: View {
                 error = nil
                 loaded = true
             }
+            moreFailed = false
         } catch is CancellationError {
         } catch {
             guard requestedKind == kind else { return }
+            if !reset { moreFailed = true }
             self.error = (error as? APIError)?.message ?? error.localizedDescription
             loaded = true
             if !reset || !posts.isEmpty { app.show(error: error) }

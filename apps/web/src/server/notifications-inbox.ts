@@ -1,6 +1,7 @@
 import "server-only";
 import type { NotificationType } from "@werkraum/shared";
 import { db, type Prisma } from "@/server/db";
+import { relationsFor } from "@/server/visibility";
 import { NOTIFICATION_FILTERS, NOTIFICATION_ICON, notificationGroup, notificationHref, notificationParts, notificationText } from "@/server/notifications-format";
 
 /**
@@ -30,6 +31,18 @@ function decodeCursor(c: string | null | undefined) {
   }
 }
 
+/**
+ * Einträge ohne Auslöser (System) oder mit sichtbarem Auslöser: Blockierte (beide Richtungen) sowie
+ * gesperrte/gelöschte Konten erscheinen nicht. In der Datenbank gefiltert, damit Seitengrösse und Cursor
+ * stimmen; dieselbe Regel gilt für die Ungelesen-Zähler.
+ */
+export async function visibleActorWhere(userId: string): Promise<Prisma.NotificationWhereInput> {
+  const { blocked } = await relationsFor(userId);
+  return {
+    OR: [{ actorId: null }, { actor: { status: { in: ["ACTIVE", "SUSPENDED"] }, ...(blocked.length ? { id: { notIn: blocked } } : {}) } }],
+  };
+}
+
 export async function listNotifications(userId: string, opts: { filter?: string | null; cursor?: string | null; limit?: number; unreadOnly?: boolean } = {}) {
   const take = Math.min(100, Math.max(1, opts.limit ?? 40));
   const f = NOTIFICATION_FILTERS.find((x) => x.key === opts.filter) ?? NOTIFICATION_FILTERS[0]!;
@@ -40,6 +53,7 @@ export async function listNotifications(userId: string, opts: { filter?: string 
       ...(f.types ? { type: { in: f.types } } : {}),
       ...(opts.unreadOnly ? { readAt: null } : {}),
       ...(cur ? { OR: [{ updatedAt: { lt: cur.d } }, { updatedAt: cur.d, id: { lt: cur.id } }] } : {}),
+      AND: [await visibleActorWhere(userId)],
     },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: take + 1,
@@ -89,7 +103,7 @@ export async function markNotificationsRead(userId: string, ids: string[] | "all
 }
 
 export async function unreadByFilter(userId: string) {
-  const rows = await db.notification.groupBy({ by: ["type"], where: { recipientId: userId, readAt: null }, _count: { _all: true } });
+  const rows = await db.notification.groupBy({ by: ["type"], where: { recipientId: userId, readAt: null, AND: [await visibleActorWhere(userId)] }, _count: { _all: true } });
   const out: Record<string, number> = { all: 0 };
   for (const r of rows) {
     out.all = (out.all ?? 0) + r._count._all;

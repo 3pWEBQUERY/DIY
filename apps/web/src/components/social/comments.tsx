@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { commentAction, deleteCommentAction, listCommentsAction } from "@/app/(app)/social-actions";
 import { LikeButton, ReportDialog } from "./actions";
-import { callAction } from "@/lib/use-action";
+import { callAction, callData } from "@/lib/use-action";
 
 /** Kommentare & Fragen mit einer Antwortebene (§9.4). */
 export function Comments({
@@ -42,24 +42,39 @@ export function Comments({
   const [pages, setPages] = useState(1);
   const [, start] = useTransition();
   const [loadingOlder, startOlder] = useTransition();
+  const [failed, setFailed] = useState(false);
 
   const reload = () =>
     start(async () => {
-      let r = await listCommentsAction(targetType, targetId);
-      let all = r.items;
-      for (let i = 1; i < pages && r.nextCursor; i++) {
-        r = await listCommentsAction(targetType, targetId, r.nextCursor);
-        all = [...r.items, ...all];
+      // Netz-/Serverfehler: bisherige Kommentare stehen lassen, nur melden
+      let r = await callData(() => listCommentsAction(targetType, targetId));
+      if (!r.ok) {
+        setFailed(true);
+        return void toast(r.error, "error");
       }
+      let all = r.data.items;
+      let next = r.data.nextCursor;
+      for (let i = 1; i < pages && next; i++) {
+        const c: string = next;
+        r = await callData(() => listCommentsAction(targetType, targetId, c));
+        if (!r.ok) {
+          setFailed(true);
+          return void toast(r.error, "error");
+        }
+        all = [...r.data.items, ...all];
+        next = r.data.nextCursor;
+      }
+      setFailed(false);
       setItems(all);
-      setCursor(r.nextCursor);
+      setCursor(next);
     });
   const loadOlder = () =>
     cursor &&
     startOlder(async () => {
-      const r = await listCommentsAction(targetType, targetId, cursor);
-      setItems((prev) => [...r.items, ...(prev ?? [])]);
-      setCursor(r.nextCursor);
+      const r = await callData(() => listCommentsAction(targetType, targetId, cursor));
+      if (!r.ok) return void toast(r.error, "error");
+      setItems((prev) => [...r.data.items, ...(prev ?? [])]);
+      setCursor(r.data.nextCursor);
       setPages((n) => n + 1);
     });
   useEffect(() => {
@@ -80,7 +95,15 @@ export function Comments({
         </p>
       )}
       <ul className="mt-5 space-y-5">
-        {items === null && <li className="spec">Lade Kommentare …</li>}
+        {items === null &&
+          (failed ? (
+            <li className="flex items-center gap-3 text-sm text-muted">
+              Kommentare konnten nicht geladen werden.
+              <Button variant="ghost" size="sm" onClick={reload}>Erneut versuchen</Button>
+            </li>
+          ) : (
+            <li className="spec">Lade Kommentare …</li>
+          ))}
         {items?.length === 0 && <li className="text-sm text-muted">{questionsMode ? "Noch keine Fragen. Was möchtest du wissen?" : "Noch keine Kommentare. Sag als Erste:r etwas Nettes."}</li>}
         {answers.map((c) => (
           <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} />
