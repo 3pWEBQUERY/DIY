@@ -94,6 +94,7 @@ struct WerkunoApp: App {
 
 struct RootView: View {
     @Environment(AppState.self) private var app
+    @Environment(Router.self) private var router
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -118,6 +119,8 @@ struct RootView: View {
             if p == .active, app.phase == .ready { Task { await DigitalStore.shared.retryUnfinished() } }
         }
         .task(id: app.me?.id) { if app.me != nil { await DigitalStore.shared.retryUnfinished() } }
+        // Abmelden, abgelaufene Sitzung oder anderes Konto: Navigation des vorherigen Kontos verwerfen
+        .onChange(of: app.me?.id) { old, new in if old != nil, old != new { router.reset() } }
     }
 }
 

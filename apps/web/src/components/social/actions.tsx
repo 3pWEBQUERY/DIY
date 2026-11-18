@@ -152,6 +152,19 @@ export function FollowButton({ userId, following: initial, size = "md", classNam
   );
 }
 
+/** Schlichter „Melden“-Knopf für Seiten ohne Mehr-Menü (Events, Wettbewerbe). */
+export function ReportButton({ targetType, targetId }: { targetType: TargetType; targetId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="ghost" onClick={() => setOpen(true)}>
+        <Flag size={14} aria-hidden /> Melden
+      </Button>
+      <ReportDialog open={open} onClose={() => setOpen(false)} targetType={targetType} targetId={targetId} />
+    </>
+  );
+}
+
 /** Meldedialog mit Gründen aus der Richtlinie (§24.1). */
 export function ReportDialog({ open, onClose, targetType, targetId }: { open: boolean; onClose: () => void; targetType: TargetType; targetId: string }) {
   const [reason, setReason] = useState<string>("");

@@ -216,7 +216,19 @@ struct CommentRow: View {
                             }
                         }
                         Button("Melden …", systemImage: "flag") { router.present(.report(targetType: "COMMENT", targetId: comment.id)) }
-                    } label: { Image(systemName: "ellipsis").font(.wr(.caption)).foregroundStyle(Color.muted).frame(width: 28, height: 24) }
+                        if app.me != nil, comment.author.id != app.me?.id {
+                            Divider()
+                            // Blockieren blendet die Person überall aus – auch diesen Kommentar
+                            Button("\(comment.author.displayName) blockieren", systemImage: "hand.raised", role: .destructive) {
+                                Task { if await app.run("Profil blockiert.", { try await SocialAPI.block(comment.author.id, true) }) { onDeleted() } }
+                            }
+                        }
+                    } label: {
+                        // Tippfläche 44 × 44 pt (HIG), ohne die Zeile höher zu machen
+                        Image(systemName: "ellipsis").font(.wr(.caption)).foregroundStyle(Color.muted)
+                            .frame(width: 44, height: 44).contentShape(.rect).padding(.vertical, -10)
+                    }
+                    .accessibilityLabel("Optionen des Kommentars")
                 }
             }
         }

@@ -6,7 +6,7 @@ import { ArrowLeft, Gift, Trophy, Users, Vote } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { entryProjectOptions, getCompetition, PHASE_LABEL, type CompetitionPhase } from "@/server/communities/competitions";
 import { Page } from "@/components/shell/page";
-import { ShareButton } from "@/components/social/actions";
+import { ReportButton, ShareButton } from "@/components/social/actions";
 import { EntriesGrid, EntryPanel, PlaceBadge } from "@/components/communities/competition";
 import { ProjectCard } from "@/components/projects/project-card";
 import { SectionTitle } from "@/components/ui/misc";
@@ -110,8 +110,9 @@ export default async function CompetitionPage({ params }: Props) {
               </div>
             )}
           </dl>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap gap-2">
             <ShareButton variant="button" label url={`/c/${c.community.slug}/wettbewerbe/${c.id}`} title={`Wettbewerb: ${c.title}`} />
+            {viewer && <ReportButton targetType="COMPETITION" targetId={c.id} />}
           </div>
         </div>
         <div className="space-y-4">

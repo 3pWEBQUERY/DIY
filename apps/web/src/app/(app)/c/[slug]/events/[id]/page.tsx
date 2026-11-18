@@ -9,7 +9,7 @@ import { getEvent } from "@/server/communities/events";
 import { Page } from "@/components/shell/page";
 import { DateTile, eventDate, eventTime } from "@/components/events/event-card";
 import { RsvpButtons } from "@/components/events/rsvp";
-import { ShareButton } from "@/components/social/actions";
+import { ReportButton, ShareButton } from "@/components/social/actions";
 import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { LinkButton, buttonClass } from "@/components/ui/button";
 
@@ -193,6 +193,7 @@ export default async function EventPage({ params }: Props) {
               </a>
             )}
             <ShareButton variant="button" url={e.href} title={e.title} />
+            {viewer && viewer.id !== e.organizer.id && <ReportButton targetType="EVENT" targetId={e.id} />}
             {e.canEdit && (
               <LinkButton href={`${e.href}/bearbeiten`} variant="outline">
                 <Pencil size={14} aria-hidden /> Bearbeiten

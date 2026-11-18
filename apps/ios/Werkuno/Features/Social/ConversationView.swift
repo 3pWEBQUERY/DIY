@@ -251,6 +251,10 @@ struct ConversationView: View {
     private func groupMenu(_ g: SocialGroup) -> some View {
         Menu {
             Button("Gruppeninfo", systemImage: "info.circle") { showGroupInfo = true }
+            // Auch als offene Einladung meldbar (unerwünschte Gruppen-Einladungen)
+            Button("Gruppe melden …", systemImage: "flag") {
+                if let id = thread?.id { router.present(.report(targetType: "CONVERSATION", targetId: id, title: "\(g.title) melden")) }
+            }
             if !isRequest {
                 Button(archived ? "Zurück in den Posteingang" : "Archivieren", systemImage: archived ? "tray.and.arrow.up" : "archivebox") {
                     Task { await setArchived(!archived) }

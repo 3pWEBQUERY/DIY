@@ -367,6 +367,12 @@ export async function report(user: SessionUser, input: unknown) {
   const meta = await targetMeta(data.targetType, data.targetId);
   if (!meta) throw fail.notFound();
   if (meta.ownerId === user.id && data.targetType !== "USER") throw fail.invalid("Eigene Inhalte kannst du direkt bearbeiten oder löschen.");
+  // Unterhaltungen und Nachrichten melden nur Personen, die selbst darin sind
+  if (data.targetType === "CONVERSATION" || data.targetType === "MESSAGE") {
+    const conversationId = data.targetType === "CONVERSATION" ? data.targetId : (await db.message.findUnique({ where: { id: data.targetId }, select: { conversationId: true } }))?.conversationId;
+    const member = conversationId ? await db.conversationMember.findUnique({ where: { conversationId_userId: { conversationId, userId: user.id } }, select: { userId: true } }) : null;
+    if (!member) throw fail.notFound();
+  }
   const existing = await db.report.findUnique({ where: { reporterId_targetType_targetId: { reporterId: user.id, targetType: data.targetType, targetId: data.targetId } }, include: { case: { select: { number: true } } } });
   if (existing) return { caseNumber: existing.case?.number ?? null, duplicate: true };
   const c = await openOrAttachCase({ reporterId: user.id, targetType: data.targetType, targetId: data.targetId, reason: data.reason, details: data.details, subjectUserId: meta.ownerId, snapshot: { title: meta.title, href: meta.href } });

@@ -31,7 +31,7 @@ export async function commentsResponse(type: "POST" | "PROJECT" | "TUTORIAL" | "
   return cursor || q.get("paged") === "1" || q.get("paged") === "true" ? page : page.items;
 }
 
-const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW", "STORY"]);
+const TARGET = z.enum(["POST", "COMMENT", "PROJECT", "TUTORIAL", "TUTORIAL_STEP", "PRODUCT", "USER", "MESSAGE", "ARTICLE", "COMMUNITY", "REVIEW", "STORY", "EVENT", "COMPETITION", "CONVERSATION"]);
 
 /** Feed, Beiträge, Interaktionen, Profile (PRD §9, §12). */
 export const socialRoutes: RouteDef[] = [

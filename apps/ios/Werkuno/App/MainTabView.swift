@@ -45,8 +45,16 @@ struct MainTabView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .task(id: avatarPath) {
             guard let url = AppConfig.resolve(avatarPath) else { avatar = nil; return }
-            avatar = ImageCache.shared.cached(url)
-            if avatar == nil { avatar = await ImageCache.shared.load(url) }
+            if let hit = ImageCache.shared.cached(url) { avatar = hit; return }
+            avatar = nil
+            // Bis zu drei Versuche (kurzes Funkloch beim Start); ein abgelöster Auftrag schreibt nichts mehr
+            for attempt in 0..<3 {
+                let img = await ImageCache.shared.load(url)
+                guard !Task.isCancelled else { return }
+                if let img { avatar = img; return }
+                try? await Task.sleep(for: .seconds(2 << attempt))
+                guard !Task.isCancelled else { return }
+            }
         }
         .onChange(of: app.marketplaceEnabled) { _, enabled in
             if !enabled && router.tab == .market { router.tab = .workbench }

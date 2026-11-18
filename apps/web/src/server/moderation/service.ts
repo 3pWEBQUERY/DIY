@@ -173,6 +173,34 @@ export async function contentPreview(type: TargetType, id: string): Promise<Cont
         ],
       };
     }
+    case "EVENT": {
+      const e = await db.communityEvent.findUnique({ where: { id }, select: { description: true, kind: true, mode: true, startsAt: true, locationName: true, onlineUrl: true, community: { select: { name: true } } } });
+      return {
+        ...base,
+        body: e?.description || null,
+        meta: [
+          { label: "Community", value: e?.community.name ?? "–" },
+          { label: "Beginn", value: e ? e.startsAt.toLocaleString("de-CH", { timeZone: "Europe/Zurich" }) : "–" },
+          { label: "Ort", value: e ? (e.mode === "ONLINE" ? e.onlineUrl || "online" : e.locationName || "–") : "–" },
+        ],
+      };
+    }
+    case "COMPETITION": {
+      const c = await db.communityChallenge.findUnique({ where: { id }, select: { description: true, rules: true, prize: true, entryCount: true, community: { select: { name: true } } } });
+      return {
+        ...base,
+        body: [c?.description, c?.rules ? `Regeln: ${c.rules}` : null, c?.prize ? `Preis: ${c.prize}` : null].filter(Boolean).join("\n\n") || null,
+        meta: [
+          { label: "Community", value: c?.community.name ?? "–" },
+          { label: "Einreichungen", value: String(c?.entryCount ?? 0) },
+        ],
+      };
+    }
+    case "CONVERSATION": {
+      // Nur Name und Grösse der Gruppe – nie der Verlauf (Datensparsamkeit §24.3); einzelne Nachrichten werden separat gemeldet
+      const n = await db.conversationMember.count({ where: { conversationId: id } });
+      return { ...base, href: null, body: null, meta: [{ label: "Mitglieder", value: String(n) }] };
+    }
     case "USER": {
       const u = await db.user.findUnique({ where: { id }, select: { status: true, profile: { select: { bio: true, avatarUrl: true, handle: true } } } });
       return { ...base, body: u?.profile?.bio ?? null, imageUrl: u?.profile?.avatarUrl ?? null, state: u?.status ?? base.state, meta: [{ label: "Benutzername", value: `@${u?.profile?.handle ?? "–"}` }] };
@@ -235,7 +263,14 @@ export function allowedActions(type: TargetType, hasSubject: boolean): Moderatio
     case "PRODUCT":
       return [...base, "DISABLE_LISTING", "HIDE", ...user];
     case "USER":
+    // Gruppen haben keinen eigenen Inhalt ausser dem Namen: Massnahmen richten sich an die Verantwortlichen,
+    // einzelne Nachrichten werden über „Nachricht melden“ entfernt
+    case "CONVERSATION":
       return [...base, ...user];
+    // Events und Wettbewerbe kennen nur „entfernt“ (kein verborgener Zwischenzustand)
+    case "EVENT":
+    case "COMPETITION":
+      return [...base, "REMOVE", ...user];
     case "MESSAGE":
     case "COMMENT":
     case "REVIEW":
@@ -322,8 +357,20 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
       await tx.product.update({ where: { id }, data: { status: action === "HIDE" ? "PAUSED" : "DISABLED", isFeatured: false } });
       return { kind: "content", model: "product", id, field: "status", value: p.status };
     }
+    case "EVENT": {
+      const e = await tx.communityEvent.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      await tx.communityEvent.update({ where: { id }, data: { state: "REMOVED" } });
+      return { kind: "content", model: "communityEvent", id, field: "state", value: e.state };
+    }
+    case "COMPETITION": {
+      const c = await tx.communityChallenge.findUniqueOrThrow({ where: { id }, select: { state: true } });
+      await tx.communityChallenge.update({ where: { id }, data: { state: "REMOVED" } });
+      return { kind: "content", model: "communityChallenge", id, field: "state", value: c.state };
+    }
     case "USER":
       throw fail.invalid("Für Profile bitte eine Kontomassnahme wählen.");
+    case "CONVERSATION":
+      throw fail.invalid("Für Gruppen bitte eine Kontomassnahme wählen – einzelne Nachrichten lassen sich separat entfernen.");
   }
 }
 
@@ -359,6 +406,7 @@ function appliedValue(model: string, field: string, action: string): string | bo
   if (field === "reachLimited") return true;
   if (model === "product") return action === "HIDE" ? "PAUSED" : "DISABLED";
   if (model === "blogArticle") return "HIDDEN";
+  if (model === "communityEvent" || model === "communityChallenge") return "REMOVED";
   if (action === "HIDE") return "HIDDEN";
   if (action === "REMOVE") return "REMOVED";
   return null;
@@ -425,6 +473,12 @@ async function revertPrior(tx: Tx, prior: Prior, action: string): Promise<boolea
       break;
     case "product":
       count = (await tx.product.updateMany(args)).count;
+      break;
+    case "communityEvent":
+      count = (await tx.communityEvent.updateMany(args)).count;
+      break;
+    case "communityChallenge":
+      count = (await tx.communityChallenge.updateMany(args)).count;
       break;
   }
   if (count > 0) {

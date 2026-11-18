@@ -142,6 +142,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
   const [newBelow, setNewBelow] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
   const [reportUser, setReportUser] = useState(false);
+  const [reportGroup, setReportGroup] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const group = thread.group;
   const people = new Map((group?.members ?? []).map((p) => [p.id, p]));
@@ -286,6 +287,8 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
     ...(group
       ? [
           { label: "Gruppeninfo", icon: <Info size={15} />, onSelect: () => setInfoOpen(true) },
+          // Auch als offene Einladung meldbar – gerade unerwünschte Gruppen-Einladungen sollen sich melden lassen
+          { label: "Gruppe melden", icon: <Flag size={15} />, onSelect: () => setReportGroup(true) },
           {
             label: "Gruppe verlassen",
             icon: <LogOut size={15} />,
@@ -492,6 +495,7 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
 
       {group && <GroupInfo open={infoOpen} onClose={() => setInfoOpen(false)} conversationId={thread.id} group={group} />}
       {reportId && <ReportDialog open onClose={() => setReportId(null)} targetType="MESSAGE" targetId={reportId} />}
+      {group && <ReportDialog open={reportGroup} onClose={() => setReportGroup(false)} targetType="CONVERSATION" targetId={thread.id} />}
       {thread.other && <ReportDialog open={reportUser} onClose={() => setReportUser(false)} targetType="USER" targetId={thread.other.id} />}
     </section>
   );

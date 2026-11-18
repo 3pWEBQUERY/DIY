@@ -97,6 +97,9 @@ enum TargetType {
   COMMUNITY
   REVIEW
   STORY
+  EVENT
+  COMPETITION
+  CONVERSATION
 }
 
 enum ProjectRelationKind {
@@ -1252,6 +1255,8 @@ model CommunityChallenge {
   /// bereits versandte Phasen-Benachrichtigungen (voting, jury, results)
   notified     String[]  @default([])
   createdById  String?
+  /// ACTIVE | REMOVED (von der Moderation entfernt – nirgends mehr sichtbar)
+  state        String    @default("ACTIVE")
   createdAt    DateTime  @default(now())
   entries      ChallengeEntry[]
 }
@@ -1788,6 +1793,14 @@ model PayoutRecord {
 }
 
 /// Eingehende Provider-Webhooks – Idempotenz über eindeutige Event-ID (§13.6).
+/// Erstattung oder Widerruf durch Apple, bevor der Kauf bei uns verbucht war: Ein späteres Einreichen
+/// desselben (alten, noch gültig signierten) Belegs darf den Kauf nicht mehr freischalten.
+model AppStoreRevocation {
+  transactionId String   @id
+  reason        String
+  createdAt     DateTime @default(now())
+}
+
 model WebhookEvent {
   id          String    @id // Provider-Event-ID
   provider    String
@@ -2221,7 +2234,7 @@ model CommunityEvent {
   onlineUrl      String          @default("")
   capacity       Int?
   costNote       String          @default("")
-  state          String          @default("SCHEDULED") // SCHEDULED | CANCELLED
+  state          String          @default("SCHEDULED") // SCHEDULED | CANCELLED | REMOVED (Moderation)
   cancelReason   String          @default("")
   goingCount     Int             @default(0)
   interestedCount Int            @default(0)

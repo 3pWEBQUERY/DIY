@@ -35,9 +35,10 @@ enum DigitalStoreError: LocalizedError {
     }
 }
 
-/// Hinweis zu den Preisen in der App (neutral formuliert, App Review Guideline 3.1.1/3.1.3)
+/// Hinweis zur Abrechnung in der App – bewusst ohne Preisvergleich mit anderen Kanälen
+/// (App Review Guideline 3.1.1/3.1.3: kein Hinweis, der vom In-App-Kauf wegführt)
 enum DigitalStoreNotice {
-    static let text = "Käufe in der App werden über Apple abgerechnet. Preise in der App enthalten die Gebühr von Apple und sind deshalb höher."
+    static let text = "Käufe in der App werden über Apple abgerechnet."
 }
 
 @MainActor

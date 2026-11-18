@@ -760,7 +760,8 @@ enum MeLabels {
     static func targetType(_ s: String?) -> String {
         guard let s else { return "" }
         return ["POST": "Beitrag", "COMMENT": "Kommentar", "PROJECT": "Projekt", "TUTORIAL": "Anleitung", "TUTORIAL_STEP": "Anleitungsschritt", "STORY": "Story", "PRODUCT": "Produkt",
-                "USER": "Profil", "MESSAGE": "Nachricht", "ARTICLE": "Artikel", "COMMUNITY": "Community", "REVIEW": "Bewertung"][s] ?? s
+                "USER": "Profil", "MESSAGE": "Nachricht", "ARTICLE": "Artikel", "COMMUNITY": "Community", "REVIEW": "Bewertung",
+                "EVENT": "Event", "COMPETITION": "Wettbewerb", "CONVERSATION": "Gruppenunterhaltung"][s] ?? s
     }
     static func reason(_ s: String?) -> String {
         guard let s else { return "" }
