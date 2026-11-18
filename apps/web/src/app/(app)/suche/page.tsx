@@ -16,15 +16,18 @@ import { Cover } from "@/components/ui/media";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/select";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Suche", robots: { index: false } };
 
 const LABEL: Record<SearchType, string> = { project: "Projekte", tutorial: "Anleitungen", product: "Produkte", user: "Mitglieder", article: "Artikel", community: "Communities", post: "Beiträge" };
 
 type SP = { q?: string; typ?: string; kategorie?: string; stufe?: string; dauer?: string; preis_max?: string; kostenlos?: string };
+/** Werte können bei doppelten Schlüsseln Arrays sein → mit flatSearchParams auf je einen Wert bringen */
+type RawSP = { [K in keyof SP]?: string | string[] };
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const sp = await searchParams;
+export default async function SearchPage({ searchParams }: { searchParams: Promise<RawSP> }) {
+  const sp = flatSearchParams(await searchParams);
   const q = (sp.q ?? "").trim();
   const type = SEARCH_TYPES.includes(sp.typ as SearchType) ? (sp.typ as SearchType) : null;
   const [user, cats] = await Promise.all([currentUser(), browseCategories(sp.kategorie)]);

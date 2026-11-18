@@ -6,7 +6,9 @@ import { isStaleDeployError } from "@/lib/stale-deploy";
 import { BRAND } from "@/config/brand";
 
 /** Letzte Rückfallebene, falls selbst das Root-Layout scheitert (eigenes <html>, keine App-Styles). */
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ error, retry, reset }: { error: Error & { digest?: string }; retry?: () => void; reset?: () => void }) {
+  // retry() lädt die Daten neu (Next 16.3+); reset() würde nur neu rendern
+  const again = retry ?? reset;
   const stale = isStaleDeployError(error);
   useEffect(() => {
     if (!stale) reportClientError(error, "boundary");
@@ -17,7 +19,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         <div style={{ maxWidth: 420, textAlign: "center", padding: 24 }}>
           <h1 style={{ fontSize: 28, margin: "0 0 12px" }}>{stale ? `${BRAND.name} wurde aktualisiert` : "Da ist etwas verrutscht."}</h1>
           <p style={{ color: "#6B6461", margin: "0 0 24px" }}>Bitte lade die Seite neu.</p>
-          <button onClick={() => (stale ? location.reload() : reset())} style={{ background: "#B64B3A", color: "#fff", border: 0, borderRadius: 12, padding: "12px 20px", fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={() => (stale || !again ? location.reload() : again())} style={{ background: "#B64B3A", color: "#fff", border: 0, borderRadius: 12, padding: "12px 20px", fontWeight: 600, cursor: "pointer" }}>
             {stale ? "Seite neu laden" : "Erneut versuchen"}
           </button>
         </div>

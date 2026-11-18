@@ -70,24 +70,37 @@ export function ShoppingListEditor({ list, otherLists }: { list: ShoppingListVie
   };
 
   const patch = (id: string, p: Partial<Pick<Item, "quantity" | "haveIt" | "purchased">>) => {
-    const prev = items;
+    const before = items.find((x) => x.id === id);
+    if (!before) return;
     setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...p } : x)));
     start(async () => {
       const r = await callAction(() => updateShoppingListItemAction(id, p));
       if (!r.ok) {
-        setItems(prev);
+        // Nur diesen Eintrag und nur die geänderten Felder zurücksetzen – und nur, falls sie seither
+        // nicht erneut geändert wurden (andere Einträge/Änderungen bleiben unberührt)
+        setItems((xs) =>
+          xs.map((x) => {
+            if (x.id !== id) return x;
+            const back = { ...x };
+            for (const k of Object.keys(p) as (keyof typeof p)[]) if (x[k] === p[k]) Object.assign(back, { [k]: before[k] });
+            return back;
+          }),
+        );
         toast(r.error, "error");
       }
     });
   };
 
   const remove = (id: string) => {
-    const prev = items;
+    const index = items.findIndex((x) => x.id === id);
+    const removed = items[index];
+    if (!removed) return;
     setItems((xs) => xs.filter((x) => x.id !== id));
     start(async () => {
       const r = await callAction(() => removeShoppingListItemAction(id));
       if (!r.ok) {
-        setItems(prev);
+        // Nur den entfernten Eintrag an seiner alten Stelle wieder einfügen
+        setItems((xs) => (xs.some((x) => x.id === id) ? xs : [...xs.slice(0, index), removed, ...xs.slice(index)]));
         toast(r.error, "error");
       }
     });

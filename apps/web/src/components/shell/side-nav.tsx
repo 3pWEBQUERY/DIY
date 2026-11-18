@@ -223,6 +223,7 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
               </Link>
             </div>
           )}
+          <LegalLinks rail={rail} />
         </div>
       </div>
 
@@ -259,6 +260,35 @@ export function secondaryLinks(user: NonNullable<ShellUser>, cart: number, hide:
     ...(user.isStaff ? [{ href: "/admin", icon: <ShieldCheck size={14} />, label: "Admin" }] : []),
     { href: "/einstellungen", icon: <Settings size={14} />, label: "Einstellungen" },
   ].filter((l) => !hide.includes(l.href));
+}
+
+/** Rechtstexte – auch im eingeloggten Bereich erreichbar (Impressumspflicht). */
+const LEGAL_LINKS = [
+  { href: "/rechtliches/impressum", label: "Impressum" },
+  { href: "/rechtliches/datenschutz", label: "Datenschutz" },
+  { href: "/rechtliches/agb", label: "Nutzungsbedingungen" },
+];
+
+function LegalLinks({ rail }: { rail: boolean }) {
+  return (
+    <nav aria-label="Rechtliches" className="mt-2">
+      {/* Eingeklappte Leiste: ein Link, die Rechtsseiten verlinken sich untereinander */}
+      <Tip disabled={!rail} content={<TipBody label="Impressum, Datenschutz, Nutzungsbedingungen" />} className="nav-open:hidden">
+        <Link href="/rechtliches/impressum" aria-label="Rechtliches: Impressum, Datenschutz, Nutzungsbedingungen" className="flex h-7 items-center justify-center rounded-xl text-[12px] text-muted transition-colors hover:bg-paper hover:text-ink">
+          §
+        </Link>
+      </Tip>
+      <ul className="hidden flex-wrap gap-x-3 gap-y-1 px-2 text-[11.5px] text-muted nav-open:flex">
+        {LEGAL_LINKS.map((l) => (
+          <li key={l.href}>
+            <Link href={l.href} className="hover:text-ink hover:underline">
+              {l.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
 }
 
 /** Abmelden: Sitzung beenden und zur Startseite. */
@@ -333,6 +363,17 @@ export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUse
             </form>
           </li>
         </ul>
+        <nav aria-label="Rechtliches" className="mt-4 border-t border-line pt-4">
+          <ul className="flex flex-wrap gap-x-4 gap-y-2 text-[13px] text-muted">
+            {LEGAL_LINKS.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className="hover:text-ink hover:underline">
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </Dialog>
     </>
   );

@@ -25,6 +25,7 @@ import {
 } from "@/app/studio/blog/actions";
 import { TagInput } from "@/components/ui/tag-input";
 import { callAction } from "@/lib/use-action";
+import { useObjectUrls } from "@/lib/use-object-urls";
 
 type Initial = {
   id: string;
@@ -117,6 +118,7 @@ export function ArticleEditor({
   const [acting, startAct] = useTransition();
   const everPublished = initial?.everPublished || state === "PUBLISHED";
   const coverInput = useRef<HTMLInputElement>(null);
+  const blobs = useObjectUrls();
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   const version = useRef(0);
@@ -149,25 +151,36 @@ export function ArticleEditor({
     [title, slug, slugTouched, dek, cover.mediaId, blocks, categoryId, tags, seoTitle, seoDescription, commentsEnabled, projectIds],
   );
 
+  // Sperre: läuft schon ein Speichervorgang (doppeltes ⌘S, Autosave + Klick), wird kein zweiter gestartet –
+  // sonst legt ein neuer Artikel zwei Datensätze an. idRef kennt die neue id schon vor dem nächsten Render.
+  const inflight = useRef<Promise<string | null> | null>(null);
+  const idRef = useRef(id);
+  useEffect(() => {
+    if (id) idRef.current = id;
+  }, [id]);
+
   const save = useCallback(
-    (opts: { quiet?: boolean } = {}) =>
-      new Promise<string | null>((resolve) => {
-        if (title.trim().length < 3) {
-          setFieldErrors({ title: "Gib deinem Artikel einen Titel (mind. 3 Zeichen)." });
-          if (!opts.quiet) titleRef.current?.focus();
-          return resolve(null);
-        }
+    (opts: { quiet?: boolean } = {}): Promise<string | null> => {
+      if (inflight.current) return inflight.current;
+      if (title.trim().length < 3) {
+        setFieldErrors({ title: "Gib deinem Artikel einen Titel (mind. 3 Zeichen)." });
+        if (!opts.quiet) titleRef.current?.focus();
+        return Promise.resolve(null);
+      }
+      const p = new Promise<string | null>((resolve) => {
         const v = version.current;
+        const known = idRef.current;
         startSave(async () => {
-          const r = await callAction(() => saveArticleAction(id, payload()));
+          const r = await callAction(() => saveArticleAction(known, payload()));
           if (r.ok) {
+            idRef.current = r.data.id;
             setFieldErrors({});
             if (version.current === v) setDirty(false);
             setSavedAt(r.data.updatedAt);
             setSlug(r.data.slug);
             setCover((c) => ({ url: r.data.coverUrl ?? (c.mediaId === null ? null : c.url) }));
             if (!opts.quiet) toast("Gespeichert.");
-            if (!id) {
+            if (!known) {
               setId(r.data.id);
               router.replace(`/studio/blog/${r.data.id}`);
             }
@@ -179,8 +192,13 @@ export function ArticleEditor({
             resolve(null);
           }
         });
-      }),
-    [id, payload, router, title],
+      }).finally(() => {
+        inflight.current = null;
+      });
+      inflight.current = p;
+      return p;
+    },
+    [payload, router, title],
   );
 
   // ⌘S / Ctrl+S
@@ -217,7 +235,10 @@ export function ArticleEditor({
     setCoverProgress(0);
     try {
       const r = await uploadFile(file, "public", setCoverProgress);
-      touch(setCover)({ url: r.variants?.lg ?? r.variants?.md ?? URL.createObjectURL(file), mediaId: r.mediaId });
+      const url = r.variants?.lg ?? r.variants?.md ?? blobs.create(file);
+      // Vorherige lokale Vorschau freigeben
+      blobs.revoke(cover.url);
+      touch(setCover)({ url, mediaId: r.mediaId });
     } catch (e) {
       toast(e instanceof Error ? e.message : "Upload fehlgeschlagen", "error");
     } finally {

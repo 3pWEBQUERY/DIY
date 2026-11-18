@@ -58,11 +58,16 @@ export async function simulatePaymentAction(orderId: string, outcome: "success" 
   });
 }
 
+/** Nur eigene Produktseiten neu validieren – `path` kommt vom Client und ist nicht vertrauenswürdig. */
+function revalidateProductPath(path: unknown) {
+  if (typeof path === "string" && path.length <= 300 && /^\/markt\/[\w\-./%~]+$/.test(path) && !path.includes("..")) revalidatePath(path);
+}
+
 /** Nachproduktion eines ausverkauften Produkts anfragen bzw. zurückziehen. */
 export async function requestRestockAction(productId: string, note: string, path: string) {
   return act(async () => {
     const r = await restock.requestRestock(await requireUser(), productId, { note });
-    revalidatePath(path);
+    revalidateProductPath(path);
     return r;
   });
 }
@@ -70,7 +75,7 @@ export async function requestRestockAction(productId: string, note: string, path
 export async function cancelRestockAction(productId: string, path: string) {
   return act(async () => {
     const r = await restock.cancelRestock(await requireUser(), productId);
-    revalidatePath(path);
+    revalidateProductPath(path);
     return r;
   });
 }

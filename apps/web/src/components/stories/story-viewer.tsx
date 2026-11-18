@@ -14,7 +14,7 @@ import { blockAction } from "@/app/(app)/social-actions";
 import { callAction } from "@/lib/use-action";
 import { deleteStoryAction, markStorySeenAction, storyGroupAction, storyLikeAction, storyMuteAction, storyReplyAction } from "@/app/(app)/stories/actions";
 import { StoryMedia, StoryText } from "./story-content";
-import { markStoriesChanged, takeStoryReturn } from "./story-return";
+import { markStoriesChanged, restoreStoryOpenerFocus, takeStoryReturn } from "./story-return";
 import { StoryViewersDialog } from "./story-viewers-dialog";
 import { HighlightPickerDialog } from "./highlight-picker";
 
@@ -49,6 +49,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
   const [mediaReady, setMediaReady] = useState(false);
   const [reply, setReply] = useState("");
   const [sending, startSend] = useTransition();
+  const rootRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLSpanElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const elapsed = useRef(0);
@@ -63,6 +64,8 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
 
   // ── Schliessen ──
   const close = useCallback(() => {
+    // Fokus nach dem Schliessen wieder auf den Link, der den Betrachter geöffnet hat (WCAG 2.4.3)
+    restoreStoryOpenerFocus(rootRef.current);
     const back = takeStoryReturn();
     if (back) router.back();
     else router.push(viewer ? "/feed" : "/");
@@ -73,7 +76,13 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
     async (i: number) => {
       if (i < 0 || i >= sequence.length || loading.current.has(i)) return;
       loading.current.add(i);
-      const r = await storyGroupAction(sequence[i]!);
+      const r = await callAction(() => storyGroupAction(sequence[i]!));
+      if (!r.ok && r.code === "UNAVAILABLE" && pendingStart.current !== i) {
+        // Nur vorab geladen und Netz weg: offen lassen – beim Hinblättern wird erneut geladen
+        loading.current.delete(i);
+        return;
+      }
+      if (!r.ok && r.code === "UNAVAILABLE") toast(r.error, "error");
       setGroups((g) => {
         const next = [...g];
         next[i] = r.ok ? r.data : null;
@@ -148,7 +157,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
     const fallback = setTimeout(() => setMediaReady(true), 4000);
     if (barRef.current) barRef.current.style.transform = "scaleX(0)";
     if (item && viewer && !item.viewer.own && !item.viewer.seen) {
-      void markStorySeenAction(item.id);
+      void callAction(() => markStorySeenAction(item.id));
       markStoriesChanged();
       setGroups((gs) => gs.map((g, idx) => (idx === gi && g ? { ...g, items: g.items.map((s) => (s.id === item.id ? { ...s, viewer: { ...s.viewer, seen: true } } : s)) } : g)));
     }
@@ -200,7 +209,10 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
   // ── Tastatur, Hintergrund-Tab, Scrollsperre ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (overlay || (e.target as HTMLElement)?.closest("input, textarea")) return;
+      const target = e.target as HTMLElement | null;
+      if (overlay || target?.closest?.("input, textarea, select, [contenteditable]")) return;
+      // Leertaste auf Schaltflächen/Links löst deren eigene Aktion aus – nicht zusätzlich pausieren
+      if (e.key === " " && target?.closest?.("button, a, [role=menuitem], [role=button]")) return;
       if (e.key === "ArrowRight") next();
       else if (e.key === "ArrowLeft") prev();
       else if (e.key === "Escape") close();
@@ -220,6 +232,44 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
       document.body.style.overflow = overflow;
     };
   }, [next, prev, close, overlay]);
+
+  // ── Modal: Hintergrund inert, Fokus hinein und beim Verlassen zurück ──
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+    // Alles ausserhalb des Betrachters (Navigation, Kopfzeile, Sprunglink …) unerreichbar machen.
+    // Ausgenommen: Dialoge und Popover (Bestätigung, Toasts), die aus dem Betrachter heraus geöffnet werden.
+    const made: HTMLElement[] = [];
+    for (let el: HTMLElement | null = root; el && el !== document.body; el = el.parentElement) {
+      const parent: HTMLElement | null = el.parentElement;
+      if (!parent) break;
+      for (const sib of Array.from(parent.children) as Element[]) {
+        if (sib === el || !(sib instanceof HTMLElement) || sib.inert) continue;
+        if (sib.matches("dialog, [popover], script, style, next-route-announcer") || sib.querySelector("dialog[open]")) continue;
+        sib.inert = true;
+        made.push(sib);
+      }
+    }
+    return () => {
+      made.forEach((m) => (m.inert = false));
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
+
+  const ready = !!group && !!item;
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!ready || focused.current) return;
+    focused.current = true;
+    const root = rootRef.current;
+    if (!root || root.contains(document.activeElement)) return;
+    // Pausieren-Schaltfläche (Leertaste wirkt dann wie gewohnt), sonst erstes sichtbares Bedienelement
+    const first =
+      root.querySelector<HTMLElement>("[data-autofocus]") ??
+      Array.from(root.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input")).find((el) => el.getClientRects().length > 0 && !el.classList.contains("sr-only"));
+    first?.focus({ preventScroll: true });
+  }, [ready]);
 
   // ── Tippen, Halten, Wischen ──
   const gesture = useRef<{ x: number; y: number; t: number; hold: ReturnType<typeof setTimeout> | null } | null>(null);
@@ -256,7 +306,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
     if (!item || !viewer) return;
     const liked = !item.viewer.liked;
     patchItem(item.id, (s) => ({ ...s, viewer: { ...s.viewer, liked } }));
-    const r = await storyLikeAction(item.id, liked);
+    const r = await callAction(() => storyLikeAction(item.id, liked));
     if (!r.ok) {
       patchItem(item.id, (s) => ({ ...s, viewer: { ...s.viewer, liked: !liked } }));
       toast(r.error, "error");
@@ -268,7 +318,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
     if (!item || !reply.trim() || sending) return;
     const body = reply.trim();
     startSend(async () => {
-      const r = await storyReplyAction(item.id, body);
+      const r = await callAction(() => storyReplyAction(item.id, body));
       if (r.ok) {
         setReply("");
         (document.activeElement as HTMLElement | null)?.blur();
@@ -283,7 +333,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
     const ok = await confirmDialog({ title: "Story löschen?", body: "Sie verschwindet sofort aus dem Story-Kreis, deinem Archiv und allen Highlights." });
     setBusy(false);
     if (!ok) return;
-    const r = await deleteStoryAction(item.id);
+    const r = await callAction(() => deleteStoryAction(item.id));
     if (!r.ok) return toast(r.error, "error");
     toast("Story gelöscht.");
     const left = group.items.filter((s) => s.id !== item.id);
@@ -297,7 +347,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
 
   async function muteStories() {
     if (!group) return;
-    const r = await storyMuteAction(group.author.id, true);
+    const r = await callAction(() => storyMuteAction(group.author.id, true));
     if (!r.ok) return toast(r.error, "error");
     toast(`Stories von ${group.author.displayName} sind ausgeblendet. Rückgängig im Profilmenü.`);
     setGroups((gs) => gs.map((g, idx) => (idx === gi ? null : g)));
@@ -318,7 +368,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
 
   if (!group || !item) {
     return (
-      <div className="fixed inset-0 z-[100] grid place-items-center bg-[#151312] text-white">
+      <div ref={rootRef} className="fixed inset-0 z-[100] grid place-items-center bg-[#151312] text-white">
         <Loader2 className="animate-spin" aria-label="Wird geladen" />
       </div>
     );
@@ -342,7 +392,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
   const stageBtn = "grid size-9 place-items-center rounded-full bg-black/35 text-white transition-colors hover:bg-black/50 focus-visible:outline-white";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#151312] text-white" role="dialog" aria-modal="true" aria-label={group.mode === "highlight" ? `Highlight ${group.title}` : `Stories von ${group.author.displayName}`}>
+    <div ref={rootRef} className="fixed inset-0 z-[100] flex items-center justify-center bg-[#151312] text-white" role="dialog" aria-modal="true" aria-label={group.mode === "highlight" ? `Highlight ${group.title}` : `Stories von ${group.author.displayName}`}>
       {/* Schliessen (Desktop, ausserhalb der Bühne) */}
       <button type="button" onClick={close} className={cn(iconBtn, "absolute right-4 top-4 hidden sm:grid")} aria-label="Stories schliessen">
         <X size={22} aria-hidden />
@@ -422,7 +472,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
                   {muted ? <VolumeX size={19} aria-hidden /> : <Volume2 size={19} aria-hidden />}
                 </button>
               )}
-              <button type="button" onClick={() => setUserPaused((p) => !p)} className={stageBtn} aria-label={userPaused ? "Fortsetzen" : "Pausieren"}>
+              <button type="button" data-autofocus onClick={() => setUserPaused((p) => !p)} className={stageBtn} aria-label={userPaused ? "Fortsetzen" : "Pausieren"}>
                 {userPaused ? <Play size={19} aria-hidden /> : <Pause size={19} aria-hidden />}
               </button>
               <MoreMenu items={menu} label="Story-Optionen" triggerClassName={stageBtn} onOpenChange={(o) => setOverlay((cur) => (o ? "menu" : cur === "menu" ? null : cur))} />

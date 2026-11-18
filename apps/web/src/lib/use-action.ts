@@ -30,6 +30,14 @@ export async function callAction<T>(fn: () => Promise<ActionResult<T>>): Promise
 }
 
 /**
+ * Wie callAction, aber für Actions, die Rohdaten statt ActionResult liefern (z. B. „Mehr laden“):
+ * Netz-/Serverfehler werden zu { ok: false } statt zur unbehandelten Ausnahme.
+ */
+export function callData<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+  return callAction(async () => ({ ok: true as const, data: await fn() }));
+}
+
+/**
  * Client-Helfer für Server Actions mit einheitlicher Fehlerstruktur.
  * Liefert Feldfehler, Pending-Status und optionalen Refresh/Redirect.
  */

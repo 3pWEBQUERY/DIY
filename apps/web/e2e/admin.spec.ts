@@ -128,12 +128,17 @@ test("E-Mail selbst ändern: Passwort, Link an die neue Adresse, erst dann umges
     const out = runServer(`import("./src/server/account/email-change").then((m) => m.requestEmailChange("${elias}", { email: "${newEmail}", password: "${PASSWORD}" }))`);
     const link = /"cta":"([^"]*\/e-mail-bestaetigen\/[^"]+)"/.exec(out)![1]!;
     const path = new URL(link).pathname;
+    // Aufruf allein (GET, wie Link-Scanner) stellt nichts um – erst der Klick
     await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Neue Adresse bestätigen" })).toBeVisible();
+    expect((await one<{ email: string }>(`SELECT email FROM "User" WHERE id = $1`, [elias]))!.email).toBe(oldEmail);
+    await page.getByRole("button", { name: "E-Mail-Adresse ändern" }).click();
     await expect(page.getByRole("heading", { name: "Geändert." })).toBeVisible();
     const row = (await one<{ email: string; verified: boolean }>(`SELECT email, "emailVerifiedAt" IS NOT NULL AS verified FROM "User" WHERE id = $1`, [elias]))!;
     expect(row).toEqual({ email: newEmail, verified: true });
     // Einmal-Link
     await page.goto(path);
+    await page.getByRole("button", { name: "E-Mail-Adresse ändern" }).click();
     await expect(page.getByRole("heading", { name: "Link ungültig" })).toBeVisible();
   } finally {
     await sql(`UPDATE "User" SET email = $2 WHERE id = $1`, [elias, oldEmail]);

@@ -5,7 +5,9 @@ import { reportClientError } from "@/lib/report-error";
 import { Button } from "@/components/ui/button";
 import { isStaleDeployError, UPDATE_MESSAGE } from "@/lib/stale-deploy";
 
-export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErrorPage({ error, retry, reset }: { error: Error & { digest?: string }; retry?: () => void; reset?: () => void }) {
+  // retry() lädt die Daten neu (Next 16.3+); reset() würde nur neu rendern
+  const again = retry ?? reset;
   const stale = isStaleDeployError(error);
   useEffect(() => {
     if (stale) return;
@@ -31,7 +33,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
         <p className="spec">Unerwarteter Fehler{error.digest ? ` · ${error.digest}` : ""}</p>
         <h1 className="display mt-3 text-4xl">Da ist etwas verrutscht.</h1>
         <p className="mt-4 text-muted">Wir wurden informiert. Versuch es bitte noch einmal – deine Eingaben sind in der Regel noch da.</p>
-        <Button className="mt-8" onClick={reset}>
+        <Button className="mt-8" onClick={() => (again ? again() : location.reload())}>
           Erneut versuchen
         </Button>
       </div>

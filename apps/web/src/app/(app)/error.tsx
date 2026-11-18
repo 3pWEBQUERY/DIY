@@ -2,6 +2,6 @@
 
 import { SegmentError } from "@/components/shell/segment-error";
 
-export default function Error(props: { error: Error & { digest?: string }; reset: () => void }) {
+export default function Error(props: { error: Error & { digest?: string }; retry?: () => void; reset?: () => void }) {
   return <SegmentError {...props} home="/feed" />;
 }

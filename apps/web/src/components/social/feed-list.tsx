@@ -1,31 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import type { PostView, FeedKind } from "@/server/social/posts";
 import { PostCard } from "./post-card";
 import { loadFeedAction } from "@/app/(app)/social-actions";
+import { callData } from "@/lib/use-action";
+import { usePagedList } from "@/lib/use-paged-list";
+import { toast } from "@/components/ui/toast";
 
 /** Cursor-paginiertes Nachladen mit IntersectionObserver + Fallback-Button (§9.6). */
 export function FeedList({ kind, initial, cursor: initialCursor, viewer }: { kind: FeedKind; initial: PostView[]; cursor: string | null; viewer: { id: string; displayName: string; avatarUrl: string | null } | null }) {
-  const [items, setItems] = useState(initial);
-  const [cursor, setCursor] = useState(initialCursor);
+  // Neu beginnen nur bei anderer Feed-Art; router.refresh() mischt die erste Seite ein
+  const { items, cursor, append } = usePagedList(initial, initialCursor, kind);
   const [pending, start] = useTransition();
   const sentinel = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setItems(initial);
-    setCursor(initialCursor);
-  }, [initial, initialCursor]);
 
   const more = () => {
     if (!cursor || pending) return;
     start(async () => {
-      const r = await loadFeedAction(kind, cursor);
-      setItems((prev) => {
-        const ids = new Set(prev.map((p) => p.id));
-        return [...prev, ...r.items.filter((p) => !ids.has(p.id))];
-      });
-      setCursor(r.nextCursor);
+      const r = await callData(() => loadFeedAction(kind, cursor));
+      if (!r.ok) return void toast(r.error, "error");
+      append(r.data.items, r.data.nextCursor);
     });
   };
 

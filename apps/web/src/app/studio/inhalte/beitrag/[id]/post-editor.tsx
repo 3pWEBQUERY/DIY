@@ -1,7 +1,7 @@
 "use client";
 
 import { confirmDialog } from "@/components/ui/confirm";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { CATEGORIES, VISIBILITY, VISIBILITY_LABEL } from "@werkraum/shared";
@@ -30,7 +30,16 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
   const [deleting, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const isDraft = post.state === "DRAFT";
-  const [when, setWhen] = useState(post.scheduledAt ? toLocal(post.scheduledAt) : "");
+  // Ortszeit (getTimezoneOffset) erst im Browser berechnen – sonst rechnet der Server in UTC und die Hydration weicht ab
+  const [when, setWhen] = useState("");
+  const [scheduledLocal, setScheduledLocal] = useState("");
+  const [minLocal, setMinLocal] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    const local = post.scheduledAt ? toLocal(post.scheduledAt) : "";
+    setScheduledLocal(local);
+    setWhen(local);
+    setMinLocal(toLocal(new Date(Date.now() + 5 * 60_000).toISOString()));
+  }, [post.scheduledAt]);
   const [publishing, startPublish] = useTransition();
 
   const uploading = media.some((m) => m.state === "uploading");
@@ -160,15 +169,15 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
           <div className="rounded-2xl border border-line bg-card p-4">
             <p className="text-sm text-ink-2">
               {post.scheduledAt
-                ? `Geplant für ${new Date(post.scheduledAt).toLocaleString("de-CH", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}. Bis dahin ist der Beitrag nur für dich sichtbar.`
+                ? `Geplant für ${new Date(post.scheduledAt).toLocaleString("de-CH", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })}. Bis dahin ist der Beitrag nur für dich sichtbar.`
                 : "Entwurf – nur für dich sichtbar. Veröffentliche ihn jetzt oder plane einen Zeitpunkt."}
             </p>
             <div className="mt-4 flex flex-wrap items-end gap-2">
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-semibold">Zeitpunkt</span>
-                <Input type="datetime-local" value={when} min={toLocal(new Date(Date.now() + 5 * 60_000).toISOString())} onChange={(e) => setWhen(e.target.value)} className="h-10 w-[230px] text-sm" />
+                <Input type="datetime-local" value={when} min={minLocal} onChange={(e) => setWhen(e.target.value)} className="h-10 w-[230px] text-sm" />
               </label>
-              <Button variant="outline" className="h-10" disabled={publishing || !when || when === (post.scheduledAt ? toLocal(post.scheduledAt) : "")} onClick={() => schedule(when)}>
+              <Button variant="outline" className="h-10" disabled={publishing || !when || when === scheduledLocal} onClick={() => schedule(when)}>
                 <CalendarClock size={15} aria-hidden /> {post.scheduledAt ? "Neu planen" : "Planen"}
               </Button>
               {post.scheduledAt && (

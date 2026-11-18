@@ -11,6 +11,7 @@ import { useAction } from "@/lib/use-action";
 import { cn, pad, slugify } from "@/lib/utils";
 import { createCommunityAction, setRulesAction, updateCommunityAction } from "@/app/(app)/communities/actions";
 import type { CategoryOption } from "@/server/categories/types";
+import { useObjectUrls } from "@/lib/use-object-urls";
 
 export type Rule = { title: string; body: string };
 type Visibility = "PUBLIC" | "REQUEST" | "PRIVATE";
@@ -60,6 +61,7 @@ export function RulesEditor({ value, onChange }: { value: Rule[]; onChange: (r: 
 function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUploaded: (mediaId: string, url: string) => void; onRemove: () => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
+  const blobs = useObjectUrls();
   return (
     <div>
       {url ? (
@@ -68,7 +70,7 @@ function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUplo
           <img src={url} alt="Titelbild" className="aspect-[16/9] w-full border border-line object-cover rounded-2xl" />
           <div className="mt-2 flex gap-4 text-xs">
             <button type="button" onClick={() => input.current?.click()} className="font-semibold hover:underline">Ersetzen</button>
-            <button type="button" onClick={onRemove} className="text-muted hover:text-danger">Entfernen</button>
+            <button type="button" onClick={() => { blobs.revoke(url); onRemove(); }} className="text-muted hover:text-danger">Entfernen</button>
           </div>
         </div>
       ) : (
@@ -87,7 +89,8 @@ function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUplo
           setProgress(0);
           try {
             const r = await uploadFile(f, "public", setProgress);
-            onUploaded(r.mediaId, r.variants?.lg ?? r.variants?.md ?? URL.createObjectURL(f));
+            blobs.revoke(url);
+            onUploaded(r.mediaId, r.variants?.lg ?? r.variants?.md ?? blobs.create(f));
           } catch (err) {
             toast(err instanceof Error ? err.message : "Upload fehlgeschlagen", "error");
           } finally {

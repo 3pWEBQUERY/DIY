@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import type { PostView } from "@/server/social/posts";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,8 @@ import { callAction } from "@/lib/use-action";
 
 type Poll = NonNullable<PostView["poll"]>;
 
-function remaining(endsAt: string) {
-  const ms = new Date(endsAt).getTime() - Date.now();
+function remaining(endsAt: string, now: number) {
+  const ms = new Date(endsAt).getTime() - now;
   if (ms <= 0) return "Beendet";
   const h = Math.round(ms / 3600_000);
   if (h < 1) return "Endet in Kürze";
@@ -30,6 +30,13 @@ export function PollBlock({ postId, poll: initial, signedIn }: { postId: string;
   const [poll, setPoll] = useState(initial);
   const [picked, setPicked] = useState<string[]>([]);
   const [pending, start] = useTransition();
+  // Restzeit erst im Browser berechnen (Server- und Client-Uhr weichen ab → Hydration-Fehler)
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const canVote = signedIn && !poll.ended && poll.viewerVotes.length === 0;
   const max = Math.max(1, ...poll.options.map((o) => o.votes ?? 0));
 
@@ -86,7 +93,8 @@ export function PollBlock({ postId, poll: initial, signedIn }: { postId: string;
       })}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-[13px] text-muted">
         <span>
-          {poll.voterCount} {poll.voterCount === 1 ? "Stimme" : "Stimmen"} · {remaining(poll.endsAt)}
+          {poll.voterCount} {poll.voterCount === 1 ? "Stimme" : "Stimmen"}
+          {now !== null && <> · {remaining(poll.endsAt, now)}</>}
           {poll.multiple && " · Mehrfachauswahl"}
         </span>
         {canVote && poll.multiple && (
