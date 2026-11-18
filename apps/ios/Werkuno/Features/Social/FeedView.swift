@@ -94,21 +94,21 @@ struct FeedView: View {
                 FeedKindSwitch(selection: $kind)
             }
         }
+        // `.badge` zeigt die Toolbar nicht an – deshalb ein eigener Zähler auf dem Symbol
         ToolbarItem(placement: .topBarTrailing) {
             Button { router.open(.notifications) } label: {
-                Image(systemName: app.unreadNotifications > 0 ? "bell.badge" : "bell")
+                Image(systemName: "bell")
+                    .overlay(alignment: .topTrailing) { ToolbarCountBadge(count: app.unreadNotifications) }
             }
             .accessibilityLabel(app.unreadNotifications > 0 ? "Benachrichtigungen, \(app.unreadNotifications) ungelesen" : "Benachrichtigungen")
         }
-        // `.badge` am Button wird in der Toolbar nicht gezeigt – iOS 26 badgt das ToolbarItem selbst
-        .badge(app.unreadNotifications)
         ToolbarItem(placement: .topBarTrailing) {
             Button { router.open(.conversations) } label: {
                 Image(systemName: "bubble.left.and.bubble.right")
+                    .overlay(alignment: .topTrailing) { ToolbarCountBadge(count: app.unreadMessages) }
             }
             .accessibilityLabel(app.unreadMessages > 0 ? "Nachrichten, \(app.unreadMessages) ungelesen" : "Nachrichten")
         }
-        .badge(app.unreadMessages)
     }
 
     // MARK: Inhalt
@@ -584,5 +584,24 @@ private struct FeedKindSwitch: View {
         .padding(.horizontal, 2)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Feed auswählen")
+    }
+}
+
+/// Kleiner Zähler auf einem Toolbar-Symbol (ab 100 „99+“); unsichtbar bei 0
+private struct ToolbarCountBadge: View {
+    var count: Int
+
+    var body: some View {
+        if count > 0 {
+            Text(count > 99 ? "99+" : "\(count)")
+                .font(.system(size: 10, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .frame(minWidth: 16, minHeight: 16)
+                .background(Color.moss, in: Capsule())
+                .offset(x: 9, y: -7)
+                .accessibilityHidden(true)
+        }
     }
 }
