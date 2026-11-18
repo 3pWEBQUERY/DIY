@@ -79,7 +79,8 @@ async function membership(communityId: string, viewer: Viewer) {
 /** Lädt ein Event inkl. Rechte; null, wenn nicht sichtbar. */
 export async function getEvent(eventId: string, viewer: Viewer) {
   const e = await db.communityEvent.findUnique({ where: { id: eventId }, select: eventSelect });
-  if (!e || e.community.state === "REMOVED") return null;
+  // Von der Moderation entfernte Events sind nirgends mehr sichtbar
+  if (!e || e.state === "REMOVED" || e.community.state === "REMOVED") return null;
   const m = await membership(e.communityId, viewer);
   const platformMod = !!viewer && hasRole(viewer, "PLATFORM_MODERATOR");
   if (e.community.state === "HIDDEN" && !platformMod && m?.state !== "ACTIVE") return null;
@@ -118,7 +119,7 @@ export type EventDetail = NonNullable<Awaited<ReturnType<typeof getEvent>>>;
 export async function listCommunityEvents(communityId: string, viewer: Viewer, when: "upcoming" | "past" = "upcoming", take = 30) {
   const now = new Date();
   const rows = await db.communityEvent.findMany({
-    where: { communityId, ...(when === "upcoming" ? { endsAt: { gte: now } } : { endsAt: { lt: now } }) },
+    where: { communityId, state: { not: "REMOVED" }, ...(when === "upcoming" ? { endsAt: { gte: now } } : { endsAt: { lt: now } }) },
     orderBy: { startsAt: when === "upcoming" ? "asc" : "desc" },
     take,
     select: eventSelect,
@@ -142,7 +143,7 @@ export async function eventsOverview(viewer: Viewer, opts: { mode?: "IN_PERSON" 
   };
   const [mine, communities, open] = await Promise.all([
     viewer
-      ? db.communityEvent.findMany({ where: { endsAt: { gte: now }, attendees: { some: { userId: viewer.id } } }, orderBy: { startsAt: "asc" }, take: 12, select: eventSelect })
+      ? db.communityEvent.findMany({ where: { endsAt: { gte: now }, state: { not: "REMOVED" }, attendees: { some: { userId: viewer.id } } }, orderBy: { startsAt: "asc" }, take: 12, select: eventSelect })
       : Promise.resolve([]),
     memberOf.length ? db.communityEvent.findMany({ where: { ...base, communityId: { in: memberOf } }, orderBy: { startsAt: "asc" }, take: 24, select: eventSelect }) : Promise.resolve([]),
     db.communityEvent.findMany({ where: { ...base, communityId: { notIn: memberOf }, community: { ...(base.community as object), visibility: { not: "PRIVATE" } } }, orderBy: { startsAt: "asc" }, take: 24, select: eventSelect }),
@@ -208,7 +209,7 @@ export async function createEvent(user: SessionUser, communityId: string, input:
 
 async function requireEditor(user: SessionUser, eventId: string) {
   const e = await db.communityEvent.findUnique({ where: { id: eventId }, select: { id: true, communityId: true, organizerId: true, state: true, title: true, startsAt: true, endsAt: true, locationName: true, address: true, onlineUrl: true, mode: true, community: { select: { slug: true } } } });
-  if (!e) throw fail.notFound("Event nicht gefunden.");
+  if (!e || e.state === "REMOVED") throw fail.notFound("Event nicht gefunden.");
   const m = await communityRole(e.communityId, user.id);
   // Veranstalter:in nur, solange sie bzw. er aktives Mitglied ist (gebannt/ausgetreten → keine Änderungen mehr)
   const organizer = e.organizerId === user.id && m?.state === "ACTIVE";
@@ -270,7 +271,7 @@ export async function cancelEvent(user: SessionUser, eventId: string, reason: st
 /** Zusagen/Interesse/Absagen. Plätze werden atomar vergeben (keine Überbuchung). */
 export async function setAttendance(user: SessionUser, eventId: string, status: "GOING" | "INTERESTED" | null) {
   const e = await db.communityEvent.findUnique({ where: { id: eventId }, select: { id: true, communityId: true, organizerId: true, state: true, endsAt: true, capacity: true, title: true, community: { select: { slug: true } } } });
-  if (!e) throw fail.notFound("Event nicht gefunden.");
+  if (!e || e.state === "REMOVED") throw fail.notFound("Event nicht gefunden.");
   const m = await communityRole(e.communityId, user.id);
   if (m?.state !== "ACTIVE") throw fail.forbidden("Tritt der Community bei, um teilzunehmen.");
   if (e.state === "CANCELLED") throw fail.conflict("Dieses Event wurde abgesagt.");

@@ -109,7 +109,7 @@ export const commerceRoutes: RouteDef[] = [
   // ── Warenkorb ──
   GET("/cart", async () => {
     const u = await me();
-    const [view, pending] = await Promise.all([cart.getCartView(u.id), checkout.payableOrders(u.id)]);
+    const [view, pending] = await Promise.all([cart.getCartView(u.id), checkout.payableOrders(u.id, { channel: "ios" })]);
     return { ...appCartView(view), pendingOrders: pending };
   }),
   POST("/cart/items", async (c) => {
@@ -152,7 +152,7 @@ export const commerceRoutes: RouteDef[] = [
     if (view.groups.some((g) => g.lines.some((l) => l.isDigital))) throw fail.invalid(DIGITAL_IN_CART);
     return checkout.startCheckout(u, await c.json(), { channel: "ios" });
   }),
-  POST("/orders/:id/resume", async (c) => ({ url: await checkout.resumePayment(await me(), c.p.id!) })),
+  POST("/orders/:id/resume", async (c) => ({ url: await checkout.resumePayment(await me(), c.p.id!, { channel: "ios" }) })),
   POST("/orders/:id/abandon", async (c) => {
     await checkout.abandonPendingOrder(await me(), c.p.id!);
     return { ok: true };
@@ -166,7 +166,7 @@ export const commerceRoutes: RouteDef[] = [
   GET("/orders", async (c) => orders.listBuyerOrders((await me()).id, str(c.q, "cursor") ?? null, takeParam(c.q, "take", 20))),
   GET("/orders/:id", async (c) => {
     const u = await me();
-    const [order, payable] = await Promise.all([orders.getBuyerOrder(u.id, c.p.id!), checkout.payableOrders(u.id)]);
+    const [order, payable] = await Promise.all([orders.getBuyerOrder(u.id, c.p.id!), checkout.payableOrders(u.id, { channel: "ios" })]);
     return { order: need(order, "Bestellung nicht gefunden."), canPay: payable.some((o) => o.id === c.p.id) };
   }),
   GET("/orders/:id/receipt", async (c) => need(await orders.getReceipt(await me(), c.p.id!), "Beleg nicht gefunden.")),

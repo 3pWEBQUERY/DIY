@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Eye, EyeOff, Flag, Heart, Loader2, Pause, Play, Send, Star, Trash2, User, Users, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Eye, EyeOff, Ban, Flag, Heart, Loader2, Pause, Play, Send, Star, Trash2, User, Users, Volume2, VolumeX, X } from "lucide-react";
 import type { StoryGroup, StoryItem } from "@/server/stories/service";
 import { Avatar } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { confirmDialog } from "@/components/ui/confirm";
 import { MoreMenu, ReportDialog, type MenuItem } from "@/components/social/actions";
 import { cn } from "@/lib/utils";
+import { blockAction } from "@/app/(app)/social-actions";
+import { callAction } from "@/lib/use-action";
 import { deleteStoryAction, markStorySeenAction, storyGroupAction, storyLikeAction, storyMuteAction, storyReplyAction } from "@/app/(app)/stories/actions";
 import { StoryMedia, StoryText } from "./story-content";
 import { markStoriesChanged, takeStoryReturn } from "./story-return";
@@ -302,6 +304,18 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
     goGroup(1);
   }
 
+  async function blockAuthor() {
+    if (!group) return;
+    const name = group.author.displayName;
+    if (!(await confirmDialog(`${name} blockieren? Ihr seht gegenseitig keine Stories, Beiträge und Nachrichten mehr.`))) return;
+    const r = await callAction(() => blockAction(group.author.id, true));
+    if (!r.ok) return toast(r.error, "error");
+    toast(`${name} ist blockiert.`);
+    markStoriesChanged();
+    setGroups((gs) => gs.map((g, idx) => (idx === gi ? null : g)));
+    goGroup(1);
+  }
+
   if (!group || !item) {
     return (
       <div className="fixed inset-0 z-[100] grid place-items-center bg-[#151312] text-white">
@@ -318,6 +332,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
           { label: "Profil ansehen", icon: <User size={15} />, onSelect: () => router.push(`/u/${group.author.handle}`) },
           ...(group.mode === "stories" ? [{ label: `Stories von ${group.author.displayName.split(" ")[0]} ausblenden`, icon: <EyeOff size={15} />, onSelect: muteStories }] : []),
           { label: "Story melden", icon: <Flag size={15} />, onSelect: () => setOverlay("report") },
+          { label: `${group.author.displayName.split(" ")[0]} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: blockAuthor },
         ]
       : [{ label: "Profil ansehen", icon: <User size={15} />, onSelect: () => router.push(`/u/${group.author.handle}`) }];
 

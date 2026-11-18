@@ -237,6 +237,10 @@ struct CompetitionDetailView: View {
                         }
                         Button("Zur Community", systemImage: "person.3") { router.open(.community(slug: c.community.slug)) }
                         Button("Alle Wettbewerbe", systemImage: "trophy") { router.open(.competitions()) }
+                        if !app.isGuest, app.me != nil {
+                            Divider()
+                            Button("Wettbewerb melden …", systemImage: "flag") { router.present(.report(targetType: "COMPETITION", targetId: c.id, title: c.title)) }
+                        }
                     } label: { Image(systemName: "ellipsis") }
                     .accessibilityLabel("Weitere Aktionen")
                 }

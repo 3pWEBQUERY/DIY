@@ -1,8 +1,19 @@
 import SwiftUI
+import UIKit
 
 struct MainTabView: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+    @Environment(\.colorScheme) private var colorScheme
+    /// Eigenes Profilbild für den „Ich“-Tab (nil → Symbol)
+    @State private var avatar: UIImage?
+
+    private var avatarPath: String? { app.isGuest ? nil : app.me?.profile?.avatarUrl }
+
+    private var meIcon: Image {
+        guard avatarPath != nil, let avatar else { return Image(systemName: "person.crop.circle") }
+        return Image(uiImage: TabAvatar.render(avatar, selected: router.tab == .me, dark: colorScheme == .dark))
+    }
 
     var body: some View {
         @Bindable var router = router
@@ -20,8 +31,11 @@ struct MainTabView: View {
                 }
                 .badge(app.cartCount)
             }
-            Tab("Ich", systemImage: "person.crop.circle", value: AppTab.me) {
+            Tab(value: AppTab.me) {
                 TabStack(tab: .me) { if app.isGuest { GuestMeView() } else { MeView() } }
+            } label: {
+                // Mit Profilbild: rundes Foto (aktiv mit Koralle-Ring), sonst das bisherige Symbol
+                Label { Text("Ich") } icon: { meIcon }
             }
             .badge(app.unreadNotifications + app.unreadMessages)
             Tab(value: AppTab.search, role: .search) {
@@ -29,6 +43,19 @@ struct MainTabView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .task(id: avatarPath) {
+            guard let url = AppConfig.resolve(avatarPath) else { avatar = nil; return }
+            if let hit = ImageCache.shared.cached(url) { avatar = hit; return }
+            avatar = nil
+            // Bis zu drei Versuche (kurzes Funkloch beim Start); ein abgelöster Auftrag schreibt nichts mehr
+            for attempt in 0..<3 {
+                let img = await ImageCache.shared.load(url)
+                guard !Task.isCancelled else { return }
+                if let img { avatar = img; return }
+                try? await Task.sleep(for: .seconds(2 << attempt))
+                guard !Task.isCancelled else { return }
+            }
+        }
         .onChange(of: app.marketplaceEnabled) { _, enabled in
             if !enabled && router.tab == .market { router.tab = .workbench }
         }
@@ -45,6 +72,31 @@ struct MainTabView: View {
                 .environment(router)
                 .toastOverlay()
         }
+    }
+}
+
+/// Profilbild als Tab-Symbol. Die Tab-Leiste färbt Symbole sonst einfarbig ein – darum ein fertig
+/// gezeichnetes, rundes Bild im Originalmodus (Grösse wie ein SF-Symbol im Tab).
+enum TabAvatar {
+    static func render(_ image: UIImage, selected: Bool, dark: Bool) -> UIImage {
+        let side: CGFloat = 26
+        let rect = CGRect(x: 0, y: 0, width: side, height: side)
+        let traits = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
+        let out = UIGraphicsImageRenderer(size: rect.size).image { _ in
+            if selected {
+                let ring = UIBezierPath(ovalIn: rect.insetBy(dx: 0.9, dy: 0.9))
+                ring.lineWidth = 1.8
+                UIColor(Color.moss).resolvedColor(with: traits).setStroke()
+                ring.stroke()
+            }
+            let photo = selected ? rect.insetBy(dx: 3, dy: 3) : rect
+            UIBezierPath(ovalIn: photo).addClip()
+            // Bildmitte füllend zuschneiden
+            let scale = max(photo.width / max(image.size.width, 1), photo.height / max(image.size.height, 1))
+            let w = image.size.width * scale, h = image.size.height * scale
+            image.draw(in: CGRect(x: photo.midX - w / 2, y: photo.midY - h / 2, width: w, height: h))
+        }
+        return out.withRenderingMode(.alwaysOriginal)
     }
 }
 

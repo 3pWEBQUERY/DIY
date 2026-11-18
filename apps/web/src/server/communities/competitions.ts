@@ -53,7 +53,8 @@ function shuffle<T extends { id: string }>(items: T[], seed: string) {
 
 async function loadChallenge(challengeId: string) {
   const ch = await db.communityChallenge.findUnique({ where: { id: challengeId }, include: { community: { select: { id: true, slug: true, name: true, visibility: true, state: true } } } });
-  if (!ch || ch.community.state === "REMOVED") throw fail.notFound("Wettbewerb nicht gefunden.");
+  // Von der Moderation entfernte Wettbewerbe sind nirgends mehr sichtbar
+  if (!ch || ch.state === "REMOVED" || ch.community.state === "REMOVED") throw fail.notFound("Wettbewerb nicht gefunden.");
   return ch;
 }
 
@@ -125,6 +126,7 @@ export async function listCompetitions(viewer: Viewer, opts: { includeEnded?: bo
   const now = new Date();
   const rows = await db.communityChallenge.findMany({
     where: {
+      state: "ACTIVE",
       community: { state: "PUBLISHED", OR: [{ visibility: { not: "PRIVATE" } }, ...(memberOf.length ? [{ id: { in: memberOf } }] : [])] },
       ...(opts.includeEnded ? {} : { OR: [{ resultsAt: null }, { resultsAt: { gt: new Date(now.getTime() - 14 * 86400_000) } }] }),
       startsAt: { lte: new Date(now.getTime() + 30 * 86400_000) },
@@ -311,7 +313,7 @@ export async function finalizeVotes(challengeId: string) {
 /** Start melden: alle aktiven Mitglieder der Community (ausser der Person, die ihn angelegt hat). */
 async function announceStart(now: Date) {
   const starting = await db.communityChallenge.findMany({
-    where: { startsAt: { lte: now }, endsAt: { gt: now }, NOT: { notified: { has: "start" } } },
+    where: { state: "ACTIVE", startsAt: { lte: now }, endsAt: { gt: now }, NOT: { notified: { has: "start" } } },
     include: { community: { select: { slug: true, name: true } } },
     take: 20,
   });
@@ -343,6 +345,7 @@ export async function runCompetitionPhases(now = new Date()) {
     // Nur mit offener Arbeit: Jury-Wettbewerbe ohne Ergebnis, die schon gemeldet sind, warten auf die
     // Jury und dürfen die Liste nicht füllen (sonst würden neue Abstimmungen nie ausgewertet)
     where: {
+      state: "ACTIVE",
       endsAt: { lte: now },
       OR: [
         { resultsAt: null, judging: "VOTES" },
@@ -379,7 +382,7 @@ export async function runCompetitionPhases(now = new Date()) {
 /** Auszeichnungen für das Profil: Platzierungen in entschiedenen Wettbewerben sichtbarer Communities. */
 export async function profileAwards(userId: string, viewer: Viewer) {
   const rows = await db.challengeEntry.findMany({
-    where: { userId, state: "ACTIVE", place: { not: null }, challenge: { resultsAt: { not: null, lte: new Date() }, community: { state: "PUBLISHED" } } },
+    where: { userId, state: "ACTIVE", place: { not: null }, challenge: { state: "ACTIVE", resultsAt: { not: null, lte: new Date() }, community: { state: "PUBLISHED" } } },
     orderBy: [{ challenge: { resultsAt: "desc" } }],
     take: 20,
     select: { id: true, place: true, challenge: { select: { id: true, title: true, resultsAt: true, communityId: true, community: { select: { slug: true, name: true, visibility: true } } } } },

@@ -63,10 +63,14 @@ export function PricingCard({ prices, enabled }: { prices: { month: number; year
 
 /* ───────────── Verwalten ───────────── */
 
-export function ManageSubscription({ provider, cancelAtPeriodEnd, periodEndLabel }: { provider: "stripe" | "simulated" | "comp" | null; cancelAtPeriodEnd: boolean; periodEndLabel: string | null }) {
+export function ManageSubscription({ provider, cancelAtPeriodEnd, periodEndLabel }: { provider: "stripe" | "simulated" | "comp" | "apple" | null; cancelAtPeriodEnd: boolean; periodEndLabel: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   if (provider === "comp") return null;
+  // Über die iOS-App abgeschlossen: Kündigen und Ändern nur bei Apple möglich
+  if (provider === "apple") {
+    return <p className="max-w-xs text-[13px] leading-relaxed text-muted">Abgeschlossen im App Store. Kündigen oder ändern kannst du es auf deinem iPhone unter Einstellungen › Apple-Account › Abonnements.</p>;
+  }
   const toggle = async () => {
     if (!cancelAtPeriodEnd) {
       const ok = await confirmDialog({

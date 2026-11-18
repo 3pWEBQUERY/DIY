@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 import UserNotifications
 
 // MARK: - Übersicht
@@ -415,6 +416,7 @@ private struct MeDeleteAccountSheet: View {
     var orderCount: Int
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var app
+    @State private var showManage = false
     @State private var password = ""
     @State private var confirmText = ""
     @State private var finalConfirm = false
@@ -434,6 +436,13 @@ private struct MeDeleteAccountSheet: View {
                     bullet("Follower- und Folgebeziehungen")
                     bullet("Alle Sitzungen und verknüpften Anmeldungen")
                     if hasShop { bullet("Dein Shop wird gesperrt, Produkte werden deaktiviert") }
+                }
+                if app.me?.profile?.isCreatorPro == true {
+                    Section {
+                        Text("Hast du Creator Pro im App Store abgeschlossen, kündige das Abo bitte zusätzlich auf deinem iPhone unter Einstellungen › Apple-Account › Abonnements – Apple bucht es sonst weiter ab.")
+                            .font(.wr(.footnote)).foregroundStyle(Color.ink)
+                        Button("Abonnements öffnen", systemImage: "arrow.up.forward.app") { showManage = true }
+                    } header: { Text("Creator Pro") }
                 }
                 Section("Bleibt erhalten") {
                     bullet("Bestellungen und Rechnungsdaten\(orderCount > 0 ? " (\(orderCount))" : "") – 10 Jahre Aufbewahrungspflicht, vom Profil entkoppelt")
@@ -458,6 +467,7 @@ private struct MeDeleteAccountSheet: View {
             }
             .meFormStyle()
             .navigationTitle("Konto löschen")
+            .manageSubscriptionsSheet(isPresented: $showManage)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
             .confirmationDialog("Wirklich löschen?", isPresented: $finalConfirm, titleVisibility: .visible) {
@@ -1002,7 +1012,7 @@ private struct MeSupportView: View {
             } header: { Text("Deine Anfragen") }
 
             Section {
-                Button("Hilfe-Center") { router.open(.web(path: "/hilfe")) }
+                Button("Hilfe-Center") { router.open(.web(path: "/hilfe?app=ios")) }
                 Button("Community-Richtlinien") { router.open(.web(path: "/richtlinien/community")) }
                 Button("Datenschutz") { router.open(.web(path: "/rechtliches/datenschutz")) }
                 Button("AGB") { router.open(.web(path: "/rechtliches/agb")) }

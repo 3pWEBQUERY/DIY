@@ -41,6 +41,8 @@ struct StoryViewerView: View {
     @State private var sending = false
     @State private var sheet: ViewerSheet?
     @State private var confirmDelete = false
+    /// Person, die nach Rückfrage blockiert werden soll (Story pausiert so lange)
+    @State private var blockTarget: StoryGroup?
     @State private var changed = false
 
     private enum ViewerSheet: Identifiable {
@@ -56,7 +58,7 @@ struct StoryViewerView: View {
 
     private var group: StoryGroup? { groups[gi] }
     private var item: StoryItem? { group.flatMap { ii < $0.items.count ? $0.items[ii] : nil } }
-    private var paused: Bool { holding || userPaused || replyFocused || sheet != nil || confirmDelete || scenePhase != .active }
+    private var paused: Bool { holding || userPaused || replyFocused || sheet != nil || confirmDelete || blockTarget != nil || scenePhase != .active }
 
     var body: some View {
         ZStack {
@@ -104,6 +106,16 @@ struct StoryViewerView: View {
             Button("Löschen", role: .destructive) { Task { await deleteCurrent() } }
         } message: {
             Text("Sie verschwindet sofort aus dem Story-Kreis, deinem Archiv und allen Highlights.")
+        }
+        .confirmationDialog(
+            "\(blockTarget?.author.displayName ?? "Profil") blockieren?",
+            isPresented: Binding(get: { blockTarget != nil }, set: { if !$0 { blockTarget = nil } }),
+            titleVisibility: .visible,
+            presenting: blockTarget
+        ) { g in
+            Button("Blockieren", role: .destructive) { Task { await block(g) } }
+        } message: { _ in
+            Text("Ihr seht gegenseitig keine Stories, Beiträge und Nachrichten mehr. Du kannst das in den Einstellungen rückgängig machen.")
         }
     }
 
@@ -276,6 +288,7 @@ struct StoryViewerView: View {
             }
             if app.isSignedIn {
                 Button("Story melden …", systemImage: "flag") { sheet = .report(s.id) }
+                Button("\(firstName(g.author.displayName)) blockieren", systemImage: "hand.raised", role: .destructive) { blockTarget = g }
             }
         }
     }
@@ -663,6 +676,18 @@ struct StoryViewerView: View {
             try await StoryAPI.muteStories(of: g.author.id, true)
             changed = true
             app.show("Stories von \(g.author.displayName) sind ausgeblendet.")
+            unavailable.insert(gi)
+            goGroup(1)
+        } catch {
+            app.show(error: error)
+        }
+    }
+
+    private func block(_ g: StoryGroup) async {
+        do {
+            try await SocialAPI.block(g.author.id, true)
+            changed = true
+            app.show("\(g.author.displayName) ist blockiert.")
             unavailable.insert(gi)
             goGroup(1)
         } catch {

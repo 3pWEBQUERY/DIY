@@ -50,6 +50,10 @@ export async function canViewContent(
   if (item.state === "REMOVED") return false;
   if (viewerId === item.ownerId) return true;
   if (item.state !== "PUBLISHED") return false;
+  // Inhalte gebannter oder gelöschter Konten sind auch über direkte Links nicht mehr erreichbar
+  // (Feed und Suche filtern sie bereits; zeitweise Gesperrte bleiben sichtbar wie überall sonst)
+  const owner = await db.user.findUnique({ where: { id: item.ownerId }, select: { status: true } });
+  if (!owner || (owner.status !== "ACTIVE" && owner.status !== "SUSPENDED")) return false;
   if (viewerId && (await isBlockedBetween(viewerId, item.ownerId))) return false;
   if (item.visibility === "PUBLIC") return true;
   if (!viewerId) return false;

@@ -135,7 +135,7 @@ struct ProjectsDifficultyPicker: View {
                     } label: {
                         VStack(spacing: 6) {
                             RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(on ? Color.ink : Color.lineStrong.opacity(0.6))
+                                .fill(on ? Color.moss : Color.lineStrong.opacity(0.6))
                                 .frame(height: 10 + CGFloat(i) * 7)
                             Text("\(i)").font(.specLarge).foregroundStyle(i == level ? Color.ink : Color.muted)
                         }

@@ -195,7 +195,7 @@ export async function getCommunityPage(slug: string, viewer: SessionUser | null)
   const [challenge, pending, projectCount] = await Promise.all([
     db.communityChallenge.findFirst({
       // Laufend (Einreichung/Abstimmung/Jury), bald startend oder vor kurzem entschieden
-      where: { communityId: c.id, startsAt: { lte: new Date(now.getTime() + 14 * 86400_000) }, OR: [{ endsAt: { gte: now } }, { resultsAt: null }, { resultsAt: { gte: new Date(now.getTime() - 7 * 86400_000) } }] },
+      where: { communityId: c.id, state: "ACTIVE", startsAt: { lte: new Date(now.getTime() + 14 * 86400_000) }, OR: [{ endsAt: { gte: now } }, { resultsAt: null }, { resultsAt: { gte: new Date(now.getTime() - 7 * 86400_000) } }] },
       orderBy: { endsAt: "asc" },
     }),
     isModRole(m) || platformMod ? db.communityMember.count({ where: { communityId: c.id, state: "PENDING" } }) : Promise.resolve(0),
@@ -378,7 +378,7 @@ export async function shareableProjects(userId: string, communityId: string) {
 }
 
 export async function listChallenges(communityId: string) {
-  return db.communityChallenge.findMany({ where: { communityId }, orderBy: { startsAt: "desc" }, take: 50 });
+  return db.communityChallenge.findMany({ where: { communityId, state: "ACTIVE" }, orderBy: { startsAt: "desc" }, take: 50 });
 }
 
 // ───────────────────────── Schreiben: Community ─────────────────────────

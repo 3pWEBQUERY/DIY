@@ -15,6 +15,7 @@ import { db } from "@/server/db";
 import { flagEnabled } from "@/server/flags";
 import * as pro from "@/server/pro/service";
 import * as proProfile from "@/server/pro/profile";
+import * as proApple from "@/server/pro/apple";
 
 async function moderator() {
   const u = await me();
@@ -25,7 +26,7 @@ async function moderator() {
 /** Werkuno Studio (PRD §20) und Moderation/Administration (PRD §24, rollenbasiert). */
 export const studioAdminRoutes: RouteDef[] = [
   // ── Werkuno Studio ──
-  // Creator Pro: Status, Preise, Abschluss (Stripe Checkout im Browser), Kündigung, Profilwerkzeuge
+  // Creator Pro: Status, Abschluss über den App Store (In-App-Abo), Profilwerkzeuge
   GET("/studio/pro", async () => {
     const u = await me();
     const [status, prices, enabled, profile] = await Promise.all([
@@ -34,11 +35,30 @@ export const studioAdminRoutes: RouteDef[] = [
       flagEnabled("pro", u.id),
       db.userProfile.findUnique({ where: { userId: u.id }, select: { featuredProjectIds: true, mediaKitPublic: true, handle: true } }),
     ]);
-    return { status, prices, enabled, featuredProjectIds: profile?.featuredProjectIds ?? [], mediaKitPublic: !!profile?.mediaKitPublic, mediaKitUrl: profile ? `/u/${profile.handle}/medienkit` : null, featuredMax: proProfile.FEATURED_MAX };
+    return {
+      status,
+      prices,
+      enabled,
+      // Abschluss in der App nur über Apple (Guideline 3.1.1): Produkte + Konto-Token für StoreKit
+      apple: enabled ? await proApple.appleProOffer(u.id) : null,
+      manageHint: status.provider === "apple" ? pro.APPLE_MANAGE_HINT : null,
+      featuredProjectIds: profile?.featuredProjectIds ?? [],
+      mediaKitPublic: !!profile?.mediaKitPublic,
+      mediaKitUrl: profile ? `/u/${profile.handle}/medienkit` : null,
+      featuredMax: proProfile.FEATURED_MAX,
+    };
   }),
-  POST("/studio/pro/checkout", async (c) => {
-    const { interval } = await c.body({ interval: z.string().max(20).optional() });
-    return { url: await pro.startProCheckout(await me(), interval) };
+  // Web-Checkout (Stripe) ist in der App bewusst nicht erreichbar – Pro wird dort über den App Store gekauft
+  POST("/studio/pro/checkout", async () => {
+    await me();
+    throw fail.invalid("Creator Pro schliesst du in der App über den App Store ab.");
+  }),
+  // Kauf, Wiederherstellen und Abgleich des App-Store-Abos
+  POST("/studio/pro/apple", async (c) => {
+    const u = await me();
+    const body = await c.json<{ signedTransaction?: unknown; signedRenewalInfo?: unknown }>();
+    await proApple.syncAppleProFromApp(u, body);
+    return { status: await pro.getProStatus(u.id) };
   }),
   POST("/studio/pro/cancel", async (c) => {
     const { cancel } = await c.body({ cancel: zBool });

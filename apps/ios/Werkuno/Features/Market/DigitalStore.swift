@@ -35,9 +35,10 @@ enum DigitalStoreError: LocalizedError {
     }
 }
 
-/// Hinweis zu den Preisen in der App (neutral formuliert, App Review Guideline 3.1.1/3.1.3)
+/// Hinweis zur Abrechnung in der App – bewusst ohne Preisvergleich mit anderen Kanälen
+/// (App Review Guideline 3.1.1/3.1.3: kein Hinweis, der vom In-App-Kauf wegführt)
 enum DigitalStoreNotice {
-    static let text = "Käufe in der App werden über Apple abgerechnet. Preise in der App enthalten die Gebühr von Apple und sind deshalb höher."
+    static let text = "Käufe in der App werden über Apple abgerechnet."
 }
 
 @MainActor
@@ -124,7 +125,12 @@ final class DigitalStore {
 
     private func deliverQuietly(_ verification: VerificationResult<Transaction>) async {
         let transaction = verification.unsafePayloadValue
-        // Nur Werkuno-Verbrauchsartikel; widerrufene Käufe abschliessen, ohne zu verbuchen
+        // Creator-Pro-Abo (Kauf ausserhalb des Dialogs, Verlängerung): an den Abo-Speicher weitergeben
+        if transaction.productType == .autoRenewable, ProStore.productIds.contains(transaction.productID) {
+            await ProStore.shared.deliverQuietly(verification)
+            return
+        }
+        // Sonst nur Werkuno-Verbrauchsartikel; widerrufene Käufe abschliessen, ohne zu verbuchen
         guard transaction.productType == .consumable else { return }
         if transaction.revocationDate != nil {
             await transaction.finish()

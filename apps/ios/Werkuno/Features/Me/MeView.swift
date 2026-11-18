@@ -42,7 +42,7 @@ struct MeView: View {
                     MeNavRow(symbol: "bell.badge", title: "Benachrichtigungen verwalten") { router.open(.settingsSection(.notifications)) }
                 }
                 MeGroup(title: "Hilfe & Richtlinien") {
-                    MeNavRow(symbol: "questionmark.circle", title: "Hilfe-Center", external: true) { router.open(.web(path: "/hilfe")) }
+                    MeNavRow(symbol: "questionmark.circle", title: "Hilfe-Center", external: true) { router.open(.web(path: "/hilfe?app=ios")) }
                     MeNavRow(symbol: "person.2.wave.2", title: "Community-Richtlinien", external: true) { router.open(.web(path: "/richtlinien/community")) }
                     MeNavRow(symbol: "lock.doc", title: "Datenschutz", external: true) { router.open(.web(path: "/rechtliches/datenschutz")) }
                     MeNavRow(symbol: "doc.text", title: "AGB", external: true) { router.open(.web(path: "/rechtliches/agb")) }

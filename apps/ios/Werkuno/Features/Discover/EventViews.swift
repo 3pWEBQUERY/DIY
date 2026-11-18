@@ -281,6 +281,10 @@ struct EventDetailView: View {
                             Button("Bearbeiten", systemImage: "pencil") { showEditor = true }
                             Button("Event absagen …", systemImage: "xmark.circle", role: .destructive) { showCancel = true }
                         }
+                        if !app.isGuest, app.me != nil, e.organizer.id != app.me?.id {
+                            Divider()
+                            Button("Event melden …", systemImage: "flag") { router.present(.report(targetType: "EVENT", targetId: e.id, title: e.title)) }
+                        }
                     } label: { Image(systemName: "ellipsis") }
                     .accessibilityLabel("Weitere Aktionen")
                 }

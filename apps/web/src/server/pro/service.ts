@@ -20,12 +20,15 @@ import { BRAND } from "@/config/brand";
  * Grundfunktionen bleiben kostenlos (§22.5): Pro ergänzt, schränkt aber nichts ein und kauft
  * keine Reichweite im Feed.
  *
- * Abrechnung über Stripe Billing (Checkout im Abo-Modus). Status kommt per Webhook
+ * Abrechnung im Web über Stripe Billing (Checkout im Abo-Modus). Status kommt per Webhook
  * (customer.subscription.*) und zusätzlich beim Zurückkehren aus dem Checkout sowie täglich
- * im Worker. Die Administration kann Pro auch schenken (z. B. für Partner:innen).
+ * im Worker. In der iOS-App läuft das Abo über den App Store (siehe ./apple.ts, App Store
+ * Guideline 3.1.1). Die Administration kann Pro auch schenken (z. B. für Partner:innen).
  */
 
 export const PRO_NAME = "Creator Pro";
+/** Apple-Abos lassen sich nur bei Apple kündigen oder ändern. */
+export const APPLE_MANAGE_HINT = "Dein Abo läuft über den App Store. Kündigen oder ändern kannst du es auf deinem iPhone unter Einstellungen › Apple-Account › Abonnements.";
 const PRODUCT_ID = "werkuno_creator_pro";
 const ACTIVE = new Set(["active", "trialing", "past_due"]);
 
@@ -34,7 +37,7 @@ export type ProStatus = {
   active: boolean;
   interval: "month" | "year" | "comp" | null;
   status: string | null;
-  provider: "stripe" | "simulated" | "comp" | null;
+  provider: "stripe" | "simulated" | "comp" | "apple" | null;
   periodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
   priceMinor: number | null;
@@ -49,6 +52,8 @@ export function isActiveSubscription(s: Pick<SubRow, "status" | "provider" | "cu
   if (!s) return false;
   if (s.provider === "comp") return s.status === "active" && (!s.currentPeriodEnd || s.currentPeriodEnd > now);
   if (s.provider === "simulated") return ACTIVE.has(s.status) && (!s.currentPeriodEnd || s.currentPeriodEnd > now);
+  // App Store: nur bis zum Ende der bezahlten Periode (bzw. der Kulanzfrist) – auch wenn eine Meldung fehlt
+  if (s.provider === "apple") return ACTIVE.has(s.status) && !!s.currentPeriodEnd && s.currentPeriodEnd > now;
   return ACTIVE.has(s.status);
 }
 
@@ -90,14 +95,14 @@ export async function proPrices() {
 }
 
 /** Profil-Kennzeichen (isCreatorPro, z. B. für die App) mit dem Abo-Status abgleichen. */
-async function syncProFlag(userId: string) {
+export async function syncProFlag(userId: string) {
   const s = await db.subscription.findUnique({ where: { userId } });
   await db.userProfile.updateMany({ where: { userId }, data: { isCreatorPro: isActiveSubscription(s) } });
 }
 
 /* ───────────────────────── Benachrichtigungen ───────────────────────── */
 
-async function tell(userId: string, message: string) {
+export async function tell(userId: string, message: string) {
   await notify({ recipientId: userId, type: "SECURITY", bundle: false, data: { kind: "PRO", message, href: "/studio/pro" } }).catch(() => {});
 }
 
@@ -169,6 +174,7 @@ export async function startProCheckout(user: Pick<SessionUser, "id" | "email">, 
   await requireFlag("pro", user.id);
   await rateLimit(`pro-checkout:${user.id}`, 10, 3600);
   const current = await db.subscription.findUnique({ where: { userId: user.id } });
+  if (current && isActiveSubscription(current) && current.provider === "apple") throw fail.conflict(`Du hast ${PRO_NAME} bereits – dein Abo läuft über den App Store.`);
   if (current && isActiveSubscription(current) && current.provider !== "comp") throw fail.conflict(`Du hast ${PRO_NAME} bereits.`);
   const prices = await proPrices();
   const amount = interval === "year" ? prices.year : prices.month;
@@ -253,6 +259,7 @@ export async function setProCancel(user: Pick<SessionUser, "id">, cancel: boolea
   const s = await db.subscription.findUnique({ where: { userId: user.id } });
   if (!s || !isActiveSubscription(s)) throw fail.invalid(`Du hast kein aktives ${PRO_NAME}-Abo.`);
   if (s.provider === "comp") throw fail.invalid(`Dein Zugang wurde dir von ${BRAND.name} geschenkt und läuft ohne Abo.`);
+  if (s.provider === "apple") throw fail.invalid(APPLE_MANAGE_HINT);
   await rateLimit(`pro-cancel:${user.id}`, 20, 3600);
   if (s.provider === "stripe" && s.subscriptionId) {
     try {
@@ -346,6 +353,13 @@ export async function syncProSubscriptions() {
       else end.setMonth(end.getMonth() + 1);
       await db.subscription.update({ where: { id: s.id }, data: { currentPeriodEnd: end } });
     }
+  }
+  // App Store: Periode abgelaufen, ohne dass eine Verlängerung gemeldet wurde → Pro endet (eine spätere
+  // Verlängerung bringt die App bzw. die Server-Benachrichtigung von Apple wieder herein)
+  const appleDue = await db.subscription.findMany({ where: { provider: "apple", status: { in: ["active", "past_due"] }, currentPeriodEnd: { lt: now } }, take: 500 });
+  for (const s of appleDue) {
+    await db.subscription.update({ where: { id: s.id }, data: { status: "expired" } });
+    await syncProFlag(s.userId);
   }
   const comps = await db.subscription.findMany({ where: { provider: "comp", status: "active", currentPeriodEnd: { lt: now } } });
   for (const s of comps) {
@@ -444,7 +458,7 @@ export async function grantPro(actor: Pick<SessionUser, "id" | "role">, userId: 
   if (!u) throw fail.notFound();
   if (u.status !== "ACTIVE") throw fail.conflict("Gesperrte oder gelöschte Konten erhalten kein geschenktes Pro.");
   const s = await db.subscription.findUnique({ where: { userId } });
-  if (s && s.provider === "stripe" && isActiveSubscription(s)) throw fail.conflict("Diese Person hat bereits ein bezahltes Abo.");
+  if (s && (s.provider === "stripe" || s.provider === "apple") && isActiveSubscription(s)) throw fail.conflict("Diese Person hat bereits ein bezahltes Abo.");
   const data = { interval: "comp", status: "active", provider: "comp", currentPeriodEnd: days ? new Date(Date.now() + days * 86400_000) : null, cancelAtPeriodEnd: false, grantedById: actor.id, note: note || null, priceMinor: null };
   await db.subscription.upsert({ where: { userId }, create: { userId, ...data }, update: data });
   await syncProFlag(userId);

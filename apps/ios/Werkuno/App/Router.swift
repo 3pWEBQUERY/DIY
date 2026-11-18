@@ -265,6 +265,21 @@ final class Router {
     /// Anzahl sichtbarer Detailseiten mit eigener Aktionsleiste (blendet die Werkbank-Leiste aus)
     var immersiveCount = 0
 
+    /// Alles zurück auf den Start – beim Abmelden bzw. Kontowechsel, damit die nächste Person nicht
+    /// in Unterhaltungen, Einstellungen oder offenen Sheets des vorherigen Kontos landet.
+    func reset() {
+        tab = .workbench
+        workbench = NavigationPath()
+        discover = NavigationPath()
+        market = NavigationPath()
+        me = NavigationPath()
+        search = NavigationPath()
+        sheet = nil
+        storyViewer = nil
+        searchText = ""
+        immersiveCount = 0
+    }
+
     func path(for tab: AppTab) -> Binding<NavigationPath> {
         Binding(
             get: { [unowned self] in

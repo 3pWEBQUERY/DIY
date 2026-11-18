@@ -16,6 +16,7 @@ import { feeForShop } from "./fees";
 import { formatOrderNumber } from "./rules";
 import { createSellerTransfer, isStripeError, paymentsMode, reverseSellerTransfer } from "./stripe";
 import { AppStoreVerificationError, verifyAppStoreJws, type AppStoreNotification, type AppStoreTransaction } from "./appstore-verify";
+import { handleAppleProNotification, isProAppleProduct } from "@/server/pro/apple";
 
 /**
  * Digitale Produkte in der iOS-App: Kauf ausschliesslich über Apple (In-App-Kauf, App Review
@@ -194,6 +195,10 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
   const t = verifyTransaction(signed);
   if (t.bundleId !== env().APPLE_IAP_BUNDLE_ID) throw fail.invalid("Der Kaufbeleg gehört zu einer anderen App.");
   if (t.revocationDate) throw fail.conflict("Dieser Kauf wurde von Apple widerrufen.");
+  // Erstattung kam schon vor der Verbuchung (z. B. Beleg zurückgehalten und erstatten lassen)
+  if (await db.appStoreRevocation.findUnique({ where: { transactionId: t.transactionId }, select: { transactionId: true } })) {
+    throw fail.conflict("Dieser Kauf wurde von Apple widerrufen.");
+  }
   const token = (t.appAccountToken ?? "").toLowerCase();
   if (!token) throw fail.invalid("Der Kauf ist keiner Bestellung zugeordnet.");
 
@@ -296,6 +301,13 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
     { timeout: 20_000 },
   );
 
+  // Erstattung traf ein, während wir verbucht haben (Benachrichtigung sah den Kauf noch nicht): sofort zurücknehmen
+  const late = await db.appStoreRevocation.findUnique({ where: { transactionId: t.transactionId }, select: { reason: true } });
+  if (late) {
+    await revokePurchase(t.transactionId, late.reason);
+    throw fail.conflict("Dieser Kauf wurde von Apple widerrufen.");
+  }
+
   if (transferStatus === "PENDING") await sendSellerTransfer(intent.id).catch((e) => captureError(e, { source: "SERVER", path: "appstore.transfer" }));
   log("info", "appstore_purchase", { orderId, environment });
   return purchaseResult(orderId, product.id, user.id);
@@ -392,11 +404,18 @@ async function revokePurchase(transactionId: string, reason: string) {
     where: { transactionId },
     select: { id: true, status: true, userId: true, productId: true, transferStatus: true, transferId: true, orderId: true, priceMinor: true, currency: true },
   });
-  if (!p || !p.orderId || p.status === "REFUNDED") return "ignored" as const;
+  if (!p || !p.orderId) {
+    // Noch nicht verbucht: Grabstein, damit ein später eingereichter Beleg nichts mehr freischaltet
+    await db.appStoreRevocation.upsert({ where: { transactionId }, create: { transactionId, reason }, update: {} });
+    return "recorded" as const;
+  }
+  if (p.status === "REFUNDED") return "ignored" as const;
   const order = await db.order.findUniqueOrThrow({ where: { id: p.orderId }, select: { id: true, number: true, status: true, buyerId: true, shop: { select: { ownerId: true } }, items: { select: { title: true } } } });
   const title = order.items[0]?.title ?? "";
-  await db.$transaction(async (tx) => {
-    await tx.appStorePurchase.update({ where: { id: p.id }, data: { status: "REFUNDED", revokedAt: new Date(), transferStatus: p.transferStatus === "SENT" ? "SENT" : "SKIPPED" } });
+  const applied = await db.$transaction(async (tx) => {
+    // Gleichzeitige Zustellung derselben Erstattung: nur ein Durchlauf bucht (bedingtes Update)
+    const won = await tx.appStorePurchase.updateMany({ where: { id: p.id, status: { not: "REFUNDED" } }, data: { status: "REFUNDED", revokedAt: new Date(), transferStatus: p.transferStatus === "SENT" ? "SENT" : "SKIPPED" } });
+    if (!won.count) return false;
     await tx.digitalEntitlement.updateMany({ where: { userId: p.userId, productId: p.productId, revokedAt: null }, data: { revokedAt: new Date() } });
     await tx.order.update({ where: { id: order.id }, data: { status: "REFUNDED" } });
     await tx.payment.updateMany({ where: { orderId: order.id, provider: "apple" }, data: { status: "REFUNDED" } });
@@ -409,7 +428,9 @@ async function revokePurchase(transactionId: string, reason: string) {
     await audit({ action: "appstore.refund", targetType: "Order", targetId: order.id, meta: { transactionId } }, tx);
     await notify({ recipientId: order.shop.ownerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, title, status: "REFUNDED", note: "Apple hat den Kauf erstattet. Dein Anteil wird zurückgebucht.", href: `/studio/bestellungen/${order.id}` } }, tx);
     await notify({ recipientId: order.buyerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, title, status: "REFUNDED", note: "Apple hat deinen Kauf erstattet.", href: `/bestellungen/${order.id}` } }, tx);
+    return true;
   });
+  if (!applied) return "ignored" as const;
   if (p.transferStatus === "SENT" && p.transferId) {
     try {
       await reverseSellerTransfer(p.transferId, `appstore-reversal:${p.id}`);
@@ -435,24 +456,35 @@ export async function handleAppStoreNotification(body: { signedPayload?: unknown
     return 400;
   }
   if (n.data?.bundleId && n.data.bundleId !== env().APPLE_IAP_BUNDLE_ID) return 200;
-  // Doppelte Zustellung: Apple wiederholt bei Fehlern; Ereignis-ID als Schlüssel
+  // Doppelte Zustellung: Apple wiederholt bei Fehlern; Ereignis-ID als Schlüssel. Als erledigt gilt ein
+  // Ereignis erst mit processedAt – brach ein früherer Durchlauf ab (Deploy, Absturz), wird es erneut verarbeitet.
+  const eventId = `apple:${n.notificationUUID}`;
   try {
-    await db.webhookEvent.create({ data: { id: `apple:${n.notificationUUID}`, provider: "apple", type: n.notificationType, payload: { notificationType: n.notificationType, subtype: n.subtype ?? null } } });
+    await db.webhookEvent.create({ data: { id: eventId, provider: "apple", type: n.notificationType, payload: { notificationType: n.notificationType, subtype: n.subtype ?? null } } });
   } catch (e) {
-    if ((e as { code?: string }).code === "P2002") return 200;
-    throw e;
+    if ((e as { code?: string }).code !== "P2002") throw e;
+    const seen = await db.webhookEvent.findUnique({ where: { id: eventId }, select: { processedAt: true } });
+    if (seen?.processedAt) return 200;
   }
   try {
-    if ((n.notificationType === "REFUND" || n.notificationType === "REVOKE") && n.data?.signedTransactionInfo) {
+    const sub = n.data?.signedTransactionInfo ? verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo) : null;
+    if (sub && isProAppleProduct(sub.productId)) {
+      // Creator Pro (Abo): Verlängerung, Kündigung, Ablauf, Zahlungsproblem, Erstattung
+      const known = await handleAppleProNotification(n.notificationType, sub, n.data?.signedRenewalInfo);
+      log("info", "appstore_pro_notification", { type: n.notificationType, subtype: n.subtype, known });
+    } else if ((n.notificationType === "REFUND" || n.notificationType === "REVOKE") && n.data?.signedTransactionInfo) {
       const t = verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo);
       await revokePurchase(t.transactionId, n.notificationType === "REFUND" ? "Erstattung durch Apple" : "Kauf widerrufen");
     } else {
       log("info", "appstore_notification", { type: n.notificationType, subtype: n.subtype });
     }
+    await db.webhookEvent.update({ where: { id: eventId }, data: { processedAt: new Date(), error: null } });
     return 200;
   } catch (e) {
-    // Ereignis wieder freigeben, damit Apple erneut zustellt
-    await db.webhookEvent.delete({ where: { id: `apple:${n.notificationUUID}` } }).catch(() => {});
+    // Bleibt unerledigt (ohne processedAt) – Apple stellt erneut zu und der nächste Durchlauf verarbeitet es
+    await db.webhookEvent
+      .update({ where: { id: eventId }, data: { error: (e instanceof Error ? e.message : String(e)).slice(0, 500), attempts: { increment: 1 } } })
+      .catch(() => {});
     captureError(e, { source: "SERVER", path: "/api/webhooks/apple" });
     return 500;
   }

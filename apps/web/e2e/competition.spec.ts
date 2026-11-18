@@ -85,3 +85,24 @@ test("Neuer Wettbewerb: Mitglieder werden beim Start benachrichtigt", async () =
   const self = await one<{ n: string }>(`SELECT count(*)::text AS n FROM "Notification" WHERE "recipientId" = $1 AND data->>'message' LIKE '%E2E Startmeldung%'`, [creator!.userId]);
   expect(self!.n).toBe("0");
 });
+
+test("Wettbewerb melden und durch die Moderation entfernen (App Store 1.2)", async ({ browser }) => {
+  const c = await one<{ id: string }>(`SELECT id FROM "CommunityChallenge" WHERE title = 'E2E Restholz'`);
+  expect(c).toBeTruthy();
+  const url = `/c/werkbank-holz/wettbewerbe/${c!.id}`;
+  const lena = await loginAs(browser, "lena");
+  await lena.goto(url);
+  await lena.getByRole("button", { name: "Melden", exact: true }).click();
+  const d = lena.getByRole("dialog");
+  await d.getByRole("radio").first().check();
+  await d.getByRole("button", { name: "Meldung absenden" }).click();
+  await expect.poll(async () => (await one<{ n: string }>(`SELECT count(*)::text AS n FROM "ModerationCase" WHERE "targetType" = 'COMPETITION' AND "targetId" = $1`, [c!.id]))?.n).toBe("1");
+
+  // Entfernt: Detailseite und Übersicht zeigen ihn nicht mehr
+  await sql(`UPDATE "CommunityChallenge" SET state = 'REMOVED' WHERE id = $1`, [c!.id]);
+  const r = await lena.goto(url);
+  expect(r?.status()).toBe(404);
+  await lena.goto("/wettbewerbe");
+  await expect(lena.locator("main")).not.toContainText("E2E Restholz");
+  await sql(`UPDATE "CommunityChallenge" SET state = 'ACTIVE' WHERE id = $1`, [c!.id]);
+});

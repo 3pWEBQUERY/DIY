@@ -56,6 +56,24 @@ export async function targetMeta(type: TargetType, id: string): Promise<Meta | n
       const s = await db.story.findUnique({ where: { id }, select: { authorId: true, visibility: true, state: true, text: true, kind: true, author: { select: { profile: { select: { handle: true } } } } } });
       return s && { ownerId: s.authorId, visibility: s.visibility, state: s.state, title: s.text.slice(0, 80) || (s.kind === "TEXT" ? "Text-Story" : "Story"), href: `/stories/${s.author.profile?.handle ?? ""}?story=${id}` };
     }
+    case "EVENT": {
+      const e = await db.communityEvent.findUnique({ where: { id }, select: { organizerId: true, title: true, state: true, community: { select: { slug: true, visibility: true } } } });
+      return e && { ownerId: e.organizerId, visibility: e.community.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC", state: e.state === "REMOVED" ? "REMOVED" : "PUBLISHED", title: e.title, href: `/c/${e.community.slug}/events/${id}` };
+    }
+    case "COMPETITION": {
+      const c = await db.communityChallenge.findUnique({ where: { id }, select: { createdById: true, title: true, state: true, community: { select: { slug: true, visibility: true, ownerId: true } } } });
+      return c && { ownerId: c.createdById ?? c.community.ownerId, visibility: c.community.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC", state: c.state === "REMOVED" ? "REMOVED" : "PUBLISHED", title: c.title, href: `/c/${c.community.slug}/wettbewerbe/${id}` };
+    }
+    case "CONVERSATION": {
+      // Nur Gruppen lassen sich als Ganzes melden; Verantwortlich ist, wer sie erstellt hat (sonst ein Admin der Gruppe)
+      const c = await db.conversation.findUnique({
+        where: { id },
+        select: { kind: true, title: true, createdById: true, members: { where: { role: "ADMIN" }, orderBy: { joinedAt: "asc" }, take: 1, select: { userId: true } } },
+      });
+      if (!c || c.kind !== "GROUP") return null;
+      const ownerId = c.createdById ?? c.members[0]?.userId;
+      return ownerId ? { ownerId, visibility: "PRIVATE", state: "PUBLISHED", title: c.title || "Gruppe", href: `/nachrichten/${id}` } : null;
+    }
     case "TUTORIAL_STEP": {
       const s = await db.tutorialStep.findUnique({ where: { id }, select: { title: true, version: { select: { tutorial: { select: { authorId: true, slug: true, state: true } } } } } });
       return s && { ownerId: s.version.tutorial.authorId, visibility: "PUBLIC", state: s.version.tutorial.state, title: s.title, href: `/anleitungen/${s.version.tutorial.slug}` };

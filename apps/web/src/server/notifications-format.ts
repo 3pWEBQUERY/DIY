@@ -106,6 +106,12 @@ function targetNoun(targetType: string | null | undefined, data: Record<string, 
       return "deine Community";
     case "STORY":
       return "deine Story";
+    case "EVENT":
+      return "dein Event";
+    case "COMPETITION":
+      return "dein Wettbewerb";
+    case "CONVERSATION":
+      return "deine Gruppe";
     default:
       return "dein Beitrag";
   }

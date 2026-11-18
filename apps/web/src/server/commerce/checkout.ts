@@ -264,19 +264,35 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
   }
 }
 
-/** Offene Bestellungen des Käufers, die noch bezahlt werden können (z. B. zweiter Shop). */
-export async function payableOrders(userId: string) {
+/** Hinweis, wenn eine offene Bestellung mit digitalen Artikeln in der App bezahlt werden soll (App Store 3.1.1). */
+export const DIGITAL_ORDER_IN_APP = "Bestellungen mit digitalen Produkten können in der App nicht bezahlt werden.";
+
+/**
+ * Offene Bestellungen des Käufers, die noch bezahlt werden können (z. B. zweiter Shop).
+ * In der iOS-App fehlen Bestellungen mit digitalen Artikeln: Digitales wird dort nur per In-App-Kauf
+ * verkauft, eine im Web begonnene Bestellung darf in der App nicht über Stripe bezahlt werden.
+ */
+export async function payableOrders(userId: string, opts: { channel?: "web" | "ios" } = {}) {
   return db.order.findMany({
-    where: { buyerId: userId, status: "PENDING_PAYMENT", reservationExpiresAt: { gt: new Date() } },
+    where: {
+      buyerId: userId,
+      status: "PENDING_PAYMENT",
+      reservationExpiresAt: { gt: new Date() },
+      ...(opts.channel === "ios" ? { items: { none: { isDigital: true } } } : {}),
+    },
     orderBy: { createdAt: "asc" },
     select: { id: true, number: true, totalMinor: true, currency: true, reservationExpiresAt: true, shop: { select: { name: true } }, items: { select: { title: true, quantity: true } } },
   });
 }
 
 /** Zahlung einer offenen Bestellung fortsetzen. */
-export async function resumePayment(user: SessionUser, orderId: string) {
-  const o = await db.order.findUnique({ where: { id: orderId }, select: { buyerId: true, status: true, checkoutSessionId: true, reservationExpiresAt: true, payments: { select: { provider: true }, take: 1 } } });
+export async function resumePayment(user: SessionUser, orderId: string, opts: { channel?: "web" | "ios" } = {}) {
+  const o = await db.order.findUnique({
+    where: { id: orderId },
+    select: { buyerId: true, status: true, checkoutSessionId: true, reservationExpiresAt: true, payments: { select: { provider: true }, take: 1 }, items: { where: { isDigital: true }, select: { id: true }, take: 1 } },
+  });
   if (!o || o.buyerId !== user.id) throw fail.notFound();
+  if (opts.channel === "ios" && o.items.length) throw fail.conflict(DIGITAL_ORDER_IN_APP);
   if (o.status !== "PENDING_PAYMENT" || !o.reservationExpiresAt || o.reservationExpiresAt < new Date()) throw fail.conflict("Diese Bestellung kann nicht mehr bezahlt werden. Bitte lege die Artikel erneut in den Warenkorb.");
   if (o.payments[0]?.provider === "simulated") {
     if (paymentsMode() !== "simulated") throw fail.unavailable(PAYMENTS_DISABLED_MESSAGE);
