@@ -78,10 +78,17 @@ export async function purgeDeletedAccount(userId: string) {
   await db.userPreference.deleteMany({ where: { userId } });
 
   // 5. Eigene Medien löschen (Dateien + Einträge). Produktbilder bleiben, solange Bestellungen sie zeigen.
+  // Dateien verkaufter digitaler Produkte bleiben ebenfalls: Käufer:innen behalten ihren Download
+  // (digitalKey ist kein Fremdschlüssel, daher hier ausdrücklich ausnehmen).
+  const sold = await db.product.findMany({
+    where: { shop: { ownerId: userId }, digitalKey: { not: null }, OR: [{ entitlements: { some: {} } }, { orderItems: { some: {} } }, { appStorePurchases: { some: { status: { in: ["COMPLETED", "REFUNDED"] } } } }] },
+    select: { digitalKey: true },
+  });
+  const keep = sold.map((p) => p.digitalKey!).filter(Boolean);
   const st = storage();
   let removed = 0;
   for (;;) {
-    const media = await db.media.findMany({ where: { ownerId: userId, productMedia: { none: {} } }, select: { id: true, storageKey: true, variants: true }, take: 200 });
+    const media = await db.media.findMany({ where: { ownerId: userId, productMedia: { none: {} }, ...(keep.length ? { id: { notIn: keep } } : {}) }, select: { id: true, storageKey: true, variants: true }, take: 200 });
     if (!media.length) break;
     for (const m of media) {
       await st.del(m.storageKey).catch(() => {});

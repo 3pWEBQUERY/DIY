@@ -294,7 +294,8 @@ export async function fulfillAppStoreTransaction(user: Buyer, input: { signedTra
       if (!isTest) await tx.shop.update({ where: { id: product.shop.id }, data: { salesCount: { increment: 1 } } });
       await audit({ actorId: user.id, action: "appstore.purchase", targetType: "Order", targetId: order.id, meta: { transactionId: t.transactionId, environment, appleProductId: t.productId } }, tx);
       await emit({ type: "ProductPurchased", orderId: order.id }, tx);
-      await notify({ recipientId: product.shop.ownerId, type: "ORDER_NEW", bundle: false, data: { number, title: product.title, href: `/studio/bestellungen/${order.id}` } }, tx);
+      // Testkäufe (Sandbox/Xcode) nicht als neue Bestellung melden – der Shop erhält dafür nichts
+      if (!isTest) await notify({ recipientId: product.shop.ownerId, type: "ORDER_NEW", bundle: false, data: { number, title: product.title, href: `/studio/bestellungen/${order.id}` } }, tx);
       await notify({ recipientId: user.id, type: "ORDER_STATUS", bundle: false, data: { number, title: product.title, status: "COMPLETED", note: "Dein Download ist bereit.", href: `/bestellungen/${order.id}` } }, tx);
       return order.id;
     },
@@ -321,12 +322,13 @@ async function purchaseResult(orderId: string | null, productId: string, userId:
 /* ───────────────────────── Überweisung an den Shop ───────────────────────── */
 
 const MAX_TRANSFER_ATTEMPTS = 24;
+const MAX_REVERSAL_ATTEMPTS = MAX_TRANSFER_ATTEMPTS * 4;
 
 /** Shop-Anteil überweisen (Stripe Connect). Fehler → FAILED, der Worker versucht es erneut. */
 export async function sendSellerTransfer(purchaseId: string) {
   const p = await db.appStorePurchase.findUnique({
     where: { id: purchaseId },
-    select: { id: true, status: true, transferStatus: true, transferAttempts: true, sellerNetMinor: true, currency: true, order: { select: { id: true, number: true, shop: { select: { stripeAccountId: true, name: true } } } } },
+    select: { id: true, status: true, transferStatus: true, transferAttempts: true, transferId: true, sellerNetMinor: true, currency: true, order: { select: { id: true, number: true, shop: { select: { stripeAccountId: true, name: true } } } } },
   });
   if (!p || p.status !== "COMPLETED" || !p.order) return "skipped" as const;
   if (p.transferStatus !== "PENDING" && p.transferStatus !== "FAILED") return "skipped" as const;
@@ -342,7 +344,9 @@ export async function sendSellerTransfer(purchaseId: string) {
       currency: p.currency,
       orderId: p.order.id,
       orderNumber: p.order.number,
-      idempotencyKey: `appstore-transfer:${p.id}`,
+      // Erneute Überweisung nach zurückgenommener Erstattung: die alte (zurückgebuchte) Überweisung steckt
+      // im Schlüssel – sonst lieferte Stripe innerhalb von 24 Std. nur die zurückgebuchte Überweisung zurück
+      idempotencyKey: p.transferId ? `appstore-transfer:${p.id}:${p.transferId}` : `appstore-transfer:${p.id}`,
     });
     await db.appStorePurchase.update({ where: { id: p.id }, data: { transferStatus: "SENT", transferId: tr.id, transferError: null, transferAttempts: { increment: 1 } } });
     return "sent" as const;
@@ -358,13 +362,20 @@ export async function sendSellerTransfer(purchaseId: string) {
 export async function retrySellerTransfers() {
   const due = await db.appStorePurchase.findMany({
     where: { transferStatus: { in: ["PENDING", "FAILED"] }, transferAttempts: { lt: MAX_TRANSFER_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - 30 * 60_000) } },
-    select: { id: true },
+    select: { id: true, transferAttempts: true },
     // Älteste zuerst – sonst verdrängen dauerhaft scheiternde Zeilen neue
     orderBy: { updatedAt: "asc" },
     take: 50,
   });
   let sent = 0;
-  for (const p of due) if ((await sendSellerTransfer(p.id)) === "sent") sent++;
+  for (const p of due) {
+    const r = await sendSellerTransfer(p.id);
+    if (r === "sent") sent++;
+    // Letzter Versuch gescheitert: danach versucht der Worker es nicht mehr → zur manuellen Klärung melden
+    if (r === "failed" && p.transferAttempts + 1 >= MAX_TRANSFER_ATTEMPTS) {
+      await captureError(new Error("Überweisung an den Shop nach allen Versuchen fehlgeschlagen"), { source: "WORKER", path: "appstore.transfer", meta: { purchaseId: p.id, attempts: p.transferAttempts + 1 } });
+    }
+  }
   const reversed = await retryTransferReversals();
   const expired = await db.appStorePurchase.updateMany({ where: { status: "PENDING", expiresAt: { lt: new Date(Date.now() - 7 * 86400_000) } }, data: { status: "EXPIRED" } });
   return { tried: due.length, sent, reversed, expired: expired.count };
@@ -376,9 +387,9 @@ export async function retrySellerTransfers() {
  */
 async function retryTransferReversals() {
   const open = await db.appStorePurchase.findMany({
-    where: { status: "REFUNDED", transferStatus: "SENT", transferId: { not: null }, transferAttempts: { lt: MAX_TRANSFER_ATTEMPTS * 4 }, updatedAt: { lt: new Date(Date.now() - 30 * 60_000) } },
+    where: { status: "REFUNDED", transferStatus: "SENT", transferId: { not: null }, transferAttempts: { lt: MAX_REVERSAL_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - 30 * 60_000) } },
     orderBy: { updatedAt: "asc" },
-    select: { id: true, transferId: true },
+    select: { id: true, transferId: true, transferAttempts: true },
     take: 50,
   });
   let reversed = 0;
@@ -391,6 +402,10 @@ async function retryTransferReversals() {
       const message = e instanceof Error ? e.message : String(e);
       log("error", "appstore_reversal_retry_failed", { purchaseId: p.id, err: message });
       await db.appStorePurchase.update({ where: { id: p.id }, data: { transferAttempts: { increment: 1 }, transferError: `Rückbuchung fehlgeschlagen: ${message}`.slice(0, 500) } });
+      // Letzter Versuch: der Shop behält sonst unbemerkt den Anteil eines erstatteten Kaufs
+      if (p.transferAttempts + 1 >= MAX_REVERSAL_ATTEMPTS) {
+        await captureError(e, { source: "WORKER", path: "appstore.reversal", meta: { purchaseId: p.id, attempts: p.transferAttempts + 1 } });
+      }
     }
   }
   return reversed;
@@ -422,7 +437,8 @@ async function revokePurchase(transactionId: string, reason: string) {
     await tx.refund.upsert({
       where: { providerRef: `apple-refund:${transactionId}` },
       create: { orderId: order.id, providerRef: `apple-refund:${transactionId}`, amountMinor: p.priceMinor, reason, status: "SUCCEEDED" },
-      update: {},
+      // Erneute Erstattung nach einer zurückgenommenen (REFUND_REVERSED) gilt wieder
+      update: { status: "SUCCEEDED", reason },
     });
     await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to: "REFUNDED", note: `Von Apple erstattet – ${reason}` } });
     await audit({ action: "appstore.refund", targetType: "Order", targetId: order.id, meta: { transactionId } }, tx);
@@ -442,6 +458,50 @@ async function revokePurchase(transactionId: string, reason: string) {
   }
   log("info", "appstore_refund", { orderId: order.id });
   return "refunded" as const;
+}
+
+/**
+ * Apple hat eine Erstattung zurückgenommen (REFUND_REVERSED): Kauf, Bestellung und Download wieder
+ * herstellen und – bei echten Käufen – den Shop-Anteil erneut überweisen. Idempotent: nur ein erstatteter
+ * Kauf wird (bedingt) wiederhergestellt.
+ */
+export async function restorePurchase(transactionId: string) {
+  // Grabstein (Erstattung vor der Verbuchung) entfernen, damit der Beleg wieder verbucht werden kann
+  await db.appStoreRevocation.deleteMany({ where: { transactionId } });
+  const p = await db.appStorePurchase.findUnique({
+    where: { transactionId },
+    select: { id: true, status: true, userId: true, productId: true, transferStatus: true, environment: true, orderId: true },
+  });
+  if (!p || !p.orderId || p.status !== "REFUNDED") return "ignored" as const;
+  const order = await db.order.findUniqueOrThrow({ where: { id: p.orderId }, select: { id: true, number: true, status: true, buyerId: true, shop: { select: { ownerId: true } }, items: { select: { id: true, title: true } } } });
+  const item = order.items[0];
+  const title = item?.title ?? "";
+  // Noch nicht zurückgeholte Überweisung (SENT) bleibt beim Shop; zurückgebuchte bzw. wegen der Erstattung
+  // übersprungene wird – wie beim Kauf nur für echte Käufe mit Stripe – erneut fällig
+  const transferStatus = p.transferStatus === "SENT" ? "SENT" : transferStatusFor(p.environment ?? "");
+  const applied = await db.$transaction(async (tx) => {
+    const won = await tx.appStorePurchase.updateMany({
+      where: { id: p.id, status: "REFUNDED" },
+      data: { status: "COMPLETED", revokedAt: null, transferStatus, ...(transferStatus === "PENDING" ? { transferAttempts: 0, transferError: null } : {}) },
+    });
+    if (!won.count) return false;
+    if (item) {
+      await tx.digitalEntitlement.updateMany({ where: { userId: p.userId, productId: p.productId, revokedAt: { not: null } }, data: { revokedAt: null, orderItemId: item.id } });
+    }
+    await tx.order.update({ where: { id: order.id }, data: { status: "COMPLETED" } });
+    await tx.payment.updateMany({ where: { orderId: order.id, provider: "apple" }, data: { status: "SUCCEEDED" } });
+    // Kein eigener Status „zurückgenommen“: FAILED = Erstattung hat nicht stattgefunden (zählt nirgends mehr)
+    await tx.refund.updateMany({ where: { providerRef: `apple-refund:${transactionId}` }, data: { status: "FAILED", reason: "Erstattung von Apple zurückgenommen" } });
+    await tx.orderEvent.create({ data: { orderId: order.id, from: order.status, to: "COMPLETED", note: "Apple hat die Erstattung zurückgenommen – Download wieder freigeschaltet" } });
+    await audit({ action: "appstore.refund_reversed", targetType: "Order", targetId: order.id, meta: { transactionId } }, tx);
+    await notify({ recipientId: order.shop.ownerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, title, status: "COMPLETED", note: `Apple hat die Erstattung zurückgenommen.${transferStatus === "PENDING" ? " Dein Anteil wird erneut überwiesen." : ""}`, href: `/studio/bestellungen/${order.id}` } }, tx);
+    await notify({ recipientId: order.buyerId, type: "ORDER_STATUS", bundle: false, data: { number: order.number, title, status: "COMPLETED", note: "Apple hat die Erstattung zurückgenommen. Dein Download ist wieder verfügbar.", href: `/bestellungen/${order.id}` } }, tx);
+    return true;
+  });
+  if (!applied) return "ignored" as const;
+  if (transferStatus === "PENDING") await sendSellerTransfer(p.id).catch((e) => captureError(e, { source: "SERVER", path: "appstore.transfer" }));
+  log("info", "appstore_refund_reversed", { orderId: order.id });
+  return "restored" as const;
 }
 
 /** App Store Server Notification V2 verarbeiten. Liefert den HTTP-Status für Apple. */
@@ -475,6 +535,9 @@ export async function handleAppStoreNotification(body: { signedPayload?: unknown
     } else if ((n.notificationType === "REFUND" || n.notificationType === "REVOKE") && n.data?.signedTransactionInfo) {
       const t = verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo);
       await revokePurchase(t.transactionId, n.notificationType === "REFUND" ? "Erstattung durch Apple" : "Kauf widerrufen");
+    } else if (n.notificationType === "REFUND_REVERSED" && n.data?.signedTransactionInfo) {
+      const t = verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo);
+      await restorePurchase(t.transactionId);
     } else {
       log("info", "appstore_notification", { type: n.notificationType, subtype: n.subtype });
     }

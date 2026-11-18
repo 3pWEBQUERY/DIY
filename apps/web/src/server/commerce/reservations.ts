@@ -30,8 +30,9 @@ export async function cancelPendingOrderTx(
 /**
  * Worker-Job: gibt abgelaufene Reservierungen frei (§13.5).
  * Offene Stripe-Sessions werden vorher beendet, damit nach der Freigabe nicht mehr bezahlt
- * werden kann. Bereits abgeschlossene Sessions bleiben unangetastet – deren Zahlung wird
- * ausschliesslich über den Webhook verbucht (§31.4 Nr. 9).
+ * werden kann. Abgeschlossene und bezahlte Sessions werden über denselben Weg wie der Webhook
+ * verbucht (Daten direkt von Stripe, §31.4 Nr. 9) – sonst bliebe eine bezahlte Bestellung bei einem
+ * verpassten Webhook für immer unverbucht.
  */
 export async function releaseExpiredReservations(opts: { limit?: number; now?: Date } = {}) {
   const now = opts.now ?? new Date();
@@ -43,6 +44,7 @@ export async function releaseExpiredReservations(opts: { limit?: number; now?: D
   });
   let released = 0;
   let skipped = 0;
+  let paid = 0;
   const stripeMode = paymentsMode() === "stripe";
   for (const o of due) {
     try {
@@ -53,9 +55,19 @@ export async function releaseExpiredReservations(opts: { limit?: number; now?: D
           skipped++;
           continue;
         }
+        if (s.status === "complete" && s.payment_status === "paid") {
+          // Bezahlt, aber Webhook (noch) nicht verbucht → selbst verbuchen; markOrderPaid ist idempotent
+          // und teilt sich mit einem parallel eintreffenden Webhook die Bestellsperre.
+          const { markOrderPaid } = await import("./payments");
+          const pi = typeof s.payment_intent === "string" ? s.payment_intent : (s.payment_intent?.id ?? null);
+          const r = await markOrderPaid(o.id, { provider: "stripe", providerRef: pi ?? s.id, amountMinor: s.amount_total ?? 0, currency: s.currency ?? "chf" });
+          if (r === "paid" || r === "refunded") paid++;
+          else skipped++;
+          continue;
+        }
         if (s.status === "complete") {
           // Abgeschlossen, aber verzögerte Zahlung gescheitert (Webhook verpasst) → freigeben statt den
-          // Bestand für immer zu blockieren. Noch in Bearbeitung oder bezahlt → weiter warten bzw. Webhook.
+          // Bestand für immer zu blockieren. Noch in Bearbeitung → weiter warten.
           const failed = await isCompletedSessionPaymentFailed(o.checkoutSessionId).catch(() => false);
           if (!failed) {
             skipped++;
@@ -74,5 +86,5 @@ export async function releaseExpiredReservations(opts: { limit?: number; now?: D
       console.error(JSON.stringify({ level: "error", msg: "reservation_release_failed", orderId: o.id, err: e instanceof Error ? e.message : String(e) }));
     }
   }
-  return { checked: due.length, released, skipped };
+  return { checked: due.length, released, skipped, paid };
 }

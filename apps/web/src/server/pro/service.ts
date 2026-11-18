@@ -193,52 +193,74 @@ export async function startProCheckout(user: Pick<SessionUser, "id" | "email">, 
   if (mode !== "stripe") throw fail.unavailable("Zahlungen sind noch nicht aktiviert.");
 
   try {
-    await ensureProduct();
-    let customerId = current?.customerId ?? null;
-    // Kundenkonto aus dem Stripe-Testmodus (nach dem Wechsel auf Live) ist nicht erreichbar → neu anlegen
-    if (customerId) {
-      const ok = await stripe().customers.retrieve(customerId).then((c) => !("deleted" in c && c.deleted), (e) => (isStripeError(e) && (e as { code?: string }).code === "resource_missing" ? false : Promise.reject(e)));
-      if (!ok) customerId = null;
-    }
-    if (!customerId) {
-      const c = await stripe().customers.create({ email: user.email, metadata: { userId: user.id } }, { idempotencyKey: `pro-customer:${user.id}:${stripeKeyMode() ?? "x"}` });
-      customerId = c.id;
-      if (current) await db.subscription.update({ where: { userId: user.id }, data: { customerId, ...(current.provider === "stripe" && !isActiveSubscription(current) ? { subscriptionId: null } : {}) } });
-      else await db.subscription.create({ data: { userId: user.id, interval, status: "incomplete", provider: "stripe", customerId, priceMinor: amount } });
-    }
-    // Kein zweites Abo: läuft bei Stripe bereits eines (Webhook evtl. noch unterwegs), übernehmen statt
-    // neu abschliessen; offene Checkout-Sessions (anderer Tab) beenden, damit nur eine bezahlt werden kann
-    const subs = await stripe().subscriptions.list({ customer: customerId, status: "all", limit: 10 });
-    const running = subs.data.find((x) => ["active", "trialing", "past_due", "incomplete"].includes(x.status));
-    if (running) {
-      if (running.status !== "incomplete") {
-        await syncStripeSubscription(running);
-        throw fail.conflict(`Du hast ${PRO_NAME} bereits.`);
-      }
-      throw fail.conflict("Dein Abo wird gerade abgeschlossen. Bitte warte einen Moment und lade die Seite neu.");
-    }
-    const open = await stripe().checkout.sessions.list({ customer: customerId, status: "open", limit: 10 });
-    for (const o of open.data) if (o.mode === "subscription") await stripe().checkout.sessions.expire(o.id).catch(() => {});
-    const session = await stripe().checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      client_reference_id: user.id,
-      line_items: [{ quantity: 1, price_data: { currency: "chf", unit_amount: amount, product: PRODUCT_ID, recurring: { interval } } }],
-      subscription_data: { metadata: { userId: user.id, kind: "pro" } },
-      metadata: { userId: user.id, kind: "pro" },
-      allow_promotion_codes: true,
-      locale: "de",
-      success_url: appUrl("/studio/pro?abo=erfolg&session_id={CHECKOUT_SESSION_ID}"),
-      cancel_url: appUrl("/studio/pro?abo=abgebrochen"),
-    });
-    if (!session.url) throw new Error("Checkout ohne URL");
-    return session.url;
+    return await withProCheckoutLock(user.id, () => createProCheckoutSession(user, interval, amount));
   } catch (e) {
     if (!isStripeError(e)) throw e;
     const { captureError } = await import("@/server/monitoring");
     await captureError(e, { source: "SERVER", path: "/studio/pro", userId: user.id, meta: { stripe: "pro-checkout", code: e.code ?? null } });
     throw fail.unavailable("Der Checkout konnte gerade nicht geöffnet werden. Bitte versuche es in ein paar Minuten erneut.");
   }
+}
+
+/**
+ * Checkouts je Person nacheinander (Postgres-Sperre): zwei gleichzeitige Aufrufe (Doppelklick, zwei Tabs)
+ * sähen sonst beide „kein Abo, keine offene Session“ und könnten zwei Abos abschliessen. Der zweite
+ * Aufruf beendet unter der Sperre die Session des ersten.
+ */
+async function withProCheckoutLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  return db.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pro-checkout:${userId}`}))`;
+      return fn();
+    },
+    // Mehrere Stripe-Aufrufe (Netzwerk) unter der Sperre
+    { timeout: 45_000, maxWait: 15_000 },
+  );
+}
+
+async function createProCheckoutSession(user: Pick<SessionUser, "id" | "email">, interval: "month" | "year", amount: number) {
+  await ensureProduct();
+  // Unter der Sperre neu lesen: ein paralleler Aufruf kann das Kundenkonto inzwischen angelegt haben
+  const current = await db.subscription.findUnique({ where: { userId: user.id } });
+  let customerId = current?.customerId ?? null;
+  // Kundenkonto aus dem Stripe-Testmodus (nach dem Wechsel auf Live) ist nicht erreichbar → neu anlegen
+  if (customerId) {
+    const ok = await stripe().customers.retrieve(customerId).then((c) => !("deleted" in c && c.deleted), (e) => (isStripeError(e) && (e as { code?: string }).code === "resource_missing" ? false : Promise.reject(e)));
+    if (!ok) customerId = null;
+  }
+  if (!customerId) {
+    const c = await stripe().customers.create({ email: user.email, metadata: { userId: user.id } }, { idempotencyKey: `pro-customer:${user.id}:${stripeKeyMode() ?? "x"}` });
+    customerId = c.id;
+    if (current) await db.subscription.update({ where: { userId: user.id }, data: { customerId, ...(current.provider === "stripe" && !isActiveSubscription(current) ? { subscriptionId: null } : {}) } });
+    else await db.subscription.create({ data: { userId: user.id, interval, status: "incomplete", provider: "stripe", customerId, priceMinor: amount } });
+  }
+  // Kein zweites Abo: läuft bei Stripe bereits eines (Webhook evtl. noch unterwegs), übernehmen statt
+  // neu abschliessen; offene Checkout-Sessions (anderer Tab) beenden, damit nur eine bezahlt werden kann
+  const subs = await stripe().subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+  const running = subs.data.find((x) => ["active", "trialing", "past_due", "incomplete"].includes(x.status));
+  if (running) {
+    if (running.status !== "incomplete") {
+      await syncStripeSubscription(running);
+      throw fail.conflict(`Du hast ${PRO_NAME} bereits.`);
+    }
+    throw fail.conflict("Dein Abo wird gerade abgeschlossen. Bitte warte einen Moment und lade die Seite neu.");
+  }
+  const open = await stripe().checkout.sessions.list({ customer: customerId, status: "open", limit: 10 });
+  for (const o of open.data) if (o.mode === "subscription") await stripe().checkout.sessions.expire(o.id).catch(() => {});
+  const session = await stripe().checkout.sessions.create({
+    mode: "subscription",
+    customer: customerId,
+    client_reference_id: user.id,
+    line_items: [{ quantity: 1, price_data: { currency: "chf", unit_amount: amount, product: PRODUCT_ID, recurring: { interval } } }],
+    subscription_data: { metadata: { userId: user.id, kind: "pro" } },
+    metadata: { userId: user.id, kind: "pro" },
+    allow_promotion_codes: true,
+    locale: "de",
+    success_url: appUrl("/studio/pro?abo=erfolg&session_id={CHECKOUT_SESSION_ID}"),
+    cancel_url: appUrl("/studio/pro?abo=abgebrochen"),
+  });
+  if (!session.url) throw new Error("Checkout ohne URL");
+  return session.url;
 }
 
 /** Rückkehr aus dem Checkout: Abo sofort übernehmen (Webhook kann ein paar Sekunden dauern). */

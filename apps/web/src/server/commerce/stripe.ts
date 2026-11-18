@@ -398,6 +398,11 @@ export async function sellerSettlement(paymentIntentId: string, accountId: strin
   const charge = typeof pi.latest_charge === "object" ? pi.latest_charge : null;
   const transferId = charge ? (typeof charge.transfer === "string" ? charge.transfer : charge.transfer?.id) : null;
   if (!transferId) return null;
+  return transferSettlement(transferId, accountId);
+}
+
+/** Gutschrift einer Überweisung (z. B. Shop-Anteil eines Apple-Kaufs) auf dem Verkäuferkonto, in dessen Saldowährung. */
+export async function transferSettlement(transferId: string, accountId: string): Promise<{ amountMinor: number; currency: string }> {
   const transfer = await stripe().transfers.retrieve(transferId);
   const destPayment = typeof transfer.destination_payment === "string" ? transfer.destination_payment : transfer.destination_payment?.id;
   if (!destPayment) return { amountMinor: transfer.amount, currency: transfer.currency.toUpperCase() };
