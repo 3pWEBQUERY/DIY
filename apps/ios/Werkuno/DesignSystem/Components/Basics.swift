@@ -438,14 +438,43 @@ struct PageTitle: View {
     }
 }
 
-/// Lädt weitere Seiten, wenn sichtbar.
+/// Lädt weitere Seiten, wenn sichtbar. Ist der letzte Versuch fehlgeschlagen (`failed`), erscheint
+/// statt des Endlos-Spinners ein Knopf zum erneuten Versuchen (`.task` läuft nur einmal je Erscheinen).
 struct LoadMoreTrigger: View {
     var hasMore: Bool
+    var failed = false
     var load: () async -> Void
+    @State private var retrying = false
+
     var body: some View {
         if hasMore {
-            YarnSpinner(size: 22).frame(maxWidth: .infinity).padding(.vertical, 20)
-                .task { await load() }
+            if failed && !retrying {
+                VStack(spacing: 10) {
+                    Text("Weitere Einträge konnten nicht geladen werden.")
+                        .font(.wr(.footnote))
+                        .foregroundStyle(Color.muted)
+                        .multilineTextAlignment(.center)
+                    Button {
+                        retrying = true
+                        Task {
+                            await load()
+                            retrying = false
+                        }
+                    } label: {
+                        Label("Erneut versuchen", systemImage: "arrow.clockwise").font(.wr(.footnote, .semibold))
+                    }
+                    .buttonStyle(.glass)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+            } else {
+                YarnSpinner(size: 22).frame(maxWidth: .infinity).padding(.vertical, 20)
+                    .task {
+                        // Beim erneuten Versuch lädt bereits der Knopf
+                        guard !retrying else { return }
+                        await load()
+                    }
+            }
         }
     }
 }

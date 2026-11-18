@@ -186,6 +186,8 @@ export async function requestPasswordReset(email: string) {
   } catch {
     return;
   }
+  // Auch an unbestätigte Adressen: Der Link beweist selbst den Zugriff aufs Postfach (sonst sässen Personen,
+  // die nie bestätigt haben, ohne Passwort fest). Fremde Adressen setzen kann nur die Superadministration.
   const user = await db.user.findUnique({ where: { email: normalized }, select: { id: true, email: true, status: true } });
   const recipient = user && user.status !== "DELETED" && user.status !== "BANNED" ? user : null;
   afterResponse(async () => {
@@ -254,7 +256,23 @@ export async function deleteAccount(userId: string, sessionId: string, proof: Re
     await tx.comment.updateMany({ where: { authorId: userId }, data: { state: "REMOVED", body: "" } });
     await tx.product.updateMany({ where: { shop: { ownerId: userId } }, data: { status: "DISABLED" } });
     await tx.shop.updateMany({ where: { ownerId: userId }, data: { status: "SUSPENDED" } });
-    await tx.follow.deleteMany({ where: { OR: [{ followerId: userId }, { followeeId: userId }] } });
+    // Folgen entfernen und die Zähler der Gegenseite mitführen – sonst zählen Profile das gelöschte Konto
+    // weiter. DELETE … RETURNING liefert genau die entfernten Zeilen (kein doppeltes Abziehen bei
+    // gleichzeitigem Entfolgen).
+    const follows = await tx.$queryRaw<{ followerId: string; followeeId: string }[]>`DELETE FROM "Follow" WHERE "followerId" = ${userId} OR "followeeId" = ${userId} RETURNING "followerId", "followeeId"`;
+    const followees = follows.filter((f) => f.followerId === userId).map((f) => f.followeeId);
+    const followers = follows.filter((f) => f.followeeId === userId).map((f) => f.followerId);
+    if (followees.length) await tx.userProfile.updateMany({ where: { userId: { in: followees } }, data: { followerCount: { decrement: 1 } } });
+    if (followers.length) await tx.userProfile.updateMany({ where: { userId: { in: followers } }, data: { followingCount: { decrement: 1 } } });
+    // Community-Mitgliedschaften beenden wie beim Austreten (memberCount, kommende Event-Zusagen).
+    // Gründer:innen-Mitgliedschaft bleibt bewusst samt Zählung: Die Leitung übergibt die Plattform
+    // (transferOwnership); danach entfernt sie das Konto regulär und zieht es dabei vom Zähler ab –
+    // würden wir hier schon abziehen, zählte das doppelt. Mitgliederlisten blenden gelöschte Konten aus.
+    const left = await tx.$queryRaw<{ communityId: string; state: string }[]>`DELETE FROM "CommunityMember" WHERE "userId" = ${userId} AND "role" <> 'OWNER' RETURNING "communityId", "state"::text AS "state"`;
+    const wasActive = left.filter((m) => m.state === "ACTIVE").map((m) => m.communityId);
+    if (wasActive.length) await tx.community.updateMany({ where: { id: { in: wasActive } }, data: { memberCount: { decrement: 1 } } });
+    const { dropFutureAttendance } = await import("@/server/communities/events");
+    for (const m of left) await dropFutureAttendance(tx, m.communityId, userId);
     await tx.session.updateMany({ where: { userId }, data: { revokedAt: new Date() } });
     // Apple-Verknüpfungen mit Refresh-Token lösen, aber für den Widerruf bei Apple im Aufräumjob behalten
     // (purgeDeletedAccount); die Apple-ID kann sofort wieder für ein neues Konto genutzt werden.
@@ -262,7 +280,7 @@ export async function deleteAccount(userId: string, sessionId: string, proof: Re
     await tx.authAccount.deleteMany({ where: { userId, provider: { not: APPLE_REVOKE_PROVIDER } } });
     await tx.userProfile.update({
       where: { userId },
-      data: { handle: tomb, displayName: "Gelöschtes Konto", bio: "", avatarUrl: null, coverUrl: null, links: [], website: null, region: null },
+      data: { handle: tomb, displayName: "Gelöschtes Konto", bio: "", avatarUrl: null, coverUrl: null, links: [], website: null, region: null, followerCount: 0, followingCount: 0 },
     });
     await tx.user.update({
       where: { id: userId },

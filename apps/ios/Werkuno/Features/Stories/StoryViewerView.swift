@@ -221,7 +221,8 @@ struct StoryViewerView: View {
             }
             .accessibilityHidden(true)
 
-            HStack(spacing: 8) {
+            // Abstand 0: Die Knöpfe haben 44-pt-Tippflächen um 36-pt-Kreise (sichtbarer Abstand bleibt 8 pt)
+            HStack(spacing: 0) {
                 Button {
                     let h = g.author.handle
                     dismiss()
@@ -264,6 +265,8 @@ struct StoryViewerView: View {
                         .foregroundStyle(.white)
                         .frame(width: 36, height: 36)
                         .background(.black.opacity(0.35), in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
                 }
                 .accessibilityLabel("Story-Optionen")
                 stageButton("xmark", label: "Stories schliessen") { close() }
@@ -300,7 +303,9 @@ struct StoryViewerView: View {
                 .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
                 .background(.black.opacity(0.35), in: Circle())
-                .contentShape(Circle())
+                // Sichtbar 36 pt, Tippfläche 44 × 44 pt (Mindestgrösse)
+                .frame(width: 44, height: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

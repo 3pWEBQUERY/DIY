@@ -176,7 +176,14 @@ struct PostDetailView: View {
             LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl, kind: .product) { router.open(.product(shopSlug: shop, productSlug: slug)) }
         }
         if let a = post.article {
-            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) { router.open(href: a.href) }
+            LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) {
+                // Der Server liefert für verknüpfte Artikel kein `href`, aber Slug und Autor-Handle
+                if let h = a.authorHandle?.nilIfEmpty, let s = a.slug?.nilIfEmpty {
+                    router.open(.article(handle: h, slug: s))
+                } else {
+                    router.open(href: a.href)
+                }
+            }
         }
         if let c = post.community {
             LinkedThreadRow(kicker: "Community", title: c.name, seed: c.id ?? c.slug, category: post.category, url: nil, kind: .community) { router.open(.community(slug: c.slug)) }

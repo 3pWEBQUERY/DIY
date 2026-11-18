@@ -109,6 +109,18 @@ describe("Kommentare seitenweise", () => {
     expect(q.where.OR).toEqual([{ createdAt: { lt: row(401).createdAt } }, { createdAt: row(401).createdAt, id: { lt: "c0401" } }]);
   });
 
+  it("begrenzt Antworten je Kommentar auf die neuesten, zeigt sie aufsteigend und liefert die Gesamtzahl", async () => {
+    const replies = [row(9), row(8)].map((r) => ({ ...r, replies: undefined }));
+    m.db.comment.findMany.mockImplementation(async (q: { where: { isAnswer: boolean } }) => (q.where.isAnswer ? [] : [{ ...row(1), replies, _count: { replies: 120 } }]));
+    const page = await ix.listCommentPage("POST", "p1", "u1");
+    const q = m.db.comment.findMany.mock.calls[0]![0];
+    expect(q.include.replies.take).toBe(ix.REPLY_LIMIT);
+    expect(q.include.replies.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    expect(q.include._count.select.replies.where.author).toEqual({ status: { in: ["ACTIVE", "SUSPENDED"] } });
+    expect(page.items[0]!.replies.map((r) => r.id)).toEqual(["c0008", "c0009"]);
+    expect(page.items[0]!.replyCount).toBe(120);
+  });
+
   it("ungültiger Cursor → leere Seite", async () => {
     expect(await ix.listCommentPage("POST", "p1", "u1", "kaputt")).toEqual({ items: [], nextCursor: null });
     expect(ix.decodeCommentCursor("nicht-datum_x")).toBeNull();

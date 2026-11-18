@@ -187,8 +187,10 @@ export async function deleteComment(user: SessionUser, commentId: string) {
   });
 }
 
-/** Hauptkommentare je Seite (Antworten kommen immer vollständig dazu). */
+/** Hauptkommentare je Seite. */
 export const COMMENT_PAGE = 100;
+/** Antworten je Hauptkommentar (die neuesten); sonst lädt ein Kommentar mit tausenden Antworten alles mit. */
+export const REPLY_LIMIT = 50;
 
 const commentAuthor = { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } as const;
 
@@ -216,7 +218,9 @@ export type CommentView = {
   isQuestion: boolean;
   isAnswer: boolean;
   author: { id: string; handle: string; displayName: string; avatarUrl: string | null };
-  replies: Omit<CommentView, "replies">[];
+  replies: Omit<CommentView, "replies" | "replyCount">[];
+  /** Alle sichtbaren Antworten (kann grösser sein als `replies`, siehe REPLY_LIMIT). Zusätzlich, optional für Clients. */
+  replyCount?: number;
 };
 export type CommentPage = { items: CommentView[]; nextCursor: string | null };
 
@@ -244,7 +248,9 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
   const visibleAuthor = { author: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(blocked.length ? { authorId: { notIn: blocked } } : {}) } satisfies Prisma.CommentWhereInput;
   const include = {
     author: commentAuthor,
-    replies: { where: { state: "PUBLISHED", ...visibleAuthor }, orderBy: { createdAt: "asc" }, include: { author: commentAuthor } },
+    // Neueste zuerst laden (begrenzt), unten wieder aufsteigend sortiert
+    replies: { where: { state: "PUBLISHED", ...visibleAuthor }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: REPLY_LIMIT, include: { author: commentAuthor } },
+    _count: { select: { replies: { where: { state: "PUBLISHED", ...visibleAuthor } } } },
   } satisfies Prisma.CommentInclude;
   const base = { targetType: type, targetId: id, parentId: null, state: "PUBLISHED", ...visibleAuthor } satisfies Prisma.CommentWhereInput;
   const [answers, latest] = await Promise.all([
@@ -266,7 +272,7 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
   const rows = [...answers, ...page.reverse()];
   const ids = rows.flatMap((r) => [r.id, ...r.replies.map((x) => x.id)]);
   const liked = viewerId && ids.length ? new Set((await db.reaction.findMany({ where: { userId: viewerId, targetType: "COMMENT", targetId: { in: ids } }, select: { targetId: true } })).map((r) => r.targetId)) : new Set<string>();
-  const map = (c: (typeof rows)[number] | (typeof rows)[number]["replies"][number]): Omit<CommentView, "replies"> => ({
+  const map = (c: (typeof rows)[number] | (typeof rows)[number]["replies"][number]): Omit<CommentView, "replies" | "replyCount"> => ({
     id: c.id,
     body: c.body,
     createdAt: c.createdAt.toISOString(),
@@ -277,7 +283,7 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
     isAnswer: c.isAnswer,
     author: { id: c.author.id, handle: c.author.profile?.handle ?? "", displayName: c.author.profile?.displayName ?? "", avatarUrl: c.author.profile?.avatarUrl ?? null },
   });
-  return { items: rows.map((r) => ({ ...map(r), replies: r.replies.map(map) })), nextCursor };
+  return { items: rows.map((r) => ({ ...map(r), replies: [...r.replies].reverse().map(map), replyCount: r._count?.replies ?? r.replies.length })), nextCursor };
 }
 
 // ───────────── Beziehungen ─────────────

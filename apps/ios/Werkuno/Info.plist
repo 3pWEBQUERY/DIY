@@ -40,8 +40,6 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Damit du Fotos deiner Projekte direkt aufnehmen kannst.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Damit du Bilder aus Werkuno sichern kannst.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

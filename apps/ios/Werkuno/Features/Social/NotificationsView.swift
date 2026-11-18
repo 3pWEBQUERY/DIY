@@ -8,6 +8,8 @@ struct NotificationsView: View {
     @State private var filter: SocialNotificationFilter = .all
     @State private var items: [NotificationItem] = []
     @State private var cursor: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
     @State private var unread: [String: Int] = [:]
     @State private var loaded = false
     @State private var error: String?
@@ -85,7 +87,7 @@ struct NotificationsView: View {
                         .accessibilityAddTraits(.isHeader)
                     }
                 }
-                LoadMoreTrigger(hasMore: cursor != nil) { await load(reset: false) }
+                LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await load(reset: false) }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
@@ -175,8 +177,11 @@ struct NotificationsView: View {
                 error = nil
                 loaded = true
             }
+            moreFailed = false
         } catch is CancellationError {
         } catch {
+            guard f == filter else { return }
+            if !reset { moreFailed = true }
             self.error = (error as? APIError)?.message ?? error.localizedDescription
             loaded = true
             if !items.isEmpty { app.show(error: error) }

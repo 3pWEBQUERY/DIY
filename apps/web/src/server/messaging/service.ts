@@ -1,6 +1,6 @@
 import "server-only";
 import { conversationStartSchema, messageSendSchema } from "@werkraum/shared";
-import { db, Prisma } from "@/server/db";
+import { db, Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { canMessage } from "@/server/authz";
 import { emit } from "@/server/events";
@@ -524,15 +524,15 @@ export async function sendMessage(user: SessionUser, conversationId: string, inp
 
 // ───────────────────────── Unterhaltung beginnen ─────────────────────────
 
-async function findDirect(a: string, b: string) {
-  return db.conversation.findFirst({
+async function findDirect(a: string, b: string, client: Tx | typeof db = db) {
+  return client.conversation.findFirst({
     where: { kind: "DIRECT", AND: [{ members: { some: { userId: a } } }, { members: { some: { userId: b } } }] },
     select: { id: true },
   });
 }
 
-async function findContextual(a: string, b: string, ctx: { orderId?: string | null; productId?: string | null }) {
-  return db.conversation.findFirst({
+async function findContextual(a: string, b: string, ctx: { orderId?: string | null; productId?: string | null }, client: Tx | typeof db = db) {
+  return client.conversation.findFirst({
     where: {
       kind: "ORDER",
       ...(ctx.orderId ? { orderId: ctx.orderId } : { orderId: null, productId: ctx.productId }),
@@ -610,12 +610,20 @@ export async function startConversation(user: SessionUser, input: unknown, ctx: 
   await requireAdult(user);
   await limit("newConversation", user.id);
   const conv = await db.$transaction(async (tx) => {
+    // Finden-oder-anlegen je Paar (und Kontext) serialisieren: Zwei gleichzeitige erste Nachrichten
+    // (Doppelklick, beide schreiben sich gleichzeitig) legten sonst zwei Unterhaltungen an.
+    // Sperre gilt bis zum Ende der Transaktion; danach sieht die zweite die bereits angelegte.
+    const pair = [user.id, prep.recipient.id].sort().join(":");
+    const scope = prep.context ? `order:${prep.context.orderId ?? ""}:${prep.context.productId ?? ""}` : "direct";
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`conversation:${scope}:${pair}`}))`;
+    const existing = prep.context ? await findContextual(user.id, prep.recipient.id, prep.context, tx) : await findDirect(user.id, prep.recipient.id, tx);
+    if (existing) return { id: existing.id, created: false };
     let productId = prep.context?.productId ?? null;
     if (prep.context?.orderId) {
       const first = await tx.orderItem.findFirst({ where: { orderId: prep.context.orderId }, select: { productId: true } });
       productId = first?.productId ?? null;
     }
-    return tx.conversation.create({
+    const c = await tx.conversation.create({
       data: {
         kind: prep.context ? "ORDER" : "DIRECT",
         orderId: prep.context?.orderId ?? null,
@@ -627,12 +635,20 @@ export async function startConversation(user: SessionUser, input: unknown, ctx: 
           ],
         },
       },
+      select: { id: true },
     });
+    return { id: c.id, created: true };
   });
+  if (!conv.created) {
+    // Inzwischen parallel angelegt → wie „existing“ in die bestehende Unterhaltung schreiben
+    await sendMessage(user, conv.id, body, ctx);
+    return { conversationId: conv.id, asRequest: false };
+  }
   try {
     await sendMessage(user, conv.id, body, ctx);
   } catch (e) {
-    await db.conversation.delete({ where: { id: conv.id } }).catch(() => {});
+    // Nur leer löschen: eine parallele erste Nachricht kann inzwischen hier gelandet sein
+    await db.conversation.deleteMany({ where: { id: conv.id, messages: { none: {} } } }).catch(() => {});
     throw e;
   }
   return { conversationId: conv.id, asRequest: prep.asRequest };

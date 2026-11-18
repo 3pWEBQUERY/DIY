@@ -38,7 +38,8 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
   await rateLimit(`search:${viewerId ?? (await clientIpHash().catch(() => "anon"))}`, 120, 60);
   const q = f.q.trim().slice(0, 120);
   const types = f.types?.length ? f.types : SEARCH_TYPES;
-  const limit = Math.min(f.limit ?? 8, 40);
+  // Zusätzlich hier absichern: ein ungültiger Wert (NaN, negativ) darf nie ins SQL-LIMIT gelangen
+  const limit = Number.isFinite(f.limit) ? Math.min(40, Math.max(1, Math.trunc(f.limit!))) : 8;
   const empty = Object.fromEntries(SEARCH_TYPES.map((t) => [t, []])) as unknown as Record<SearchType, SearchHit[]>;
   if (q.length < 2) return empty;
   const rel = await relationsFor(viewerId);

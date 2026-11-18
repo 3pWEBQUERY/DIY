@@ -184,9 +184,10 @@ struct MediaPickerField: View {
         }
         .contextMenu {
             Button("Alt-Text bearbeiten", systemImage: "text.below.photo") { altEditing = m }
-            if index > 0 { Button("Nach vorne", systemImage: "arrow.left") { move(index, by: -1) } }
-            if index < items.count - 1 { Button("Nach hinten", systemImage: "arrow.right") { move(index, by: 1) } }
-            if index > 0 && coverHint { Button("Als Titelbild", systemImage: "star") { withAnimation { let x = items.remove(at: index); items.insert(x, at: 0) } } }
+            // Index erst beim Tippen neu bestimmen: laufende Uploads können die Liste inzwischen verändert haben
+            if index > 0 { Button("Nach vorne", systemImage: "arrow.left") { move(m.id, by: -1) } }
+            if index < items.count - 1 { Button("Nach hinten", systemImage: "arrow.right") { move(m.id, by: 1) } }
+            if index > 0 && coverHint { Button("Als Titelbild", systemImage: "star") { makeCover(m.id) } }
             Button("Entfernen", systemImage: "trash", role: .destructive) { withAnimation { items.removeAll { $0.id == m.id } } }
         }
         .onTapGesture { altEditing = m }
@@ -195,8 +196,14 @@ struct MediaPickerField: View {
         .accessibilityHint("Doppeltippen für Alt-Text")
     }
 
-    private func move(_ i: Int, by d: Int) {
+    private func move(_ id: String, by d: Int) {
+        guard let i = items.firstIndex(where: { $0.id == id }), items.indices.contains(i + d) else { return }
         withAnimation(.snappy) { items.swapAt(i, i + d) }
+    }
+
+    private func makeCover(_ id: String) {
+        guard let i = items.firstIndex(where: { $0.id == id }), i > 0 else { return }
+        withAnimation { let x = items.remove(at: i); items.insert(x, at: 0) }
     }
 
     private func ingest(_ batch: [PhotosPickerItem]) async {
@@ -228,6 +235,9 @@ struct MediaPickerField: View {
     }
 
     private func ingestVideo(_ item: PhotosPickerItem, _ did: String) async {
+        // Laden, Vorschaubild und Upload sollen nicht abbrechen, wenn die App in den Hintergrund geht
+        let background = BackgroundActivity("Werkuno-Video")
+        defer { background.end() }
         guard let url = await PickedMovie.load(item) else {
             drop(did, message: "Das Video konnte nicht geladen werden. Ist es noch in iCloud, warte kurz, bis es auf dem iPhone ist, und versuche es erneut.")
             return

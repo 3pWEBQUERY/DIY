@@ -1086,25 +1086,30 @@ private struct MeDeveloperSettings: View {
 }
 
 
-/// Wie im Web: Original-Browserlogo bzw. Werkuno-Zeichen für die App, sonst neutrales Gerätesymbol.
+/// Werkuno-Zeichen für die App, sonst ein neutrales Gerätesymbol (keine Logos fremder Marken).
 struct DeviceLogo: View {
     var browser: String?
     var device: String
     var size: CGFloat = 26
 
-    private static let known: Set<String> = ["safari", "chrome", "firefox", "edge", "opera", "brave", "vivaldi", "duckduckgo", "arc"]
-
     var body: some View {
         Group {
             if browser == "app" {
                 BrandMark(size: size)
-            } else if let b = browser, Self.known.contains(b) {
-                Image("BrowserLogo-\(b)").resizable().scaledToFit().frame(width: size, height: size)
             } else {
-                Image(systemName: device.contains("iOS") ? "iphone" : device.contains("Android") ? "smartphone" : "desktopcomputer")
+                Image(systemName: symbol)
                     .font(.wr(.title3)).foregroundStyle(Color.ink2)
             }
         }
         .accessibilityHidden(true)
+    }
+
+    /// Gerätenamen wie vom Server (`iOS`, `Android`, `macOS`, `Windows`, `Linux`, sonst „Gerät“)
+    private var symbol: String {
+        if device.contains("iOS") { return "iphone" }
+        if device.contains("Android") { return "smartphone" }
+        if device.contains("macOS") { return "laptopcomputer" }
+        if device.contains("Windows") || device.contains("Linux") { return "desktopcomputer" }
+        return "globe"
     }
 }

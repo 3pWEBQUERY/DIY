@@ -205,7 +205,7 @@ export const communityRoutes: RouteDef[] = [
     const res = need(await blog.getArticleForReader(c.p.handle!, c.p.slug!, vid), "Artikel nicht gefunden.");
     if (res.kind === "redirect") return { redirect: res.to };
     const r = res as unknown as { article: { id: string; authorId: string; categoryId: string | null; tags: string[]; projects: { projectId: string }[] }; isLive: boolean; isAuthor: boolean };
-    const [related, projects] = await Promise.all([r.isLive ? blog.relatedArticles(r.article, vid) : Promise.resolve([]), blog.linkedProjects(r.article.projects.map((p) => p.projectId))]);
+    const [related, projects] = await Promise.all([r.isLive ? blog.relatedArticles(r.article, vid) : Promise.resolve([]), blog.linkedProjects(r.article.projects.map((p) => p.projectId), vid)]);
     if (r.isLive && !r.isAuthor) await recordViewAfter({ viewerId: vid, targetType: "ARTICLE", targetId: r.article.id, ref: "ios" });
     return { ...(res as object), related, linkedProjects: projects };
   }),

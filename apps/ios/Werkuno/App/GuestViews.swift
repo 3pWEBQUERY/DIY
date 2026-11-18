@@ -7,6 +7,8 @@ struct GuestFeedView: View {
     @State private var cursor: String?
     @State private var loading = true
     @State private var error: String?
+    /// Nachladen der nächsten Seite fehlgeschlagen → Knopf „Erneut versuchen“
+    @State private var moreFailed = false
 
     var body: some View {
         ScrollView {
@@ -24,7 +26,7 @@ struct GuestFeedView: View {
                 if loading && items.isEmpty { LoadingView() }
                 else if let error, items.isEmpty { ErrorStateView(message: error) { await load(reset: true) } }
                 ForEach(items) { p in PostCardView(post: p) }
-                LoadMoreTrigger(hasMore: cursor != nil) { await load() }
+                LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await load() }
             }
             .padding(.horizontal, Space.gutter)
             .padding(.vertical, 12)
@@ -41,8 +43,21 @@ struct GuestFeedView: View {
     private func load(reset: Bool = false) async {
         do {
             let page: Page<PostItem> = try await APIClient.shared.get("/feed", query: ["kind": "new", "cursor": reset ? nil : cursor])
-            withAnimation { items = reset ? page.items : items + page.items; cursor = page.nextCursor; error = nil }
-        } catch { self.error = (error as? APIError)?.message ?? error.localizedDescription }
+            withAnimation {
+                if reset { items = page.items } else {
+                    // Doppelte ids (Beiträge, die zwischen zwei Seiten nachrutschen) würden ForEach verwirren
+                    let known = Set(items.map(\.id))
+                    items += page.items.filter { !known.contains($0.id) }
+                }
+                cursor = page.nextCursor
+                error = nil
+            }
+            moreFailed = false
+        } catch is CancellationError {
+        } catch {
+            if !reset { moreFailed = true }
+            self.error = (error as? APIError)?.message ?? error.localizedDescription
+        }
         loading = false
     }
 }
