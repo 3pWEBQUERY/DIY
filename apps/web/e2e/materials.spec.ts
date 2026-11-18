@@ -73,7 +73,7 @@ test.describe.serial("Materialien", () => {
       const total = (await one<{ n: number }>(`SELECT count(*)::int n FROM "ProjectMaterial" WHERE "projectId" = $1`, [proj.id]))!.n;
       await mattia.goto(`/u/lena.haekelt/${proj.slug}`);
       const material = mattia.locator("#material");
-      await expect(material).toContainText(total === 1 ? "alles in deinem Bestand" : `1 hast du schon, ${total - 1} fehlen`);
+      await expect(material).toContainText(total === 1 ? "alles in deinem Bestand" : `1 hast du schon, ${total - 1} ${total - 1 === 1 ? "fehlt" : "fehlen"}`);
 
       // Übernehmen in eine neue Einkaufsliste: Merinowolle ist schon abgehakt
       await material.getByRole("button", { name: "Auf Einkaufsliste" }).click();

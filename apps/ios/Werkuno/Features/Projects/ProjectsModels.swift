@@ -107,6 +107,8 @@ struct ProjectPage: Decodable, Hashable, Sendable {
     var estimatedMinutes: Int?
     var actualMinutes: Int?
     var journalMinutes: Int?
+    /// Gesamtzahl der Journaleinträge (der Server liefert nur die neuesten)
+    var journalTotal: Int?
     var budgetMinor: Int?
     var currency: String?
     var status: String

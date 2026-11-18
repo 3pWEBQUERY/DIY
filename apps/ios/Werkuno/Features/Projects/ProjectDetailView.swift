@@ -211,7 +211,7 @@ struct ProjectDetailView: View {
                 StatCell(value: Fmt.number(p.counts?.likes), label: "Gefällt").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.number(p.counts?.saves), label: "Gemerkt").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.number(p.counts?.remixes), label: "Nachbauten").frame(maxWidth: .infinity, alignment: .leading)
-                StatCell(value: Fmt.number(p.journal.count), label: "Einträge").frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(value: Fmt.number(p.journalTotal ?? p.journal.count), label: "Einträge").frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 14)
             .hairline(.top)
@@ -285,7 +285,7 @@ struct ProjectDetailView: View {
         return ProjectsSection(
             title: "Projektfaden",
             number: number(.thread, in: p),
-            subtitle: "\(Fmt.plural(p.journal.count, "Eintrag", "Einträge")) · \(Fmt.minutes(p.journalMinutes)) Arbeitszeit"
+            subtitle: "\(Fmt.plural(p.journalTotal ?? p.journal.count, "Eintrag", "Einträge")) · \(Fmt.minutes(p.journalMinutes)) Arbeitszeit"
         ) {
             VStack(alignment: .leading, spacing: 10) {
                 ThreeCanvas(

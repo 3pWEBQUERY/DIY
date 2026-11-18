@@ -52,6 +52,8 @@ export function matchesAccept(file: File, accept?: string) {
   if (!accept?.trim()) return true;
   const type = (file.type || "").toLowerCase();
   const name = file.name.toLowerCase();
+  // Unbekannter Typ (z. B. HEIC in manchen Browsern): nicht vorschnell ablehnen – der Server prüft ohnehin
+  if (!type) return true;
   return accept
     .split(",")
     .map((a) => a.trim().toLowerCase())

@@ -719,7 +719,7 @@ export async function moderateComment(actor: Actor, commentId: string, decision:
   const dec = z.enum(["HIDE", "REMOVE", "RESTORE"]).parse(decision);
   const r = reasonSchema.parse(reason);
   const res = await db.$transaction(async (tx) => {
-    const c = await tx.comment.findUnique({ where: { id: commentId }, select: { state: true, authorId: true, targetType: true, targetId: true, body: true } });
+    const c = await tx.comment.findUnique({ where: { id: commentId }, select: { state: true, authorId: true, targetType: true, targetId: true, body: true, parentId: true } });
     if (!c) throw fail.notFound();
     assertNotOwn(actor, c.authorId);
     const to: ContentState = dec === "HIDE" ? "HIDDEN" : dec === "REMOVE" ? "REMOVED" : "PUBLISHED";
@@ -727,8 +727,12 @@ export async function moderateComment(actor: Actor, commentId: string, decision:
     if (dec === "HIDE" && c.state !== "PUBLISHED") throw fail.conflict("Nur sichtbare Kommentare können ausgeblendet werden.");
     if (dec === "RESTORE" && c.state === "REMOVED" && !hasRole(actor, "ADMIN")) throw fail.forbidden("Entfernte Kommentare stellt nur die Administration wieder her.");
     await tx.comment.update({ where: { id: commentId }, data: { state: to } });
-    if (c.state === "PUBLISHED" && to !== "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", -1);
-    if (c.state !== "PUBLISHED" && to === "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", 1);
+    // Gleiche Zählregel wie deleteComment: Antworten zählen nur unter sichtbarem Hauptkommentar,
+    // ein Hauptkommentar nimmt seine sichtbaren Antworten mit
+    const parentVisible = !c.parentId || (await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true } }))?.state === "PUBLISHED";
+    const weight = parentVisible ? 1 + (c.parentId ? 0 : await tx.comment.count({ where: { parentId: commentId, state: "PUBLISHED" } })) : 0;
+    if (weight && c.state === "PUBLISHED" && to !== "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", -weight);
+    if (weight && c.state !== "PUBLISHED" && to === "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", weight);
     await audit(
       {
         actorId: actor.id,

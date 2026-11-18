@@ -83,7 +83,8 @@ export default async function CompetitionPage({ params }: Props) {
         <div className="min-w-0">
           <p className="mb-4 flex flex-wrap items-center gap-2 text-[13px]">
             <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-semibold", PHASE_TONE[c.phase])}>
-              <Trophy size={13} aria-hidden /> {PHASE_LABEL[c.phase]}
+              {/* Abstimmung vorbei, Ergebnis noch nicht ausgewertet: keine Zwischenstände */}
+              <Trophy size={13} aria-hidden /> {c.evaluating ? "Auswertung läuft" : PHASE_LABEL[c.phase]}
             </span>
             <span className="text-muted">{deadline}</span>
           </p>
@@ -94,7 +95,7 @@ export default async function CompetitionPage({ params }: Props) {
               <Users size={16} className="text-muted" aria-hidden />
               <dt className="sr-only">Einreichungen</dt>
               <dd>
-                <span className="num font-semibold">{c.entries.length}</span> {c.entries.length === 1 ? "Einreichung" : "Einreichungen"}
+                <span className="num font-semibold">{c.entryTotal}</span> {c.entryTotal === 1 ? "Einreichung" : "Einreichungen"}
               </dd>
             </div>
             <div className="flex items-center gap-2">
