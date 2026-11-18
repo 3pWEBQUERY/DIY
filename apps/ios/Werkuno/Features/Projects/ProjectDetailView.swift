@@ -177,7 +177,7 @@ struct ProjectDetailView: View {
                 Button { router.open(href: r.href) } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.branch").font(.wr(.caption, .semibold))
-                        Text("Nachbau von «\(r.title)»\(r.ownerName.map { " · \($0)" } ?? "")")
+                        Text("Nachbau von «\(r.title)»\((r.ownerName?.nilIfEmpty).map { " · \($0)" } ?? "")")
                             .font(.wr(.footnote, .medium))
                             .multilineTextAlignment(.leading)
                     }
@@ -211,7 +211,7 @@ struct ProjectDetailView: View {
                 StatCell(value: Fmt.number(p.counts?.likes), label: "Gefällt").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.number(p.counts?.saves), label: "Gemerkt").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.number(p.counts?.remixes), label: "Nachbauten").frame(maxWidth: .infinity, alignment: .leading)
-                StatCell(value: Fmt.number(p.journal.count), label: "Einträge").frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(value: Fmt.number(p.journalTotal ?? p.journal.count), label: "Einträge").frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 14)
             .hairline(.top)
@@ -285,7 +285,7 @@ struct ProjectDetailView: View {
         return ProjectsSection(
             title: "Projektfaden",
             number: number(.thread, in: p),
-            subtitle: "\(Fmt.plural(p.journal.count, "Eintrag", "Einträge")) · \(Fmt.minutes(p.journalMinutes)) Arbeitszeit"
+            subtitle: "\(Fmt.plural(p.journalTotal ?? p.journal.count, "Eintrag", "Einträge")) · \(Fmt.minutes(p.journalMinutes)) Arbeitszeit"
         ) {
             VStack(alignment: .leading, spacing: 10) {
                 ThreeCanvas(
@@ -494,7 +494,7 @@ struct ProjectDetailView: View {
         return ProjectsSection(title: "Nachbauten", number: number(.remix, in: p), subtitle: remixes.isEmpty ? nil : Fmt.plural(remixes.count, "Nachbau", "Nachbauten")) {
             if let r = p.remixOf {
                 VStack(alignment: .leading, spacing: 12) {
-                    LinkedThreadRow(kicker: "Nachbau von\(r.ownerName.map { " · \($0)" } ?? "")", title: r.title, seed: r.id, category: r.category, url: r.coverUrl) {
+                    LinkedThreadRow(kicker: "Nachbau von\((r.ownerName?.nilIfEmpty).map { " · \($0)" } ?? "")", title: r.title, seed: r.id, category: r.category, url: r.coverUrl) {
                         router.open(href: r.href)
                     }
                     if let dev = (r.deviations?.nilIfEmpty ?? p.remixNote?.nilIfEmpty) {
@@ -688,7 +688,10 @@ struct ProjectDetailView: View {
         let ok = await app.run(status == "COMPLETED" ? "Abgeschlossen – herzlichen Glückwunsch!" : "Status: \(L.projectStatus(status))") {
             _ = try await APIClient.shared.post("/projects/\(p.id)/status", ["status": JSONValue.string(status)]) as JSONValue
         }
-        if ok { await load() }
+        if ok {
+            NotificationCenter.default.post(name: .projectsChanged, object: p.id)
+            await load()
+        }
     }
 
     private func deleteEntry(_ e: ProjectJournalEntry) async {
@@ -707,6 +710,9 @@ struct ProjectDetailView: View {
         let ok = await app.run("Projekt gelöscht.") {
             _ = try await APIClient.shared.delete("/projects/\(p.id)") as JSONValue
         }
-        if ok { dismiss() }
+        if ok {
+            NotificationCenter.default.post(name: .projectsChanged, object: p.id)
+            dismiss()
+        }
     }
 }

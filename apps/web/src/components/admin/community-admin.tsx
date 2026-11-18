@@ -120,10 +120,11 @@ export function CommunityEditButton({
           </Field>
 
           <fieldset className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <legend className="text-[13px] font-semibold text-ink">
-                Regeln <span className="ml-1 font-normal text-muted">{rules.length} / 20</span>
-              </legend>
+            {/* legend muss erstes Kind des fieldset sein (sonst kein Gruppenname); float hält sie neben der Schaltfläche */}
+            <legend className="float-left text-[13px] font-semibold leading-9 text-ink">
+              Regeln <span className="ml-1 font-normal text-muted">{rules.length} / 20</span>
+            </legend>
+            <div className="flex items-center justify-end gap-3">
               <Button
                 size="sm"
                 variant="ghost"
@@ -136,8 +137,8 @@ export function CommunityEditButton({
                 <Plus size={14} aria-hidden /> Regel
               </Button>
             </div>
-            {rules.length === 0 && <p className="rounded-2xl border border-dashed border-line-strong px-4 py-4 text-center text-[13px] text-muted">Keine Regeln hinterlegt.</p>}
-            <ol className="space-y-3">
+            {rules.length === 0 && <p className="clear-both rounded-2xl border border-dashed border-line-strong px-4 py-4 text-center text-[13px] text-muted">Keine Regeln hinterlegt.</p>}
+            <ol className="clear-both space-y-3">
               {rules.map((r, i) => (
                 <li key={r.key} className="rounded-2xl border border-line bg-paper/40 p-3">
                   <div className="flex items-start gap-2">

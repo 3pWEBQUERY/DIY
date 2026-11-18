@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Check, Clock, LogOut } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { callAction } from "@/lib/use-action";
+import type { ActionResult } from "@/server/errors";
 import { joinCommunityAction, leaveCommunityAction } from "@/app/(app)/communities/actions";
 
 type State = "ACTIVE" | "PENDING" | "INVITED" | "BANNED" | null;
@@ -39,9 +41,9 @@ export function JoinButton({
     );
   }
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string; data?: { state: string | null } }>, msg?: (s: State) => string | undefined) =>
+  const run = (fn: () => Promise<ActionResult<{ state: string | null } | undefined>>, msg?: (s: State) => string | undefined) =>
     start(async () => {
-      const r = await fn();
+      const r = await callAction(fn);
       if (r.ok) {
         const next = (r.data?.state ?? null) as State;
         setState(next);

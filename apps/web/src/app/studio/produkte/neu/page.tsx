@@ -29,6 +29,7 @@ export default async function NewProductPage() {
         shopReturnPolicy={data.shop.returnPolicy}
         feeBps={data.feeBps}
         digitalEnabled={data.digitalEnabled}
+        appStore={data.appStore}
         categories={categories}
       />
     </div>

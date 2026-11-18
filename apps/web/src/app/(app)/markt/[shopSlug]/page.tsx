@@ -10,10 +10,11 @@ import { listShopReviews } from "@/server/commerce/reviews";
 import { ProductGrid } from "@/components/commerce/product-card";
 import { Avatar, Empty, Notice, SectionTitle, Stat } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
-import { formatDate, relativeTime } from "@/lib/utils";
+import { formatDate, pluralize, relativeTime } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
+import { flatSearchParams } from "@/lib/search-params";
 
-type Params = { params: Promise<{ shopSlug: string }>; searchParams: Promise<{ cursor?: string }> };
+type Params = { params: Promise<{ shopSlug: string }>; searchParams: Promise<{ cursor?: string | string[] }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { shopSlug } = await params;
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /** Shopseite: Werkstatt-Kopf, Arbeiten, Bedingungen und Anbieterkennzeichnung. */
 export default async function ShopPage({ params, searchParams }: Params) {
-  const [{ shopSlug }, sp, user] = await Promise.all([params, searchParams, currentUser()]);
+  const [{ shopSlug }, sp, user] = await Promise.all([params, searchParams.then((s) => flatSearchParams(s)), currentUser()]);
   const shop = await getPublicShop(shopSlug, user?.id);
   if (!shop) notFound();
   const profile = shop.owner.profile!;
@@ -93,7 +94,7 @@ export default async function ShopPage({ params, searchParams }: Params) {
                 "–"
               )
             }
-            note={shop.ratingCount ? `${shop.ratingCount} Bewertungen` : "Noch keine"}
+            note={shop.ratingCount ? pluralize(shop.ratingCount, "Bewertung", "Bewertungen") : "Noch keine"}
           />
         </dl>
       </header>

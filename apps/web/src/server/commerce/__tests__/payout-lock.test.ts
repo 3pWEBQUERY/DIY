@@ -5,7 +5,7 @@ const m = vi.hoisted(() => {
   const tx = { $executeRaw: vi.fn() };
   return {
     tx,
-    db: { shop: { findMany: vi.fn(), findUnique: vi.fn() }, $transaction: vi.fn(), $executeRaw: vi.fn(), payoutRecord: { upsert: vi.fn(async () => ({ id: "r1" })), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) } },
+    db: { shop: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() }, $transaction: vi.fn(), $executeRaw: vi.fn(), payoutRecord: { upsert: vi.fn(async () => ({ id: "r1" })), findUnique: vi.fn(async () => null), updateMany: vi.fn(async () => ({ count: 0 })) } },
     payout: vi.fn(),
     balance: vi.fn(),
   };
@@ -32,7 +32,7 @@ vi.mock("../stripe", () => ({
   updatePayoutSchedule: vi.fn(),
 }));
 
-const { runScheduledPayouts } = await import("../payouts");
+const { runScheduledPayouts, migrateStripePayoutSchedules, zurichDayStartBound } = await import("../payouts");
 
 const now = new Date("2026-11-18T10:00:00Z");
 const shop = { id: "sh1", ownerId: "u1", status: "ACTIVE", currency: "CHF", stripeAccountId: "acct_1", payoutsEnabled: true, payoutHoldWaived: false, payoutInterval: "daily", payoutWeeklyAnchor: null, payoutMonthlyAnchor: null, lastAutoPayoutAt: null };
@@ -60,5 +60,35 @@ describe("runScheduledPayouts", () => {
     expect(await runScheduledPayouts(now)).toBe(0);
     expect(m.balance).not.toHaveBeenCalled();
     expect(m.payout).not.toHaveBeenCalled();
+  });
+});
+
+describe("Reihum-Auswahl im Worker", () => {
+  it("lädt nur heute noch nicht ausgezahlte Shops, älteste Prüfung zuerst, und vermerkt den Versuch", async () => {
+    m.db.shop.findUnique.mockResolvedValue({ lastAutoPayoutAt: null });
+    await runScheduledPayouts(now);
+    const args = m.db.shop.findMany.mock.calls[0]![0] as { where: { AND: unknown[] }; orderBy: unknown };
+    expect(args.where.AND).toContainEqual({ OR: [{ lastAutoPayoutAt: null }, { lastAutoPayoutAt: { lt: zurichDayStartBound(now) } }] });
+    expect(args.orderBy).toEqual([{ payoutAttemptAt: { sort: "asc", nulls: "first" } }, { id: "asc" }]);
+    const stamp = (m.db.$executeRaw.mock.calls[0]![0] as TemplateStringsArray).join("?");
+    expect(stamp).toContain('"payoutAttemptAt" = now()');
+    expect(m.db.$executeRaw.mock.calls[0]![1]).toEqual(["sh1"]);
+  });
+
+  it("Planübernahme: ebenfalls reihum, damit scheiternde Konten andere nicht blockieren", async () => {
+    m.db.shop.findMany.mockResolvedValue([{ id: "sh2", stripeAccountId: "acct_2" }]);
+    await migrateStripePayoutSchedules();
+    expect(m.db.shop.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: [{ payoutAttemptAt: { sort: "asc", nulls: "first" } }, { id: "asc" }] }));
+    expect(m.db.$executeRaw.mock.calls[0]![1]).toEqual(["sh2"]);
+  });
+
+  it("Tagesgrenze: nie nach der Zürcher Mitternacht (Winter UTC+1, Sommer UTC+2)", () => {
+    // Winter: Zürcher Mitternacht = 23:00 UTC des Vortags
+    expect(zurichDayStartBound(new Date("2026-11-18T10:00:00Z")).toISOString()).toBe("2026-11-17T23:00:00.000Z");
+    // Sommer: Mitternacht = 22:00 UTC; Grenze 23:00 UTC liegt danach (isPayoutDue prüft fein)
+    const summer = zurichDayStartBound(new Date("2026-07-01T10:00:00Z"));
+    expect(summer.getTime()).toBeGreaterThanOrEqual(new Date("2026-06-30T22:00:00Z").getTime());
+    // Kurz nach Mitternacht in Zürich gilt schon der neue Tag
+    expect(zurichDayStartBound(new Date("2026-11-17T23:30:00Z")).toISOString()).toBe("2026-11-17T23:00:00.000Z");
   });
 });

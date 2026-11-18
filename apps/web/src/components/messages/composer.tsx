@@ -1,8 +1,8 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ImagePlus, LoaderCircle, SendHorizontal, X } from "lucide-react";
-import { uploadFile } from "@/components/media/uploader";
+import { isAbortError, uploadFile } from "@/components/media/uploader";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { useObjectUrls } from "@/lib/use-object-urls";
@@ -23,15 +23,23 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
     const area = useRef<HTMLTextAreaElement>(null);
     const input = useRef<HTMLInputElement>(null);
     const blobs = useObjectUrls();
+    // Laufende Uploads je Anhang – beim Entfernen bzw. Aushängen abbrechen
+    const uploads = useRef(new Map<string, AbortController>());
+    useEffect(() => {
+      const running = uploads.current;
+      return () => {
+        running.forEach((c) => c.abort());
+        running.clear();
+      };
+    }, []);
     useImperativeHandle(ref, () => ({ focus: () => area.current?.focus() }));
 
     const uploading = files.some((f) => !f.id && !f.error);
     const ready = files.filter((f) => f.id);
     const canSend = !disabled && !sending && !uploading && (body.trim().length > 0 || ready.length > 0);
 
-    async function add(list: FileList | null) {
-      if (!list) return;
-      for (const file of Array.from(list).slice(0, 6 - files.length)) {
+    async function add(list: File[]) {
+      for (const file of list.slice(0, 6 - files.length)) {
         if (!file.type.startsWith("image/")) {
           toast("In Nachrichten kannst du nur Bilder senden.", "error");
           continue;
@@ -39,14 +47,20 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
         const key = crypto.randomUUID();
         const local = blobs.create(file);
         setFiles((p) => [...p, { key, id: null, preview: local, progress: 0 }]);
+        const ctrl = new AbortController();
+        uploads.current.set(key, ctrl);
         try {
-          const r = await uploadFile(file, "public", (progress) => setFiles((p) => p.map((f) => (f.key === key ? { ...f, progress } : f))));
+          const r = await uploadFile(file, "public", (progress) => setFiles((p) => p.map((f) => (f.key === key ? { ...f, progress } : f))), ctrl.signal);
           setFiles((p) => p.map((f) => (f.key === key ? { ...f, id: r.mediaId, progress: 1, preview: r.variants?.sm ?? f.preview } : f)));
           // Vorschau vom Server da → lokale Kopie freigeben (das <img> wechselt im selben Render)
           if (r.variants?.sm) requestAnimationFrame(() => blobs.revoke(local));
         } catch (e) {
+          // Entfernt oder Composer geschlossen → keine Fehlermeldung
+          if (isAbortError(e) || ctrl.signal.aborted) continue;
           toast(e instanceof Error ? e.message : "Upload fehlgeschlagen", "error");
           setFiles((p) => p.map((f) => (f.key === key ? { ...f, error: true } : f)));
+        } finally {
+          uploads.current.delete(key);
         }
       }
     }
@@ -86,6 +100,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
                 {!f.id && !f.error && <LoaderCircle size={16} className="absolute inset-0 m-auto animate-spin text-ink" />}
                 {f.error && <span className="absolute inset-0 grid place-items-center bg-danger/80 text-[10px] font-semibold text-paper">Fehler</span>}
                 <button type="button" onClick={() => {
+                    uploads.current.get(f.key)?.abort();
                     blobs.revoke(f.preview);
                     setFiles((p) => p.filter((x) => x.key !== f.key));
                   }} className="absolute right-0 top-0 grid size-5 place-items-center bg-card" aria-label={`Bild ${i + 1} entfernen`}>
@@ -99,7 +114,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
           <button type="button" onClick={() => input.current?.click()} disabled={files.length >= 6 || disabled} className="grid size-10 shrink-0 place-items-center text-muted hover:bg-sunken hover:text-ink disabled:opacity-40 rounded-xl" aria-label="Bild anhängen">
             <ImagePlus size={19} strokeWidth={1.7} />
           </button>
-          <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/avif" multiple hidden onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
+          <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/avif" multiple hidden onChange={(e) => { const list = Array.from(e.target.files ?? []); e.target.value = ""; void add(list); }} />
           <label htmlFor="msg-body" className="sr-only">Nachricht</label>
           <textarea
             id="msg-body"
@@ -118,7 +133,7 @@ export const MessageComposer = forwardRef<ComposerHandle, { onSend: (body: strin
             maxLength={5000}
             placeholder={placeholder}
             aria-describedby="msg-hint"
-            className="max-h-40 min-h-10 flex-1 resize-none border border-line-strong bg-card px-3 py-2 text-[15px] leading-relaxed outline-none field-sizing-content focus:border-moss rounded-2xl"
+            className="max-h-40 min-h-10 flex-1 resize-none border border-field bg-card px-3 py-2 text-[15px] leading-relaxed outline-none field-sizing-content focus:border-moss rounded-2xl"
           />
           <button type="button" onClick={() => void send()} disabled={!canSend} className="grid size-10 shrink-0 place-items-center bg-moss text-paper hover:bg-moss-ink disabled:opacity-35 rounded-xl" aria-label="Senden">
             {sending ? <LoaderCircle size={17} className="animate-spin" /> : <SendHorizontal size={17} />}

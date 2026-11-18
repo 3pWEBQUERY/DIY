@@ -13,7 +13,8 @@ import { Badge, Kbd } from "@/components/ui/misc";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Label, Select } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
-import { cn, formatDate, pad, readingMinutes, relativeTime, slugify } from "@/lib/utils";
+import { cn, formatDate, pad, readingMinutes, slugify } from "@/lib/utils";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { stripInline } from "@/lib/inline-marks";
 import {
   deleteArticleAction,
@@ -155,6 +156,8 @@ export function ArticleEditor({
   // sonst legt ein neuer Artikel zwei Datensätze an. idRef kennt die neue id schon vor dem nächsten Render.
   const inflight = useRef<Promise<string | null> | null>(null);
   const idRef = useRef(id);
+  /** Grund des letzten fehlgeschlagenen Speicherns – für den Veröffentlichen-Dialog, der die Felder verdeckt */
+  const lastSaveError = useRef<string | null>(null);
   useEffect(() => {
     if (id) idRef.current = id;
   }, [id]);
@@ -162,8 +165,10 @@ export function ArticleEditor({
   const save = useCallback(
     (opts: { quiet?: boolean } = {}): Promise<string | null> => {
       if (inflight.current) return inflight.current;
+      lastSaveError.current = null;
       if (title.trim().length < 3) {
-        setFieldErrors({ title: "Gib deinem Artikel einen Titel (mind. 3 Zeichen)." });
+        lastSaveError.current = "Gib deinem Artikel einen Titel (mind. 3 Zeichen).";
+        setFieldErrors({ title: lastSaveError.current });
         if (!opts.quiet) titleRef.current?.focus();
         return Promise.resolve(null);
       }
@@ -188,6 +193,7 @@ export function ArticleEditor({
             resolve(r.data.id);
           } else {
             setFieldErrors(r.fields ?? {});
+            lastSaveError.current = Object.values(r.fields ?? {})[0] ?? r.error;
             if (!opts.quiet || r.code !== "VALIDATION") toast(r.error, "error");
             resolve(null);
           }
@@ -282,7 +288,7 @@ export function ArticleEditor({
         <Badge tone={STATE_TONE[state]}>{STATE_LABEL[state]}</Badge>
         {state === "SCHEDULED" && publishedAt && <span className="spec">am {formatDate(publishedAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>}
         <span className="text-xs text-muted" aria-live="polite">
-          {saving ? "Speichert …" : dirty ? "Ungespeicherte Änderungen" : savedAt ? `Gespeichert ${relativeTime(savedAt)}` : "Noch nicht gespeichert"}
+          {saving ? "Speichert …" : dirty ? "Ungespeicherte Änderungen" : savedAt ? <>Gespeichert <RelativeTime date={savedAt} /></> : "Noch nicht gespeichert"}
         </span>
         <div className="ml-auto flex items-center gap-2">
           {previewHref && (
@@ -529,12 +535,10 @@ export function ArticleEditor({
         canSchedule={!everPublished}
         onConfirm={async (opts) => {
           const savedId = dirty || !id ? await save({ quiet: true }) : id;
-          if (!savedId) return false;
+          // Fehler im Dialog zeigen – die Feldfehler dahinter sind vom Modal verdeckt
+          if (!savedId) return lastSaveError.current ?? "Der Artikel konnte nicht gespeichert werden.";
           const r = await callAction(() => publishArticleAction(savedId, opts));
-          if (!r.ok) {
-            toast(r.error, "error");
-            return false;
-          }
+          if (!r.ok) return Object.values(r.fields ?? {})[0] ?? r.error;
           setState(r.data.state);
           setPublishedAt(r.data.publishedAt);
           toast(r.data.state === "SCHEDULED" ? `Geplant für ${formatDate(r.data.publishedAt, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}.` : "Veröffentlicht.");
@@ -555,7 +559,8 @@ function PublishDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onConfirm: (o: { publishAt?: string; shareToFeed: boolean }) => Promise<boolean>;
+  /** true = erledigt, sonst die Fehlermeldung (wird im Dialog gezeigt) */
+  onConfirm: (o: { publishAt?: string; shareToFeed: boolean }) => Promise<true | string>;
   scheduledAt: string | null;
   canSchedule: boolean;
 }) {
@@ -563,6 +568,10 @@ function PublishDialog({
   const [when, setWhen] = useState(toLocalInput(scheduledAt));
   const [share, setShare] = useState(true);
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (open) setError(null);
+  }, [open]);
   const minLocal = toLocalInput(new Date(Date.now() + 5 * 60_000).toISOString());
   const valid = mode === "now" || (when && new Date(when).getTime() > Date.now() + 60_000);
   return (
@@ -587,13 +596,20 @@ function PublishDialog({
         )}
       </fieldset>
       <Checkbox className="mt-4" label="Im Feed ankündigen (Beitrag mit Vorspann und Link)" checked={share} onChange={(e) => setShare(e.target.checked)} />
+      {error && (
+        <p role="alert" className="mt-4 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+          {error}
+        </p>
+      )}
       <Button
         className="mt-5 w-full"
         disabled={!valid || pending}
         onClick={() =>
           start(async () => {
-            const ok = await onConfirm({ shareToFeed: share, ...(mode === "later" && when ? { publishAt: new Date(when).toISOString() } : {}) });
-            if (ok) onClose();
+            setError(null);
+            const res = await onConfirm({ shareToFeed: share, ...(mode === "later" && when ? { publishAt: new Date(when).toISOString() } : {}) });
+            if (res === true) onClose();
+            else setError(res);
           })
         }
       >

@@ -4,7 +4,7 @@ import { SUPPORT_STATUS, SUPPORT_STATUS_LABEL, SUPPORT_TOPIC_LABEL, type Support
 import { hasRole } from "@/server/authz";
 import { adminPage, maskEmail } from "@/server/admin/guard";
 import { listTickets } from "@/server/admin/catalog";
-import { AdminHeader, Segments } from "@/components/admin/ui";
+import { AdminHeader, Pager, Segments } from "@/components/admin/ui";
 import { TicketStatusSelect } from "@/components/admin/system-controls";
 import { Badge, Empty } from "@/components/ui/misc";
 import { dateTime } from "@/components/admin/format";
@@ -13,11 +13,12 @@ import { setTicketStatusAction } from "./actions";
 
 export const metadata: Metadata = { title: "Support" };
 
-export default async function SupportAdmin({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function SupportAdmin({ searchParams }: { searchParams: Promise<{ status?: string; seite?: string }> }) {
   const user = await adminPage("PLATFORM_MODERATOR", "/admin/support");
   const sp = await searchParams;
   const status = (SUPPORT_STATUS as readonly string[]).includes(sp.status ?? "") ? (sp.status as SupportStatus) : null;
-  const { rows, byStatus } = await listTickets(user, status);
+  const { rows, byStatus, page, pages } = await listTickets(user, status, Number(sp.seite) || 1);
+  const qs = (p: number) => `/admin/support?${new URLSearchParams({ ...(status ? { status } : {}), seite: String(p) })}`;
   const isAdmin = hasRole(user, "ADMIN");
   const options = SUPPORT_STATUS.map((s) => ({ value: s, label: SUPPORT_STATUS_LABEL[s] }));
 
@@ -67,6 +68,7 @@ export default async function SupportAdmin({ searchParams }: { searchParams: Pro
           ))}
         </ol>
       )}
+      <Pager page={page} pages={pages} href={qs} />
     </div>
   );
 }

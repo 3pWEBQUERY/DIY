@@ -70,7 +70,7 @@ struct StudioProView: View {
             .task { if data == nil { await load() } }
             .refreshable { await load() }
             .manageSubscriptionsSheet(isPresented: $showManage)
-            .onChange(of: showManage) { _, open in if !open { Task { try? await ProStore.shared.syncEntitlements(); await load() } } }
+            .onChange(of: showManage) { _, open in if !open { Task { _ = try? await ProStore.shared.syncEntitlements(); await load() } } }
             .onReceive(NotificationCenter.default.publisher(for: ProStore.changedNotification)) { _ in Task { await load() } }
             .confirmationDialog("Creator Pro kündigen?", isPresented: $confirmCancel, titleVisibility: .visible) {
                 Button("Kündigen", role: .destructive) { Task { await setCancel(true) } }
@@ -137,6 +137,13 @@ struct StudioProView: View {
                         SectionHeader("Das bietet Creator Pro")
                         benefitList(max: max)
                     }
+                } else if d.apple != nil, d.enabled != false {
+                    // Angebot vorhanden, aber die Abos liessen sich nicht aus dem App Store laden
+                    storeUnavailableCard
+                    VStack(alignment: .leading, spacing: 12) {
+                        SectionHeader("Das bietet Creator Pro")
+                        benefitList(max: max)
+                    }
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Für dein Konto nicht aktiv", systemImage: "seal").font(.wr(.headline, .semibold)).foregroundStyle(Color.ink)
@@ -185,8 +192,11 @@ struct StudioProView: View {
                     .primaryButton()
             } else if s.provider != "comp" {
                 if s.cancelAtPeriodEnd == true {
-                    AsyncButton { await setCancel(false) } label: { Text("Kündigung zurücknehmen").frame(maxWidth: .infinity) }
-                        .primaryButton()
+                    // Ausserhalb der App abgeschlossenes Abo: in der App nur kündigen, nicht wieder
+                    // aufnehmen (App Store 3.1.1) – deshalb ohne Knopf und ohne Verweis
+                    Text("Dein Abo ist gekündigt. Pro bleibt \(endLabel.map { "bis zum \($0)" } ?? "bis zum Ende der Laufzeit") aktiv.")
+                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Button("Abo kündigen", role: .destructive) { confirmCancel = true }
                         .font(.wr(.subheadline, .semibold))
@@ -207,6 +217,25 @@ struct StudioProView: View {
     }
 
     // MARK: Abschliessen (App Store)
+
+    /// App-Store-Produkte konnten nicht geladen werden (Netz, App Store nicht erreichbar)
+    private var storeUnavailableCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("App Store nicht erreichbar", systemImage: "exclamationmark.triangle").font(.wr(.headline, .semibold)).foregroundStyle(Color.ink)
+            Text("Die Abos für Creator Pro konnten gerade nicht geladen werden. Prüfe deine Verbindung und versuche es erneut. Hast du Creator Pro bereits über Apple abonniert, kannst du deine Käufe wiederherstellen.")
+                .font(.wr(.subheadline)).foregroundStyle(Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            AsyncButton { await load() } label: { Text("Erneut laden").frame(maxWidth: .infinity) }
+                .primaryButton()
+            AsyncButton { await restore() } label: { Text("Käufe wiederherstellen") }
+                .font(.wr(.footnote, .semibold))
+                .foregroundStyle(Color.moss)
+                .buttonStyle(.plain)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+    }
 
     private func subscribeCard(_ offer: ProAppleOffer) -> some View {
         let monthly = plans.first { !$0.isYearly }

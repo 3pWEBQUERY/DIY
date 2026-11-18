@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import { EyeOff, Eye, Pencil, Trash2 } from "lucide-react";
 import { MoreMenu, type MenuItem } from "@/components/social/actions";
 import { toast } from "@/components/ui/toast";
+import { callAction } from "@/lib/use-action";
+import type { ActionResult } from "@/server/errors";
 import { deleteTutorialAction, setTutorialPublishedAction } from "@/app/(app)/anleitungen/actions";
 
 /** Zeilenaktionen im Studio: bearbeiten, zurückziehen/freigeben, löschen. */
 export function TutorialRowActions({ id, title, state, hasVersion }: { id: string; title: string; state: string; hasVersion: boolean }) {
   const router = useRouter();
   const [, start] = useTransition();
-  const run = (p: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
+  const run = (p: () => Promise<ActionResult<unknown>>) =>
     start(async () => {
-      const r = await p();
+      // Netz-/Serverfehler → Toast statt Fehlerseite
+      const r = await callAction(p);
       if (r.ok) {
         if (r.message) toast(r.message);
         router.refresh();

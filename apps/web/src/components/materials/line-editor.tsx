@@ -74,7 +74,7 @@ export function LineEditor({
                     aria-label={`${label} ${i + 1}`}
                     aria-invalid={err ? true : undefined}
                     placeholder="z. B. Japansäge"
-                    className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl"
+                    className="h-10 w-full border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl"
                   />
                 )}
                 {err && <p className="mt-1 text-[12px] text-danger">{err}</p>}
@@ -86,7 +86,7 @@ export function LineEditor({
                   maxLength={40}
                   aria-label={`Menge für ${label} ${i + 1}`}
                   placeholder={kind === "material" ? "z. B. 3 Knäuel" : "1"}
-                  className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
+                  className="h-10 w-full border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
                 />
                 <input
                   value={l.note}
@@ -94,7 +94,7 @@ export function LineEditor({
                   maxLength={200}
                   aria-label={`Notiz für ${label} ${i + 1}`}
                   placeholder="Notiz (optional)"
-                  className="h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
+                  className="h-10 w-full border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
                 />
               </div>
               <div className="col-start-3 row-start-1 flex justify-end sm:col-start-auto sm:row-start-auto">
@@ -201,7 +201,7 @@ export function MaterialInput({ value, onText, onPick, linked, invalid, label }:
             pick(items[active]!);
           } else if (e.key === "Escape") setOpen(false);
         }}
-        className={cn("h-10 w-full border border-line-strong bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl", linked && "pr-16")}
+        className={cn("h-10 w-full border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl", linked && "pr-16")}
       />
       {linked && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[9px] uppercase tracking-[0.08em] text-moss">Katalog</span>}
       {open && (

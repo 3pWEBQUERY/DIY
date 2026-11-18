@@ -56,7 +56,9 @@ export function EventForm({ communityId, slug, eventId, initial }: { communityId
   const create = useAction(createEventAction.bind(null, communityId, slug), { redirect: (d) => d.href });
   const update = useAction(updateEventAction.bind(null, eventId ?? "", slug), { redirect: (d) => d.href });
   const { run, pending, fields } = eventId ? update : create;
-  const min = toLocalInput(new Date().toISOString());
+  // Untergrenze erst nach dem Einhängen in der Ortszeit des Browsers setzen (beim Server-Render gälte dessen Zeitzone)
+  const [min, setMin] = useState<string | undefined>(undefined);
+  useEffect(() => setMin(toLocalInput(new Date().toISOString())), []);
 
   return (
     <form

@@ -10,12 +10,14 @@ export const dynamic = "force-dynamic";
  * In App Store Connect als Produktions- und Sandbox-URL eintragen: https://werkuno.ch/api/webhooks/apple
  */
 export async function POST(req: Request) {
-  let body: { signedPayload?: unknown } = {};
+  let body: unknown;
   try {
-    body = (await req.json()) as { signedPayload?: unknown };
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "INVALID" } }, { status: 400 });
   }
-  const status = await handleAppStoreNotification(body);
+  // Gültiges JSON, aber kein Objekt (null, Zahl, Liste) → 400 statt TypeError (500)
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: { code: "INVALID" } }, { status: 400 });
+  const status = await handleAppStoreNotification(body as { signedPayload?: unknown });
   return NextResponse.json({ received: status === 200 }, { status });
 }

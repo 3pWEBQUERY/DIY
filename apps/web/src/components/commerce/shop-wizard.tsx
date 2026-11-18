@@ -10,7 +10,7 @@ import { Notice } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
 import { cn, slugify } from "@/lib/utils";
 import { checkShopSlugAction, saveShopAction } from "@/app/studio/shop/actions";
-import { callAction } from "@/lib/use-action";
+import { callAction, callData } from "@/lib/use-action";
 
 export type ShopFormValues = {
   name: string;
@@ -53,16 +53,29 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
   const [v, setV] = useState<ShopFormValues>(initial);
   const [step, setStep] = useState(0);
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [slugState, setSlugState] = useState<{ ok: boolean; message: string } | null>(null);
+  const [slugState, setSlugState] = useState<{ ok: boolean; message: string } | "failed" | null>(null);
+  const [slugRetry, setSlugRetry] = useState(0);
   const [slugTouched, setSlugTouched] = useState(!!initial.slug);
   const [pending, start] = useTransition();
   const set = <K extends keyof ShopFormValues>(k: K, val: ShopFormValues[K]) => setV((s) => ({ ...s, [k]: val }));
 
   useEffect(() => {
+    // Sofort zurücksetzen: ein „Verfügbar“ zur vorherigen Eingabe gilt nicht mehr
+    setSlugState(null);
     if (slugLocked || !v.slug) return;
-    const t = setTimeout(async () => setSlugState(await checkShopSlugAction(v.slug)), 350);
-    return () => clearTimeout(t);
-  }, [v.slug, slugLocked]);
+    let stale = false;
+    const t = setTimeout(async () => {
+      const r = await callData(() => checkShopSlugAction(v.slug));
+      // Antworten zu einer inzwischen geänderten Eingabe verwerfen
+      if (stale) return;
+      setSlugState(r.ok ? r.data : "failed");
+    }, 350);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
+  }, [v.slug, slugLocked, slugRetry]);
+  const slugResult = slugState && slugState !== "failed" ? slugState : null;
 
   function save(submit: boolean) {
     start(async () => {
@@ -132,8 +145,23 @@ export function ShopWizard({ initial, mode, slugLocked, emailVerified }: { initi
             </Field>
             <Field
               label="Shop-Adresse"
-              error={fields.slug ?? (slugState && !slugState.ok ? slugState.message : undefined)}
-              hint={slugLocked ? "Die Adresse bleibt nach der Eröffnung fest, damit Links funktionieren." : slugState?.ok ? "Verfügbar" : "Kleinbuchstaben, Ziffern und Bindestriche."}
+              error={fields.slug ?? (slugResult && !slugResult.ok ? slugResult.message : undefined)}
+              hint={
+                slugLocked ? (
+                  "Die Adresse bleibt nach der Eröffnung fest, damit Links funktionieren."
+                ) : slugState === "failed" ? (
+                  <>
+                    Verfügbarkeit konnte nicht geprüft werden.{" "}
+                    <button type="button" className="font-semibold underline underline-offset-2" onClick={() => setSlugRetry((n) => n + 1)}>
+                      Erneut versuchen
+                    </button>
+                  </>
+                ) : slugResult?.ok ? (
+                  "Verfügbar"
+                ) : (
+                  "Kleinbuchstaben, Ziffern und Bindestriche."
+                )
+              }
             >
               {(p) => (
                 <div className="flex items-stretch">

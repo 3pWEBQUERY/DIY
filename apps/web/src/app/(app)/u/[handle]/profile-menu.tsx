@@ -9,7 +9,8 @@ import { toast } from "@/components/ui/toast";
 import { blockAction, muteAction } from "@/app/(app)/social-actions";
 import { storyMuteAction } from "@/app/(app)/stories/actions";
 
-export function ProfileSafetyMenu({ userId, name, muted, storiesMuted = false }: { userId: string; name: string; blocked: boolean; muted: boolean; storiesMuted?: boolean }) {
+/** `blocked`: Die betrachtende Person hat dieses Profil selbst blockiert (nur dann lässt sich die Blockierung hier aufheben). */
+export function ProfileSafetyMenu({ userId, name, blocked, muted, storiesMuted = false }: { userId: string; name: string; blocked: boolean; muted: boolean; storiesMuted?: boolean }) {
   const router = useRouter();
   const [report, setReport] = useState(false);
   const run = async (p: Promise<{ ok: true; message?: string } | { ok: false; error: string }>) => {
@@ -32,7 +33,9 @@ export function ProfileSafetyMenu({ userId, name, muted, storiesMuted = false }:
           storiesMuted
             ? { label: "Stories wieder anzeigen", icon: <Eye size={15} />, onSelect: () => run(storyMuteAction(userId, false)) }
             : { label: "Stories ausblenden", icon: <EyeOff size={15} />, onSelect: () => run(storyMuteAction(userId, true)) },
-          { label: `${name} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => (await confirmDialog(`${name} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) && run(blockAction(userId, true)) },
+          blocked
+            ? { label: "Blockierung aufheben", icon: <Ban size={15} />, onSelect: () => run(blockAction(userId, false)) }
+            : { label: `${name} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => (await confirmDialog(`${name} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) && run(blockAction(userId, true)) },
         ]}
       />
       <ReportDialog open={report} onClose={() => setReport(false)} targetType="USER" targetId={userId} />

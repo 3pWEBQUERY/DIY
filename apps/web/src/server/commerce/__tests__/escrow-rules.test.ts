@@ -28,6 +28,12 @@ describe("Haltefrist", () => {
     expect(holdState({ ...base, status: "CANCELLED" }, cfg, now).held).toBe(false);
     expect(holdState({ ...base, status: "REFUNDED" }, cfg, now).held).toBe(false);
   });
+
+  it("storniert/erstattet, aber Erstattung offen, gescheitert oder Zahlung angefochten: zurückhalten (auch bei erlassener Frist)", () => {
+    expect(holdState({ ...base, status: "CANCELLED", refundOpen: true }, cfg, now)).toEqual({ held: true, releaseAt: null });
+    expect(holdState({ ...base, status: "CANCELLED", refundOpen: true }, { ...cfg, waived: true }, now).held).toBe(true);
+    expect(holdState({ ...base, status: "REFUNDED", disputed: true }, cfg, now).held).toBe(true);
+  });
   it("Anteil des Shops: abzüglich Erstattungen und anteiliger Provision", () => {
     expect(sellerShare(base)).toBe(9_400);
     expect(sellerShare({ ...base, refundedMinor: 5_000 })).toBe(4_700);

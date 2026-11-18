@@ -148,4 +148,24 @@ describe("Kommentar löschen", () => {
     await ix.deleteComment(user, "c2");
     expect(m.db.post.update).not.toHaveBeenCalled();
   });
+
+  it("Antwort unter bereits entferntem Hauptkommentar zieht nichts mehr ab (kein negativer Zähler)", async () => {
+    m.db.comment.findUnique
+      .mockResolvedValueOnce({ authorId: "u1", targetType: "POST", targetId: "p1", state: "PUBLISHED", parentId: "c1" })
+      .mockResolvedValueOnce({ state: "REMOVED" });
+    m.db.post.findUnique.mockResolvedValue({ authorId: "owner", visibility: "PUBLIC", state: "PUBLISHED", body: "Beitrag" });
+    m.db.comment.updateMany.mockResolvedValueOnce({ count: 1 });
+    await ix.deleteComment(user, "c2");
+    expect(m.db.comment.updateMany).toHaveBeenCalledWith({ where: { id: "c2", state: "PUBLISHED" }, data: { state: "REMOVED" } });
+    expect(m.db.post.update).not.toHaveBeenCalled();
+  });
+
+  it("ausgeblendeter Hauptkommentar: Antworten wurden schon von der Moderation abgezogen", async () => {
+    m.db.comment.findUnique.mockResolvedValue({ authorId: "u1", targetType: "POST", targetId: "p1", state: "HIDDEN", parentId: null });
+    m.db.post.findUnique.mockResolvedValue({ authorId: "owner", visibility: "PUBLIC", state: "PUBLISHED", body: "Beitrag" });
+    m.db.comment.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
+    m.db.comment.count.mockResolvedValue(3);
+    await ix.deleteComment(user, "c1");
+    expect(m.db.post.update).not.toHaveBeenCalled();
+  });
 });

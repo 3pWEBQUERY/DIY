@@ -112,13 +112,14 @@ async function ShopsView({ user, sp }: { user: User; sp: SP }) {
               <Td className="whitespace-nowrap text-muted">{shortDate(s.createdAt)}</Td>
               <Td>
                 <div className="flex justify-end gap-1.5">
-                  {(s.status === "PENDING_VERIFICATION" || s.status === "DRAFT") && (
+                  {/* Freigeben geht nur aus „Prüfung ausstehend“ (decideShop) */}
+                  {s.status === "PENDING_VERIFICATION" && (
                     <ReasonButton action={decideShopAction.bind(null, s.id, "APPROVE")} label="Freigeben" variant="primary" confirmVariant="primary" title={`„${s.name}“ freigeben`} description="Manuelle Freigabe nach Prüfung von Identität, Angebot und Richtlinien. Die Prüfung wird protokolliert. Käufe sind erst möglich, wenn der Shop zusätzlich sein Auszahlungskonto bei Stripe verbunden hat." reasonLabel="Prüfnotiz" confirmLabel="Shop freigeben" />
                   )}
-                  {s.status === "ACTIVE" && <ReasonButton action={decideShopAction.bind(null, s.id, "PAUSE")} label="Pausieren" variant="ghost" title="Shop pausieren" confirmLabel="Pausieren" />}
+                  {s.status === "ACTIVE" && <ReasonButton action={decideShopAction.bind(null, s.id, "PAUSE")} label="Pausieren" variant="ghost" title="Shop pausieren" description="Shop und Angebote bleiben sichtbar, Bestellungen sind aber nicht möglich. Der Shop kann die Pause selbst beenden." reasonLabel="Begründung an die betroffene Person" reasonHint="Wird der Shop-Inhaberin bzw. dem Shop-Inhaber mit der Benachrichtigung angezeigt und im Audit-Protokoll gespeichert." confirmLabel="Pausieren" />}
                   {(s.status === "PAUSED" || (s.status === "SUSPENDED" && isAdmin)) && <ReasonButton action={decideShopAction.bind(null, s.id, "REACTIVATE")} label="Reaktivieren" variant="outline" title="Shop reaktivieren" confirmLabel="Reaktivieren" />}
                   {s.status !== "SUSPENDED" && s.status !== "DRAFT" && (
-                    <ReasonButton action={decideShopAction.bind(null, s.id, "SUSPEND")} label="Sperren" variant="ghost" confirmVariant="danger" title="Shop sperren" description="Alle aktiven Produkte werden pausiert und sind nicht mehr kaufbar. Offene Bestellungen bleiben bestehen." confirmLabel="Shop sperren" />
+                    <ReasonButton action={decideShopAction.bind(null, s.id, "SUSPEND")} label="Sperren" variant="ghost" confirmVariant="danger" title="Shop sperren" description="Alle aktiven Produkte werden pausiert und sind nicht mehr kaufbar. Offene Bestellungen bleiben bestehen." reasonLabel="Begründung an die betroffene Person" reasonHint="Wird der Shop-Inhaberin bzw. dem Shop-Inhaber mit der Benachrichtigung angezeigt und im Audit-Protokoll gespeichert." confirmLabel="Shop sperren" />
                   )}
                   <Link href={`/admin/marktplatz/${s.id}`} className={manageLink}>Verwalten</Link>
                 </div>

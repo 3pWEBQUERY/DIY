@@ -356,12 +356,9 @@ final class AppState {
         isSigningOut = true
         defer { isSigningOut = false }
         LiveStream.shared.stop()
-        if !sessionRevoked {
-            // Online-Status beenden, solange das Token noch gilt
-            if me != nil { await sendOfflinePresence() }
-            await PushRegistration.unregister()
-            await api.logout()
-        }
+        let previousToken = sessionRevoked ? nil : api.token
+        let hadAccount = me != nil
+        // Lokal sofort abmelden – die Oberfläche wartet nicht auf das Netz
         api.token = nil
         me = nil
         liveCounts = nil
@@ -369,6 +366,15 @@ final class AppState {
         phase = .signedOut
         LocalData.wipe()
         updateBadge()
+        if let previousToken {
+            // Online-Status beenden, Push abmelden, Sitzung schliessen – im Hintergrund mit dem bisherigen Token
+            // (ein 401 dieser Anfragen meldet dank `bearer:` niemanden ab)
+            Task {
+                if hadAccount { await sendOfflinePresence(bearer: previousToken) }
+                await PushRegistration.unregister(bearer: previousToken)
+                await api.logout(bearer: previousToken)
+            }
+        }
     }
 
     private func handleUnauthorized() {

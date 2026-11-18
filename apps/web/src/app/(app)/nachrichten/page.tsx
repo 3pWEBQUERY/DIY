@@ -6,13 +6,14 @@ import { currentUser } from "@/server/auth/session";
 import { inboxCounts, listConversations } from "@/server/messaging/service";
 import { InboxPane, boxFromParam } from "@/components/messages/inbox";
 import { AutoRefresh } from "@/components/messages/auto-refresh";
+import { one } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Nachrichten", robots: { index: false } };
 
-export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ ordner?: string }> }) {
+export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ ordner?: string | string[] }> }) {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/nachrichten");
-  const box = boxFromParam((await searchParams).ordner);
+  const box = boxFromParam(one((await searchParams).ordner));
   const [items, counts] = await Promise.all([listConversations(user.id, box), inboxCounts(user.id)]);
   return (
     <div className="flex h-[calc(100dvh-8.5rem)] md:h-dvh">

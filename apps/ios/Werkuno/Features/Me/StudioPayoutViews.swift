@@ -352,9 +352,9 @@ private struct MePayoutRequestSheet: View {
                         Text((minor ?? 0) > data.available ? "Höher als dein verfügbares Guthaben." : "Mindestens 1.00.")
                             .font(.wr(.caption)).foregroundStyle(Color.danger)
                     }
-                } header: { Text("Betrag in \(data.currency)") } footer: {
+                } header: { Group { Text("Betrag in \(data.currency)") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text("Verfügbar: \(Fmt.money(data.available, currency: data.currency))")
-                }
+                }.font(.wr(.footnote)) }
                 if let b = data.bank {
                     Section {
                         Text("Auf \(b.name ?? "dein Bankkonto") ···· \(b.last4) · Gutschrift meist nach 1–3 Bankarbeitstagen.")

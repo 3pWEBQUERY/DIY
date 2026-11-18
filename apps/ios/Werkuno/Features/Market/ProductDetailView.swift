@@ -18,7 +18,9 @@ struct ProductDetailView: View {
     @State private var tracked = false
     /// Preis, wie Apple ihn abrechnet (Währung der App-Store-Region)
     @State private var storePrice: String?
-    @State private var purchasePending = false
+    /// Offener Kauf auf diesem Gerät (Kaufanfrage oder bezahlt, aber noch nicht verbucht) –
+    /// in DigitalStore gespeichert, damit ein erneutes Öffnen keinen zweiten Kauf erlaubt
+    @State private var pendingPurchase: DigitalStore.PendingState?
     @State private var askRestock = false
     @State private var restockNote = ""
     @State private var confirmWithdraw = false
@@ -51,6 +53,7 @@ struct ProductDetailView: View {
             if variantId == nil, let first = p.variantStock?.first(where: { $0.available > 0 }) { variantId = first.id }
             if !tracked { tracked = true; SocialAPI.track("PRODUCT", p.id) }
             if p.isDigital, storePrice == nil { storePrice = await DigitalStore.shared.displayPrice(p.appStoreProductId) }
+            if p.isDigital, !(p.isOwner ?? false) { await refreshPendingPurchase(p) }
         } catch is CancellationError {
         } catch {
             self.error = (error as? APIError)?.message ?? error.localizedDescription
@@ -161,7 +164,9 @@ struct ProductDetailView: View {
             Text(p.title).font(.display(30)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(Fmt.money(unitPrice(p), currency: p.currency)).font(.wr(.title2, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
+                // Digital: Preis so, wie Apple ihn abrechnet (wie in der Kaufleiste)
+                Text(p.isDigital && !(p.isOwner ?? false) ? (storePrice ?? Fmt.money(unitPrice(p), currency: p.currency)) : Fmt.money(unitPrice(p), currency: p.currency))
+                    .font(.wr(.title2, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                     .contentTransition(.numericText())
                 if !p.isDigital {
                     Text((p.shippingMinor ?? 0) == 0 ? "Versand kostenlos" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand")
@@ -200,7 +205,9 @@ struct ProductDetailView: View {
                 NoticeView(tone: .success, title: "Du besitzt diese Anleitung", message: "Lade die Datei herunter – sie ist für deine persönliche Nutzung bestimmt.")
                 MarketDownloadButton(entitlementId: e, fileName: p.title)
             }
-        } else if purchasePending {
+        } else if pendingPurchase == .awaitingDelivery {
+            NoticeView(tone: .info, title: "Kauf bezahlt – wird verbucht", message: "Apple hat den Kauf bestätigt. Wir verbuchen ihn automatisch, sobald die Verbindung klappt – du musst nicht erneut kaufen. Danach findest du den Download hier und in deinen Bestellungen.")
+        } else if pendingPurchase == .awaitingApproval {
             NoticeView(tone: .info, title: "Kauf wartet auf Bestätigung", message: "Sobald Apple den Kauf bestätigt (z. B. nach einer Kaufanfrage in der Familienfreigabe), findest du den Download hier und in deinen Bestellungen.")
         } else if p.appStoreProductId == nil {
             // Kein In-App-Kauf für dieses Produkt (Apple-Kauf aus oder keine Preisstufe) – bewusst ohne
@@ -340,7 +347,7 @@ struct ProductDetailView: View {
                 .buttonStyle(.pressable)
                 HStack(spacing: 8) {
                     Pill(text: L.sellerType.first { $0.key == s.sellerType }?.label ?? "Privatperson", symbol: s.sellerType == "BUSINESS" ? "building.2" : "person", tint: .slate)
-                    if (s.ratingCount ?? 0) > 0, let r = s.ratingAvg { Pill(text: String(format: "%.1f ★ · %d", r, s.ratingCount ?? 0), tint: .ochre) }
+                    if (s.ratingCount ?? 0) > 0, let r = s.ratingAvg { Pill(text: String(format: "%.1f ★ · %d", r, s.ratingCount ?? 0), tint: .ochreText) }
                     if let n = s.salesCount, n > 0 { Pill(text: Fmt.plural(n, "Verkauf", "Verkäufe"), tint: .moss) }
                 }
                 if s.sellerType == "BUSINESS", let v = s.verification {
@@ -462,6 +469,8 @@ struct ProductDetailView: View {
         if p.isOwner ?? false { return "Dein Produkt" }
         if p.isDigital {
             if p.viewer?.entitlementId != nil { return "Bereits gekauft" }
+            if pendingPurchase == .awaitingDelivery { return "Bezahlt · wird verbucht" }
+            if pendingPurchase == .awaitingApproval { return "Wartet auf Bestätigung" }
             return p.appStoreProductId == nil ? "In der App nicht erhältlich" : "Digital · Kauf über Apple"
         }
         if soldOut(p) { return canAskRestock(p) ? (p.viewer?.restockRequested == true ? "Ausverkauft · angefragt" : "Ausverkauft · Nachproduktion anfragen") : "Derzeit ausverkauft" }
@@ -479,7 +488,9 @@ struct ProductDetailView: View {
             if let e = p.viewer?.entitlementId {
                 MarketDownloadButton(entitlementId: e, fileName: p.title, prominent: true)
                     .controlSize(.large)
-            } else if purchasePending {
+            } else if pendingPurchase == .awaitingDelivery {
+                Button("Wird verbucht") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
+            } else if pendingPurchase == .awaitingApproval {
                 Button("Wartet auf Apple") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
             } else if p.appStoreProductId == nil || soldOut(p) || !(p.purchasable ?? false) {
                 Button("Nicht erhältlich") {}.buttonStyle(.glass).controlSize(.large).disabled(true)
@@ -522,13 +533,26 @@ struct ProductDetailView: View {
                 app.show("Gekauft – dein Download ist bereit.")
                 await load()
             case .pending:
-                withAnimation(.snappy) { purchasePending = true }
+                withAnimation(.snappy) { pendingPurchase = .awaitingApproval }
+            case .deliveryPending:
+                withAnimation(.snappy) { pendingPurchase = .awaitingDelivery }
+                app.show("Kauf bezahlt – wird verbucht. Du musst nicht erneut kaufen.", style: .warning)
             case .cancelled:
                 break
             }
         } catch {
             app.show(error: error)
             if let e = error as? APIError, e.marketIsConflict { await load() }
+        }
+    }
+
+    private func refreshPendingPurchase(_ p: MarketProductPage) async {
+        if p.viewer?.entitlementId != nil {
+            DigitalStore.shared.clearPending(productId: p.id)
+            pendingPurchase = nil
+        } else {
+            let state = await DigitalStore.shared.pendingState(for: p.id)
+            withAnimation(.snappy) { pendingPurchase = state }
         }
     }
 
@@ -641,17 +665,16 @@ struct MarketQuantityStepper: View {
         HStack(spacing: 0) {
             Button { set(value - 1) } label: { Image(systemName: "minus").frame(width: 40, height: 40).contentShape(.rect) }
                 .disabled(value <= range.lowerBound)
-                .accessibilityLabel("Weniger")
             Text("\(value)").font(.wr(.body, .semibold)).monospacedDigit().frame(minWidth: 28).contentTransition(.numericText())
-                .accessibilityHidden(true)
             Button { set(value + 1) } label: { Image(systemName: "plus").frame(width: 40, height: 40).contentShape(.rect) }
                 .disabled(value >= range.upperBound)
-                .accessibilityLabel("Mehr")
         }
         .buttonStyle(.plain)
         .foregroundStyle(Color.ink)
         .background(Color.sunken, in: Capsule())
-        .accessibilityElement(children: .contain)
+        // VoiceOver: ein einziges, regelbares Element („Menge, 2“) – Wischen nach oben/unten ändert den Wert
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Menge")
         .accessibilityValue("\(value)")
         .accessibilityAdjustableAction { dir in
             switch dir {

@@ -208,7 +208,8 @@ struct SellerOrderDetailView: View {
         let generic = next.filter { ["IN_PROGRESS", "READY_TO_SHIP", "COMPLETED", "PROBLEM"].contains($0) }
         let canShip = next.contains("SHIPPED")
         let canCancel = next.contains("CANCELLED") && (o.shipments ?? []).isEmpty && o.status != "PENDING_PAYMENT"
-        let canRefund = o.isPaid && o.refundable > 0
+        // Apple-Käufe erstattet nur Apple (Antrag der Käufer:in bei Apple) – kein „Erstatten“ hier
+        let canRefund = o.isPaid && o.refundable > 0 && !o.isApplePayment
         let primary: String? = generic.first { $0 != "PROBLEM" } ?? (canShip ? "SHIPPED" : nil)
         let secondary = generic.filter { $0 != primary }
         if primary != nil || !secondary.isEmpty || canShip || canCancel || canRefund {
@@ -317,9 +318,9 @@ struct MarketSellerActionSheet: View {
                 case .transition(let s):
                     Section {
                         TextField("Notiz an die Käuferin bzw. den Käufer (optional)", text: $note, axis: .vertical).lineLimit(2...6)
-                    } footer: {
+                    } footer: { Group {
                         Text(s == "PROBLEM" ? "Beschreibe kurz, was nicht stimmt. Ihr klärt es am besten direkt per Nachricht." : "Die Notiz erscheint im Bestellverlauf und in der Benachrichtigung.")
-                    }
+                    }.font(.wr(.footnote)) }
                 case .ship:
                     Section {
                         TextField("Versanddienstleister", text: $carrier)
@@ -329,7 +330,7 @@ struct MarketSellerActionSheet: View {
                             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         MarketFieldError(text: fields["trackingUrl"] ?? (!trackingUrl.isEmpty && !trackingUrl.hasPrefix("https://") ? "Bitte eine https-Adresse angeben" : nil))
                         TextField("Notiz (optional)", text: $note, axis: .vertical).lineLimit(2...4)
-                    } footer: { Text("Die Bestellung wird als versendet markiert und die Käuferin bzw. der Käufer benachrichtigt.") }
+                    } footer: { Group { Text("Die Bestellung wird als versendet markiert und die Käuferin bzw. der Käufer benachrichtigt.") }.font(.wr(.footnote)) }
                 case .refund(let max):
                     Section {
                         HStack {
@@ -342,16 +343,15 @@ struct MarketSellerActionSheet: View {
                         Button("Ganzen Betrag erstatten") { amount = Fmt.moneyInput(max) }
                         TextField("Grund", text: $note, axis: .vertical).lineLimit(2...5)
                         MarketFieldError(text: fields["reason"])
-                    } footer: { Text("Erstattbar: \(Fmt.money(max, currency: currency)). Die Plattformgebühr wird anteilig zurückerstattet. Die Erstattung gilt als bestätigt, sobald der Zahlungsanbieter sie verbucht hat.") }
+                    } footer: { Group { Text("Erstattbar: \(Fmt.money(max, currency: currency)). Die Plattformgebühr wird anteilig zurückerstattet. Die Erstattung gilt als bestätigt, sobald der Zahlungsanbieter sie verbucht hat.") }.font(.wr(.footnote)) }
                 case .cancel:
                     Section {
                         TextField("Grund der Stornierung", text: $note, axis: .vertical).lineLimit(2...5)
                         MarketFieldError(text: fields["reason"])
-                    } footer: { Text("Der Bestand wird zurückgebucht und der bezahlte Betrag vollständig erstattet. Das lässt sich nicht rückgängig machen.") }
+                    } footer: { Group { Text("Der Bestand wird zurückgebucht und der bezahlte Betrag vollständig erstattet. Das lässt sich nicht rückgängig machen.") }.font(.wr(.footnote)) }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

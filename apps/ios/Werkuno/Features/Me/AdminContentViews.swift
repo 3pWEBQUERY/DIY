@@ -211,14 +211,14 @@ private struct MeContentHideSheet: View {
             Form {
                 Section {
                     Text(row.title).font(.wr(.subheadline, .semibold))
-                } footer: {
+                } footer: { Group {
                     Text(hide ? "Der Inhalt ist danach nur noch für die Person selbst sichtbar. Für Regelverstösse besser einen Moderationsfall nutzen." : "Der Inhalt wird wieder öffentlich angezeigt.")
-                }
+                }.font(.wr(.footnote)) }
                 Section {
                     TextField("Begründung (mind. 5 Zeichen)", text: $reason, axis: .vertical).lineLimit(2...6)
-                } header: { Text("Begründung") } footer: {
+                } header: { Group { Text("Begründung") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text("Wird protokolliert und der Person in der Benachrichtigung angezeigt.")
-                }
+                }.font(.wr(.footnote)) }
             }
             .meFormStyle()
             .navigationTitle(hide ? "Inhalt ausblenden" : "Inhalt wieder anzeigen")
@@ -276,19 +276,19 @@ struct MeAdminEmailSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     if let e = fields["email"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
-                } header: { Text("Neue E-Mail-Adresse") } footer: { Text("Aktuell: \(current)") }
+                } header: { Group { Text("Neue E-Mail-Adresse") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Aktuell: \(current)") }.font(.wr(.footnote)) }
                 Section {
                     TextField("Begründung (mind. 10 Zeichen)", text: $reason, axis: .vertical).lineLimit(3...6)
                     if let e = fields["reason"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
-                } header: { Text("Begründung (intern, im Audit-Protokoll)") } footer: {
+                } header: { Group { Text("Begründung (intern, im Audit-Protokoll)") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text("Zum Beispiel Ticketnummer und wie die Identität geprüft wurde.")
-                }
+                }.font(.wr(.footnote)) }
                 if canMarkVerified {
                     Section {
                         Toggle("Neue Adresse direkt als bestätigt markieren", isOn: $markVerified).tint(.moss)
-                    } footer: {
+                    } footer: { Group {
                         Text("Nur wenn sie nachweislich der Person gehört – sonst geht ein Bestätigungslink an die neue Adresse.")
-                    }
+                    }.font(.wr(.footnote)) }
                 }
                 Section {
                     NoticeView(tone: .warn, message: "Die Person meldet sich danach mit der neuen Adresse an; alle ihre Sitzungen werden beendet. Die alte Adresse erhält eine Sicherheitsmeldung, offene Bestätigungs- und Passwort-Links verfallen.")

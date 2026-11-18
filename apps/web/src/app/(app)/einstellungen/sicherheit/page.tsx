@@ -14,12 +14,13 @@ import { ConfirmSessionMfa, TwoFactorSettings } from "@/components/settings/two-
 import { mfaRequiredFor, mfaStatus } from "@/server/auth/mfa";
 import { isFreshLogin } from "@/server/auth/reauth";
 import { safeNext } from "@/lib/safe-next";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Sicherheit" };
 export const dynamic = "force-dynamic";
 
-export default async function SecuritySettingsPage({ searchParams }: { searchParams: Promise<{ zweifaktor?: string; weiter?: string }> }) {
-  const sp = await searchParams;
+export default async function SecuritySettingsPage({ searchParams }: { searchParams: Promise<{ zweifaktor?: string | string[]; weiter?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const s = await getSession();
   if (!s) redirect("/anmelden?weiter=/einstellungen/sicherheit");
   const [sessions, events, mfa] = await Promise.all([listSessions(s.user.id, s.sessionId), securityEvents(s.user.id), mfaStatus(s.user.id)]);
@@ -98,7 +99,7 @@ export default async function SecuritySettingsPage({ searchParams }: { searchPar
         {events.length ? (
           <ol className="border-l border-rule pl-5">
             {events.map((e) => (
-              <li key={e.id} className="relative pb-4 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:bg-rule-strong rounded-full">
+              <li key={e.id} className="relative pb-4 before:absolute before:-left-[24.5px] before:top-1.5 before:size-2 before:rounded-full before:bg-rule-strong">
                 <p className="text-sm">{notificationText({ type: "SECURITY", count: 1, data: e.data })}</p>
                 <p className="spec mt-0.5">{relativeTime(e.createdAt)}</p>
               </li>

@@ -10,6 +10,7 @@ struct WorkbenchAccessory: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @Environment(\.scenePhase) private var scenePhase
     @State private var active: ProjectMini?
 
     var body: some View {
@@ -54,11 +55,19 @@ struct WorkbenchAccessory: View {
         .padding(.horizontal, 16)
         .foregroundStyle(Color.ink)
         .task(id: app.me?.id) { await loadActive() }
+        // Zurück in der App bzw. nach Änderungen an Projekten (anlegen, Status, löschen, Eintrag) neu laden
+        .onChange(of: scenePhase) { _, p in if p == .active { Task { await loadActive() } } }
+        .onReceive(NotificationCenter.default.publisher(for: .projectsChanged)) { _ in Task { await loadActive() } }
     }
 
     private func loadActive() async {
         struct Ctx: Decodable { var workbench: [ProjectMini] }
-        guard app.isSignedIn, let c: Ctx = try? await APIClient.shared.get("/feed/context") else { return }
+        guard app.isSignedIn else {
+            if active != nil { withAnimation { active = nil } }
+            return
+        }
+        guard let c: Ctx = try? await APIClient.shared.get("/feed/context") else { return }
+        // Leere Werkbank → Eintrag verschwindet
         withAnimation { active = c.workbench.first }
     }
 }

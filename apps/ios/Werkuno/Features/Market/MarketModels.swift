@@ -423,6 +423,16 @@ struct MarketPayment: Decodable, Hashable, Identifiable, Sendable {
     var applicationFeeMinor: Int?
     var failureReason: String?
     var createdAt: Date?
+
+    /// Lesbarer Name des Zahlungswegs
+    var providerLabel: String? {
+        switch provider {
+        case "apple": return "Apple (In-App-Kauf)"
+        case "stripe": return "Stripe"
+        case "simulated": return "Testmodus"
+        default: return provider
+        }
+    }
 }
 
 struct MarketRefund: Decodable, Hashable, Identifiable, Sendable {
@@ -515,6 +525,8 @@ struct MarketOrderDetail: Decodable, Hashable, Identifiable, Sendable {
     var refundedOrPending: Int { (refunds ?? []).filter { $0.status != "FAILED" }.reduce(0) { $0 + $1.amountMinor } }
     var refundable: Int { max(0, (latestPayment?.amountMinor ?? totalMinor) - refundedOrPending) }
     var isDigitalOnly: Bool { !items.isEmpty && items.allSatisfy(\.isDigital) }
+    /// In der iOS-App über Apple bezahlt (In-App-Kauf) – Erstattung nur über Apple
+    var isApplePayment: Bool { (payments ?? []).contains { $0.provider == "apple" } }
 }
 
 struct MarketBuyerOrderEnvelope: Decodable, Sendable {
@@ -595,7 +607,7 @@ struct MarketStudioProduct: Decodable, Hashable, Identifiable, Sendable {
     var count: Count?
 
     enum CodingKeys: String, CodingKey {
-        case id, slug, title, priceMinor, currency, kind, category, status, coverUrl, ratingAvg, ratingCount, publishedAt, updatedAt, viewCount, saveCount, shop, media, inventory, orderItems
+        case id, slug, title, priceMinor, currency, kind, category, status, coverUrl, ratingAvg, ratingCount, publishedAt, updatedAt, viewCount, saveCount, shop, media, hideWhenSoldOut, restockPendingCount, inventory, orderItems
         case count = "_count"
     }
 
@@ -611,6 +623,7 @@ struct MarketStudioProducts: Decodable, Sendable {
 }
 
 struct MarketEditorProduct: Decodable, Sendable {
+    struct DigitalFile: Decodable, Sendable { var id: String; var mime: String?; var bytes: Int?; var state: String? }
     struct M: Decodable, Sendable {
         struct Inner: Decodable, Sendable { var id: String; var variants: MediaVariants? }
         var mediaId: String
@@ -635,6 +648,8 @@ struct MarketEditorProduct: Decodable, Sendable {
     var tutorialId: String?
     var status: String
     var digitalKey: String?
+    /// Hochgeladene Datei eines digitalen Produkts (PDF/ZIP, privat)
+    var digitalFile: DigitalFile?
     var hideWhenSoldOut: Bool?
     var variants: [MarketVariant]?
     var inventory: [MarketStock]?
@@ -650,6 +665,23 @@ struct MarketEditorContext: Decodable, Sendable {
     var digitalEnabled: Bool?
     var categories: [Category]
     var product: MarketEditorProduct?
+    /// Preisstufen der iOS-App für digitale Produkte (Kauf in der App nur über Apple)
+    var appStore: AppStorePricing?
+}
+
+struct AppStorePricing: Decodable, Sendable {
+    var enabled: Bool
+    var markupBps: Int
+    var tiersMinor: [Int]
+    var maxWebMinor: Int
+
+    /// App-Preis (Rappen) für einen Web-Preis: kleinste Stufe ≥ Preis × (1 + Aufschlag), wie der Server
+    func appPrice(forWeb minor: Int) -> Int? {
+        guard minor > 0 else { return nil }
+        let factor = 10_000 + max(0, markupBps)
+        let target = (minor * factor + 9_999) / 10_000
+        return tiersMinor.first { $0 >= target }
+    }
 }
 
 struct MarketUpsertResult: Decodable, Sendable {

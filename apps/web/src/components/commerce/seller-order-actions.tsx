@@ -89,7 +89,15 @@ export function SellerOrderActions({
       </div>
       <div className="flex flex-wrap gap-2 border-t border-line pt-3">
         {canRefund && refundableMinor > 0 && (
-          <Button variant="outline" size="sm" onClick={() => setDialog("refund")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Bei jedem Öffnen frisch: aktueller erstattbarer Betrag, kein alter Grund
+              setRefund({ amount: minorToInput(refundableMinor), reason: "" });
+              setDialog("refund");
+            }}
+          >
             Erstatten
           </Button>
         )}

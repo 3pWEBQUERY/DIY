@@ -10,6 +10,7 @@ import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { Empty } from "@/components/ui/misc";
 import { NotificationList } from "@/components/notifications/notification-list";
 import { MarkAllRead } from "./mark-all-read";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Benachrichtigungen", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -22,8 +23,8 @@ const EMPTY: Record<string, { title: string; body: string }> = {
   system: { title: "Keine Systemmeldungen", body: "Sicherheitshinweise und Moderationsentscheidungen erscheinen hier." },
 };
 
-export default async function NotificationsPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
-  const sp = await searchParams;
+export default async function NotificationsPage({ searchParams }: { searchParams: Promise<{ filter?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   if (!user) redirect("/anmelden?weiter=/benachrichtigungen");
   const filter = NOTIFICATION_FILTERS.find((f) => f.key === sp.filter)?.key ?? "all";

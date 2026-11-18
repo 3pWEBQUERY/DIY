@@ -100,7 +100,10 @@ private struct ProjectThreadEntryRow: View {
                         Menu {
                             Button("Eintrag löschen", systemImage: "trash", role: .destructive, action: onDelete)
                         } label: {
-                            Image(systemName: "ellipsis").font(.wr(.footnote, .semibold)).foregroundStyle(Color.muted).frame(width: 32, height: 28).contentShape(.rect)
+                            Image(systemName: "ellipsis").font(.wr(.footnote, .semibold)).foregroundStyle(Color.muted)
+                                .frame(minWidth: 44, minHeight: 44).contentShape(.rect)
+                                // Trefferfläche 44 pt, ohne die Kopfzeile höher zu machen
+                                .padding(.vertical, -8)
                         }
                         .accessibilityLabel("Aktionen zum Eintrag")
                     }

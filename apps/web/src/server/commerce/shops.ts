@@ -215,8 +215,12 @@ export async function reconcileStripeAccountModes(take = 100) {
   const shops = await db.shop.findMany({
     where: { stripeAccountId: { not: null }, OR: [{ stripeAccountMode: null }, { stripeAccountMode: { not: mode } }] },
     select: { id: true, stripeAccountId: true },
+    // Reihum nach letzter Prüfung: dauerhaft scheiternde Konten verdrängen die übrigen nicht
+    orderBy: [{ stripeModeCheckAt: { sort: "asc", nulls: "first" } }, { id: "asc" }],
     take,
   });
+  // Per Roh-SQL: updatedAt („zuletzt bearbeitet“) bleibt unberührt
+  if (shops.length) await db.$executeRaw`UPDATE "Shop" SET "stripeModeCheckAt" = now() WHERE "id" = ANY(${shops.map((s) => s.id)})`;
   let disconnected = 0;
   for (const s of shops) {
     try {

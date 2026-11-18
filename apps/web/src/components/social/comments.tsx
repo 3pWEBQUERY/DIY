@@ -2,6 +2,7 @@
 
 import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { TargetType } from "@/generated/prisma/enums";
 import type { CommentView } from "@/server/social/interactions";
@@ -43,6 +44,7 @@ export function Comments({
   const [, start] = useTransition();
   const [loadingOlder, startOlder] = useTransition();
   const [failed, setFailed] = useState(false);
+  const pathname = usePathname();
 
   const reload = () =>
     start(async () => {
@@ -91,7 +93,7 @@ export function Comments({
         <CommentForm targetType={targetType} targetId={targetId} viewer={viewer} placeholder={placeholder} onDone={reload} />
       ) : (
         <p className="border border-line bg-sunken px-4 py-3 text-sm text-muted rounded-2xl">
-          <Link href="/anmelden" className="font-semibold text-ink underline underline-offset-2">Melde dich an</Link>, um {questionsMode ? "Fragen zu stellen" : "mitzudiskutieren"}.
+          <Link href={`/anmelden?weiter=${encodeURIComponent(pathname)}`} className="font-semibold text-ink underline underline-offset-2">Melde dich an</Link>, um {questionsMode ? "Fragen zu stellen" : "mitzudiskutieren"}.
         </p>
       )}
       <ul className="mt-5 space-y-5">
@@ -134,18 +136,26 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
     el.setSelectionRange(el.value.length, el.value.length);
   }, [autoFocus]);
   const [pending, start] = useTransition();
+  // Sofort gesetzt (pending aktualisiert sich erst mit dem nächsten Render) – verhindert doppelte Kommentare
+  const sending = useRef(false);
   return (
     <form
       className="flex items-start gap-3"
       onSubmit={(e) => {
         e.preventDefault();
+        if (pending || sending.current) return;
         if (!body.trim() || body.trim() === initialBody.trim()) return;
+        sending.current = true;
         start(async () => {
-          const r = await callAction(() => commentAction(targetType, targetId, { body, parentId }));
-          if (r.ok) {
-            setBody("");
-            onDone();
-          } else toast(r.error, "error");
+          try {
+            const r = await callAction(() => commentAction(targetType, targetId, { body, parentId }));
+            if (r.ok) {
+              setBody("");
+              onDone();
+            } else toast(r.error, "error");
+          } finally {
+            sending.current = false;
+          }
         });
       }}
     >
@@ -164,7 +174,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
             // Enter sendet (wie im Chat), Umschalt+Enter für eine neue Zeile
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              e.currentTarget.form?.requestSubmit();
+              if (!pending && !sending.current) e.currentTarget.form?.requestSubmit();
             }
           }}
           className="block min-h-10 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[15px] outline-none field-sizing-content focus:border-moss"
@@ -210,7 +220,11 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
           {viewer && (viewer.id === c.author.id || canModerate) && (
             <button
               type="button"
-              onClick={async () => (await confirmDialog(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?")) && start(async () => { const r = await callAction(() => deleteCommentAction(c.id)); if (r.ok) onChange(); })}
+              onClick={async () => (await confirmDialog(viewer.id === c.author.id ? "Kommentar löschen?" : "Diesen Kommentar unter deinem Inhalt entfernen?")) && start(async () => {
+                  const r = await callAction(() => deleteCommentAction(c.id));
+                  if (r.ok) onChange();
+                  else toast(r.error, "error");
+                })}
               className="text-xs text-muted hover:text-danger"
             >
               Löschen
@@ -247,7 +261,8 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
 
 /** @Erwähnungen im Kommentartext als Profil-Links hervorheben. */
 function WithMentions({ text }: { text: string }) {
-  const parts = text.split(/(@[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?)/gi);
+  // Lookbehind: kein Link mitten in E-Mail-Adressen (info@werkuno.ch) oder Wörtern
+  const parts = text.split(/(?<![a-z0-9._@])(@[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?)/gi);
   return (
     <>
       {parts.map((part, i) =>

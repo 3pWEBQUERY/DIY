@@ -427,6 +427,8 @@ struct SignUpSheet: View {
     @State private var error: APIError?
     @State private var handleState: (ok: Bool, text: String)?
     @State private var handleTouched = false
+    /// Zuletzt automatisch vorgeschlagener Benutzername – Änderungen auf genau diesen Wert stammen nicht vom Nutzer.
+    @State private var suggestedHandle = ""
     @State private var legal: URL?
 
     var body: some View {
@@ -436,15 +438,25 @@ struct SignUpSheet: View {
                     PageTitle(kicker: "Konto erstellen", title: "Willkommen bei Werkuno", subtitle: "Ein Konto für alles: entdecken, dokumentieren, bloggen und – wenn du magst – verkaufen.")
                     VStack(spacing: 12) {
                         AuthField(title: "Anzeigename", text: $displayName, error: error?.fields?["displayName"], content: .name)
-                            .onChange(of: displayName) { _, v in if !handleTouched { handle = suggestHandle(v) } }
+                            .onChange(of: displayName) { _, v in
+                                guard !handleTouched else { return }
+                                let s = suggestHandle(v)
+                                suggestedHandle = s
+                                handle = s
+                            }
                         VStack(alignment: .leading, spacing: 4) {
                             AuthField(title: "Benutzername", text: $handle, error: error?.fields?["handle"], prefix: "@", content: .username)
-                                .onChange(of: handle) { _, v in handleTouched = true; handle = v.lowercased().replacingOccurrences(of: " ", with: "") }
+                                .onChange(of: handle) { _, v in
+                                    let normalized = v.lowercased().replacingOccurrences(of: " ", with: "")
+                                    if normalized != v { handle = normalized; return }
+                                    // Nur echte Eingaben sperren den Vorschlag; leeres Feld nimmt ihn wieder auf
+                                    if v.isEmpty { handleTouched = false } else if v != suggestedHandle { handleTouched = true }
+                                }
                             if let s = handleState, error?.fields?["handle"] == nil {
                                 Label(s.text, systemImage: s.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
                                     .font(.wr(.caption)).foregroundStyle(s.ok ? Color.moss : Color.danger)
                             }
-                            Text("Dein Profil: werkuno/u/\(handle.isEmpty ? "name" : handle)").font(.wr(.caption2)).foregroundStyle(Color.muted)
+                            Text("Dein Profil: \(AppConfig.baseURL.host() ?? "werkuno.ch")/u/\(handle.isEmpty ? "name" : handle)").font(.wr(.caption2)).foregroundStyle(Color.muted)
                         }
                         AuthField(title: "E-Mail", text: $email, error: error?.fields?["email"], keyboard: .emailAddress, content: .emailAddress)
                         VStack(alignment: .leading, spacing: 6) {
@@ -511,19 +523,33 @@ struct SignUpSheet: View {
 
 struct PasswordStrength: View {
     var password: String
+    private var hasDigitOrSymbol: Bool {
+        password.rangeOfCharacter(from: .decimalDigits) != nil || password.rangeOfCharacter(from: .punctuationCharacters.union(.symbols)) != nil
+    }
+    private var hasMixedCase: Bool {
+        password.rangeOfCharacter(from: .uppercaseLetters) != nil && password.rangeOfCharacter(from: .lowercaseLetters) != nil
+    }
     private var score: Int {
         var s = 0
         if password.count >= 10 { s += 1 }
         if password.count >= 14 { s += 1 }
-        if password.rangeOfCharacter(from: .decimalDigits) != nil || password.rangeOfCharacter(from: .punctuationCharacters.union(.symbols)) != nil { s += 1 }
-        if password.rangeOfCharacter(from: .uppercaseLetters) != nil && password.rangeOfCharacter(from: .lowercaseLetters) != nil { s += 1 }
+        if hasDigitOrSymbol { s += 1 }
+        if hasMixedCase { s += 1 }
         return s
+    }
+    /// Nennt das Kriterium, das tatsächlich noch fehlt.
+    private var hint: String {
+        if password.count < 10 { return "Mind. 10 Zeichen" }
+        if score >= 3 { return "Stark" }
+        if !hasDigitOrSymbol { return "Ziffer oder Sonderzeichen ergänzen" }
+        if !hasMixedCase { return "Gross- und Kleinbuchstaben mischen" }
+        return "Länger machen (ab 14 Zeichen)"
     }
     var body: some View {
         if !password.isEmpty {
             HStack(spacing: 4) {
                 ForEach(0..<4, id: \.self) { i in Capsule().fill(i < score ? (score >= 3 ? Color.moss : Color.warn) : Color.line).frame(height: 3) }
-                Text(password.count < 10 ? "Mind. 10 Zeichen" : score >= 3 ? "Stark" : "Ziffer oder Sonderzeichen ergänzen").font(.wr(.caption2)).foregroundStyle(Color.muted).fixedSize()
+                Text(hint).font(.wr(.caption2)).foregroundStyle(Color.muted).fixedSize()
             }
             .animation(.snappy, value: score)
         }
@@ -540,6 +566,7 @@ struct PasswordResetSheet: View {
 
     var body: some View {
         NavigationStack {
+            ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 PageTitle(kicker: "Konto", title: "Passwort vergessen", subtitle: sent ? nil : "Wir schicken dir einen Link, mit dem du ein neues Passwort festlegen kannst.")
                 if sent {
@@ -555,13 +582,14 @@ struct PasswordResetSheet: View {
                     .primaryButton()
                     .disabled(!email.contains("@"))
                 }
-                Spacer()
             }
             .padding(Space.gutter)
+            }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color.paper)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(sent ? "Fertig" : "Abbrechen") { dismiss() } } }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -585,13 +613,20 @@ struct AuthField: View {
                 Group {
                     if secure && !reveal { SecureField("", text: $text) } else { TextField("", text: $text) }
                 }
+                .accessibilityLabel(title)
                 .textContentType(content)
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(keyboard == .emailAddress || secure || prefix != nil ? .never : .words)
                 .autocorrectionDisabled(keyboard == .emailAddress || secure || prefix != nil)
                 if secure {
-                    Button { reveal.toggle() } label: { Image(systemName: reveal ? "eye.slash" : "eye").foregroundStyle(Color.muted) }
+                    Button { reveal.toggle() } label: {
+                        Image(systemName: reveal ? "eye.slash" : "eye").foregroundStyle(Color.muted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
                         .buttonStyle(.plain)
+                        // 44-pt-Trefferfläche, ohne das Feld höher zu machen
+                        .padding(.vertical, -12).padding(.trailing, -12)
                         .accessibilityLabel(reveal ? "Passwort verbergen" : "Passwort anzeigen")
                 }
             }

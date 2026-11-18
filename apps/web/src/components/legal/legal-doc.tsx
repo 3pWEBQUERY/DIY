@@ -103,7 +103,7 @@ export function DoDont({ doTitle = "Erlaubt", dontTitle = "Nicht erlaubt", dos, 
   return (
     <div className="grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
       <div className="bg-paper p-4">
-        <p className="spec mb-2 text-moss">{doTitle}</p>
+        <p className="spec mb-2 text-pine">{doTitle}</p>
         <ul>{dos.map((d, i) => <li key={i}>{d}</li>)}</ul>
       </div>
       <div className="bg-paper p-4">

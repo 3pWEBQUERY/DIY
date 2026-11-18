@@ -2,12 +2,12 @@ import Link from "next/link";
 import { FormattedText } from "@/components/ui/formatted-text";
 import { richToPlain } from "@/lib/rich-text";
 import { notFound } from "next/navigation";
-import { after } from "next/server";
 import type { Metadata } from "next";
 import { FileCheck2, ShieldAlert, Star } from "lucide-react";
 import { COUNTRY_LABEL, PRODUCT_KIND_LABEL, PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency, type ShipCountry, formatDimensions } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
-import { countProductView, getProductPage, moreFromShop } from "@/server/commerce/products";
+import { getProductPage, moreFromShop } from "@/server/commerce/products";
+import { recordViewAfter } from "@/server/analytics/service";
 import { listProductReviews } from "@/server/commerce/reviews";
 import { paymentsMode } from "@/server/commerce/stripe";
 import { env } from "@/server/env";
@@ -51,7 +51,8 @@ export default async function ProductPage({ params }: Params) {
   const [{ shopSlug, productSlug }, user] = await Promise.all([params, currentUser()]);
   const p = await getProductPage(shopSlug, productSlug, user?.id);
   if (!p) notFound();
-  if (!p.isOwner) after(() => countProductView(p.id));
+  // Kopfzeilen (Bot-Erkennung, Dedupe) nur während der Anfrage lesbar – recordViewAfter liest sie vorab
+  if (!p.isOwner) await recordViewAfter({ viewerId: user?.id ?? null, targetType: "PRODUCT", targetId: p.id });
 
   const [reviews, more] = await Promise.all([listProductReviews(p.id, user?.id, 20), moreFromShop(p.shopId, p.id, 4)]);
   const currency = (p.currency === "EUR" ? "EUR" : "CHF") as Currency;
@@ -384,7 +385,7 @@ export default async function ProductPage({ params }: Params) {
                 Zum Shop „{p.shop.name}“ →
               </Link>
               {!p.isOwner && (
-                <Link href={`/nachrichten/neu?an=${encodeURIComponent(owner.handle)}`} className="text-muted hover:text-ink hover:underline">
+                <Link href={`/nachrichten/neu?an=${encodeURIComponent(owner.handle)}&produkt=${encodeURIComponent(p.id)}`} className="text-muted hover:text-ink hover:underline">
                   Frage zum Produkt stellen
                 </Link>
               )}

@@ -80,7 +80,7 @@ enum SocialGroupText {
     static func addedMessage(added: [String], invited: [String]) -> String {
         var parts: [String] = []
         if !added.isEmpty { parts.append("\(list(added)) hinzugefügt.") }
-        if !invited.isEmpty { parts.append("\(list(invited)) \(invited.count > 1 ? "erhalten" : "erhält") eine Einladung, weil sie dir nicht folgen.") }
+        if !invited.isEmpty { parts.append("\(list(invited)) \(invited.count > 1 ? "erhalten" : "erhält") eine Einladung, weil \(invited.count > 1 ? "sie dir nicht folgen" : "die Person dir nicht folgt").") }
         return parts.isEmpty ? "Gespeichert." : parts.joined(separator: " ")
     }
 }

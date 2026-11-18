@@ -24,38 +24,92 @@ function videoDuration(file: File) {
   });
 }
 
-/** Upload-Ablauf: Anmelden → direkt in Bucket PUT → Abschluss melden (§25.6). */
-export async function uploadFile(file: File, purpose: "public" | "private" = "public", onProgress?: (p: number) => void) {
+/** Verständliche Meldung je HTTP-Status, falls der Server kein (gültiges) JSON liefert (Proxy-Fehlerseite, 502, 413 …). */
+function statusMessage(status: number, fallback: string) {
+  if (status === 401) return "Bitte melde dich erneut an.";
+  if (status === 403) return "Dafür fehlt dir die Berechtigung.";
+  if (status === 413) return "Die Datei ist zu gross.";
+  if (status === 415) return "Dieses Dateiformat wird nicht unterstützt.";
+  if (status === 429) return "Zu viele Uploads in kurzer Zeit. Bitte warte einen Moment.";
+  if (status >= 500 || status === 0) return "Der Server ist gerade nicht erreichbar. Bitte versuche es erneut.";
+  return fallback;
+}
+
+type ApiBody = { data?: unknown; error?: { message?: string } } | null;
+/** Antwort sicher lesen: kaputtes/fehlendes JSON wirft nicht, sondern liefert null. */
+async function readJson(res: Response): Promise<ApiBody> {
+  return (await res.json().catch(() => null)) as ApiBody;
+}
+
+/** Fehler, der beim Abbrechen (Entfernen/Aushängen) geworfen wird – nicht als Fehlermeldung anzeigen. */
+export function isAbortError(e: unknown) {
+  return e instanceof DOMException ? e.name === "AbortError" : (e as { name?: string } | null)?.name === "AbortError";
+}
+const abortError = () => new DOMException("Upload abgebrochen", "AbortError");
+
+/** Dateityp gegen ein `accept`-Attribut prüfen (MIME, Wildcards wie image/*, Endungen wie .pdf). */
+export function matchesAccept(file: File, accept?: string) {
+  if (!accept?.trim()) return true;
+  const type = (file.type || "").toLowerCase();
+  const name = file.name.toLowerCase();
+  // Unbekannter Typ (z. B. HEIC in manchen Browsern): nicht vorschnell ablehnen – der Server prüft ohnehin
+  if (!type) return true;
+  return accept
+    .split(",")
+    .map((a) => a.trim().toLowerCase())
+    .filter(Boolean)
+    .some((a) => (a.startsWith(".") ? name.endsWith(a) : a.endsWith("/*") ? type.startsWith(a.slice(0, -1)) : type === a));
+}
+
+/** Upload-Ablauf: Anmelden → direkt in Bucket PUT → Abschluss melden (§25.6). Mit `signal` abbrechbar. */
+export async function uploadFile(file: File, purpose: "public" | "private" = "public", onProgress?: (p: number) => void, signal?: AbortSignal) {
+  if (signal?.aborted) throw abortError();
   const durationSec = file.type.startsWith("video/") ? await videoDuration(file) : null;
   const res = await fetch("/api/v1/media", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mime: file.type || "application/octet-stream", bytes: file.size, purpose, durationSec }),
+    signal,
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error?.message ?? "Upload nicht möglich");
+  const json = await readJson(res);
+  if (!res.ok || !json?.data) throw new Error(json?.error?.message ?? statusMessage(res.status, "Upload nicht möglich."));
   const { mediaId, uploadUrl, fallbackUrl, headers } = json.data as { mediaId: string; uploadUrl: string; fallbackUrl?: string; headers: Record<string, string> };
   const put = (url: string) =>
     new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) return reject(abortError());
       const xhr = new XMLHttpRequest();
+      const onAbort = () => xhr.abort();
+      signal?.addEventListener("abort", onAbort, { once: true });
+      const cleanup = () => signal?.removeEventListener("abort", onAbort);
       xhr.open("PUT", url);
       Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
       xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
-      xhr.onload = () => (xhr.status < 300 ? resolve() : reject(Object.assign(new Error("Upload fehlgeschlagen"), { status: xhr.status })));
-      xhr.onerror = () => reject(Object.assign(new Error("Netzwerkfehler beim Upload"), { status: 0 }));
+      xhr.onload = () => {
+        cleanup();
+        if (xhr.status < 300) resolve();
+        else reject(Object.assign(new Error(statusMessage(xhr.status, "Upload fehlgeschlagen.")), { status: xhr.status }));
+      };
+      xhr.onerror = () => {
+        cleanup();
+        reject(Object.assign(new Error("Netzwerkfehler beim Upload."), { status: 0 }));
+      };
+      xhr.onabort = () => {
+        cleanup();
+        reject(abortError());
+      };
       xhr.send(file);
     });
   try {
     await put(uploadUrl);
   } catch (err) {
     // Direkt-Upload in den Bucket gescheitert (Netzwerk/CORS/Proxy) → über den eigenen Server
-    if (!fallbackUrl || fallbackUrl === uploadUrl) throw err;
+    if (isAbortError(err) || !fallbackUrl || fallbackUrl === uploadUrl) throw err;
     onProgress?.(0);
     await put(fallbackUrl);
   }
-  const done = await fetch(`/api/v1/media/${mediaId}/complete`, { method: "POST" });
-  const dj = await done.json();
-  if (!done.ok) throw new Error(dj.error?.message ?? "Verarbeitung fehlgeschlagen");
+  const done = await fetch(`/api/v1/media/${mediaId}/complete`, { method: "POST", signal });
+  const dj = await readJson(done);
+  if (!done.ok || !dj?.data) throw new Error(dj?.error?.message ?? statusMessage(done.status, "Verarbeitung fehlgeschlagen."));
   return { mediaId, ...(dj.data as { state: string; variants: Record<string, string> }) };
 }
 
@@ -82,12 +136,17 @@ export function MediaPicker({
   const blobs = useRef(new Map<string, boolean>());
   // Hintergrund-Abfragen (Videoverarbeitung) beim Aushängen beenden
   const abort = useRef<AbortController | null>(null);
+  // Laufende Uploads je Eintrag – beim Entfernen bzw. Aushängen abbrechen
+  const uploads = useRef(new Map<string, AbortController>());
   useEffect(() => {
     const ctrl = new AbortController();
     abort.current = ctrl;
     const map = blobs.current;
+    const running = uploads.current;
     return () => {
       ctrl.abort();
+      running.forEach((c) => c.abort());
+      running.clear();
       map.forEach((_, url) => URL.revokeObjectURL(url));
       map.clear();
     };
@@ -103,26 +162,48 @@ export function MediaPicker({
     });
   }, [value]);
 
-  async function add(files: FileList | null) {
+  async function add(files: FileList | File[] | null) {
     if (!files) return;
     setError(null);
-    const list = Array.from(files).slice(0, Math.max(0, max - value.length));
+    const all = Array.from(files);
+    // Beim Hineinziehen greift `accept` nicht – selbst filtern und Abgelehntes melden
+    const allowed = all.filter((f) => matchesAccept(f, accept));
+    const rejected = all.length - allowed.length;
+    const room = Math.max(0, max - value.length);
+    const list = allowed.slice(0, room);
+    const notes: string[] = [];
+    if (rejected) notes.push(rejected === 1 ? "1 Datei hat ein nicht unterstütztes Format und wurde übersprungen." : `${rejected} Dateien haben ein nicht unterstütztes Format und wurden übersprungen.`);
+    if (allowed.length > room) notes.push(`Höchstens ${max} Dateien – ${allowed.length - room} wurden nicht hinzugefügt.`);
+    if (notes.length) setError(notes.join(" "));
     for (const file of list) {
+      if (abort.current?.signal.aborted) return;
       const tmpId = `tmp-${crypto.randomUUID()}`;
       const kind = file.type.startsWith("video/") ? "VIDEO" : "IMAGE";
       const preview = URL.createObjectURL(file);
       blobs.current.set(preview, false);
+      const ctrl = new AbortController();
+      uploads.current.set(tmpId, ctrl);
       onChange((prev) => [...prev, { id: tmpId, alt: "", preview, state: "uploading", progress: 0, kind }]);
       try {
-        const r = await uploadFile(file, "public", (p) => onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, progress: p } : m))));
+        const r = await uploadFile(file, "public", (p) => onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, progress: p } : m))), ctrl.signal);
         onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, id: r.mediaId, state: "ready", progress: 1, preview: r.variants?.sm ?? preview } : m)));
         if (kind === "VIDEO") void watchVideo(r.mediaId, abort.current?.signal);
       } catch (e) {
         if (abort.current?.signal.aborted) return;
-        setError(e instanceof Error ? e.message : "Upload fehlgeschlagen");
+        // Vom Nutzer entfernt → Eintrag ist schon weg, keine Fehlermeldung
+        if (isAbortError(e) || ctrl.signal.aborted) continue;
+        setError(e instanceof Error ? e.message : "Upload fehlgeschlagen.");
         onChange((prev) => prev.map((m) => (m.id === tmpId ? { ...m, state: "error" } : m)));
+      } finally {
+        uploads.current.delete(tmpId);
       }
     }
+  }
+
+  function remove(id: string) {
+    uploads.current.get(id)?.abort();
+    uploads.current.delete(id);
+    onChange((prev) => prev.filter((x) => x.id !== id));
   }
 
   /** Videos werden im Hintergrund umgewandelt – eine Ablehnung (z. B. zu lang) sofort anzeigen. */
@@ -190,14 +271,14 @@ export function MediaPicker({
                     <AlertCircle />
                   </span>
                 )}
-                <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
                   <button type="button" onClick={() => move(i, -1)} className="grid size-7 place-items-center bg-card" aria-label="Nach vorne">
                     <ArrowLeft size={14} />
                   </button>
                   <button type="button" onClick={() => move(i, 1)} className="grid size-7 place-items-center bg-card" aria-label="Nach hinten">
                     <ArrowRight size={14} />
                   </button>
-                  <button type="button" onClick={() => onChange((prev) => prev.filter((x) => x.id !== m.id))} className="grid size-7 place-items-center bg-card" aria-label="Entfernen">
+                  <button type="button" onClick={() => remove(m.id)} className="grid size-7 place-items-center bg-card" aria-label="Entfernen">
                     <X size={14} />
                   </button>
                 </div>
@@ -233,7 +314,19 @@ export function MediaPicker({
           {compact ? "Medien" : "Fotos oder Video hinzufügen – oder hierher ziehen"}
         </button>
       )}
-      <input ref={input} type="file" accept={accept} multiple hidden onChange={(e) => add(e.target.files)} />
+      <input
+        ref={input}
+        type="file"
+        accept={accept}
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? []);
+          // Zurücksetzen, damit dieselbe Datei nach Entfernen/Fehler erneut gewählt werden kann
+          e.target.value = "";
+          void add(files);
+        }}
+      />
       {error && (
         <p role="alert" className="mt-2 text-[13px] text-danger">
           {error}

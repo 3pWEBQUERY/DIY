@@ -34,7 +34,7 @@ export function PricingCard({ prices, enabled }: { prices: { month: number; year
             ["year", "Jährlich"],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} type="button" role="radio" aria-checked={interval === k} onClick={() => setIv(k)} className={cn("h-9 rounded-lg font-medium text-muted transition-colors hover:text-ink", interval === k && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
+          <button key={k} type="button" role="radio" aria-checked={interval === k} onClick={() => setIv(k)} className={cn("h-9 rounded-lg font-medium text-muted transition-colors hover:text-ink", interval === k && "bg-card text-ink ring-1 ring-line-strong")}>
             {l}
             {k === "year" && prices.yearSavingMinor > 0 && <span className="ml-1.5 text-[11px] font-semibold text-moss">−{Math.round((prices.yearSavingMinor / (prices.month * 12)) * 100)} %</span>}
           </button>
@@ -142,7 +142,7 @@ export function FeaturedPicker({ projects, initial, max }: { projects: { id: str
                     <img src={p.coverUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                   )}
                 </span>
-                <span className={cn("absolute right-2 top-2 grid size-6 place-items-center rounded-full text-[12px] font-bold shadow-[0_1px_2px_rgb(0_0_0/0.15)]", on ? "bg-moss text-paper" : "bg-card/90 text-transparent")}>{on ? i + 1 : "·"}</span>
+                <span className={cn("absolute right-2 top-2 grid size-6 place-items-center rounded-full text-[12px] font-bold", on ? "bg-moss text-paper" : "border border-line-strong bg-card/90 text-transparent")}>{on ? i + 1 : "·"}</span>
                 <span className="block truncate px-1 pt-2 text-[13px] font-medium">{p.title}</span>
               </button>
             </li>
@@ -190,7 +190,7 @@ export function MediaKitToggle({ initial, href }: { initial: boolean; href: stri
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button type="button" role="switch" aria-checked={on} onClick={flip} disabled={pending} className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50", on ? "bg-moss" : "bg-field")} aria-label="Medienkit öffentlich">
-        <span className={cn("absolute top-1 size-5 rounded-full bg-card shadow transition-[left]", on ? "left-6" : "left-1")} />
+        <span className={cn("absolute top-1 size-5 rounded-full bg-card transition-[left]", on ? "left-6" : "left-1")} />
       </button>
       <span className="text-[14px]">{on ? "Öffentlich – jede Person mit dem Link kann es sehen" : "Privat – nur du siehst es"}</span>
       <Link href={href} className="ml-auto inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-moss hover:underline" target="_blank">

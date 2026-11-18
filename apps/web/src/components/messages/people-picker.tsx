@@ -39,7 +39,7 @@ export function PeoplePicker({ candidates, value, onChange, exclude = [], max }:
           })}
         </ul>
       )}
-      <div className="flex items-center gap-2 rounded-xl border border-line-strong bg-card px-3 focus-within:border-moss">
+      <div className="flex items-center gap-2 rounded-xl border border-field bg-card px-3 focus-within:border-moss">
         <Search size={15} className="text-muted" aria-hidden />
         <input
           value={q}

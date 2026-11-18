@@ -8,8 +8,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "1.0.1"
+    CURRENT_PROJECT_VERSION: "4"
     DEVELOPMENT_LANGUAGE: de
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_EMIT_LOC_STRINGS: NO
@@ -37,7 +37,6 @@ targets:
         CODE_SIGN_STYLE: Automatic
         # Für Geräte-Builds eigenes Apple-Developer-Team eintragen (Simulator: leer lassen)
         DEVELOPMENT_TEAM: ""
-        CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_ENTITLEMENTS: Werkuno/Werkuno.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -45,6 +44,11 @@ targets:
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
         SWIFT_STRICT_CONCURRENCY: minimal
+      configs:
+        # Ad-hoc-Signatur nur für lokale Debug-Builds (Simulator ohne Team);
+        # Release signiert automatisch mit dem eingetragenen Team
+        Debug:
+          CODE_SIGN_IDENTITY: "-"
   # Bedienungshilfen-Prüfung (Apple Accessibility Audit) über die wichtigsten Bildschirme
   WerkunoUITests:
     type: bundle.ui-testing
@@ -59,9 +63,11 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
-        CODE_SIGN_IDENTITY: "-"
         TARGETED_DEVICE_FAMILY: "1"
         TEST_TARGET_NAME: Werkuno
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "-"
 schemes:
   Werkuno:
     build:

@@ -273,7 +273,15 @@ struct ArticleEditorSheet: View {
             let res: BlogRestoreResult = try await APIClient.shared.post("/studio/articles/\(articleId)/revisions/\(r.id)/restore")
             title = res.title
             blocks = res.blocks
-            savedSnapshot = payload
+            // Der Server hat nur Titel und Blöcke ersetzt: Nur diese im gespeicherten Stand nachführen –
+            // andere, noch ungespeicherte Änderungen (Unterzeile, Schlagwörter, Titelbild …) bleiben „ungespeichert“
+            if case .object(var saved)? = savedSnapshot, case .object(let now) = payload {
+                saved["title"] = now["title"]
+                saved["blocks"] = now["blocks"]
+                savedSnapshot = .object(saved)
+            } else {
+                savedSnapshot = payload
+            }
             app.show("Stand vom \(Fmt.dateTime(r.createdAt)) wiederhergestellt.")
             await loadRevisions()
         } catch { app.show(error: error) }
@@ -294,7 +302,7 @@ struct ArticleEditorSheet: View {
                     .font(.wr(.body).italic())
                     .lineLimit(2...5)
                 coverRow
-            } header: { Text("Kopf") }
+            } header: { Group { Text("Kopf") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 if blocks.isEmpty {
@@ -314,18 +322,18 @@ struct ArticleEditorSheet: View {
                 }
                 .onMove { blocks.move(fromOffsets: $0, toOffset: $1) }
                 .onDelete { blocks.remove(atOffsets: $0) }
-            } header: {
+            } header: { Group {
                 HStack {
                     Text("Inhalt")
                     Spacer()
                     Text(Fmt.plural(blocks.count, "Block", "Blöcke"))
                 }
-            } footer: {
+            }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Zum Umsortieren einen Block gedrückt halten und ziehen. Absätze verstehen **fett**, *kursiv* und [Link](https://…).")
-            }
+            }.font(.wr(.footnote)) }
         }
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
+        .formCanvas()
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) { addBlockMenu }
     }
@@ -405,9 +413,9 @@ struct ArticleEditorSheet: View {
                     Text("Keine").tag(String?.none)
                     ForEach(categories) { c in Text(c.name).tag(Optional(c.id)) }
                 }
-            } header: { Text("Adresse & Rubrik") } footer: {
+            } header: { Group { Text("Adresse & Rubrik") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text(everPublished ? "Wenn du die Adresse änderst, leiten alte Links automatisch weiter." : "Leer lassen, um die Adresse aus dem Titel zu erzeugen.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 if !tags.isEmpty {
@@ -433,7 +441,7 @@ struct ArticleEditorSheet: View {
                         .disabled(tagInput.trimmed.isEmpty || tags.count >= 10)
                 }
                 DiscoverFieldError(message: fields["tags"])
-            } header: { Text("Schlagwörter (\(tags.count)/10)") }
+            } header: { Group { Text("Schlagwörter (\(tags.count)/10)") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 VStack(alignment: .leading, spacing: 4) {
@@ -444,7 +452,7 @@ struct ArticleEditorSheet: View {
                     TextField("SEO-Beschreibung (optional)", text: $seoDescription, axis: .vertical).lineLimit(2...5)
                     counter(seoDescription.count, 170)
                 }
-            } header: { Text("Suchmaschinen") } footer: { Text("Leer lassen, um Titel und Unterzeile zu verwenden.") }
+            } header: { Group { Text("Suchmaschinen") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Leer lassen, um Titel und Unterzeile zu verwenden.") }.font(.wr(.footnote)) }
 
             Section {
                 Toggle("Kommentare erlauben", isOn: $commentsEnabled)
@@ -466,7 +474,7 @@ struct ArticleEditorSheet: View {
                     .buttonStyle(.borderless)
                     .accessibilityAddTraits(projectIds.contains(p.id) ? .isSelected : [])
                 }
-            } header: { Text("Verknüpfte Projekte (\(projectIds.count)/12)") } footer: { Text("Verknüpfte Projekte erscheinen unter dem Artikel – der Faden zum Werkstück.") }
+            } header: { Group { Text("Verknüpfte Projekte (\(projectIds.count)/12)") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Verknüpfte Projekte erscheinen unter dem Artikel – der Faden zum Werkstück.") }.font(.wr(.footnote)) }
 
             publishSection
 
@@ -490,7 +498,7 @@ struct ArticleEditorSheet: View {
                     } else {
                         ProgressView().frame(maxWidth: .infinity)
                     }
-                } header: { Text("Revisionen") } footer: { Text("Jede Speicherung legt einen Stand ab. Die letzten 30 bleiben erhalten.") }
+                } header: { Group { Text("Revisionen") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Jede Speicherung legt einen Stand ab. Die letzten 30 bleiben erhalten.") }.font(.wr(.footnote)) }
                 .task { if revisions == nil { await loadRevisions() } }
 
                 Section {
@@ -498,7 +506,7 @@ struct ArticleEditorSheet: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden)
+        .formCanvas()
         .scrollDismissesKeyboard(.interactively)
     }
 
@@ -544,9 +552,9 @@ struct ArticleEditorSheet: View {
                 } label: { Label("Artikel ansehen", systemImage: "arrow.up.right.square") }
                 .buttonStyle(.borderless)
             }
-        } header: { Text("Veröffentlichen") } footer: {
+        } header: { Group { Text("Veröffentlichen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
             Text(dirty ? "Ungespeicherte Änderungen werden vor dem Veröffentlichen gespeichert." : "Beim ersten Veröffentlichen kann ein Beitrag im Feed deiner Follower erscheinen.")
-        }
+        }.font(.wr(.footnote)) }
     }
 
     private func counter(_ n: Int, _ max: Int) -> some View {
@@ -630,7 +638,7 @@ private struct BlogBlockEditor: View {
                     Divider()
                     Button("Block löschen", systemImage: "trash", role: .destructive, action: remove)
                 } label: {
-                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(width: 36, height: 30).contentShape(.rect)
+                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Blockaktionen: \(BlogBlock.label(block.type))")
@@ -856,8 +864,7 @@ struct BlogEmbedPicker: View {
                 }
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Eigene Inhalte suchen")
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }

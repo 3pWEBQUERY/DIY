@@ -11,11 +11,16 @@ import * as content from "@/server/admin/content";
 import { adminNavCounts, dashboardKpis } from "@/server/admin/kpis";
 import { z } from "zod";
 import { DELETE, GET, PATCH, POST, PUT, me, pageParam, str, zBool, zIds, zStr, type RouteDef } from "../router";
-import { db } from "@/server/db";
+import { db, ModerationCaseStatus, TargetType } from "@/server/db";
 import { flagEnabled } from "@/server/flags";
 import * as pro from "@/server/pro/service";
 import * as proProfile from "@/server/pro/profile";
 import * as proApple from "@/server/pro/apple";
+
+// Filter aus der Query: unbekannte Werte fallen auf den Standard zurück, statt ungeprüft in Prisma-Enums zu landen (500)
+const queueStatus = z.enum([...Object.values(ModerationCaseStatus), "ACTIVE", "ALL"]).catch("ACTIVE");
+const targetTypeFilter = z.enum(TargetType).nullable().catch(null);
+const assigneeFilter = z.enum(["me", "none"]).nullable().catch(null);
 
 async function moderator() {
   const u = await me();
@@ -108,7 +113,12 @@ export const studioAdminRoutes: RouteDef[] = [
     const u = await moderator();
     return moderation.listQueue(
       u,
-      { status: (str(c.q, "status") as never) ?? "ACTIVE", targetType: (str(c.q, "targetType") as never) ?? null, assignee: (str(c.q, "assignee") as never) ?? null, q: str(c.q, "q") ?? null },
+      {
+        status: queueStatus.parse(str(c.q, "status") ?? "ACTIVE"),
+        targetType: targetTypeFilter.parse(str(c.q, "targetType") ?? null),
+        assignee: assigneeFilter.parse(str(c.q, "assignee") ?? null),
+        q: str(c.q, "q") ?? null,
+      },
       pageParam(c.q),
       30,
     );
@@ -124,7 +134,7 @@ export const studioAdminRoutes: RouteDef[] = [
     return moderation.listAppeals(await moderator(), s);
   }),
   POST("/admin/appeals/:id/decide", async (c) => moderation.decideAppeal(await moderator(), c.p.id!, await c.json())),
-  GET("/admin/reports", async (c) => moderation.listReports(await moderator(), { reason: str(c.q, "reason") ?? null, targetType: (str(c.q, "targetType") as never) ?? null, page: pageParam(c.q) } as never)),
+  GET("/admin/reports", async (c) => moderation.listReports(await moderator(), { reason: str(c.q, "reason") ?? null, targetType: targetTypeFilter.parse(str(c.q, "targetType") ?? null), page: pageParam(c.q) })),
 
   // ── Nutzerverwaltung ──
   // E-Mail-Adressen wie im Web: in Listen immer maskiert, im Detail nur für die Administration im Klartext

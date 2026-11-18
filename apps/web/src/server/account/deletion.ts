@@ -76,6 +76,13 @@ export async function purgeDeletedAccount(userId: string) {
   await db.tutorialProgress.deleteMany({ where: { userId } });
   await db.challengeEntry.updateMany({ where: { userId, state: "ACTIVE" }, data: { state: "REMOVED" } });
   await db.userPreference.deleteMany({ where: { userId } });
+  await db.restockRequest.deleteMany({ where: { userId } });
+  // Alte Handles leiten sonst weiter auf das (anonymisierte) Profil und blieben mit dem Konto verknüpft
+  await db.handleRedirect.deleteMany({ where: { userId } });
+  // Nutzungsereignisse bleiben für Statistiken (Aufrufe der Inhalte anderer), aber ohne Personenbezug
+  await db.analyticsEvent.updateMany({ where: { userId }, data: { userId: null } });
+  // Supportanfragen: keine Aufbewahrungspflicht – Kontaktdaten und Inhalt entfernen, Thema/Status für Kennzahlen behalten
+  await db.supportTicket.updateMany({ where: { userId }, data: { userId: null, email: "", subject: "(nach Kontolöschung entfernt)", body: "" } });
 
   // 5. Eigene Medien löschen (Dateien + Einträge). Produktbilder bleiben, solange Bestellungen sie zeigen.
   // Dateien verkaufter digitaler Produkte bleiben ebenfalls: Käufer:innen behalten ihren Download

@@ -6,6 +6,7 @@ import { getBuyerOrder } from "@/server/commerce/orders";
 import { paymentsMode } from "@/server/commerce/stripe";
 import { SimulationPanel } from "@/components/commerce/payment-actions";
 import { LinkButton } from "@/components/ui/button";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Testzahlung", robots: { index: false } };
 
@@ -16,10 +17,10 @@ export const metadata: Metadata = { title: "Testzahlung", robots: { index: false
  * wäre dann auch in Testläufen gegen einen Build (NODE_ENV=test) nie erreichbar. paymentsMode() liest die
  * Laufzeitumgebung und liefert in Produktion ohne Key „disabled“.
  */
-export default async function SimulationPage({ searchParams }: { searchParams: Promise<{ bestellung?: string }> }) {
+export default async function SimulationPage({ searchParams }: { searchParams: Promise<{ bestellung?: string | string[] }> }) {
   if (paymentsMode() !== "simulated") notFound();
-  const [{ bestellung }, user] = await Promise.all([searchParams, currentUser()]);
-  if (!user) redirect("/anmelden");
+  const [{ bestellung }, user] = await Promise.all([searchParams.then((s) => flatSearchParams(s)), currentUser()]);
+  if (!user) redirect(`/anmelden?weiter=${encodeURIComponent(`/kasse/simulation${bestellung ? `?bestellung=${encodeURIComponent(bestellung)}` : ""}`)}`);
   const order = bestellung ? await getBuyerOrder(user.id, bestellung) : null;
   if (!order) notFound();
   const currency = (order.currency === "EUR" ? "EUR" : "CHF") as Currency;

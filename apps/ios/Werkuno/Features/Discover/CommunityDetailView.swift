@@ -57,7 +57,7 @@ struct CommunityDetailView: View {
         .reloadWhenSheetCloses { await load(); await loadTab(force: true) }
         .alert("Beitrag ausblenden", isPresented: Binding(get: { hideTarget != nil }, set: { if !$0 { hideTarget = nil } })) {
             TextField("Grund (für das Protokoll)", text: $hideReason)
-            Button("Abbrechen", role: .cancel) { hideTarget = nil }
+            Button("Abbrechen", role: .cancel) { hideTarget = nil; hideReason = "" }
             Button("Ausblenden", role: .destructive) {
                 if let p = hideTarget { Task { await moderate(p, "hidden", on: true, reason: hideReason) } }
                 hideTarget = nil
@@ -65,7 +65,7 @@ struct CommunityDetailView: View {
         } message: { Text("Der Beitrag ist danach nur noch für die Moderation sichtbar. Die Autor:in wird benachrichtigt.") }
         .confirmationDialog("Community verlassen?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Verlassen", role: .destructive) { Task { await leave() } }
-        } message: { Text("Du kannst später wieder beitreten – bei privaten Communities nur mit neuer Einladung.") }
+        } message: { Text("Du kannst später wieder beitreten – bei privaten und solchen auf Anfrage nach erneuter Freigabe durch die Moderation.") }
     }
 
     // MARK: Laden
@@ -191,8 +191,13 @@ struct CommunityDetailView: View {
                     Button("Community verlassen", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmLeave = true }
                 }
                 Divider()
-                Button("Community melden …", systemImage: "flag") {
-                    router.present(.report(targetType: "COMMUNITY", targetId: d.community.id, title: d.community.name))
+                if let ownerId = d.community.ownerId ?? d.community.owner?.id, ownerId != app.me?.id, app.me != nil {
+                    // Melden sowie Gründer:in stummschalten/blockieren
+                    SafetyMenuItems(targetType: "COMMUNITY", targetId: d.community.id, authorId: ownerId, authorName: d.community.owner?.profile?.displayName, allowHide: false)
+                } else {
+                    Button("Community melden …", systemImage: "flag") {
+                        router.present(.report(targetType: "COMMUNITY", targetId: d.community.id, title: d.community.name))
+                    }
                 }
             } label: { Image(systemName: "ellipsis") }
             .accessibilityLabel("Weitere Aktionen")
@@ -331,11 +336,10 @@ struct CommunityDetailView: View {
             }
         } else if state == "BANNED" {
             NoticeView(tone: .danger, message: "Du kannst dieser Community nicht beitreten.")
-        } else if d.community.visibility == "PRIVATE" {
-            NoticeView(tone: .info, title: "Nur auf Einladung", message: "Private Communities nehmen neue Mitglieder nur per Einladung auf.")
         } else {
+            // REQUEST und PRIVATE: Der Server legt eine Anfrage an (PENDING), die die Moderation freigibt – wie im Web
             AsyncButton { await join() } label: {
-                Label(d.community.visibility == "REQUEST" ? "Beitritt anfragen" : "Beitreten", systemImage: "person.badge.plus")
+                Label(d.community.visibility == "PUBLIC" ? "Beitreten" : "Beitritt anfragen", systemImage: "person.badge.plus")
             }
             .primaryButton()
         }
@@ -354,9 +358,9 @@ struct CommunityDetailView: View {
                     .glassEffect(.regular, in: Circle())
             }
             Text("Diese Community ist geschlossen").font(.titleSerif).multilineTextAlignment(.center)
-            Text(d.community.visibility == "REQUEST"
-                 ? "Beiträge, Projekte und Mitglieder siehst du, sobald die Moderation deine Anfrage angenommen hat."
-                 : "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Neue Mitglieder kommen per Einladung dazu.")
+            Text(d.membership?.state == "PENDING"
+                 ? "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Deine Anfrage liegt der Moderation vor."
+                 : "Beiträge, Projekte und Mitglieder sind nur für Mitglieder sichtbar. Stell eine Beitrittsanfrage – die Moderation entscheidet.")
                 .font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center)
             if let rules = d.community.rules, !rules.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -422,7 +426,7 @@ struct CommunityDetailView: View {
                     Image(systemName: "shield.lefthalf.filled").font(.wr(.caption)).foregroundStyle(Color.muted)
                     modButton(p.isPinned == true ? "Lösen" : "Anheften", p.isPinned == true ? "pin.slash" : "pin") { await moderate(p, "pinned", on: p.isPinned != true) }
                     modButton(p.isAnnouncement == true ? "Keine Ankündigung" : "Ankündigung", "megaphone") { await moderate(p, "announcement", on: p.isAnnouncement != true) }
-                    Button { hideTarget = p } label: {
+                    Button { hideReason = ""; hideTarget = p } label: {
                         Label("Ausblenden", systemImage: "eye.slash").font(.wr(.caption, .semibold))
                     }
                     .buttonStyle(.glass).controlSize(.small).tint(.danger)
@@ -475,7 +479,7 @@ struct CommunityDetailView: View {
                 Menu {
                     Button("Aus Community entfernen", systemImage: "minus.circle", role: .destructive) { Task { await unshare(p, d) } }
                 } label: {
-                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(width: 36, height: 44)
+                    Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(minWidth: 44, minHeight: 44).contentShape(.rect)
                 }
                 .accessibilityLabel("Projektaktionen")
             }

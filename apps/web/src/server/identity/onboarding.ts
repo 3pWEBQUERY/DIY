@@ -44,7 +44,7 @@ export async function completeOnboarding(user: SessionUser, input: unknown) {
       // Eigener alter Handle darf zurückgeholt werden → Weiterleitung entfernen (wie updateProfile)
       await tx.handleRedirect.deleteMany({ where: { oldHandle: d.handle, userId: user.id } });
       await tx.handleRedirect.upsert({ where: { oldHandle: full.profile.handle }, create: { oldHandle: full.profile.handle, userId: user.id }, update: { userId: user.id } });
-      await audit({ actorId: user.id, action: "account.handle_changed", targetType: "USER", targetId: user.id, meta: { from: full.profile.handle, to: d.handle, via: "onboarding" } }, tx);
+      await audit({ actorId: user.id, action: "account.handle_changed", targetType: "USER", targetId: user.id, meta: { via: "onboarding" } }, tx); // keine Handles im unveränderlichen Protokoll (Datensparsamkeit)
     }
     await tx.userProfile.update({
       where: { userId: user.id },

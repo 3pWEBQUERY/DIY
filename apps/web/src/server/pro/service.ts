@@ -135,12 +135,24 @@ export async function syncStripeSubscription(sub: Stripe.Subscription) {
   if (!userId) return null;
   // Zweites Abo derselben Person (z. B. zwei Checkout-Tabs bezahlt): ein beendetes zweites Abo darf das
   // laufende nicht überschreiben; zwei laufende Abos → zur manuellen Erstattung melden
+  const incomingActive = ACTIVE.has(sub.status);
   if (existing?.subscriptionId && existing.subscriptionId !== sub.id && existing.provider === "stripe" && isActiveSubscription(existing)) {
-    const incomingActive = ["active", "trialing", "past_due"].includes(sub.status);
     if (!incomingActive) return existing;
     const { captureError } = await import("@/server/monitoring");
     await captureError(new Error(`Zweites laufendes ${PRO_NAME}-Abo für dieselbe Person – bitte eines kündigen und erstatten`), { source: "SERVER", path: "pro.duplicate_subscription", userId, meta: { kept: existing.subscriptionId, duplicate: sub.id } });
     return existing;
+  }
+  // Laufendes App-Store-Abo bzw. geschenkter Zugang: ein beendetes Stripe-Abo (gefunden über metadata.userId
+  // oder das stehengebliebene Kundenkonto) darf es nicht überschreiben – sonst wäre bezahltes Pro weg.
+  // Laufen Apple und Stripe gleichzeitig, bleibt Apple und der Fall wird zur Erstattung gemeldet; ein
+  // laufendes Stripe-Abo ersetzt dagegen einen geschenkten Zugang (bewusst abgeschlossen).
+  if (existing && (existing.provider === "apple" || existing.provider === "comp") && isActiveSubscription(existing)) {
+    if (!incomingActive) return existing;
+    if (existing.provider === "apple") {
+      const { captureError } = await import("@/server/monitoring");
+      await captureError(new Error(`Laufendes ${PRO_NAME}-Abo über Stripe und den App Store für dieselbe Person – bitte das Stripe-Abo kündigen und erstatten`), { source: "SERVER", path: "pro.duplicate_subscription", userId, meta: { kept: "apple", duplicate: sub.id } });
+      return existing;
+    }
   }
   const item = sub.items?.data?.[0];
   const interval = item?.price?.recurring?.interval === "year" ? "year" : "month";
@@ -481,7 +493,8 @@ export async function grantPro(actor: Pick<SessionUser, "id" | "role">, userId: 
   if (u.status !== "ACTIVE") throw fail.conflict("Gesperrte oder gelöschte Konten erhalten kein geschenktes Pro.");
   const s = await db.subscription.findUnique({ where: { userId } });
   if (s && (s.provider === "stripe" || s.provider === "apple") && isActiveSubscription(s)) throw fail.conflict("Diese Person hat bereits ein bezahltes Abo.");
-  const data = { interval: "comp", status: "active", provider: "comp", currentPeriodEnd: days ? new Date(Date.now() + days * 86400_000) : null, cancelAtPeriodEnd: false, grantedById: actor.id, note: note || null, priceMinor: null };
+  // Kein altes subscriptionId behalten: sonst fände ein späteres Ereignis des beendeten Stripe-Abos diese Zeile
+  const data = { interval: "comp", status: "active", provider: "comp", subscriptionId: null, currentPeriodEnd: days ? new Date(Date.now() + days * 86400_000) : null, cancelAtPeriodEnd: false, grantedById: actor.id, note: note || null, priceMinor: null };
   await db.subscription.upsert({ where: { userId }, create: { userId, ...data }, update: data });
   await syncProFlag(userId);
   await audit({ action: "pro.grant", actorId: actor.id, targetType: "USER", targetId: userId, meta: { days, note } });

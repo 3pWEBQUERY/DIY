@@ -185,6 +185,13 @@ export function isSoldOut(items: { onHand: number }[]) {
 }
 
 /** Bps → Prozentanzeige (de-CH), z. B. 600 → "6 %", 650 → "6.5 %". */
+/** Preis in der iOS-App (Rappen) für einen Web-Preis: kleinste Stufe ≥ Web-Preis × (1 + Aufschlag); null = keine Stufe hoch genug. */
+export function appTierFor(webMinor: number, markupBps: number, tiersMinor: readonly number[]) {
+  if (!Number.isInteger(webMinor) || webMinor <= 0) return null;
+  const target = Math.ceil((webMinor * (10_000 + Math.max(0, markupBps))) / 10_000);
+  return tiersMinor.find((t) => t >= target) ?? null;
+}
+
 export function formatBps(bps: number) {
   return `${new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 }).format(bps / 100)} %`;
 }

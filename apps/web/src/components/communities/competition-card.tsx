@@ -5,8 +5,8 @@ import { cn, formatDate } from "@/lib/utils";
 
 const TONE: Record<CompetitionPhase, string> = {
   upcoming: "bg-sunken text-ink-2",
-  open: "bg-moss text-paper",
-  voting: "bg-clay text-paper",
+  open: "bg-pine text-paper",
+  voting: "bg-moss text-paper",
   jury: "bg-ink text-paper",
   ended: "bg-sunken text-ink-2",
 };

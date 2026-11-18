@@ -9,7 +9,7 @@ import { audit } from "@/server/audit";
 import { createSession, clientIpHash } from "@/server/auth/session";
 import { rateLimit } from "@/server/ratelimit";
 import { requireFlag } from "@/server/flags";
-import { warnNewDevice } from "@/server/auth/new-device";
+import { warnLoginLinked, warnNewDevice } from "@/server/auth/new-device";
 import { exchangeAppleCode, storeAppleRefreshToken, verifyAppleIdentityToken } from "./apple-token";
 
 export function appleClient() {
@@ -75,11 +75,14 @@ async function linkAppleClaimsOnce(claims: AppleClaims, displayName: string | nu
           await tx.verificationToken.deleteMany({ where: { userId: existing.id } });
           await tx.pushDevice.deleteMany({ where: { userId: existing.id } });
           await tx.session.updateMany({ where: { userId: existing.id, revokedAt: null }, data: { revokedAt: new Date() } });
-          await tx.authAccount.deleteMany({ where: { userId: existing.id, provider: "apple" } });
+          // ALLE Verknüpfungen lösen – auch ein vorab verbundenes Pinterest-Konto wäre sonst ein Hintereingang
+          await tx.authAccount.deleteMany({ where: { userId: existing.id } });
           await audit({ actorId: existing.id, action: "account.apple_claimed_unverified", targetType: "USER", targetId: existing.id }, tx);
         });
       }
       await db.authAccount.create({ data: { userId: existing.id, provider: "apple", providerAccountId: claims.sub } });
+      await audit({ actorId: existing.id, action: "account.apple_linked", targetType: "USER", targetId: existing.id });
+      await warnLoginLinked(existing.id, "Apple");
       return { userId: existing.id, isNew: false };
     }
   }
@@ -127,15 +130,17 @@ export async function appleAccountBlocked(userId: string): Promise<keyof typeof 
 /**
  * Prüft das identityToken der App (RS256, Aussteller Apple, Audience = Bundle-ID aus
  * APPLE_IOS_CLIENT_ID, nicht abgelaufen) und meldet an. Gibt ein Bearer-Token zurück.
- * Optional (neuere App-Versionen):
- * - `nonce`: Roh-Nonce; der `nonce`-Claim des Tokens muss deren SHA-256 (hex) sein (Replay-Schutz).
- * - `authorizationCode`: wird gegen ein Refresh-Token getauscht und verschlüsselt gespeichert, damit wir
- *   es bei der Kontolöschung bei Apple widerrufen können.
+ * - `nonce` (Pflicht): Roh-Nonce; der `nonce`-Claim des Tokens muss deren SHA-256 (hex) sein. Ohne sie
+ *   liesse sich ein abgefangenes identityToken bis zu seinem Ablauf erneut einlösen (Replay).
+ * - `authorizationCode` (optional): wird gegen ein Refresh-Token getauscht und verschlüsselt gespeichert,
+ *   damit wir es bei der Kontolöschung bei Apple widerrufen können.
  */
 export async function signInWithAppleIdToken(idToken: string, displayName: string | null, opts: { nonce?: string | null; authorizationCode?: string | null } = {}) {
   const audience = process.env.APPLE_IOS_CLIENT_ID;
   if (!audience) throw fail.unavailable("Anmelden mit Apple ist in der App noch nicht aktiviert.");
   await rateLimit(`apple-native:${await clientIpHash()}`, 30, 600);
+  // Die App sendet die Nonce bei jeder Anmeldung (AuthFlowView)
+  if (!opts.nonce) throw fail.badRequest("Diese App-Version wird nicht mehr unterstützt. Bitte aktualisiere die App und versuche es erneut.");
   const claims = await verifyAppleIdentityToken(idToken, { audience, nonce: opts.nonce });
   const { userId, isNew } = await linkAppleClaims(claims, displayName);
   const blocked = await appleAccountBlocked(userId);

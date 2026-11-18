@@ -312,16 +312,18 @@ struct StoryComposerSheet: View {
         let project = projectId.isEmpty ? nil : projectId
         do {
             var processing = false
+            var isVideo = false
             switch mode {
             case .media:
-                guard case .ready(let id, _, _, let p) = upload else { return }
+                guard case .ready(let id, _, let v, let p) = upload else { return }
                 processing = p
+                isVideo = v
                 _ = try await StoryAPI.createMedia(mediaId: id, alt: alt.trimmed, caption: caption.trimmed, audience: audience, projectId: project)
             case .text:
                 _ = try await StoryAPI.createText(text.trimmed, background: background, audience: audience, projectId: project)
             }
             Haptics.success()
-            app.show(processing ? "Deine Story erscheint, sobald das Video verarbeitet ist." : "Deine Story ist online – 24 Stunden lang.")
+            app.show(processing ? "Deine Story erscheint, sobald \(isVideo ? "das Video" : "das Foto") verarbeitet ist." : "Deine Story ist online – 24 Stunden lang.")
             NotificationCenter.default.post(name: .storiesChanged, object: nil)
             dismiss()
         } catch {

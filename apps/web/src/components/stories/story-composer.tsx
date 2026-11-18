@@ -98,8 +98,28 @@ export function StoryComposer({
     setProjectId("");
   }
 
+  // Esc während des Teilens: das native <dialog> würde sich schliessen, während `open` true bleibt –
+  // danach liesse sich der Composer nicht mehr öffnen. Deshalb „cancel“ abfangen, solange gesendet wird.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const pendingRef = useRef(false);
+  pendingRef.current = pending;
+  useEffect(() => {
+    const d = bodyRef.current?.closest("dialog");
+    if (!open || !d) return;
+    const onCancel = (e: Event) => {
+      if (pendingRef.current) e.preventDefault();
+    };
+    d.addEventListener("cancel", onCancel);
+    return () => d.removeEventListener("cancel", onCancel);
+  }, [open]);
+
   function close() {
-    if (pending) return;
+    if (pending) {
+      // Hat der Browser den Dialog trotzdem geschlossen (wiederholtes Esc), Zustand angleichen;
+      // Eingaben bleiben erhalten, das Teilen läuft weiter
+      if (bodyRef.current?.closest("dialog")?.open === false) onClose();
+      return;
+    }
     reset();
     onClose();
   }
@@ -155,7 +175,7 @@ export function StoryComposer({
 
   return (
     <Dialog open={open} onClose={close} title="Neue Story" description="Sichtbar für 24 Stunden – danach in deinem Archiv." wide>
-      <div className="grid gap-6 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+      <div ref={bodyRef} className="grid gap-6 sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
         {/* Vorschau im Story-Format */}
         <div className="mx-auto w-full max-w-[15rem]">
           <div className="@container relative aspect-[9/16] w-full overflow-hidden rounded-2xl border border-line bg-sunken">

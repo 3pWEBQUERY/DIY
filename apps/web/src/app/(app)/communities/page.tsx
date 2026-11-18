@@ -10,6 +10,7 @@ import { CommunityCard } from "@/components/communities/community-card";
 import { Empty, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { cn, pluralize } from "@/lib/utils";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = {
   title: "Communities",
@@ -18,9 +19,11 @@ export const metadata: Metadata = {
 };
 
 type SP = { q?: string; kategorie?: string; nach?: string };
+/** Werte können bei doppelten Schlüsseln Arrays sein → mit flatSearchParams auf je einen Wert bringen */
+type RawSP = { [K in keyof SP]?: string | string[] };
 
-export default async function CommunitiesPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const sp = await searchParams;
+export default async function CommunitiesPage({ searchParams }: { searchParams: Promise<RawSP> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   const viewerId = user?.id ?? null;
   const filtered = !!(sp.q || sp.kategorie);

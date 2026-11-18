@@ -183,9 +183,11 @@ type IncomingItem = { name: string; quantity: string; materialId: string | null;
 async function mergeInto(listId: string, incoming: IncomingItem[]) {
   return db.$transaction(async (tx) => {
     const existing = await tx.shoppingListItem.findMany({ where: { listId }, orderBy: { position: "asc" } });
-    if (existing.length + incoming.length > MAX_ITEMS * 2) throw fail.invalid("Die Liste wird zu lang.");
     const key = (i: { name: string; materialId: string | null }) => (i.materialId ? `m:${i.materialId}` : `n:${norm(i.name)}`);
     const byKey = new Map(existing.map((e) => [key(e), e]));
+    // Dieselbe Obergrenze wie beim einzelnen Hinzufügen; zusammengefasste Positionen zählen nicht neu
+    const fresh = new Set(incoming.map(key).filter((k) => !byKey.has(k))).size;
+    if (fresh && existing.length + fresh > MAX_ITEMS) throw fail.invalid(`Eine Liste fasst höchstens ${MAX_ITEMS} Positionen.`);
     let position = existing.length;
     let added = 0;
     let merged = 0;

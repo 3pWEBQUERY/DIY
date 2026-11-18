@@ -85,6 +85,8 @@ function CoverPicker({ url, onUploaded, onRemove }: { url: string | null; onUplo
         accept="image/jpeg,image/png,image/webp,image/heic,image/avif"
         onChange={async (e) => {
           const f = e.target.files?.[0];
+          // Zurücksetzen, damit dieselbe Datei nach einem Fehler erneut gewählt werden kann
+          e.target.value = "";
           if (!f) return;
           setProgress(0);
           try {
@@ -140,7 +142,7 @@ export function CommunityForm({ initial, categories = CATEGORIES }: { initial?: 
         {!editing && (
           <Field label="Adresse" error={a.fields.slug} hint="Kann später nicht mehr geändert werden.">
             {(p) => (
-              <div className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
+              <div className="flex items-center border border-field bg-card focus-within:border-moss rounded-2xl">
                 <span className="pl-3 font-mono text-[12px] text-muted">/c/</span>
                 <input
                   {...p}

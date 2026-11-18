@@ -9,6 +9,7 @@ import { ArticleCard } from "@/components/blog/article-card";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { cn, formatDate, pluralize } from "@/lib/utils";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = {
   title: "Blogs",
@@ -18,6 +19,8 @@ export const metadata: Metadata = {
 };
 
 type SP = { q?: string; rubrik?: string; tag?: string; nach?: string };
+/** Werte können bei doppelten Schlüsseln Arrays sein → mit flatSearchParams auf je einen Wert bringen */
+type RawSP = { [K in keyof SP]?: string | string[] };
 
 function CategoryNav({ categories, active }: { categories: { slug: string; name: string }[]; active?: string }) {
   return (
@@ -50,8 +53,8 @@ function SearchBox({ q, rubrik }: { q?: string; rubrik?: string }) {
   );
 }
 
-export default async function BlogsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const sp = await searchParams;
+export default async function BlogsPage({ searchParams }: { searchParams: Promise<RawSP> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   const viewerId = user?.id ?? null;
   const categories = await listArticleCategories();

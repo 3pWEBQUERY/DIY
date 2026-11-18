@@ -22,13 +22,19 @@ export const STUDIO_NAV = [
   { href: "/studio/einstellungen", label: "Einstellungen" },
 ];
 
+/** Aktiv bei exakter Übereinstimmung oder in einem Unterpfad – „/studio/pro“ darf nicht „/studio/produkte“ treffen. */
+function isActive(pathname: string, item: { href: string; exact?: boolean }) {
+  if (pathname === item.href) return true;
+  return !item.exact && pathname.startsWith(`${item.href}/`);
+}
+
 export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?: boolean }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Studio" className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-60 shrink-0 overflow-y-auto border-r border-line py-6 md:block">
       <ul className="px-3">
         {STUDIO_NAV.map((item, i) => {
-          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+          const active = isActive(pathname, item);
           const disabled = item.shop && !hasShop;
           return (
             <li key={item.href}>
@@ -60,7 +66,7 @@ export function StudioMobileNav() {
   return (
     <div className="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-line px-4 pb-2 scrollbar-none md:hidden">
       {STUDIO_NAV.map((item) => {
-        const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+        const active = isActive(pathname, item);
         return (
           <Link key={item.href} href={item.href} className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors", active ? "bg-moss font-semibold text-paper" : "text-muted hover:bg-sunken hover:text-ink")}>
             {item.label}

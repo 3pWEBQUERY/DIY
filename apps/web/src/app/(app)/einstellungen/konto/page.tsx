@@ -12,6 +12,8 @@ import { getCustomerDetails } from "@/server/account/customer";
 import { CustomerDetailsForm } from "@/components/settings/customer-details-form";
 import { UnlinkPinterestButton } from "@/components/settings/pinterest-link";
 import { features } from "@/server/env";
+import { flatSearchParams } from "@/lib/search-params";
+import { Input } from "@/components/ui/field";
 
 export const metadata: Metadata = { title: "Konto & Daten" };
 
@@ -19,10 +21,12 @@ const PINTEREST_NOTICE: Record<string, { tone: "moss" | "warn" | "danger"; text:
   verbunden: { tone: "moss", text: "Pinterest ist jetzt mit deinem Konto verbunden. Du kannst dich ab sofort auch mit Pinterest anmelden." },
   vergeben: { tone: "danger", text: "Dieses Pinterest-Konto ist bereits mit einem anderen Werkuno-Konto verbunden." },
   fehler: { tone: "danger", text: "Die Verbindung mit Pinterest ist fehlgeschlagen oder wurde abgebrochen. Bitte versuche es erneut." },
+  bestaetigen: { tone: "warn", text: "Bitte bestätige das Verbinden mit Pinterest mit deinem Passwort." },
+  passwort: { tone: "danger", text: "Das Passwort stimmt nicht. Bitte versuche es erneut." },
 };
 
-export default async function AccountSettingsPage({ searchParams }: { searchParams: Promise<{ pinterest?: string }> }) {
-  const sp = await searchParams;
+export default async function AccountSettingsPage({ searchParams }: { searchParams: Promise<{ pinterest?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const pinterestNotice = sp.pinterest ? PINTEREST_NOTICE[sp.pinterest] : undefined;
   const user = await requirePageUser("/einstellungen/konto", { allowSuspended: true });
   const [a, details, session] = await Promise.all([accountOverview(user.id), getCustomerDetails(user.id), getSession()]);
@@ -59,9 +63,19 @@ export default async function AccountSettingsPage({ searchParams }: { searchPara
             ) : (
               <>
                 <span className="text-muted">Mit Pinterest anmelden</span>
-                <a href="/api/auth/pinterest?verbinden=1" className={buttonClass("outline", "sm", "ml-auto")}>
-                  Verbinden
-                </a>
+                {a.hasPassword ? (
+                  // Neue Anmeldemöglichkeit nur mit Passwort-Bestätigung – eine gestohlene Sitzung allein genügt nicht
+                  <form method="post" action="/api/auth/pinterest" className="ml-auto flex flex-wrap items-center gap-2">
+                    <Input type="password" name="password" required autoComplete="current-password" placeholder="Passwort zur Bestätigung" aria-label="Passwort zur Bestätigung" className="h-9 w-56" />
+                    <button type="submit" className={buttonClass("outline", "sm")}>
+                      Verbinden
+                    </button>
+                  </form>
+                ) : (
+                  <a href="/api/auth/pinterest?verbinden=1" className={buttonClass("outline", "sm", "ml-auto")}>
+                    Verbinden
+                  </a>
+                )}
               </>
             )}
           </div>

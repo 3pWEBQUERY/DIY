@@ -6,8 +6,8 @@ import { WelcomePickFallback } from "./welcome-pick-fallback";
 import { IosBetaHint } from "./ios-beta-hint";
 
 /**
- * Mobile Startseite (nur unter md): ruhiger Willkommensbildschirm mit grossem Werkstatt-Bild oben, das weich
- * in ein tiefes Nachtblau übergeht; darunter Botschaft, Konto erstellen, Apple/Pinterest und „Erst einmal umsehen“.
+ * Mobile Startseite (nur unter md): ruhiger Willkommensbildschirm mit grossem Werkstatt-Bild oben und einer flachen
+ * nachtblauen Fläche (ohne Verlauf) darunter; darin Botschaft, Konto erstellen, Apple/Pinterest und „Erst einmal umsehen“.
  *
  * Bei jedem Besuch erscheint ein anderes Bild (nie zweimal dasselbe hintereinander). Die Startseite wird
  * zwischengespeichert ausgeliefert, darum wählt ein kleines Skript direkt beim Laden der Seite (noch vor dem
@@ -33,7 +33,7 @@ const PICK = `(${pickWelcomeBackground.toString()})(document.currentScript.paren
 export function MobileWelcome({ apple, pinterest, beta = false }: { apple: boolean; pinterest: boolean; beta?: boolean }) {
   return (
     <section aria-label="Willkommen bei Werkuno" className="relative isolate flex min-h-[100svh] flex-col overflow-hidden text-white md:hidden" style={{ backgroundColor: NIGHT }}>
-      {/* Bild oben, weich ins Nachtblau auslaufend */}
+      {/* Bild oben; die nachtblaue Inhaltsfläche liegt flach darüber (keine Verläufe) */}
       <div id={BG_ID} aria-hidden className="group/bg absolute inset-x-0 top-0 -z-10 h-[68svh] overflow-hidden" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: PICK }} />
         {BACKGROUNDS.map((b) => (
@@ -44,10 +44,8 @@ export function MobileWelcome({ apple, pinterest, beta = false }: { apple: boole
           />
         ))}
         <WelcomePickFallback id={BG_ID} count={BACKGROUNDS.length} />
-        {/* oben leicht abdunkeln für Logo und Anmelden */}
-        <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/45 to-transparent" />
-        {/* unten ins Nachtblau */}
-        <div className="absolute inset-x-0 bottom-0 h-[58%]" style={{ background: `linear-gradient(to bottom, transparent, ${NIGHT}cc 55%, ${NIGHT})` }} />
+        {/* gleichmässig leicht abdunkeln für Logo und Anmelden (flach, ohne Verlauf) */}
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
       <header className="flex items-center justify-between px-5 pt-[max(env(safe-area-inset-top),14px)]">
@@ -72,7 +70,7 @@ export function MobileWelcome({ apple, pinterest, beta = false }: { apple: boole
       {/* kurze Bildschirme (z. B. iPhone SE): weniger Abstand, damit alles ohne Scrollen passt */}
       <div className="min-h-[30svh] flex-1 [@media(max-height:700px)]:min-h-[8svh]" />
 
-      <div className="px-6 pb-[max(env(safe-area-inset-bottom),18px)]">
+      <div className="rounded-t-[28px] px-6 pb-[max(env(safe-area-inset-bottom),18px)] pt-7 [@media(max-height:700px)]:pt-5" style={{ backgroundColor: NIGHT }}>
         <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#e2bd84]">Das Netzwerk für Selbstgemachtes</p>
         <h1 className="display mt-3 text-[42px] leading-[1.02] text-white [@media(max-height:700px)]:mt-2 [@media(max-height:700px)]:text-[36px]">
           Ein Faden.
@@ -84,7 +82,7 @@ export function MobileWelcome({ apple, pinterest, beta = false }: { apple: boole
         </p>
 
         <div className="mt-7 space-y-2.5 [@media(max-height:700px)]:mt-5 [@media(max-height:700px)]:space-y-2">
-          <Link href="/registrieren" className="flex h-[52px] w-full items-center justify-center rounded-full bg-moss text-[16px] font-semibold text-paper shadow-[0_12px_30px_-12px_rgba(182,75,58,0.9)] active:scale-[0.98]">
+          <Link href="/registrieren" className="flex h-[52px] w-full items-center justify-center rounded-full bg-moss text-[16px] font-semibold text-paper active:scale-[0.98]">
             Konto erstellen – kostenlos
           </Link>
           {apple && (

@@ -140,7 +140,7 @@ struct ModerationView: View {
                             .padding(.horizontal, Space.gutter)
                             .padding(.top, 12)
                             .padding(.bottom, 40)
-                        } header: {
+                        } header: { Group {
                             MeTabSwitcher(items: [
                                 (MeModTab.queue, "Fälle", dashboard?.counts?.cases),
                                 (.appeals, "Einsprüche", dashboard?.counts?.appeals),
@@ -149,7 +149,7 @@ struct ModerationView: View {
                                 (.content, "Inhalte", nil),
                                 (.overview, "Kennzahlen", nil),
                             ], selection: $tab)
-                        }
+                        }.font(.wr(.footnote, .semibold)) }
                     }
                 }
             }
@@ -455,13 +455,13 @@ private struct MeAppealDecisionSheet: View {
             Form {
                 Section {
                     Text(appeal.statement).font(.wr(.subheadline))
-                } header: { Text("Begründung von \(appeal.user?.handle.map { "@\($0)" } ?? "der Person")") }
+                } header: { Group { Text("Begründung von \(appeal.user?.handle.map { "@\($0)" } ?? "der Person")") }.font(.wr(.footnote, .semibold)) }
                 if let o = appeal.case?.actions?.first {
-                    Section("Ursprüngliche Entscheidung") {
+                    Section {
                         LabeledContent("Massnahme", value: MeLabels.action(o.action))
                         if let r = o.reason?.nilIfEmpty { Text(r).font(.wr(.caption)).foregroundStyle(Color.muted) }
                         if let h = o.moderator?.handle { LabeledContent("Von", value: "@\(h)") }
-                    }
+                    } header: { Text("Ursprüngliche Entscheidung").font(.wr(.footnote, .semibold)) }
                 }
                 Section {
                     Picker("Entscheid", selection: $decision) {
@@ -471,9 +471,9 @@ private struct MeAppealDecisionSheet: View {
                     .pickerStyle(.segmented)
                     TextField("Begründung an die Person (mind. 10 Zeichen)", text: $note, axis: .vertical).lineLimit(3...8)
                     MeCharCounter(count: note.trimmed.count, min: 10, max: 2000)
-                } header: { Text("Dein Entscheid") } footer: {
+                } header: { Group { Text("Dein Entscheid") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text(decision == "OVERTURNED" ? "Die Massnahme wird exakt zurückgenommen. Die Person wird benachrichtigt." : "Die Massnahme bleibt bestehen. Die Person wird benachrichtigt.")
-                }
+                }.font(.wr(.footnote)) }
             }
             .meFormStyle()
             .navigationTitle("Einspruch entscheiden")
@@ -1056,20 +1056,20 @@ private struct MeAdminActionSheet: View {
             Form {
                 switch kind {
                 case .suspend:
-                    Section("Dauer") {
+                    Section {
                         Picker("Dauer", selection: $days) {
                             ForEach([1, 3, 7, 14, 30, 90, 365], id: \.self) { Text(Fmt.plural($0, "Tag", "Tage")).tag(Int?.some($0)) }
                             Text("Unbefristet").tag(Int?.none)
                         }
-                    }
+                    } header: { Text("Dauer").font(.wr(.footnote, .semibold)) }
                     Section {
                         TextField("Interne Begründung (mind. 10 Zeichen)", text: $reason, axis: .vertical).lineLimit(2...6)
                         TextField("Nachricht an die Person (mind. 10 Zeichen)", text: $publicNote, axis: .vertical).lineLimit(2...6)
-                    } header: { Text("Begründung") } footer: { Text("Alle Sitzungen der Person werden beendet. Die Nachricht sieht die Person beim nächsten Anmelden.") }
+                    } header: { Group { Text("Begründung") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Alle Sitzungen der Person werden beendet. Die Nachricht sieht die Person beim nächsten Anmelden.") }.font(.wr(.footnote)) }
                 case .unsuspend:
                     Section {
                         TextField("Begründung (mind. 5 Zeichen)", text: $reason, axis: .vertical).lineLimit(2...6)
-                    } header: { Text("Sperre aufheben") } footer: { Text("Dauerhafte Sperren hebt nur die Administration auf.") }
+                    } header: { Group { Text("Sperre aufheben") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Dauerhafte Sperren hebt nur die Administration auf.") }.font(.wr(.footnote)) }
                 case .role:
                     Section {
                         Picker("Rolle", selection: $role) {
@@ -1077,7 +1077,7 @@ private struct MeAdminActionSheet: View {
                         }
                         .pickerStyle(.inline)
                         .labelsHidden()
-                    } header: { Text("Neue Rolle") } footer: { Text("Admin-Rollen vergibt nur die Superadministration. Die eigene Rolle kann nicht geändert werden.") }
+                    } header: { Group { Text("Neue Rolle") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Admin-Rollen vergibt nur die Superadministration. Die eigene Rolle kann nicht geändert werden.") }.font(.wr(.footnote)) }
                     Section { TextField("Begründung (mind. 5 Zeichen)", text: $reason, axis: .vertical).lineLimit(2...6) }
                 }
             }

@@ -4,11 +4,18 @@ import { getMyShop } from "@/server/commerce/shops";
 import { getProductForEdit, linkOptions } from "@/server/commerce/products";
 import { minorToInput } from "@/server/commerce/rules";
 import { listRestockRequests } from "@/server/commerce/restock";
+import { appStorePricingInfo } from "@/server/commerce/appstore";
 import type { ProductEditorInitial } from "@/components/commerce/product-editor";
 
 /** Lädt alles, was der Produkteditor braucht (neu oder bestehend). */
 export async function loadEditor(userId: string, productId: string | null) {
-  const [shop, links, feeBps, digitalEnabled] = await Promise.all([getMyShop(userId), linkOptions(userId), getSetting("commerce.feeBps"), getSetting("commerce.digitalEnabledWeb")]);
+  const [shop, links, feeBps, digitalEnabled, appStore] = await Promise.all([
+    getMyShop(userId),
+    linkOptions(userId),
+    getSetting("commerce.feeBps"),
+    getSetting("commerce.digitalEnabledWeb"),
+    appStorePricingInfo(),
+  ]);
   if (!shop) return null;
   let slug: string | null = null;
   let initial: ProductEditorInitial = {
@@ -42,7 +49,7 @@ export async function loadEditor(userId: string, productId: string | null) {
   };
   if (productId) {
     const p = await getProductForEdit({ id: userId }, productId);
-    if (!p) return { shop, links, feeBps, digitalEnabled, initial: null, slug };
+    if (!p) return { shop, links, feeBps, digitalEnabled, appStore, initial: null, slug };
     slug = p.slug;
     const base = p.inventory.find((i) => i.variantId === null);
     initial = {
@@ -80,5 +87,5 @@ export async function loadEditor(userId: string, productId: string | null) {
       restockRequests: await listRestockRequests({ id: userId }, p.id),
     };
   }
-  return { shop, links, feeBps, digitalEnabled, initial, slug };
+  return { shop, links, feeBps, digitalEnabled, appStore, initial, slug };
 }

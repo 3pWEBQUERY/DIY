@@ -13,6 +13,7 @@ import { groupCandidatesAction, startConversationAction } from "@/app/(app)/nach
 import { cn } from "@/lib/utils";
 import { SHARE_LOGOS, type ShareLogo } from "./share-logos.data";
 import { BRAND } from "@/config/brand";
+import { callAction } from "@/lib/use-action";
 
 /**
  * Eigenes Teilen-Menü (statt des System-Dialogs): Werkuno-Nachricht, WhatsApp, Nachrichten,
@@ -71,7 +72,7 @@ function Tile({ t, onClick, href }: { t: Target; onClick?: () => void; href?: st
     <>
       <span
         className="grid size-[52px] place-items-center rounded-2xl text-white transition-transform duration-150 group-hover:-translate-y-0.5 group-active:scale-95 motion-reduce:transform-none"
-        style={{ background: t.key === "instagram" ? "linear-gradient(45deg,#FEDA75 0%,#FA7E1E 25%,#D62976 55%,#962FBF 80%,#4F5BD5 100%)" : (t.bg ?? logo?.color) }}
+        style={{ background: t.bg ?? logo?.color }}
         aria-hidden
       >
         {logo ? (
@@ -231,7 +232,7 @@ export function ShareSheet({ open, onClose, url, title, text, image }: { open: b
               <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
                 Instagram erlaubt kein direktes Teilen von Links aus dem Browser. Öffne Instagram und füge den Link in einen Chat oder als Link-Sticker in deine Story ein.
               </p>
-              <a href={env.mobile ? "https://www.instagram.com/direct/inbox/" : "https://www.instagram.com/"} target="_blank" rel="noopener noreferrer" onClick={onClose} className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white" style={{ background: "linear-gradient(45deg,#FA7E1E,#D62976 50%,#962FBF)" }}>
+              <a href={env.mobile ? "https://www.instagram.com/direct/inbox/" : "https://www.instagram.com/"} target="_blank" rel="noopener noreferrer" onClick={onClose} className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white" style={{ background: SHARE_LOGOS.instagram.color }}>
                 <svg viewBox="0 0 24 24" width={17} height={17} fill="currentColor" aria-hidden>
                   <path d={SHARE_LOGOS.instagram.d} />
                 </svg>
@@ -253,14 +254,18 @@ function SendToPeople({ url, onDone }: { url: string; onDone: () => void }) {
   const [handles, setHandles] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void groupCandidatesAction().then((r) => {
+  // Netz-/Serverfehler: Fehlerzustand mit „Erneut versuchen“ statt unbehandelter Ausnahme
+  const load = () => {
+    setLoadError(null);
+    void callAction(() => groupCandidatesAction()).then((r) => {
       if (r.ok) setCandidates(r.data);
       else if (r.code === "UNAUTHENTICATED") setNeedsLogin(true);
-      else setCandidates([]);
+      else setLoadError(r.error);
     });
-  }, []);
+  };
+  useEffect(load, []);
 
   if (needsLogin)
     return (
@@ -273,10 +278,15 @@ function SendToPeople({ url, onDone }: { url: string; onDone: () => void }) {
     );
 
   const send = async () => {
+    if (sending) return;
     setSending(true);
     const body = [note.trim(), url].filter(Boolean).join("\n\n");
-    const results = await Promise.all(handles.map((h) => startConversationAction({ recipientHandle: h, body }).then((r) => ({ h, r }))));
-    setSending(false);
+    let results: { h: string; r: Awaited<ReturnType<typeof startConversationAction>> }[];
+    try {
+      results = await Promise.all(handles.map((h) => callAction(() => startConversationAction({ recipientHandle: h, body })).then((r) => ({ h, r }))));
+    } finally {
+      setSending(false);
+    }
     const failed = results.filter((x) => !x.r.ok);
     const okCount = results.length - failed.length;
     if (okCount) toast(okCount === 1 ? "Gesendet." : `An ${okCount} Personen gesendet.`);
@@ -291,7 +301,14 @@ function SendToPeople({ url, onDone }: { url: string; onDone: () => void }) {
 
   return (
     <div className="px-5 pt-5">
-      {candidates == null ? (
+      {candidates == null && loadError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-[14px] text-muted">
+          {loadError}
+          <Button variant="ghost" size="sm" onClick={load}>
+            Erneut versuchen
+          </Button>
+        </div>
+      ) : candidates == null ? (
         <div className="space-y-2" aria-busy>
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-12 animate-pulse rounded-xl bg-sunken" />

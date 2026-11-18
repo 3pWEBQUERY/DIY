@@ -18,9 +18,10 @@ import { FollowButton } from "@/components/social/actions";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { Placeholder } from "@/components/ui/media";
 import { LinkButton } from "@/components/ui/button";
-import { relativeTime } from "@/lib/utils";
+import { pluralize, relativeTime } from "@/lib/utils";
 import { getSetting } from "@/server/settings";
 import { IosBetaHint } from "@/components/landing/ios-beta-hint";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Startseite" };
 
@@ -30,12 +31,18 @@ const TABS: { key: FeedKind; label: string; param: string }[] = [
   { key: "new", label: "Neu", param: "neu" },
 ];
 
-export default async function FeedPage({ searchParams }: { searchParams: Promise<{ ansicht?: string; tipp?: string }> }) {
-  const sp = await searchParams;
+/** Gespeicherte Voreinstellung (UserPreference.feedDefault) → Feed-Tab */
+const FEED_DEFAULT_TAB: Record<string, FeedKind> = { FOR_YOU: "for-you", FOLLOWING: "following", NEW: "new" };
+
+export default async function FeedPage({ searchParams }: { searchParams: Promise<{ ansicht?: string | string[]; tipp?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   if (!user) redirect((await getPendingMfaSession()) ? "/anmelden/zwei-faktor" : "/entdecken");
   if (!user.onboardedAt && sp.tipp !== "aus") redirect("/willkommen");
-  const tab = TABS.find((t) => t.param === sp.ansicht) ?? TABS[0]!;
+  // Ohne ?ansicht gilt die gespeicherte Feed-Voreinstellung (Einstellungen → Feed & Interessen)
+  const pref = sp.ansicht ? null : await db.userPreference.findUnique({ where: { userId: user.id }, select: { feedDefault: true } });
+  const preferred = FEED_DEFAULT_TAB[pref?.feedDefault ?? ""] ?? "for-you";
+  const tab = TABS.find((t) => t.param === sp.ansicht) ?? TABS.find((t) => t.key === preferred) ?? TABS[0]!;
   const interests = user.profile?.categories ?? [];
   const viewer = { id: user.id, displayName: user.profile?.displayName ?? "", avatarUrl: user.profile?.avatarUrl ?? null };
 
@@ -70,7 +77,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold group-hover:underline">{p.title}</p>
-                    <p className="spec">{PROJECT_STATUS_LABEL[p.status]} · {p._count.updates} Einträge · {relativeTime(p.updatedAt)}</p>
+                    <p className="spec">{PROJECT_STATUS_LABEL[p.status]} · {pluralize(p._count.updates, "Eintrag", "Einträge")} · {relativeTime(p.updatedAt)}</p>
                   </div>
                 </Link>
               </li>

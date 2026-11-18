@@ -52,7 +52,6 @@ struct RemoteImage<Placeholder: View>: View {
     @ViewBuilder var placeholder: () -> Placeholder
 
     @State private var image: UIImage?
-    @State private var failed = false
 
     var body: some View {
         ZStack {
@@ -71,7 +70,7 @@ struct RemoteImage<Placeholder: View>: View {
             let img = await ImageCache.shared.load(url)
             // Überholter Ladevorgang (Pfad inzwischen gewechselt): neueres Bild nicht überschreiben
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.25)) { image = img; failed = img == nil }
+            withAnimation(.easeOut(duration: 0.25)) { image = img }
         }
     }
 }

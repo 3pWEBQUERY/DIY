@@ -48,7 +48,7 @@ export function VerifyEmailBanner({ email }: { email: string }) {
               else toast(r.error, "error");
             })
           }
-          className="shrink-0 rounded-lg px-2.5 py-1 font-semibold text-moss hover:bg-paper disabled:opacity-50"
+          className="shrink-0 rounded-lg px-2.5 py-1 font-semibold text-moss-ink hover:bg-paper disabled:opacity-50"
         >
           {pending ? "Wird gesendet …" : "Link erneut senden"}
         </button>

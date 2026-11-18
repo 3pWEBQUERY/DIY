@@ -8,14 +8,19 @@ import { ResetHiddenButton, UnmuteButton, ShowStoriesButton } from "@/components
 import { listStoryMutes } from "@/server/stories/service";
 import { Avatar } from "@/components/ui/misc";
 import { pluralize } from "@/lib/utils";
+import { isSuspended, SuspendedNotice } from "@/app/(app)/_components/suspended";
 
 export const metadata: Metadata = { title: "Feed & Interessen" };
 
 export default async function FeedSettingsPage() {
-  const user = await requirePageUser("/einstellungen/feed");
+  const user = await requirePageUser("/einstellungen/feed", { allowSuspended: true });
+  const suspended = isSuspended(user);
   const [s, storyMutes] = await Promise.all([getFeedSettings(user.id), listStoryMutes(user.id)]);
   return (
     <div>
+      {suspended && <SuspendedNotice until={user.suspendedUntil} className="mb-8" />}
+      {/* Gesperrte Konten dürfen lesen, Änderungen lehnt der Server ab – Bedienelemente deaktivieren */}
+      <fieldset disabled={suspended} className="contents">
       <FeedForm interests={s.interests} hidden={s.hiddenCategories} feedDefault={s.feedDefault} />
 
       <SettingsSection n="03" title="Stummgeschaltete Profile" description="Ihre Beiträge erscheinen nicht in deinen Feeds. Profile bleiben direkt erreichbar, und sie erfahren nichts davon.">
@@ -62,6 +67,7 @@ export default async function FeedSettingsPage() {
           <ResetHiddenButton count={s.hiddenCount} />
         </div>
       </SettingsSection>
+      </fieldset>
     </div>
   );
 }

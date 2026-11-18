@@ -461,6 +461,11 @@ struct RichTextField: View {
                 RichTextView(markup: $markup, controller: controller, minHeight: minHeight)
                     .accessibilityLabel(placeholder)
             }
+            // Als Eingabefeld erkennbar: eigene Fläche mit Rahmen, damit es nicht wie ein Hinweis wirkt
+            .padding(.horizontal, 10)
+            .padding(.vertical, 2)
+            .background(Color.sunken.opacity(0.6), in: .rect(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
         }
         .alert("Link einfügen", isPresented: $askLink) {
             TextField("https://…", text: $linkText)

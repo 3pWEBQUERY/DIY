@@ -20,7 +20,7 @@ export function SignInForm({ next, apple, pinterest = false, error }: { next?: s
       {(apple || pinterest) && (
         <>
           <div className="space-y-3">
-            {apple && <AppleButton />}
+            {apple && <AppleButton href={`/api/auth/apple${next ? `?weiter=${encodeURIComponent(next)}` : ""}`} />}
             {pinterest && <PinterestButton href={`/api/auth/pinterest${next ? `?weiter=${encodeURIComponent(next)}` : ""}`} />}
           </div>
           <div className="my-6 flex items-center gap-4 spec">

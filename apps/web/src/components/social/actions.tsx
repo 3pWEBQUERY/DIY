@@ -14,6 +14,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { ShareSheet } from "./share-sheet";
 import { likeAction, bookmarkAction, reportAction, hideAction, muteAction, blockAction, followAction } from "@/app/(app)/social-actions";
 import { callAction } from "@/lib/use-action";
+import type { ActionResult } from "@/server/errors";
 
 function useAuthRedirect() {
   const router = useRouter();
@@ -345,18 +346,21 @@ export function useSafetyMenu(opts: { targetType: TargetType; targetId: string; 
   const router = useRouter();
   const [reportOpen, setReportOpen] = useState(false);
   const authRedirect = useAuthRedirect();
-  const run = async (p: Promise<{ ok: boolean; code?: string; error?: string; message?: string }>) => {
-    const r = await p;
+  // Über callAction: Netz-/Serverfehler werden zur Fehlermeldung statt zur unbehandelten Ausnahme
+  const run = async <T,>(p: () => Promise<ActionResult<T>>) => {
+    const r = await callAction(p);
     if (r.ok) {
       if (r.message) toast(r.message);
       router.refresh();
-    } else if (!authRedirect(r.code)) toast(r.error ?? "Fehler", "error");
+    } else if (!authRedirect(r.code)) toast(r.error, "error");
   };
   const items: MenuItem[] = [
     { label: "Melden", icon: <Flag size={15} />, onSelect: () => setReportOpen(true) },
-    { label: "Nicht interessiert", icon: <EyeOff size={15} />, onSelect: () => run(hideAction(opts.targetType, opts.targetId)) },
-    { label: `${opts.authorName} stummschalten`, icon: <VolumeX size={15} />, onSelect: () => run(muteAction(opts.authorId, true)) },
-    { label: `${opts.authorName} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => (await confirmDialog(`${opts.authorName} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) && run(blockAction(opts.authorId, true)) },
+    { label: "Nicht interessiert", icon: <EyeOff size={15} />, onSelect: () => void run(() => hideAction(opts.targetType, opts.targetId)) },
+    { label: `${opts.authorName} stummschalten`, icon: <VolumeX size={15} />, onSelect: () => void run(() => muteAction(opts.authorId, true)) },
+    { label: `${opts.authorName} blockieren`, icon: <Ban size={15} />, danger: true, onSelect: async () => {
+        if (await confirmDialog(`${opts.authorName} blockieren? Ihr könnt euch dann gegenseitig nicht mehr sehen oder kontaktieren.`)) await run(() => blockAction(opts.authorId, true));
+      } },
   ];
   const dialog = <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} targetType={opts.targetType} targetId={opts.targetId} />;
   return { items, dialog };

@@ -254,10 +254,10 @@ struct ShoppingListView: View {
                 }
             }
             if !open.isEmpty {
-                Section { ForEach(open) { itemRow($0) } } header: { SpecLabel("Offen · \(open.count)") }
+                Section { ForEach(open) { itemRow($0) } } header: { Group { SpecLabel("Offen · \(open.count)") }.font(.wr(.footnote, .semibold)) }
             }
             if !done.isEmpty {
-                Section { ForEach(done) { itemRow($0) } } header: { SpecLabel("Erledigt · \(done.count)") }
+                Section { ForEach(done) { itemRow($0) } } header: { Group { SpecLabel("Erledigt · \(done.count)") }.font(.wr(.footnote, .semibold)) }
             }
         }
         .listStyle(.insetGrouped)
@@ -269,7 +269,9 @@ struct ShoppingListView: View {
         HStack(spacing: 12) {
             Button {
                 Haptics.selection()
-                Task { await patch(it, ["purchased": .bool(!it.purchased)]) }
+                // Erledigt (gekauft oder „Habe ich“) → beides zurücksetzen; offen → als gekauft abhaken
+                let body: [String: JSONValue] = it.isDone ? ["purchased": .bool(false), "haveIt": .bool(false)] : ["purchased": .bool(true)]
+                Task { await patch(it, body) }
             } label: {
                 Image(systemName: it.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.wr(.title3))
@@ -279,7 +281,7 @@ struct ShoppingListView: View {
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(it.purchased ? "Als nicht gekauft markieren" : "Als gekauft abhaken")
+            .accessibilityLabel(it.isDone ? "Wieder als offen markieren" : "Als gekauft abhaken")
             VStack(alignment: .leading, spacing: 2) {
                 Text(it.name)
                     .font(.wr(.body))
@@ -576,7 +578,7 @@ struct ShoppingListPickerSheet: View {
                         Text(title).font(.wr(.subheadline, .semibold))
                     }
                 }
-            } footer: { Text(kind == "MATERIAL" ? "Steht es schon auf der Liste, wird es zusammengefasst." : "Alle Materialien werden übernommen. Gleiche Materialien werden zusammengefasst, was du schon im Bestand hast, wird als „Habe ich“ markiert.") }
+            } footer: { Group { Text(kind == "MATERIAL" ? "Steht es schon auf der Liste, wird es zusammengefasst." : "Alle Materialien werden übernommen. Gleiche Materialien werden zusammengefasst, was du schon im Bestand hast, wird als „Habe ich“ markiert.") }.font(.wr(.footnote)) }
             if let error {
                 Section { ErrorStateView(message: error) { await load() } }
             } else if let lists {
@@ -589,9 +591,9 @@ struct ShoppingListPickerSheet: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                } header: { Text("Wohin?") }
+                } header: { Group { Text("Wohin?") }.font(.wr(.footnote, .semibold)) }
                 if selection == "new" {
-                    Section { TextField("Titel der neuen Liste", text: $newTitle) } header: { Text("Neue Liste") }
+                    Section { TextField("Titel der neuen Liste", text: $newTitle) } header: { Group { Text("Neue Liste") }.font(.wr(.footnote, .semibold)) }
                 }
             } else {
                 Section { LoadingView() }

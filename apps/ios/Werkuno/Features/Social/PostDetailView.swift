@@ -40,6 +40,11 @@ struct PostDetailView: View {
             guard note.userInfo?["deleted"] == nil else { return }
             if (note.object as? String) == id || (note.object as? PostItem)?.id == id { Task { await load() } }
         }
+        // Planen/Zeitpunkt entfernen ändert nur den Entwurfsstatus (Banner) – auch dann neu laden
+        .onReceive(NotificationCenter.default.publisher(for: .socialDraftsChanged)) { note in
+            guard (note.object as? String) == id else { return }
+            Task { await load() }
+        }
         .confirmationDialog("Beitrag löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) { Task { await delete() } }
         } message: { Text("Der Beitrag verschwindet aus Feed und Profil. Das kann nicht rückgängig gemacht werden.") }

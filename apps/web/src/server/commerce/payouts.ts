@@ -349,13 +349,34 @@ async function createPayout(shop: PayoutShop, amount: number, currency: string, 
 
 /* ───────────────────────── Worker ───────────────────────── */
 
+/** Prüfzeitpunkt für die Reihum-Auswahl setzen – per Roh-SQL, updatedAt („zuletzt bearbeitet“) bleibt unberührt. */
+async function stampPayoutAttempt(ids: string[]) {
+  if (ids.length) await db.$executeRaw`UPDATE "Shop" SET "payoutAttemptAt" = now() WHERE "id" = ANY(${ids})`;
+}
+
+/**
+ * Obergrenze für „heute (Zürich) noch nicht ausgezahlt“ als SQL-Vorfilter: UTC-Mitternacht des Zürcher
+ * Kalendertags minus 1 Std. Zürcher Mitternacht liegt 1–2 Std. davor (UTC+1/+2) – die Grenze ist also nie
+ * zu früh (kein fälliger Shop fällt weg); seltene Fälle dazwischen filtert isPayoutDue.
+ */
+export function zurichDayStartBound(now: Date) {
+  return new Date(Date.parse(`${zurichDayKey(now)}T00:00:00Z`) - 3600_000);
+}
+
 /**
  * Bisherige Stripe-Auszahlungspläne einmalig übernehmen und Stripe auf „manuell“ stellen – ab dann
  * zahlt Werkuno nach Plan aus, aber nur freigegebenes Guthaben (Haltefrist).
  */
 export async function migrateStripePayoutSchedules(limit = 50) {
   if (paymentsMode() !== "stripe") return 0;
-  const shops = await db.shop.findMany({ where: { stripeAccountId: { not: null }, payoutScheduleMigratedAt: null }, select: { id: true, stripeAccountId: true }, take: limit });
+  const shops = await db.shop.findMany({
+    where: { stripeAccountId: { not: null }, payoutScheduleMigratedAt: null },
+    select: { id: true, stripeAccountId: true },
+    // Reihum nach letztem Versuch: dauerhaft scheiternde Konten verdrängen die übrigen nicht
+    orderBy: [{ payoutAttemptAt: { sort: "asc", nulls: "first" } }, { id: "asc" }],
+    take: limit,
+  });
+  await stampPayoutAttempt(shops.map((s) => s.id));
   let n = 0;
   for (const s of shops) {
     try {
@@ -388,11 +409,19 @@ export async function runScheduledPayouts(now: Date = new Date()) {
   if (mode !== "stripe" && mode !== "simulated") return 0;
   const shops = await db.shop.findMany({
     // Gesperrte Shops nicht – ausser das Konto wurde gelöscht (dann ist der Shop gesperrt, das Restguthaben
-    // wird nach Ablauf der Haltefrist trotzdem ausgezahlt)
-    where: { payoutInterval: { not: "manual" }, OR: [{ status: { in: ["ACTIVE", "PAUSED"] } }, { owner: { status: "DELETED" } }], ...(mode === "stripe" ? { stripeAccountId: { not: null }, payoutsEnabled: true, payoutScheduleMigratedAt: { not: null } } : {}) },
+    // wird nach Ablauf der Haltefrist trotzdem ausgezahlt). Heute bereits ausgezahlte schon in SQL weglassen
+    // (Feinprüfung inkl. Wochentag/Monatstag weiter in isPayoutDue).
+    where: {
+      payoutInterval: { not: "manual" },
+      AND: [{ OR: [{ status: { in: ["ACTIVE", "PAUSED"] } }, { owner: { status: "DELETED" } }] }, { OR: [{ lastAutoPayoutAt: null }, { lastAutoPayoutAt: { lt: zurichDayStartBound(now) } }] }],
+      ...(mode === "stripe" ? { stripeAccountId: { not: null }, payoutsEnabled: true, payoutScheduleMigratedAt: { not: null } } : {}),
+    },
     select: { id: true, ownerId: true, status: true, currency: true, stripeAccountId: true, payoutsEnabled: true, payoutHoldWaived: true, payoutInterval: true, payoutWeeklyAnchor: true, payoutMonthlyAnchor: true, lastAutoPayoutAt: true },
+    // Reihum nach letzter Prüfung: scheiternde oder heute nicht fällige Shops verdrängen die übrigen nicht
+    orderBy: [{ payoutAttemptAt: { sort: "asc", nulls: "first" } }, { id: "asc" }],
     take: 500,
   });
+  await stampPayoutAttempt(shops.map((s) => s.id));
   let n = 0;
   for (const s of shops) {
     if (!isPayoutDue({ interval: s.payoutInterval, weeklyAnchor: s.payoutWeeklyAnchor, monthlyAnchor: s.payoutMonthlyAnchor }, s.lastAutoPayoutAt, now)) continue;

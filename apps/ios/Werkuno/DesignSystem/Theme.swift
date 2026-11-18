@@ -43,6 +43,8 @@ extension Color {
     static let danger = Color.dynamic(light: 0x9B2335, dark: 0xEC7B88)
     static let warn = Color.dynamic(light: 0x8A6A1F, dark: 0xE0B357)
     static let ochre = Color.dynamic(light: 0xC29A3E, dark: 0xD8B862)
+    /// Ocker für Text und Symbole mit Aussage (hell ≥ 4.5:1 auf Weiss) – `ochre` nur für Flächen und Sterne
+    static let ochreText = Color.dynamic(light: 0x8A6A1F, dark: 0xD8B862)
     static let slate = Color.dynamic(light: 0x4F6475, dark: 0x93A9BB)
     static let plum = Color.dynamic(light: 0x6E4E64, dark: 0xBE9AB3)
 }
@@ -247,5 +249,14 @@ struct AdaptiveGrid<Content: View>: View {
     var body: some View {
         let count = size.isAccessibilitySize ? 1 : 2
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: count), spacing: rowSpacing, content: content)
+    }
+}
+
+extension View {
+    /// Hintergrund für `Form`/gruppierte Listen: warmes Papier hinter weissen Feldkarten, damit
+    /// Eingabefelder sich klar von Überschriften und Hinweisen abheben.
+    func formCanvas() -> some View {
+        scrollContentBackground(.hidden)
+            .background(Color.sunken)
     }
 }

@@ -16,15 +16,16 @@ vi.mock("@/server/visibility", () => ({ isBlockedBetween: async () => false }));
 vi.mock("../fees", () => ({ feeForShop: async () => 600 }));
 vi.mock("../stripe", () => ({ paymentsMode: () => "simulated", isStripeError: () => false, createSellerTransfer: async () => ({}), reverseSellerTransfer: async () => ({}) }));
 
-const { appPriceFor, webPriceForAppleProduct, APP_STORE_PRODUCT_PREFIX } = await import("../appstore");
+const { appPriceFor, webPriceForAppleProduct, maxWebMinorForApp, APP_STORE_PRODUCT_PREFIX } = await import("../appstore");
 const { verifyAppStoreJws, AppStoreVerificationError } = await import("../appstore-verify");
 
 describe("App-Preise", () => {
   it("rundet Web-Preis + 30 % auf die nächste Preisstufe auf", () => {
-    expect(appPriceFor(1000, 3000)).toEqual({ priceMinor: 1300, appleProductId: `${APP_STORE_PRODUCT_PREFIX}13` });
+    expect(appPriceFor(1000, 3000)).toEqual({ priceMinor: 1300, appleProductId: `${APP_STORE_PRODUCT_PREFIX}13` }); // 13.00 → 13
     expect(appPriceFor(1290, 3000)).toEqual({ priceMinor: 1700, appleProductId: `${APP_STORE_PRODUCT_PREFIX}17` }); // 16.77 → 17
     expect(appPriceFor(500, 3000)?.priceMinor).toBe(700); // 6.50 → 7
-    expect(appPriceFor(1600, 3000)?.priceMinor).toBe(2200); // 20.80 → 22
+    expect(appPriceFor(1600, 3000)?.priceMinor).toBe(2100); // 20.80 → 21
+    expect(appPriceFor(2300, 3000)?.priceMinor).toBe(3000); // 29.90 → 30 (höchste Stufe)
   });
   it("ist nie tiefer als der Web-Preis plus Aufschlag", () => {
     for (let web = 50; web <= 15_000; web += 37) {
@@ -33,12 +34,19 @@ describe("App-Preise", () => {
     }
   });
   it("liefert null über der höchsten Stufe und bei ungültigen Preisen", () => {
+    expect(appPriceFor(2400, 3000)).toBeNull(); // 31.20 > höchste Stufe CHF 30
     expect(appPriceFor(20_000, 3000)).toBeNull();
     expect(appPriceFor(0, 3000)).toBeNull();
   });
   it("übersetzt Apple-Produkt-IDs zurück", () => {
     expect(webPriceForAppleProduct(`${APP_STORE_PRODUCT_PREFIX}25`)).toBe(2500);
-    expect(webPriceForAppleProduct(`${APP_STORE_PRODUCT_PREFIX}23`)).toBeNull();
+    expect(webPriceForAppleProduct(`${APP_STORE_PRODUCT_PREFIX}23`)).toBe(2300);
+    expect(webPriceForAppleProduct(`${APP_STORE_PRODUCT_PREFIX}31`)).toBeNull(); // höher als die höchste Stufe
+    expect(webPriceForAppleProduct(`${APP_STORE_PRODUCT_PREFIX}13`)).toBe(1300);
+    expect(webPriceForAppleProduct(`${APP_STORE_PRODUCT_PREFIX}0`)).toBeNull();
+    expect(maxWebMinorForApp(3000)).toBe(2307); // CHF 23.07 × 1.3 → 30
+    expect(appPriceFor(2307, 3000)?.priceMinor).toBe(3000);
+    expect(appPriceFor(2308, 3000)).toBeNull();
     expect(webPriceForAppleProduct("x")).toBeNull();
   });
 });

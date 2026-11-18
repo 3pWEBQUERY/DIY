@@ -371,12 +371,23 @@ export async function publishArticle(user: SessionUser, id: string, input: unkno
     return { state: "SCHEDULED" as ArticleState, publishedAt: at.toISOString() };
   }
 
-  await db.blogArticle.update({ where: { id }, data: { state: "PUBLISHED", publishedAt: wasPublished ? a.publishedAt : now } });
-  if (!wasPublished) {
-    if (a.state === "SCHEDULED") await takeAnnounceMarker(user.id, id);
-    await onFirstPublish(user, a, opts.shareToFeed);
+  if (wasPublished) {
+    await db.blogArticle.update({ where: { id }, data: { state: "PUBLISHED", publishedAt: a.publishedAt } });
+    return { state: "PUBLISHED" as ArticleState, publishedAt: a.publishedAt!.toISOString() };
   }
-  return { state: "PUBLISHED" as ArticleState, publishedAt: (wasPublished ? a.publishedAt! : now).toISOString() };
+  // Erstveröffentlichung bedingt beanspruchen: Doppelklick, zwei Tabs oder der Worker (geplante Artikel)
+  // dürfen Ankündigung, Ereignis und Feed-Beitrag nicht doppelt auslösen
+  const claimed = await db.blogArticle.updateMany({
+    where: { id, OR: [{ state: "SCHEDULED" }, { state: "DRAFT", publishedAt: null }] },
+    data: { state: "PUBLISHED", publishedAt: now },
+  });
+  if (!claimed.count) {
+    const cur = await db.blogArticle.findUnique({ where: { id }, select: { state: true, publishedAt: true } });
+    return { state: (cur?.state ?? "PUBLISHED") as ArticleState, publishedAt: (cur?.publishedAt ?? now).toISOString() };
+  }
+  if (a.state === "SCHEDULED") await takeAnnounceMarker(user.id, id);
+  await onFirstPublish(user, a, opts.shareToFeed);
+  return { state: "PUBLISHED" as ArticleState, publishedAt: now.toISOString() };
 }
 
 export async function unpublishArticle(user: SessionUser, id: string) {
@@ -398,8 +409,13 @@ function assertNotModerated(a: { state: ArticleState }) {
 
 export async function deleteArticle(user: SessionUser, id: string) {
   assertNotModerated(await ownArticle(user, id));
+  // Wie bei Projekten und Anleitungen: Merken, Reaktionen und Kommentare hängen polymorph am Artikel
+  // (kein Fremdschlüssel) und würden sonst als verwaiste Einträge in Listen und Zählern bleiben
   await db.$transaction([
     db.post.deleteMany({ where: { articleId: id, authorId: user.id, state: "DRAFT" } }),
+    db.bookmark.deleteMany({ where: { targetType: "ARTICLE", targetId: id } }),
+    db.reaction.deleteMany({ where: { targetType: "ARTICLE", targetId: id } }),
+    db.comment.deleteMany({ where: { targetType: "ARTICLE", targetId: id } }),
     db.blogArticle.delete({ where: { id } }),
   ]);
 }
@@ -529,7 +545,7 @@ async function publicArticleWhere(f: ArticleFilters): Promise<Prisma.BlogArticle
   return {
     state: "PUBLISHED",
     publishedAt: { lte: new Date() },
-    author: { status: "ACTIVE" },
+    author: { status: { in: ["ACTIVE", "SUSPENDED"] } },
     ...(f.authorId ? { authorId: f.authorId } : rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}),
     ...(f.category ? { category: { slug: f.category } } : {}),
     ...(f.tag ? { tags: { has: f.tag } } : {}),
@@ -578,7 +594,7 @@ export async function getBlogIndex(viewerId: string | null) {
 
   const authorRows = await db.blogArticle.groupBy({
     by: ["authorId"],
-    where: { state: "PUBLISHED", publishedAt: { lte: new Date() }, author: { status: "ACTIVE" } },
+    where: { state: "PUBLISHED", publishedAt: { lte: new Date() }, author: { status: { in: ["ACTIVE", "SUSPENDED"] } } },
     _count: { _all: true },
     _sum: { likeCount: true },
     orderBy: { _sum: { likeCount: "desc" } },
@@ -652,7 +668,7 @@ export async function relatedArticles(article: { id: string; authorId: string; c
     state: "PUBLISHED",
     publishedAt: { lte: new Date() },
     id: { not: article.id },
-    author: { status: "ACTIVE" },
+    author: { status: { in: ["ACTIVE", "SUSPENDED"] } },
     ...(rel.blocked.length ? { authorId: { notIn: rel.blocked } } : {}),
   };
   const or: Prisma.BlogArticleWhereInput[] = [];
@@ -791,7 +807,7 @@ export async function searchOwnEmbeds(user: SessionUser, type: string, q: string
 /** Einträge für app/sitemap.ts (gehört einem anderen Team): alle öffentlichen Artikel. */
 export async function getArticleSitemapEntries() {
   const rows = await db.blogArticle.findMany({
-    where: { state: "PUBLISHED", publishedAt: { lte: new Date() }, author: { status: "ACTIVE" } },
+    where: { state: "PUBLISHED", publishedAt: { lte: new Date() }, author: { status: { in: ["ACTIVE", "SUSPENDED"] } } },
     select: { slug: true, updatedAt: true, author: { select: { profile: { select: { handle: true } } } } },
     orderBy: { publishedAt: "desc" },
     take: 45_000,

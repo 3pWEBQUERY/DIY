@@ -11,11 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Notice, SectionTitle } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { CategoryOption } from "@/server/categories/types";
-import { minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
+import { appTierFor, minorToInput, parseMoneyInput, formatBps } from "@/server/commerce/rules";
 import { saveProductAction } from "@/app/studio/produkte/actions";
-import { isStaleDeployError, promptReload } from "@/lib/stale-deploy";
 import { callAction } from "@/lib/use-action";
 
 export type ProductEditorInitial = {
@@ -64,6 +63,22 @@ function cmToMm(v: string): number | null | undefined {
 }
 
 /**
+ * Aufpreis einer Variante → Rappen (darf negativ sein); leer = 0; null = ungültig.
+ * Versteht „5“, „+5.50“, „-2“, „CHF 5“ und „5.-“.
+ */
+function parseDeltaInput(v: string): number | null {
+  let t = v.trim().replace(/^CHF\s*/i, "").replace(/[.,][-–]$/, "").trim();
+  if (!t) return 0;
+  let sign = 1;
+  if (/^[-−–]/.test(t)) sign = -1;
+  t = t.replace(/^[-−–+]\s*/, "");
+  const minor = parseMoneyInput(t);
+  return minor == null ? null : sign * minor;
+}
+
+export type AppStorePricing = { enabled: boolean; markupBps: number; tiersMinor: readonly number[]; maxWebMinor: number };
+
+/**
  * Produkteditor (§13.4): alle Pflicht- und Zusatzangaben, Varianten mit Bestand,
  * Versand, Sicherheits- und Rückgabeinfos sowie der Projektfaden zu eigenem Projekt/Anleitung.
  */
@@ -75,6 +90,7 @@ export function ProductEditor({
   shopReturnPolicy,
   feeBps,
   digitalEnabled,
+  appStore,
   categories = CATEGORIES,
 }: {
   initial: ProductEditorInitial;
@@ -84,6 +100,8 @@ export function ProductEditor({
   shopReturnPolicy: string;
   feeBps: number;
   digitalEnabled: boolean;
+  /** Preisstufen der iOS-App für digitale Produkte (Kauf dort nur über Apple) */
+  appStore?: AppStorePricing;
   /** Angebotene Kategorien (aktive + ggf. bereits gespeicherte); Standard: alle */
   categories?: readonly CategoryOption[];
 }) {
@@ -145,13 +163,18 @@ export function ProductEditor({
     if (price == null) errs.priceMinor = "Bitte gib einen gültigen Preis an (z. B. 48.00)";
     const ship = isDigital ? 0 : parseMoneyInput(v.shipping);
     if (ship == null) errs.shippingMinor = "Bitte gib gültige Versandkosten an";
-    const variants = v.variants.map((x) => ({
+    const deltas = v.variants.map((x) => parseDeltaInput(x.priceDelta));
+    const variants = v.variants.map((x, i) => ({
       name: x.name.trim(),
-      priceDeltaMinor: Math.round((Number(x.priceDelta.replace(",", ".")) || 0) * 100),
+      priceDeltaMinor: deltas[i] ?? 0,
       stock: x.stock,
       stockBase: stockBase.current?.variants.get(x.name.trim().toLowerCase()),
     }));
     if (variants.some((x) => !x.name)) errs.variants = "Jede Variante braucht einen Namen";
+    else if (!isDigital) {
+      const bad = deltas.findIndex((d) => d == null);
+      if (bad >= 0) errs.variants = `Variante ${bad + 1}: Bitte gib einen gültigen Aufpreis an (z. B. 5.00 oder -2.50)`;
+    }
     if (v.kind === "RAW" && v.description.trim().length < 20) errs.description = "Beschreibe den Zustand des Artikels (mind. 20 Zeichen)";
     const materialList = v.materialList.map((m) => m.trim()).filter(Boolean);
     const dims = { height: cmToMm(v.heightCm), width: cmToMm(v.widthCm), depth: cmToMm(v.depthCm) };
@@ -191,13 +214,7 @@ export function ProductEditor({
           status,
         },
         { shipsFrom: v.shipsFrom, digitalMediaId: isDigital ? (digital?.mediaId ?? null) : null, announce: announce && status === "ACTIVE", announceText, hideWhenSoldOut },
-      )).catch((e: unknown) => {
-        // Nach einem Deploy: neu laden anbieten, Eingaben bleiben bis dahin erhalten
-        if (!isStaleDeployError(e)) throw e;
-        promptReload();
-        return null;
-      });
-      if (!r) return;
+      ));
       if (r.ok) {
         setFields({});
         stockBase.current = { stock: v.stock, variants: new Map(variants.map((x) => [x.name.toLowerCase(), x.stock])) };
@@ -222,10 +239,7 @@ export function ProductEditor({
   return (
     <form
       className="grid gap-12 pb-32 lg:grid-cols-[1fr_300px]"
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit(initial.status === "DRAFT" || !initial.id ? "DRAFT" : initial.status === "PAUSED" ? "PAUSED" : "ACTIVE");
-      }}
+      onSubmit={(e) => e.preventDefault()}
       noValidate
     >
       <div className="min-w-0 space-y-12">
@@ -300,6 +314,8 @@ export function ProductEditor({
             )}
           </div>
 
+          {isDigital && appStore?.enabled && <AppPriceHint priceMinor={priceMinor} appStore={appStore} />}
+
           {!isDigital && (
             <div className="border border-line bg-card rounded-2xl">
               <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
@@ -308,7 +324,7 @@ export function ProductEditor({
                   size="sm"
                   variant="ghost"
                   disabled={v.variants.length >= 20}
-                  onClick={() => set("variants", [...v.variants, { name: "", priceDelta: "0", stock: v.kind === "UNIQUE" ? 1 : 1, reserved: 0 }])}
+                  onClick={() => set("variants", [...v.variants, { name: "", priceDelta: "0", stock: 1, reserved: 0 }])}
                 >
                   <Plus size={14} /> Variante
                 </Button>
@@ -389,7 +405,7 @@ export function ProductEditor({
                     {initial.restockRequests.slice(0, 20).map((r) => (
                       <li key={r.id}>
                         <a href={`/u/${r.user.handle}`} className="font-semibold hover:underline">{r.user.displayName || `@${r.user.handle}`}</a>
-                        <span className="text-muted"> · {new Date(r.createdAt).toLocaleDateString("de-CH", { day: "numeric", month: "short" })}</span>
+                        <span className="text-muted"> · {formatDate(r.createdAt, { day: "numeric", month: "short" })}</span>
                         {r.note && <span className="block text-ink-2">„{r.note}“</span>}
                       </li>
                     ))}
@@ -618,5 +634,24 @@ export function ProductEditor({
         )}
       </aside>
     </form>
+  );
+}
+
+/** Hinweis für digitale Produkte: Preis in der iOS-App (Apple-Preisstufen, ganze Franken bis zur höchsten Stufe). */
+function AppPriceHint({ priceMinor, appStore }: { priceMinor: number; appStore: AppStorePricing }) {
+  const top = appStore.tiersMinor[appStore.tiersMinor.length - 1] ?? 0;
+  const appMinor = priceMinor >= 100 ? appTierFor(priceMinor, appStore.markupBps, appStore.tiersMinor) : null;
+  const rule = `In der iOS-App kaufen Kund:innen über Apple. Der App-Preis ist dein Preis plus ${formatBps(appStore.markupBps)} (Apple-Gebühr), aufgerundet auf ganze Franken – höchstens ${formatMoney(top)}. Dein Anteil bleibt gleich wie im Web.`;
+  if (priceMinor >= 100 && appMinor == null) {
+    return (
+      <Notice tone="warn" title="In der iOS-App nicht kaufbar">
+        Bei diesem Preis gibt es keine Apple-Preisstufe mehr. In der App kaufbar sind digitale Produkte bis {formatMoney(appStore.maxWebMinor)}. Im Web bleibt das Produkt normal kaufbar.
+      </Notice>
+    );
+  }
+  return (
+    <Notice title={appMinor ? `Preis in der iOS-App: ${formatMoney(appMinor)}` : "Preis in der iOS-App"}>
+      {rule} In der App kaufbar bis {formatMoney(appStore.maxWebMinor)}.
+    </Notice>
   );
 }

@@ -718,9 +718,9 @@ private struct MeMediaDetailSheet: View {
                     Section {
                         TextField("Was ist auf dem Bild zu sehen?", text: $alt, axis: .vertical).lineLimit(2...6)
                         MeCharCounter(count: alt.count, max: 500)
-                    } header: { Text("Alternativtext") } footer: {
+                    } header: { Group { Text("Alternativtext") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                         Text("Wird an Verwendungen übernommen, die noch keinen Alt-Text haben. Hilft Menschen mit Screenreader.")
-                    }
+                    }.font(.wr(.footnote)) }
                 }
                 Section {
                     LabeledContent("Art", value: item.kind == "VIDEO" ? "Video" : item.kind == "FILE" ? "Datei" : "Bild")
@@ -733,7 +733,7 @@ private struct MeMediaDetailSheet: View {
                 if item.attached != true {
                     Section {
                         Button("Medium löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
-                    } footer: { Text("Nur ungenutzte Medien können gelöscht werden.") }
+                    } footer: { Group { Text("Nur ungenutzte Medien können gelöscht werden.") }.font(.wr(.footnote)) }
                 }
             }
             .meFormStyle()

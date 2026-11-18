@@ -18,9 +18,10 @@ import { Avatar, SectionTitle, Empty } from "@/components/ui/misc";
 import { Glyph } from "@/components/ui/glyphs";
 import { LinkButton } from "@/components/ui/button";
 import { cn, pad } from "@/lib/utils";
+import { flatSearchParams, one } from "@/lib/search-params";
 
-export async function generateMetadata({ searchParams }: { searchParams: Promise<{ kategorie?: string }> }): Promise<Metadata> {
-  const cat = await effectiveCategory((await searchParams).kategorie);
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ kategorie?: string | string[] }> }): Promise<Metadata> {
+  const cat = await effectiveCategory(one((await searchParams).kategorie));
   return {
     title: cat ? `${cat.name} – Projekte & Anleitungen` : "Entdecken",
     description: cat ? cat.description || `Projekte, Anleitungen und Creator rund um ${cat.name}.` : "Projekte, Anleitungen, Creator und Communities aus der DIY-Community entdecken.",
@@ -36,8 +37,8 @@ function season() {
 type Collection = { id: string; slug: string; title: string; kicker: string; description: string; items: { type: string; id: string }[]; season: string | null };
 
 /** Entdecken (§18.3): redaktionell kuratiert, nach Interessen gemischt, auch für Gäste. */
-export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ kategorie?: string }> }) {
-  const sp = await searchParams;
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ kategorie?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const [cat, cats] = await Promise.all([effectiveCategory(sp.kategorie), browseCategories(sp.kategorie)]);
   const user = await currentUser();
   const viewerId = user?.id ?? null;
@@ -50,7 +51,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     suggestedCreators(viewerId, interests, 6),
     suggestedCommunities(viewerId, interests, 4),
     db.editorialCollection.findMany({ where: { isActive: true }, orderBy: { position: "asc" }, take: 6 }),
-    db.project.groupBy({ by: ["category"], where: { state: "PUBLISHED", visibility: "PUBLIC" }, _count: true }),
+    // Wie die Projektlisten: nur Projekte aktiver (oder vorübergehend gesperrter) Konten zählen
+    db.project.groupBy({ by: ["category"], where: { state: "PUBLISHED", visibility: "PUBLIC", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } } }, _count: true }),
     cat ? listPosts({ ...(await baseFeedWhere(viewerId)), category: cat.slug, visibility: "PUBLIC", communityId: null }, viewerId, { take: 4 }) : Promise.resolve(null),
   ]);
   const collections = collectionsRaw as unknown as Collection[];

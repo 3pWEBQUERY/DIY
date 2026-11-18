@@ -107,6 +107,8 @@ struct ProjectPage: Decodable, Hashable, Sendable {
     var estimatedMinutes: Int?
     var actualMinutes: Int?
     var journalMinutes: Int?
+    /// Gesamtzahl der Journaleinträge (der Server liefert nur die neuesten)
+    var journalTotal: Int?
     var budgetMinor: Int?
     var currency: String?
     var status: String
@@ -409,4 +411,10 @@ extension Array where Element == ProjectsLineValue {
             return .object(o)
         })
     }
+}
+
+extension Notification.Name {
+    /// Projekt angelegt, bearbeitet, Status geändert, Eintrag ergänzt oder gelöscht (`object`: Projekt-ID, optional).
+    /// Hält z. B. die Werkbank-Leiste über der Tab-Leiste aktuell.
+    static let projectsChanged = Notification.Name("werkuno.projectsChanged")
 }

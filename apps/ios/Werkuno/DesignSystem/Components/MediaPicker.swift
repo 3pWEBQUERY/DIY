@@ -313,7 +313,7 @@ struct AltTextSheet: View {
                 }
                 Section {
                     TextField("Was ist auf dem Bild zu sehen?", text: $alt, axis: .vertical).lineLimit(2...6)
-                } header: { Text("Alternativtext") } footer: { Text("Beschreibe das Bild für Menschen, die einen Screenreader nutzen – z. B. Material, Farbe und Arbeitsschritt.") }
+                } header: { Group { Text("Alternativtext") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Beschreibe das Bild für Menschen, die einen Screenreader nutzen – z. B. Material, Farbe und Arbeitsschritt.") }.font(.wr(.footnote)) }
             }
             .navigationTitle("Bildbeschreibung")
             .navigationBarTitleDisplayMode(.inline)

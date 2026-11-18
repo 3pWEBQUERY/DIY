@@ -38,7 +38,7 @@ export function VersionWatcher() {
 
   if (!outdated || hidden) return null;
   return (
-    <div role="status" className="fixed bottom-20 left-1/2 z-[85] flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-line bg-card py-1.5 pl-4 pr-1.5 text-[13.5px] shadow-[0_8px_30px_rgb(0_0_0/0.10)] animate-rise md:bottom-6 md:left-6 md:translate-x-0">
+    <div role="status" className="fixed bottom-20 left-1/2 z-[85] flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-line-strong bg-card py-1.5 pl-4 pr-1.5 text-[13.5px] animate-rise md:bottom-6 md:left-6 md:translate-x-0">
       <span className="mr-2">Neue Version verfügbar</span>
       <button type="button" onClick={() => location.reload()} className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-moss px-3 font-semibold text-paper hover:bg-moss-ink">
         <RefreshCw size={13} aria-hidden /> Neu laden

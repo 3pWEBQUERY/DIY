@@ -34,7 +34,7 @@ function admin(actor: Actor, what = "Diese Aktion") {
 const reasonSchema = z.string().trim().min(5, "Bitte begründe den Eingriff (mind. 5 Zeichen)").max(1000);
 const kindSchema = z.enum(["PROJECT", "TUTORIAL", "POST", "ARTICLE"]);
 const contentStateFilter = z.enum(["PUBLISHED", "DRAFT", "HIDDEN", "REMOVED"]).nullable().catch(null);
-const articleStateFilter = z.enum(["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN"]).nullable().catch(null);
+const articleStateFilter = z.enum(["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN", "REMOVED"]).nullable().catch(null);
 
 /* ───────────────────────────── Listen ───────────────────────────── */
 
@@ -573,6 +573,7 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
     let ownerId: string;
     let title: string;
     let from: string;
+    let hiddenPosts: { id: string; state: string }[] | undefined;
     if (k === "PROJECT") {
       const p = await tx.project.findUnique({ where: { id }, select: { state: true, ownerId: true, title: true } });
       if (!p) throw fail.notFound();
@@ -591,8 +592,10 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
       if (!a) throw fail.notFound();
       if (a.state === "REMOVED") throw fail.conflict("Bereits entfernt.");
       await tx.blogArticle.update({ where: { id }, data: { state: "REMOVED", isFeatured: false } });
-      // Angekündigte Feed-Beiträge zum Artikel nicht mehr anzeigen
-      await tx.post.updateMany({ where: { articleId: id, state: { in: ["PUBLISHED", "DRAFT"] } }, data: { state: "HIDDEN" } });
+      // Angekündigte Feed-Beiträge zum Artikel nicht mehr anzeigen – welche (und ihr Zustand) kommt ins
+      // Protokoll, damit das Wiederherstellen genau diese zurücksetzt und keine anderweitig ausgeblendeten
+      hiddenPosts = await tx.post.findMany({ where: { articleId: id, state: { in: ["PUBLISHED", "DRAFT"] } }, select: { id: true, state: true } });
+      if (hiddenPosts.length) await tx.post.updateMany({ where: { id: { in: hiddenPosts.map((x) => x.id) } }, data: { state: "HIDDEN" } });
       ({ ownerId, title, from } = { ownerId: a.authorId, title: a.title, from: a.state });
     } else {
       const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true } });
@@ -602,14 +605,28 @@ export async function removeContent(actor: Actor, kind: DetailKind, id: string, 
       await syncPostCount(tx, p.authorId);
       ({ ownerId, title, from } = { ownerId: p.authorId, title: postTitle(p.body), from: p.state });
     }
-    await audit({ actorId: actor.id, action: "admin.content_removed", targetType: k, targetId: id, meta: { reason: d.reason, from } }, tx);
+    await audit({ actorId: actor.id, action: "admin.content_removed", targetType: k, targetId: id, meta: { reason: d.reason, from, ...(hiddenPosts ? { hiddenPosts } : {}) } }, tx);
     assertNotOwn(actor, ownerId);
     return { ownerId, title };
   });
   await inform(owner.ownerId, `Dein Inhalt „${owner.title}“ wurde entfernt.`, d.publicNote);
 }
 
-/** Entfernten Inhalt wiederherstellen: veröffentlicht, falls er es schon einmal war, sonst Entwurf. */
+/** Protokollierter Zustand vor dem letzten Entfernen (fehlt bei sehr alten Einträgen). */
+async function removalMeta(tx: Tx, k: DetailKind, id: string) {
+  const removal = await tx.auditEvent.findFirst({ where: { action: "admin.content_removed", targetType: k, targetId: id }, orderBy: { seq: "desc" }, select: { meta: true } });
+  const meta = (removal?.meta ?? {}) as { from?: unknown; hiddenPosts?: unknown };
+  const hiddenPosts = Array.isArray(meta.hiddenPosts)
+    ? (meta.hiddenPosts as { id?: unknown; state?: unknown }[]).filter((x): x is { id: string; state: "PUBLISHED" | "DRAFT" } => typeof x?.id === "string" && (x.state === "PUBLISHED" || x.state === "DRAFT"))
+    : null;
+  return { from: typeof meta.from === "string" ? meta.from : null, hiddenPosts };
+}
+
+/**
+ * Entfernten Inhalt wiederherstellen: zurück in den Zustand vor dem Entfernen (laut Protokoll) – ein
+ * Entwurf wird nicht veröffentlicht, ein ausgeblendeter Inhalt bleibt ausgeblendet. Ohne Protokolleintrag:
+ * veröffentlicht, falls er es schon einmal war, sonst Entwurf.
+ */
 export async function restoreContent(actor: Actor, kind: DetailKind, id: string, reason: string) {
   admin(actor, "Wiederherstellen");
   const k = kindSchema.parse(kind);
@@ -617,12 +634,14 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
   const owner = await db.$transaction(async (tx) => {
     let ownerId: string;
     let title: string;
-    let to: ContentState;
+    let to: ContentState | "SCHEDULED";
+    const { from, hiddenPosts } = await removalMeta(tx, k, id);
+    const prev = (allowed: readonly string[]) => (from && allowed.includes(from) ? from : null);
     if (k === "PROJECT") {
       const p = await tx.project.findUnique({ where: { id }, select: { state: true, ownerId: true, title: true, publishedAt: true } });
       if (!p) throw fail.notFound();
       if (p.state !== "REMOVED") throw fail.conflict("Der Inhalt ist nicht entfernt.");
-      to = p.publishedAt ? "PUBLISHED" : "DRAFT";
+      to = (prev(["PUBLISHED", "DRAFT", "HIDDEN"]) as ContentState | null) ?? (p.publishedAt ? "PUBLISHED" : "DRAFT");
       await tx.project.update({ where: { id }, data: { state: to } });
       await syncProjectCount(tx, p.ownerId);
       ({ ownerId, title } = { ownerId: p.ownerId, title: p.title });
@@ -630,24 +649,31 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
       const t = await tx.tutorial.findUnique({ where: { id }, select: { state: true, authorId: true, title: true, currentVersionId: true } });
       if (!t) throw fail.notFound();
       if (t.state !== "REMOVED") throw fail.conflict("Der Inhalt ist nicht entfernt.");
-      to = t.currentVersionId ? "PUBLISHED" : "DRAFT";
+      to = (prev(["PUBLISHED", "DRAFT", "HIDDEN"]) as ContentState | null) ?? (t.currentVersionId ? "PUBLISHED" : "DRAFT");
       await tx.tutorial.update({ where: { id }, data: { state: to } });
       ({ ownerId, title } = { ownerId: t.authorId, title: t.title });
     } else if (k === "ARTICLE") {
       const a = await tx.blogArticle.findUnique({ where: { id }, select: { state: true, authorId: true, title: true, publishedAt: true } });
       if (!a) throw fail.notFound();
       if (a.state !== "REMOVED") throw fail.conflict("Der Inhalt ist nicht entfernt.");
-      to = a.publishedAt && a.publishedAt <= new Date() ? "PUBLISHED" : "DRAFT";
+      to = (prev(["PUBLISHED", "DRAFT", "SCHEDULED", "HIDDEN"]) as "PUBLISHED" | "DRAFT" | "SCHEDULED" | "HIDDEN" | null) ?? (a.publishedAt && a.publishedAt <= new Date() ? "PUBLISHED" : "DRAFT");
       await tx.blogArticle.update({ where: { id }, data: { state: to } });
-      if (to === "PUBLISHED") await tx.post.updateMany({ where: { articleId: id, state: "HIDDEN" }, data: { state: "PUBLISHED" } });
+      if (hiddenPosts) {
+        // Genau die beim Entfernen ausgeblendeten Beiträge, je in ihren Zustand davor – sofern noch ausgeblendet
+        for (const state of ["PUBLISHED", "DRAFT"] as const) {
+          const ids = hiddenPosts.filter((x) => x.state === state).map((x) => x.id);
+          if (ids.length) await tx.post.updateMany({ where: { id: { in: ids }, articleId: id, state: "HIDDEN" }, data: { state } });
+        }
+      } else if (to === "PUBLISHED") {
+        // Alte Einträge ohne Liste: wie bisher alle ausgeblendeten Beiträge des Artikels
+        await tx.post.updateMany({ where: { articleId: id, state: "HIDDEN" }, data: { state: "PUBLISHED" } });
+      }
       ({ ownerId, title } = { ownerId: a.authorId, title: a.title });
     } else {
       const p = await tx.post.findUnique({ where: { id }, select: { state: true, authorId: true, body: true, scheduledAt: true } });
       if (!p) throw fail.notFound();
       if (p.state !== "REMOVED") throw fail.conflict("Der Inhalt ist nicht entfernt.");
       // Zurück in den Zustand vor dem Entfernen (Entwurf/geplant bleibt Entwurf, nicht sofort veröffentlicht)
-      const removal = await tx.auditEvent.findFirst({ where: { action: "admin.content_removed", targetId: id }, orderBy: { seq: "desc" }, select: { meta: true } });
-      const from = (removal?.meta as { from?: string } | null)?.from;
       to = from === "DRAFT" || (p.scheduledAt && p.scheduledAt > new Date()) ? "DRAFT" : from === "HIDDEN" ? "HIDDEN" : "PUBLISHED";
       await tx.post.update({ where: { id }, data: { state: to } });
       await syncPostCount(tx, p.authorId);
@@ -657,7 +683,12 @@ export async function restoreContent(actor: Actor, kind: DetailKind, id: string,
     assertNotOwn(actor, ownerId);
     return { ownerId, title, to };
   });
-  await inform(owner.ownerId, owner.to === "PUBLISHED" ? `Dein Inhalt „${owner.title}“ wurde wiederhergestellt und ist wieder sichtbar.` : `Dein Inhalt „${owner.title}“ wurde als Entwurf wiederhergestellt.`);
+  const restored = {
+    PUBLISHED: `Dein Inhalt „${owner.title}“ wurde wiederhergestellt und ist wieder sichtbar.`,
+    SCHEDULED: `Dein Inhalt „${owner.title}“ wurde wiederhergestellt und erscheint wie geplant.`,
+    HIDDEN: `Dein Inhalt „${owner.title}“ wurde wiederhergestellt, bleibt aber ausgeblendet.`,
+  } as Partial<Record<string, string>>;
+  await inform(owner.ownerId, restored[owner.to] ?? `Dein Inhalt „${owner.title}“ wurde als Entwurf wiederhergestellt.`);
 }
 
 /* ───────────────────────────── Kommentare ───────────────────────────── */
@@ -688,7 +719,7 @@ export async function moderateComment(actor: Actor, commentId: string, decision:
   const dec = z.enum(["HIDE", "REMOVE", "RESTORE"]).parse(decision);
   const r = reasonSchema.parse(reason);
   const res = await db.$transaction(async (tx) => {
-    const c = await tx.comment.findUnique({ where: { id: commentId }, select: { state: true, authorId: true, targetType: true, targetId: true, body: true } });
+    const c = await tx.comment.findUnique({ where: { id: commentId }, select: { state: true, authorId: true, targetType: true, targetId: true, body: true, parentId: true } });
     if (!c) throw fail.notFound();
     assertNotOwn(actor, c.authorId);
     const to: ContentState = dec === "HIDE" ? "HIDDEN" : dec === "REMOVE" ? "REMOVED" : "PUBLISHED";
@@ -696,8 +727,12 @@ export async function moderateComment(actor: Actor, commentId: string, decision:
     if (dec === "HIDE" && c.state !== "PUBLISHED") throw fail.conflict("Nur sichtbare Kommentare können ausgeblendet werden.");
     if (dec === "RESTORE" && c.state === "REMOVED" && !hasRole(actor, "ADMIN")) throw fail.forbidden("Entfernte Kommentare stellt nur die Administration wieder her.");
     await tx.comment.update({ where: { id: commentId }, data: { state: to } });
-    if (c.state === "PUBLISHED" && to !== "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", -1);
-    if (c.state !== "PUBLISHED" && to === "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", 1);
+    // Gleiche Zählregel wie deleteComment: Antworten zählen nur unter sichtbarem Hauptkommentar,
+    // ein Hauptkommentar nimmt seine sichtbaren Antworten mit
+    const parentVisible = !c.parentId || (await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true } }))?.state === "PUBLISHED";
+    const weight = parentVisible ? 1 + (c.parentId ? 0 : await tx.comment.count({ where: { parentId: commentId, state: "PUBLISHED" } })) : 0;
+    if (weight && c.state === "PUBLISHED" && to !== "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", -weight);
+    if (weight && c.state !== "PUBLISHED" && to === "PUBLISHED") await bumpCounter(tx, c.targetType, c.targetId, "comment", weight);
     await audit(
       {
         actorId: actor.id,

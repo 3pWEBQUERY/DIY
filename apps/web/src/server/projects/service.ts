@@ -332,6 +332,9 @@ export async function deleteProject(user: SessionUser, projectId: string) {
   await db.$transaction(async (tx) => {
     const originals = await tx.projectRelation.findMany({ where: { fromId: projectId, kind: "REMIX" }, select: { toId: true } });
     for (const o of originals) await tx.project.updateMany({ where: { id: o.toId, remixCount: { gt: 0 } }, data: { remixCount: { decrement: 1 } } });
+    // Wettbewerbs-Einreichungen fallen per Cascade weg – die Zähler der Wettbewerbe mitführen
+    const entries = await tx.challengeEntry.findMany({ where: { projectId, state: "ACTIVE" }, select: { challengeId: true } });
+    for (const e of entries) await tx.communityChallenge.updateMany({ where: { id: e.challengeId, entryCount: { gt: 0 } }, data: { entryCount: { decrement: 1 } } });
     await tx.bookmark.deleteMany({ where: { targetType: "PROJECT", targetId: projectId } });
     await tx.reaction.deleteMany({ where: { targetType: "PROJECT", targetId: projectId } });
     await tx.comment.deleteMany({ where: { targetType: "PROJECT", targetId: projectId } });
@@ -590,15 +593,20 @@ export async function listStudioProjects(userId: string) {
 
 // ───────────────────────── Projektseite ─────────────────────────
 
+/** Journaleinträge auf der Projektseite (die neuesten); `journalTotal` nennt die Gesamtzahl. */
+export const JOURNAL_LIMIT = 100;
+
 const pageInclude = {
   owner: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, followerCount: true, projectCount: true } } } },
   media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, width: true, height: true, kind: true, state: true } } } },
-  updates: { orderBy: { happenedAt: "asc" }, include: { author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } }, post: { select: { id: true } } } },
+  // Neueste zuerst begrenzt laden (sonst lädt ein langes Journal alles mit), unten wieder aufsteigend sortiert
+  updates: { orderBy: [{ happenedAt: "desc" }, { id: "desc" }], take: JOURNAL_LIMIT, include: { author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } }, post: { select: { id: true } } } },
   materials: { orderBy: { position: "asc" }, include: { material: { select: { slug: true, unit: true, safetyInfo: true } } } },
   tools: { orderBy: { position: "asc" }, include: { tool: { select: { slug: true, safetyInfo: true } } } },
   outgoing: { include: { to: { select: { id: true, slug: true, title: true, ownerId: true, visibility: true, state: true, coverUrl: true, category: true, owner: { select: { profile: { select: { handle: true, displayName: true } } } } } } } },
   incoming: {
-    where: { kind: "REMIX" },
+    // Keine Nachbauten gesperrter (BANNED) oder gelöschter Konten; Blockierungen filtert buildProjectView
+    where: { kind: "REMIX", from: { state: "PUBLISHED", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } } } },
     orderBy: { createdAt: "desc" },
     take: 24,
     include: { from: { select: { ...projectCardSelect, state: true } } },
@@ -612,7 +620,7 @@ const pageInclude = {
     select: { id: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, publishedAt: true, createdAt: true, shop: { select: { slug: true, name: true, status: true } } },
   },
   articles: { include: { article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, publishedAt: true, author: { select: { profile: { select: { handle: true, displayName: true } } } } } } } },
-  _count: { select: { followers: true } },
+  _count: { select: { followers: true, updates: true } },
 } satisfies Prisma.ProjectInclude;
 
 type JournalMedia = { mediaId: string; url: string | null; alt: string };
@@ -698,7 +706,13 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
     .filter((a) => a.article.state === "PUBLISHED")
     .map((a) => ({ id: a.article.id, title: a.article.title, dek: a.article.dek, coverUrl: a.article.coverUrl, readingMinutes: a.article.readingMinutes, href: `/u/${a.article.author.profile?.handle}/blog/${a.article.slug}`, authorName: a.article.author.profile?.displayName ?? "", at: a.article.publishedAt?.toISOString() ?? null }));
 
-  const journal = p.updates.map((u) => ({
+  const journalTotal = Math.max(p._count.updates, p.updates.length);
+  const journalHasMore = journalTotal > p.updates.length;
+  // Bei gekürztem Journal die Zeit über alle Einträge summieren, nicht nur über die geladenen
+  const journalMinutes = journalHasMore
+    ? ((await db.projectUpdate.aggregate({ where: { projectId: p.id }, _sum: { minutes: true } }))._sum.minutes ?? 0)
+    : p.updates.reduce((a, u) => a + (u.minutes ?? 0), 0);
+  const journal = [...p.updates].reverse().map((u) => ({
     id: u.id,
     body: u.body,
     milestone: u.milestone,
@@ -727,7 +741,7 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
     difficulty: p.difficulty,
     estimatedMinutes: p.estimatedMinutes,
     actualMinutes: p.actualMinutes,
-    journalMinutes: p.updates.reduce((a, u) => a + (u.minutes ?? 0), 0),
+    journalMinutes,
     budgetMinor: p.budgetMinor,
     currency: (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR",
     status: p.status,
@@ -751,6 +765,10 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
     materials: p.materials.map((m) => ({ id: m.id, name: m.name, quantity: m.quantity, note: m.note, materialId: m.materialId, materialSlug: m.material?.slug ?? null, unit: m.material?.unit ?? null, safetyInfo: m.material?.safetyInfo || null })),
     tools: p.tools.map((t) => ({ id: t.id, name: t.name, note: t.note, safetyInfo: t.tool?.safetyInfo || null })),
     journal,
+    /** Alle Journaleinträge; `journal` enthält höchstens JOURNAL_LIMIT (die neuesten). Zusätzlich, optional für Clients. */
+    journalTotal,
+    /** Es gibt ältere Einträge als die geladenen. */
+    journalHasMore,
     tutorials,
     products,
     articles,

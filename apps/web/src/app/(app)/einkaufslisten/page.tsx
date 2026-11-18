@@ -8,7 +8,7 @@ import { Page, PageHeader } from "@/components/shell/page";
 import { Empty } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { CreateShoppingList } from "@/components/materials/shopping-list";
-import { pad, relativeTime } from "@/lib/utils";
+import { pad, pluralize, relativeTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Einkaufslisten", robots: { index: false } };
 
@@ -42,7 +42,7 @@ export default async function ShoppingListsPage() {
                   <span className="min-w-0">
                     <span className="headline block truncate text-xl group-hover:underline decoration-1 underline-offset-4">{l.title}</span>
                     <span className="spec block truncate">
-                      {l.total} Positionen · {relativeTime(l.updatedAt)}
+                      {pluralize(l.total, "Position", "Positionen")} · {relativeTime(l.updatedAt)}
                       {l.sources.length ? ` · aus ${l.sources.join(", ")}` : ""}
                     </span>
                   </span>

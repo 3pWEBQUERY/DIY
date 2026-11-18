@@ -6,7 +6,7 @@ vi.mock("@/server/notifications", () => ({ notify: vi.fn() }));
 vi.mock("@/server/projects/service", () => ({ getProjectCards: vi.fn() }));
 vi.mock("../service", () => ({ canViewCommunityContent: vi.fn(), isModRole: vi.fn(), isMuted: vi.fn() }));
 
-const { competitionPhase } = await import("../competitions");
+const { competitionPhase, isEvaluating } = await import("../competitions");
 const d = (s: string) => new Date(`2026-11-${s}T12:00:00Z`);
 const base = { startsAt: d("10"), endsAt: d("20"), votingEndsAt: d("27"), resultsAt: null as Date | null, judging: "VOTES" };
 
@@ -23,5 +23,13 @@ describe("Wettbewerb – Phasen", () => {
     expect(competitionPhase(jury, d("21"))).toBe("jury");
     expect(competitionPhase(jury, d("29"))).toBe("jury");
     expect(competitionPhase({ ...jury, resultsAt: d("23") }, d("24"))).toBe("ended");
+  });
+  it("Abstimmung vorbei ohne Ergebnis: Auswertung – Zahlen bleiben verborgen, Phase bleibt kompatibel", () => {
+    expect(isEvaluating(base, d("22"))).toBe(false);
+    expect(competitionPhase(base, d("28"))).toBe("ended");
+    expect(isEvaluating(base, d("28"))).toBe(true);
+    expect(isEvaluating({ ...base, votingEndsAt: null }, d("21"))).toBe(true);
+    expect(isEvaluating({ ...base, resultsAt: d("28") }, d("29"))).toBe(false);
+    expect(isEvaluating({ ...base, judging: "JURY", votingEndsAt: null }, d("29"))).toBe(false);
   });
 });

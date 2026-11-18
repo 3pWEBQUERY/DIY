@@ -198,7 +198,11 @@ struct ShopWizardSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .disabled(slugLocked)
-                        .onChange(of: slug) { _, _ in slugTouched = true; fields["slug"] = nil }
+                        // Nur eigene Eingaben zählen: Übernahme aus dem Namen (onChange von name) ist keine
+                        .onChange(of: slug) { _, v in
+                            if v != MarketSlug.make(name) { slugTouched = true }
+                            fields["slug"] = nil
+                        }
                 }
                 .padding(12)
                 .cardSurface(radius: Radius.inner)

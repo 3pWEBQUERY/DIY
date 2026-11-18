@@ -44,6 +44,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         shopReturnPolicy={data.shop.returnPolicy}
         feeBps={data.feeBps}
         digitalEnabled={data.digitalEnabled}
+        appStore={data.appStore}
         categories={await categoryOptions(data.initial.category)}
       />
     </div>

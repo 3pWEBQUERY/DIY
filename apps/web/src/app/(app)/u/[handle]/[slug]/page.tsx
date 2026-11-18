@@ -23,7 +23,7 @@ import { JsonLd, absUrl, isoDuration } from "@/components/projects/json-ld";
 import { AddToShoppingList } from "@/components/materials/add-to-list";
 import { StockToggle } from "@/components/materials/stock";
 import { stockLookup } from "@/server/materials/stock";
-import { cn, formatDate, formatMinutes, pad, relativeTime } from "@/lib/utils";
+import { cn, formatDate, formatMinutes, pad, pluralize, relativeTime } from "@/lib/utils";
 
 type Params = { params: Promise<{ handle: string; slug: string }> };
 
@@ -221,12 +221,12 @@ export default async function ProjectPage({ params }: Params) {
             <SectionTitle
               n={no()}
               title={<span id="h-journal">Journal</span>}
-              action={p.journal.length > 0 ? <span className="spec">{p.journal.length} {p.journal.length === 1 ? "Eintrag" : "Einträge"}{p.journalMinutes ? ` · ${formatMinutes(p.journalMinutes)} erfasst` : ""}</span> : undefined}
+              action={p.journalTotal > 0 ? <span className="spec">{p.journalTotal} {p.journalTotal === 1 ? "Eintrag" : "Einträge"}{p.journalMinutes ? ` · ${formatMinutes(p.journalMinutes)} erfasst` : ""}</span> : undefined}
             />
             <Journal p={p} />
             {isOwner && (
               <div className="mt-2 sm:pl-[calc(6.5rem+1.25rem)]">
-                <JournalComposer projectId={p.id} entryNumber={p.journal.length + 1} defaultShare={p.visibility === "PUBLIC"} />
+                <JournalComposer projectId={p.id} entryNumber={p.journalTotal + 1} defaultShare={p.visibility === "PUBLIC"} />
               </div>
             )}
           </section>
@@ -422,14 +422,18 @@ function Journal({ p }: { p: ProjectPageView }) {
     return <p className="mt-6 text-sm text-muted">{p.viewer.isOwner ? "Halte hier deine Arbeitsschritte fest – mit Fotos, Zeit und auch mit dem, was nicht geklappt hat." : "Noch keine Journaleinträge."}</p>;
   }
   const finished = !!p.completedAt;
+  // Bei langen Journalen zeigt die Seite nur die neuesten Einträge – Nummern zählen trotzdem ab dem ersten
+  const offset = p.journalTotal - p.journal.length;
   return (
+    <>
+    {p.journalHasMore && <p className="mt-6 text-sm text-muted">Gezeigt werden die neuesten {p.journal.length} von {p.journalTotal} Einträgen.</p>}
     <ol className="mt-8">
       {p.journal.map((e, i) => {
         const last = i === p.journal.length - 1;
         return (
           <li key={e.id} id={`eintrag-${e.id}`} className="grid scroll-mt-24 grid-cols-[3.75rem_minmax(0,1fr)] gap-x-4 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:gap-x-5">
             <div className="pt-0.5 text-right">
-              <span className="block font-mono text-[12px] font-semibold text-ink num">{pad(i + 1)}</span>
+              <span className="block font-mono text-[12px] font-semibold text-ink num">{pad(offset + i + 1)}</span>
               <time dateTime={e.happenedAt} className="spec block">{formatDate(e.happenedAt, { day: "numeric", month: "short" })}</time>
               <span className="spec hidden sm:block">{formatDate(e.happenedAt, { year: "numeric" })}</span>
               {e.minutes ? <span className="spec mt-1 block text-ink-2">{formatMinutes(e.minutes)}</span> : null}
@@ -461,7 +465,7 @@ function Journal({ p }: { p: ProjectPageView }) {
                 <ul className={cn("mt-4 grid gap-2", e.media.length === 1 ? "grid-cols-1 sm:w-3/4" : e.media.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3")}>
                   {e.media.map((m) => (
                     <li key={m.mediaId} className="relative overflow-hidden border border-line bg-sunken rounded-2xl" style={{ aspectRatio: e.media.length === 1 ? "4/3" : "1/1" }}>
-                      <MediaImage url={m.url} alt={m.alt || `Foto zu Eintrag ${pad(i + 1)}`} className="absolute inset-0" sizes="(min-width: 1024px) 320px, 50vw" />
+                      <MediaImage url={m.url} alt={m.alt || `Foto zu Eintrag ${pad(offset + i + 1)}`} className="absolute inset-0" sizes="(min-width: 1024px) 320px, 50vw" />
                     </li>
                   ))}
                 </ul>
@@ -495,6 +499,7 @@ function Journal({ p }: { p: ProjectPageView }) {
         </li>
       )}
     </ol>
+    </>
   );
 }
 
@@ -508,10 +513,10 @@ function Materials({ p, have }: { p: ProjectPageView; have: Set<string> | null }
         <div className="min-w-0">
           <div className="overflow-x-auto"><table className="w-full border-collapse text-[14px]">
             <caption className="spec mb-2 text-left">
-              Material · {p.materials.length} Positionen
+              Material · {pluralize(p.materials.length, "Position", "Positionen")}
               {have && have.size > 0 && (
                 <span className="ml-2 normal-case tracking-normal text-moss-ink">
-                  · {have.size === p.materials.length ? "alles in deinem Bestand" : `${have.size} hast du schon, ${p.materials.length - have.size} fehlen`}
+                  · {have.size === p.materials.length ? "alles in deinem Bestand" : `${have.size} hast du schon, ${p.materials.length - have.size} ${p.materials.length - have.size === 1 ? "fehlt" : "fehlen"}`}
                 </span>
               )}
             </caption>

@@ -67,9 +67,10 @@ enum PushRegistration {
         _ = try? await APIClient.shared.patch("/devices/push", ["token": JSONValue.string(token), "environment": .string(environment)]) as JSONValue
     }
 
-    static func unregister() async {
-        guard let token, APIClient.shared.isSignedIn else { return }
-        _ = try? await APIClient.shared.send("DELETE", "/devices/push", body: ["token": JSONValue.string(token)]) as JSONValue
+    /// `bearer`: beim Abmelden das bisherige Token (das gespeicherte ist dann schon entfernt).
+    static func unregister(bearer: String? = nil) async {
+        guard let token, bearer != nil || APIClient.shared.isSignedIn else { return }
+        _ = try? await APIClient.shared.send("DELETE", "/devices/push", body: ["token": JSONValue.string(token)], bearer: bearer) as JSONValue
     }
 }
 
@@ -122,7 +123,7 @@ struct RootView: View {
             guard app.me != nil else { return }
             await DigitalStore.shared.retryUnfinished()
             // Creator Pro: aktuellen App-Store-Stand melden (Verlängerungen, Abo auf einem anderen Gerät)
-            if app.flags["pro"] ?? true { try? await ProStore.shared.syncEntitlements() }
+            if app.flags["pro"] ?? true { _ = try? await ProStore.shared.syncEntitlements() }
         }
         // Abmelden, abgelaufene Sitzung oder anderes Konto: Navigation des vorherigen Kontos verwerfen
         .onChange(of: app.me?.id) { old, new in if old != nil, old != new { router.reset() } }

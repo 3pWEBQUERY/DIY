@@ -6,6 +6,8 @@ import AVKit
 struct BlogBlocksView: View {
     var blocks: [BlogBlock]
     var linkedProjects: [BlogLinkedProject] = []
+    /// Aufgelöste Einbettungen aus `/blog/read` (Ziel-ID → Link, Titel, Titelbild)
+    var embeds: [String: BlogEmbed] = [:]
     /// Fallback, wenn ein Artikel (z. B. aus Seed-Daten) nur Klartext hat
     var plainText: String? = nil
 
@@ -17,7 +19,7 @@ struct BlogBlocksView: View {
                 }
             }
             ForEach(blocks) { b in
-                BlogBlockView(block: b, linkedProjects: linkedProjects)
+                BlogBlockView(block: b, linkedProjects: linkedProjects, embeds: embeds)
                     .id(b.id)
             }
         }
@@ -78,6 +80,7 @@ struct BlogInlineText: View {
 struct BlogBlockView: View {
     var block: BlogBlock
     var linkedProjects: [BlogLinkedProject] = []
+    var embeds: [String: BlogEmbed] = [:]
     @Environment(Router.self) private var router
     @Environment(AppState.self) private var app
 
@@ -148,16 +151,20 @@ struct BlogBlockView: View {
             NoticeView(tone: tone, title: L.calloutTones.first { $0.key == block.tone }?.label, message: block.text ?? "")
         case "projectCard":
             let lp = linkedProjects.first { $0.id == block.projectId }
-            embed(kicker: "Projekt" + (lp?.status.map { " · \(L.projectStatus($0))" } ?? ""), title: block.title ?? lp?.title ?? "Projekt", seed: block.projectId ?? block.id, category: lp?.category, url: lp?.coverUrl) {
-                if let href = lp?.href { router.open(href: href) } else { router.open(.search(query: block.title ?? "")) }
+            let e = block.projectId.flatMap { embeds[$0] }
+            embed(kicker: "Projekt" + (lp?.status.map { " · \(L.projectStatus($0))" } ?? ""), title: block.title ?? lp?.title ?? e?.title ?? "Projekt", seed: block.projectId ?? block.id, category: lp?.category, url: lp?.coverUrl ?? e?.coverUrl) {
+                if let href = lp?.href ?? e?.href { router.open(href: href) } else { router.open(.search(query: block.title ?? "")) }
             }
         case "tutorialCard":
-            embed(kicker: "Anleitung", title: block.title ?? "Anleitung", seed: block.tutorialId ?? block.id, category: nil, url: nil, kind: .tutorial) {
-                router.open(.search(query: block.title ?? ""))
+            let e = block.tutorialId.flatMap { embeds[$0] }
+            embed(kicker: "Anleitung", title: block.title ?? e?.title ?? "Anleitung", seed: block.tutorialId ?? block.id, category: nil, url: e?.coverUrl, kind: .tutorial) {
+                // Ohne aufgelösten Link (älterer Server, nicht sichtbar) bleibt die Suche als Rückfall
+                if let href = e?.href { router.open(href: href) } else { router.open(.search(query: block.title ?? "")) }
             }
         case "productCard":
-            embed(kicker: "Produkt im Markt", title: block.title ?? "Produkt", seed: block.productId ?? block.id, category: nil, url: nil, kind: .product) {
-                router.open(.search(query: block.title ?? ""))
+            let e = block.productId.flatMap { embeds[$0] }
+            embed(kicker: "Produkt im Markt", title: block.title ?? e?.title ?? "Produkt", seed: block.productId ?? block.id, category: nil, url: e?.coverUrl, kind: .product) {
+                if let href = e?.href { router.open(href: href) } else { router.open(.search(query: block.title ?? "")) }
             }
         case "divider":
             HStack(spacing: 10) {

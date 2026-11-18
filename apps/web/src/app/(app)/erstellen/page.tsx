@@ -8,6 +8,7 @@ import { Page, PageHeader } from "@/components/shell/page";
 import { Composer } from "@/components/social/composer";
 import { Glyph } from "@/components/ui/glyphs";
 import { pad } from "@/lib/utils";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "Erstellen" };
 
@@ -22,8 +23,8 @@ const OPTIONS = [
 ];
 
 /** Erstellen-Hub (§6.2 Nr. 3). Einfacher Einstieg zuerst: der Beitrag (§5.4). */
-export default async function CreatePage({ searchParams }: { searchParams: Promise<{ typ?: string; projekt?: string }> }) {
-  const sp = await searchParams;
+export default async function CreatePage({ searchParams }: { searchParams: Promise<{ typ?: string | string[]; projekt?: string | string[] }> }) {
+  const sp = flatSearchParams(await searchParams);
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/erstellen");
   if (sp.typ === "projekt") redirect("/projekte/neu");

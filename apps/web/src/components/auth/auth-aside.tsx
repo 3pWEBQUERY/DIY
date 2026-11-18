@@ -52,15 +52,15 @@ export function AuthAside() {
         fetchPriority="high"
         className="absolute inset-0 h-full w-full object-cover object-[70%_center]"
       />
-      {/* Weicher Verlauf von links über die freie Wand: Text bleibt lesbar, Pflanze und Werkzeug bleiben klar */}
-      <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(242,237,232,0.88)_0%,rgba(242,237,232,0.6)_36%,rgba(242,237,232,0)_60%)]" aria-hidden />
+      {/* Flache, halbtransparente Fläche links über der freien Wand (kein Verlauf): Text bleibt lesbar, Pflanze und Werkzeug bleiben klar */}
+      <div className="absolute inset-y-0 left-0 w-[62%] bg-[rgba(242,237,232,0.82)]" aria-hidden />
       <div className="relative flex h-full flex-col p-12 text-[#262427] xl:p-14 [@media(max-height:820px)]:py-9">
         <p className="spec text-[#973b2c]">{copy.kicker}</p>
         <h2 className="display mt-4 max-w-[11ch] text-5xl leading-[1.02] xl:text-6xl [@media(max-height:820px)]:text-4xl">{copy.title}</h2>
         <p className="mt-4 max-w-[38ch] text-[15px] leading-relaxed text-[#4a4446] [@media(max-height:700px)]:hidden">{copy.lead}</p>
         <ul className="mt-8 max-w-[400px] space-y-2.5 [@media(max-height:820px)]:mt-6">
           {copy.points.map(({ icon: Icon, title, text }) => (
-            <li key={title} className="flex items-center gap-3.5 rounded-2xl border border-white/60 bg-white/70 p-3.5 shadow-[0_1px_2px_rgba(38,36,39,0.06)] backdrop-blur-md">
+            <li key={title} className="flex items-center gap-3.5 rounded-2xl border border-white/60 bg-white/70 p-3.5 backdrop-blur-md">
               <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#f6e5e0] text-[#b64b3a]" aria-hidden>
                 <Icon size={17} strokeWidth={1.8} />
               </span>

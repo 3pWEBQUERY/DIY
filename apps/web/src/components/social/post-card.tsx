@@ -18,8 +18,8 @@ import { RelativeTime } from "@/components/ui/relative-time";
 import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu, type MenuItem } from "./actions";
 import { Comments } from "./comments";
 import { PollBlock } from "./poll";
-import { deletePostAction, repostAction, updatePostAction } from "@/app/(app)/social-actions";
-import { useRouter } from "next/navigation";
+import { deletePostAction, repostAction } from "@/app/(app)/social-actions";
+import { usePathname, useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/media/video";
 import { callAction } from "@/lib/use-action";
 
@@ -35,7 +35,8 @@ const KIND_LABEL: Partial<Record<string, string>> = {
 /** @handle als Links, Zeilenumbrüche erhalten. Kein HTML-Rendering (XSS-sicher). */
 export function RichText({ text, className }: { text: string; className?: string }) {
   // Handles enden nie auf Punkt/Unterstrich; Satzzeichen am Ende gehören weder zum Handle noch zur URL
-  const parts = text.split(/(@[a-z0-9][a-z0-9._]{1,22}[a-z0-9]|https?:\/\/[^\s]+?(?=[.,;:!?)\]]*(?:\s|$)))/gi);
+  // Lookbehind: @ mitten in E-Mail-Adressen (info@werkuno.ch) ist keine Erwähnung
+  const parts = text.split(/((?<![a-z0-9._@])@[a-z0-9][a-z0-9._]{1,22}[a-z0-9]|https?:\/\/[^\s]+?(?=[.,;:!?)\]]*(?:\s|$)))/gi);
   return (
     <p className={cn("whitespace-pre-line text-pretty", className)}>
       {parts.map((p, i) =>
@@ -95,12 +96,16 @@ function Gallery({ media, postId }: { media: PostView["media"]; postId: string }
       <div className="pointer-events-none absolute right-3 top-3 bg-ink/85 px-2 py-0.5 font-mono text-[11px] text-paper rounded-2xl" aria-hidden>
         {String(idx + 1).padStart(2, "0")} / {String(media.length).padStart(2, "0")}
       </div>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        Medium {idx + 1} von {media.length}
+      </p>
       <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
         {media.map((m, i) => (
           <button
             key={`${postId}-${m.id}`}
             type="button"
-            aria-label={`Medium ${i + 1}`}
+            aria-label={`Medium ${i + 1} von ${media.length}`}
+            aria-current={i === idx ? "true" : undefined}
             onClick={() => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: smoothScroll() })}
             className={cn("h-[3px] w-5 bg-paper/60", i === idx && "bg-paper")}
           />
@@ -134,9 +139,9 @@ function ProjectLink({ p }: { p: NonNullable<PostView["project"]> }) {
 
 export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; defaultOpenComments?: boolean }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [showComments, setShowComments] = useState(!!defaultOpenComments);
   const [repostOpen, setRepostOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [gone, setGone] = useState(false);
   const [coauthorsOpen, setCoauthorsOpen] = useState(false);
   const [, start] = useTransition();
@@ -157,7 +162,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           if (r.ok) {
             setGone(true);
             toast("Beitrag gelöscht.");
-          }
+          } else toast(r.error, "error");
         }),
     },
   ];
@@ -288,7 +293,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
           <span className="sr-only">Kommentare</span>
         </button>
         {post.visibility === "PUBLIC" && !post.repostOf && !post.community && (
-          <button type="button" onClick={() => (viewer ? setRepostOpen(true) : router.push("/anmelden"))} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-moss" aria-label="Mit eigener Einordnung teilen">
+          <button type="button" onClick={() => (viewer ? setRepostOpen(true) : router.push(`/anmelden?weiter=${encodeURIComponent(pathname)}`))} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-moss" aria-label="Mit eigener Einordnung teilen">
             <Repeat2 size={18} strokeWidth={1.7} />
             <span className="num font-medium">{post.counts.reposts > 0 ? compactNumber(post.counts.reposts) : ""}</span>
           </button>
@@ -308,7 +313,6 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
       {safety.dialog}
       {post.viewer.isAuthor && <CoauthorDialog postId={post.id} open={coauthorsOpen} onClose={() => setCoauthorsOpen(false)} />}
       <RepostDialog open={repostOpen} onClose={() => setRepostOpen(false)} post={post} />
-      {post.viewer.isAuthor && <EditDialog open={editOpen} onClose={() => setEditOpen(false)} post={post} />}
     </article>
   );
 }
@@ -338,33 +342,6 @@ function RepostDialog({ open, onClose, post }: { open: boolean; onClose: () => v
         }
       >
         Teilen
-      </Button>
-    </Dialog>
-  );
-}
-
-function EditDialog({ open, onClose, post }: { open: boolean; onClose: () => void; post: PostView }) {
-  const [body, setBody] = useState(post.body);
-  const [pending, start] = useTransition();
-  const router = useRouter();
-  return (
-    <Dialog open={open} onClose={onClose} title="Beitrag bearbeiten">
-      <Textarea aria-label="Text des Beitrags" value={body} onChange={(e) => setBody(e.target.value)} rows={6} maxLength={5000} />
-      <Button
-        className="mt-4 w-full"
-        disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const r = await callAction(() => updatePostAction(post.id, { body, category: post.category ?? undefined, visibility: post.visibility }));
-            if (r.ok) {
-              toast("Gespeichert.");
-              onClose();
-              router.refresh();
-            } else toast(r.error, "error");
-          })
-        }
-      >
-        Speichern
       </Button>
     </Dialog>
   );

@@ -166,7 +166,7 @@ function SchedulePicker({ schedule, disabled, onSaved }: { schedule: PayoutPanel
             aria-checked={interval === i.key}
             disabled={disabled || pending}
             onClick={() => setIv(i.key)}
-            className={cn("h-9 rounded-lg px-2 font-medium text-muted transition-colors hover:text-ink disabled:opacity-50", interval === i.key && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}
+            className={cn("h-9 rounded-lg border border-transparent px-2 font-medium text-muted transition-colors hover:text-ink disabled:opacity-50", interval === i.key && "border-line bg-card font-semibold text-ink")}
           >
             {i.label}
           </button>

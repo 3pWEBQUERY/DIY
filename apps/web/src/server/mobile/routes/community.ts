@@ -11,6 +11,7 @@ import * as groups from "@/server/messaging/groups";
 import { listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
 import { browseCategories, categoryOptions, effectiveCategories } from "@/server/categories/settings";
 import { z } from "zod";
+import { ArticleState } from "@/server/db";
 import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, str, takeParam, viewer, viewerId, zBool, zId, zIds, zStr, type RouteDef } from "../router";
 
 type RoleKind = "ADMIN" | "MODERATOR" | "MEMBER";
@@ -204,12 +205,26 @@ export const communityRoutes: RouteDef[] = [
     const vid = await viewerId();
     const res = need(await blog.getArticleForReader(c.p.handle!, c.p.slug!, vid), "Artikel nicht gefunden.");
     if (res.kind === "redirect") return { redirect: res.to };
-    const r = res as unknown as { article: { id: string; authorId: string; categoryId: string | null; tags: string[]; projects: { projectId: string }[] }; isLive: boolean; isAuthor: boolean };
-    const [related, projects] = await Promise.all([r.isLive ? blog.relatedArticles(r.article, vid) : Promise.resolve([]), blog.linkedProjects(r.article.projects.map((p) => p.projectId), vid)]);
+    const r = res as unknown as { article: { id: string; authorId: string; categoryId: string | null; tags: string[]; projects: { projectId: string }[]; blocks: Parameters<typeof blog.resolveEmbeds>[0] }; isLive: boolean; isAuthor: boolean };
+    const [related, projects, resolved] = await Promise.all([
+      r.isLive ? blog.relatedArticles(r.article, vid) : Promise.resolve([]),
+      blog.linkedProjects(r.article.projects.map((p) => p.projectId), vid),
+      blog.resolveEmbeds(r.article.blocks ?? [], vid),
+    ]);
     if (r.isLive && !r.isAuthor) await recordViewAfter({ viewerId: vid, targetType: "ARTICLE", targetId: r.article.id, ref: "ios" });
-    return { ...(res as object), related, linkedProjects: projects };
+    // Eingebettete Projekt-/Anleitungs-/Produktkarten: Ziel-ID → Link, Titel, Titelbild (additiv; ältere Apps ignorieren es)
+    const embeds: Record<string, { href: string; title: string; coverUrl: string | null }> = {};
+    const addEmbeds = <T extends { href: string; title: string; coverUrl: string | null }>(m: Map<string, T>) =>
+      m.forEach((e, id) => {
+        embeds[id] = { href: e.href, title: e.title, coverUrl: e.coverUrl ?? null };
+      });
+    addEmbeds(resolved.projects);
+    addEmbeds(resolved.tutorials);
+    addEmbeds(resolved.products);
+    return { ...(res as object), related, linkedProjects: projects, embeds };
   }),
-  GET("/studio/articles", async (c) => blog.listMyArticles((await me()).id, str(c.q, "state") as never)),
+  // Unbekannter Zustand → alle (statt ungeprüft in das Prisma-Enum, 500)
+  GET("/studio/articles", async (c) => blog.listMyArticles((await me()).id, z.enum(ArticleState).optional().catch(undefined).parse(str(c.q, "state")))),
   GET("/studio/articles/editor", async (c) => {
     const u = await me();
     const id = str(c.q, "id");

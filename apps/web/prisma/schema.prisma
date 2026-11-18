@@ -622,6 +622,7 @@ model Comment {
   @@index([targetType, targetId, createdAt])
   @@index([parentId])
   @@index([authorId])
+  @@index([postId])
 }
 
 model Reaction {
@@ -670,6 +671,8 @@ model Bookmark {
 
   @@id([userId, targetType, targetId])
   @@index([collectionId])
+  // Abfragen je Ziel (z. B. „Wer hat das gespeichert?“, Löschen eines Inhalts)
+  @@index([targetType, targetId])
 }
 
 model Collection {
@@ -1263,6 +1266,8 @@ model CommunityChallenge {
   state        String    @default("ACTIVE")
   createdAt    DateTime  @default(now())
   entries      ChallengeEntry[]
+
+  @@index([communityId, state])
 }
 
 /// Einreichung: ein eigenes Projekt pro Person und Wettbewerb.
@@ -1380,6 +1385,8 @@ model Shop {
   /// Modus des Stripe-Schlüssels, mit dem das Konto angelegt bzw. zuletzt erreicht wurde (live | test).
   /// Wechselt die Plattform von Test auf Live, werden Testkonten erkannt und gelöst (shops.ts).
   stripeAccountMode String?
+  /// Letzte Modusprüfung (reconcileStripeAccountModes) – Reihum-Auswahl, auch bei Fehlern gesetzt
+  stripeModeCheckAt DateTime?
   payoutsEnabled   Boolean           @default(false)
   /// Auszahlungsplan, den Werkuno ausführt (manual | daily | weekly | monthly). Bei Stripe steht jedes
   /// Konto auf „manuell“ – so wird nur freigegebenes Guthaben ausgezahlt (Haltefrist, src/server/commerce/escrow.ts)
@@ -1388,6 +1395,9 @@ model Shop {
   payoutMonthlyAnchor Int?
   /// Letzte automatische Auszahlung durch Werkuno (höchstens eine pro Tag)
   lastAutoPayoutAt    DateTime?
+  /// Letzte Prüfung im Auszahlungs-Worker (Planübernahme bzw. Auszahlung nach Plan) – Reihum-Auswahl,
+  /// auch bei Fehlern gesetzt, damit dauerhaft scheiternde Shops andere nicht verdrängen
+  payoutAttemptAt     DateTime?
   /// Bisheriger Stripe-Auszahlungsplan übernommen und Stripe auf „manuell“ gestellt
   payoutScheduleMigratedAt DateTime?
   /// Von der Administration erlassene Haltefrist (vertrauenswürdige Shops): Guthaben sofort auszahlbar
@@ -2368,6 +2378,8 @@ model Story {
 
   @@index([authorId, expiresAt])
   @@index([state, expiresAt])
+  // Verwendungsprüfung von Medien (mediaInUse, Bereinigung)
+  @@index([mediaId])
 }
 
 /// Wer eine Story gesehen hat (für „Gesehen von“ und den Ring „neu/gesehen“), inkl. Herz.

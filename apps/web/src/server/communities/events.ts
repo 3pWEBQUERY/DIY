@@ -147,7 +147,8 @@ export async function eventsOverview(viewer: Viewer, opts: { mode?: "IN_PERSON" 
   };
   const [mine, communities, open] = await Promise.all([
     viewer
-      ? db.communityEvent.findMany({ where: { endsAt: { gte: now }, state: { not: "REMOVED" }, attendees: { some: { userId: viewer.id } } }, orderBy: { startsAt: "asc" }, take: 12, select: eventSelect })
+      ? // Abgesagte bleiben sichtbar (mit Hinweis), Events aufgelöster/entfernter Communities nicht
+        db.communityEvent.findMany({ where: { endsAt: { gte: now }, state: { not: "REMOVED" }, community: { state: { in: ["PUBLISHED", "HIDDEN"] } }, attendees: { some: { userId: viewer.id } } }, orderBy: { startsAt: "asc" }, take: 12, select: eventSelect })
       : Promise.resolve([]),
     memberOf.length ? db.communityEvent.findMany({ where: { ...base, communityId: { in: memberOf } }, orderBy: { startsAt: "asc" }, take: 24, select: eventSelect }) : Promise.resolve([]),
     db.communityEvent.findMany({ where: { ...base, communityId: { notIn: memberOf }, community: { ...(base.community as object), visibility: { not: "PRIVATE" } } }, orderBy: { startsAt: "asc" }, take: 24, select: eventSelect }),
@@ -234,7 +235,8 @@ export async function dropFutureAttendance(tx: Tx, communityId: string, userId: 
   await tx.eventAttendee.deleteMany({ where: { userId, eventId: { in: ids } } });
   for (const id of ids) {
     const going = await tx.eventAttendee.count({ where: { eventId: id, status: "GOING" } });
-    await tx.communityEvent.update({ where: { id }, data: { goingCount: going } });
+    const interested = await tx.eventAttendee.count({ where: { eventId: id, status: "INTERESTED" } });
+    await tx.communityEvent.update({ where: { id }, data: { goingCount: going, interestedCount: interested } });
   }
   return ids.length;
 }
@@ -276,8 +278,9 @@ export async function cancelEvent(user: SessionUser, eventId: string, reason: st
 
 /** Zusagen/Interesse/Absagen. Plätze werden atomar vergeben (keine Überbuchung). */
 export async function setAttendance(user: SessionUser, eventId: string, status: "GOING" | "INTERESTED" | null) {
-  const e = await db.communityEvent.findUnique({ where: { id: eventId }, select: { id: true, communityId: true, organizerId: true, state: true, endsAt: true, capacity: true, title: true, community: { select: { slug: true } } } });
-  if (!e || e.state === "REMOVED") throw fail.notFound("Event nicht gefunden.");
+  const e = await db.communityEvent.findUnique({ where: { id: eventId }, select: { id: true, communityId: true, organizerId: true, state: true, endsAt: true, capacity: true, title: true, community: { select: { slug: true, state: true } } } });
+  // Wie getEvent: Events aufgelöster/entfernter Communities gibt es nicht mehr
+  if (!e || e.state === "REMOVED" || e.community.state === "REMOVED") throw fail.notFound("Event nicht gefunden.");
   const m = await communityRole(e.communityId, user.id);
   if (m?.state !== "ACTIVE") throw fail.forbidden("Tritt der Community bei, um teilzunehmen.");
   if (e.state === "CANCELLED") throw fail.conflict("Dieses Event wurde abgesagt.");
@@ -309,7 +312,8 @@ export async function setAttendance(user: SessionUser, eventId: string, status: 
 /** Erinnerung 24 h vorher an alle mit Zusage (Worker, minütlich). */
 export async function sendEventReminders() {
   const soon = new Date(Date.now() + 24 * 3600_000);
-  const due = await db.communityEvent.findMany({ where: { state: "SCHEDULED", reminderSentAt: null, startsAt: { lte: soon, gt: new Date() } }, take: 50, select: { id: true, title: true, startsAt: true, community: { select: { slug: true } } } });
+  // Keine Erinnerungen für Events aufgelöster/entfernter oder ausgeblendeter Communities
+  const due = await db.communityEvent.findMany({ where: { state: "SCHEDULED", reminderSentAt: null, startsAt: { lte: soon, gt: new Date() }, community: { state: "PUBLISHED" } }, take: 50, select: { id: true, title: true, startsAt: true, community: { select: { slug: true } } } });
   for (const e of due) {
     const claimed = await db.communityEvent.updateMany({ where: { id: e.id, reminderSentAt: null }, data: { reminderSentAt: new Date() } });
     if (!claimed.count) continue;

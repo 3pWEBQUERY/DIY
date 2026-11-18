@@ -11,8 +11,9 @@ import { FollowButton } from "@/components/social/actions";
 import { Avatar, Empty, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { pluralize } from "@/lib/utils";
+import { flatSearchParams } from "@/lib/search-params";
 
-type Props = { params: Promise<{ handle: string }>; searchParams: Promise<{ nach?: string; tag?: string }> };
+type Props = { params: Promise<{ handle: string }>; searchParams: Promise<{ nach?: string | string[]; tag?: string | string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function UserBlogPage({ params, searchParams }: Props) {
-  const [{ handle }, sp] = await Promise.all([params, searchParams]);
+  const [{ handle }, sp] = await Promise.all([params, searchParams.then((s) => flatSearchParams(s))]);
   const h = await resolveHandle(handle);
   if (!h) notFound();
   if (h.kind === "redirect") permanentRedirect(`/u/${h.handle}/blog`);

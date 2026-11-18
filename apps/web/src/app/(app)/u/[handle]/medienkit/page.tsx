@@ -12,7 +12,7 @@ import { PrintButton } from "@/components/pro/print-button";
 import { Avatar, Notice } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
-import { compactNumber, formatDate } from "@/lib/utils";
+import { compactNumber, formatDate, pluralize } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
 
 type Props = { params: Promise<{ handle: string }> };
@@ -108,7 +108,7 @@ export default async function MediaKitPage({ params }: Props) {
             {kit.shop.ratingCount > 0 && (
               <span className="inline-flex items-center gap-1 text-muted">
                 <Star size={13} className="fill-clay text-clay" aria-hidden />
-                <span className="num font-semibold text-ink">{kit.shop.ratingAvg.toFixed(1)}</span> aus {kit.shop.ratingCount} Bewertungen
+                <span className="num font-semibold text-ink">{kit.shop.ratingAvg.toFixed(1)}</span> aus {pluralize(kit.shop.ratingCount, "Bewertung", "Bewertungen")}
               </span>
             )}
           </div>

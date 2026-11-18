@@ -26,6 +26,10 @@ struct StoryViewerView: View {
     @State private var elapsed: Double = 0
     @State private var progress: Double = 0
     @State private var mediaReady = false
+    /// Video liess sich nicht laden → Hinweis statt Bild
+    @State private var videoFailed = false
+    /// Video nicht (rechtzeitig) abspielbereit → Fortschritt läuft nach Zeit statt nach Abspielposition
+    @State private var videoTimed = false
     @State private var image: UIImage?
     @State private var player: AVPlayer?
     @State private var muted = false
@@ -171,7 +175,16 @@ struct StoryViewerView: View {
         } else if let m = s.media, m.isReady {
             ZStack {
                 (Color(hexString: m.dominant) ?? Color(hex: 0x151312))
-                if m.isVideo, let player {
+                if m.isVideo, videoFailed {
+                    ZStack {
+                        RemoteImage(path: m.poster) { Color.clear }
+                        Label("Das Video konnte nicht geladen werden.", systemImage: "exclamationmark.triangle")
+                            .font(.wr(.subheadline))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(.black.opacity(0.45), in: Capsule())
+                    }
+                } else if m.isVideo, let player {
                     StoryPlayerLayer(player: player, fill: m.fills)
                 } else if let image {
                     Image(uiImage: image)
@@ -192,7 +205,9 @@ struct StoryViewerView: View {
                     Text("\(s.media?.error ?? "Diese Datei konnte nicht verarbeitet werden.") Lösche die Story und versuche es mit einer anderen Datei.")
                 } else {
                     ProgressView().tint(.white)
-                    Text("Das Video wird verarbeitet – deine Story erscheint, sobald es fertig ist.")
+                    Text(s.media?.isVideo == false
+                         ? "Das Foto wird verarbeitet – deine Story erscheint, sobald es fertig ist."
+                         : "Das Video wird verarbeitet – deine Story erscheint, sobald es fertig ist.")
                 }
             }
             .font(.wr(.subheadline))
@@ -552,6 +567,8 @@ struct StoryViewerView: View {
         elapsed = 0
         progress = 0
         image = nil
+        videoFailed = false
+        videoTimed = false
         player?.pause()
         player = nil
         guard let s = item else { return }
@@ -564,13 +581,20 @@ struct StoryViewerView: View {
             p.isMuted = muted
             p.automaticallyWaitsToMinimizeStalling = true
             player = p
-            // Bereit, sobald das erste Bild abspielbar ist (spätestens nach 4 s)
+            // Bereit, sobald das erste Bild abspielbar ist (spätestens nach 4 s). Schlägt das Laden fehl
+            // oder dauert es zu lange, läuft der Fortschritt nach Zeit statt nach Abspielposition weiter.
             Task {
                 for _ in 0..<40 {
-                    if p.currentItem?.status == .readyToPlay { break }
+                    let st = p.currentItem?.status
+                    if st == .readyToPlay || st == .failed { break }
                     try? await Task.sleep(for: .milliseconds(100))
                 }
-                if player === p { mediaReady = true }
+                guard player === p else { return }
+                if p.currentItem?.status != .readyToPlay {
+                    videoTimed = true
+                    if p.currentItem?.status == .failed { p.pause(); videoFailed = true }
+                }
+                mediaReady = true
             }
         } else if let m = s.media, let url = AppConfig.resolve(m.image ?? m.poster) {
             mediaReady = false
@@ -598,12 +622,12 @@ struct StoryViewerView: View {
             player?.pause()
             return
         }
-        player?.play()
+        if !videoFailed { player?.play() }
         var last = Date.now
         while !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(40))
             if Task.isCancelled { break }
-            if let p = player, s.isVideo {
+            if let p = player, s.isVideo, !videoTimed {
                 let t = p.currentTime().seconds
                 elapsed = t.isFinite ? t : elapsed
             } else {
@@ -612,7 +636,7 @@ struct StoryViewerView: View {
             last = .now
             progress = min(1, elapsed / max(1, s.durationSec))
             // Videos enden über die Benachrichtigung „zu Ende gespielt“; längere werden bei der Höchstlänge abgeschnitten
-            if s.isVideo ? elapsed >= StoryRules.videoMaxSeconds : progress >= 1 {
+            if s.isVideo && !videoTimed ? elapsed >= StoryRules.videoMaxSeconds : progress >= 1 {
                 next()
                 return
             }

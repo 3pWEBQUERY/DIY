@@ -7,6 +7,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Avatar } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { storyViewersAction } from "@/app/(app)/stories/actions";
+import { Button } from "@/components/ui/button";
+import { callAction } from "@/lib/use-action";
 
 type Data = Extract<Awaited<ReturnType<typeof storyViewersAction>>, { ok: true }>["data"];
 
@@ -14,13 +16,15 @@ type Data = Extract<Awaited<ReturnType<typeof storyViewersAction>>, { ok: true }
 export function StoryViewersDialog({ open, storyId, onClose }: { open: boolean; storyId: string; onClose: () => void }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     let live = true;
     setData(null);
     setError(null);
-    void storyViewersAction(storyId).then((r) => {
+    // Netz-/Serverfehler als Fehlerzustand statt unbehandelter Ausnahme
+    void callAction(() => storyViewersAction(storyId)).then((r) => {
       if (!live) return;
       if (r.ok) setData(r.data);
       else setError(r.error);
@@ -28,12 +32,17 @@ export function StoryViewersDialog({ open, storyId, onClose }: { open: boolean; 
     return () => {
       live = false;
     };
-  }, [open, storyId]);
+  }, [open, storyId, attempt]);
 
   return (
     <Dialog open={open} onClose={onClose} title="Gesehen von" description="Nur du siehst, wer deine Story angeschaut hat.">
       {error ? (
-        <p className="text-sm text-danger">{error}</p>
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-danger">
+          {error}
+          <Button variant="ghost" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+            Erneut versuchen
+          </Button>
+        </div>
       ) : !data ? (
         <div className="grid place-items-center py-10 text-muted">
           <Loader2 className="animate-spin" aria-label="Wird geladen" />

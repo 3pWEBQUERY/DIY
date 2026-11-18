@@ -41,14 +41,14 @@ struct NotificationsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
-                } header: {
+                } header: { Group {
                     HStack(spacing: 10) {
                         SpecLabel("Einladungen", color: .ink)
                         Rectangle().fill(Color.line).frame(height: 0.75)
                     }
                     .padding(.top, 8)
                     .accessibilityAddTraits(.isHeader)
-                }
+                }.font(.wr(.footnote, .semibold)) }
             }
 
             if !loaded {
@@ -78,14 +78,14 @@ struct NotificationsView: View {
                                     }
                                 }
                         }
-                    } header: {
+                    } header: { Group {
                         HStack(spacing: 10) {
                             SpecLabel(g.title, color: .ink)
                             Rectangle().fill(Color.line).frame(height: 0.75)
                         }
                         .padding(.top, 8)
                         .accessibilityAddTraits(.isHeader)
-                    }
+                    }.font(.wr(.footnote, .semibold)) }
                 }
                 LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await load(reset: false) }
                     .listRowBackground(Color.clear)
@@ -114,7 +114,8 @@ struct NotificationsView: View {
         // Live: neue/gebündelte Benachrichtigungen erscheinen sofort (Server-Sent Events)
         .onReceive(NotificationCenter.default.publisher(for: LiveEvent.notification)) { n in
             guard let e = LiveEvent(n), e == .counts, loaded else { return }
-            Task { await load(reset: true) }
+            // Nur die erste Seite holen und einmischen – geladene ältere Seiten und Scrollposition bleiben
+            Task { await refreshHead() }
         }
         .refreshable {
             await loadInvites()
@@ -188,6 +189,21 @@ struct NotificationsView: View {
         }
     }
 
+    /// Erste Seite neu laden und mit der Liste zusammenführen: neue/aktualisierte Einträge oben,
+    /// bereits nachgeladene ältere Einträge bleiben erhalten (der Cursor zeigt weiter auf deren Ende).
+    private func refreshHead() async {
+        let f = filter
+        guard let page: NotificationPage = try? await APIClient.shared.get("/notifications", query: ["filter": f.rawValue]),
+              f == filter else { return }
+        let fresh = Set(page.items.map(\.id))
+        withAnimation(.snappy) {
+            let wasEmpty = items.isEmpty
+            items = page.items + items.filter { !fresh.contains($0.id) }
+            if wasEmpty { cursor = page.nextCursor }
+            if let u = page.unread { unread = u }
+        }
+    }
+
     private func loadInvites() async {
         guard app.me != nil, let list = try? await APIClient.shared.get("/me/coauthor-invites") as [SocialCoauthorInvite] else { return }
         withAnimation(.snappy) { invites = list }
@@ -196,8 +212,9 @@ struct NotificationsView: View {
     /// Koautor:innen-Benachrichtigungen (`data.kind == coauthor_invite / coauthor_accepted`) führen über `href` zum Beitrag.
     private func open(_ n: NotificationItem) async {
         Haptics.tap()
-        if !n.read { await markRead(n) }
+        // Sofort navigieren; „gelesen“ läuft im Hintergrund
         router.open(href: n.href)
+        if !n.read { Task { await markRead(n) } }
     }
 
     private func markRead(_ n: NotificationItem) async {
@@ -206,7 +223,19 @@ struct NotificationsView: View {
         do {
             _ = try await APIClient.shared.post("/notifications/read", ["ids": JSONValue.array([.string(n.id)])]) as JSONValue
             await app.refreshCounts()
-        } catch { app.show(error: error) }
+        } catch {
+            // Optimistische Markierung zurücknehmen und Badge vom Server holen
+            withAnimation(.snappy) {
+                if let i = items.firstIndex(where: { $0.id == n.id }), items[i].read {
+                    items[i].read = false
+                    let g = items[i].group ?? ""
+                    unread["all", default: 0] += 1
+                    if !g.isEmpty { unread[g, default: 0] += 1 }
+                }
+            }
+            await app.refreshCounts()
+            app.show(error: error)
+        }
     }
 
     private func markAll() async {

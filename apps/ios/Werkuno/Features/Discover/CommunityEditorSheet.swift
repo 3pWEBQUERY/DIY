@@ -26,8 +26,23 @@ struct CommunityEditorSheet: View {
     @State private var originalRules: [CommunityRule] = []
     @State private var fields: [String: String] = [:]
     @State private var saving = false
+    /// Stand nach dem Laden – Grundlage für „ungespeicherte Änderungen“
+    @State private var original: Snapshot?
+    @State private var confirmDiscard = false
 
     private var isEdit: Bool { slug != nil }
+
+    private struct Snapshot: Equatable {
+        var name, slugText, description, category, visibility, region: String
+        var coverMediaId: String?
+        var coverRemoved: Bool
+        var rules: [CommunityRule]
+    }
+    private var snapshot: Snapshot {
+        Snapshot(name: name, slugText: slugText, description: description, category: category, visibility: visibility, region: region,
+                 coverMediaId: coverMediaId, coverRemoved: coverRemoved, rules: rules)
+    }
+    private var hasChanges: Bool { loaded && original != nil && original != snapshot }
 
     private var valid: Bool {
         name.trimmed.count >= 3 && !category.isEmpty && (isEdit || slugText.isEmpty || slugText.count >= 3)
@@ -48,21 +63,28 @@ struct CommunityEditorSheet: View {
             .navigationTitle(isEdit ? "Community bearbeiten" : "Community gründen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { if hasChanges { confirmDiscard = true } else { dismiss() } } }
                 ToolbarItem(placement: .confirmationAction) {
                     AsyncButton(isEdit ? "Sichern" : "Gründen") { await save() }
                         .fontWeight(.semibold)
                         .disabled(!valid || saving)
                 }
             }
+            .confirmationDialog("Änderungen verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Verwerfen", role: .destructive) { dismiss() }
+                Button("Weiter bearbeiten", role: .cancel) {}
+            }
             .task { if !loaded { await load() } }
         }
+        // Wischen schliesst nicht unbemerkt mit ungespeicherten Änderungen
+        .interactiveDismissDisabled(hasChanges)
     }
 
     private func load() async {
         guard let slug else {
             category = app.me?.profile?.categories?.first ?? app.activeCategories.first?.slug ?? ""
             loaded = true
+            original = snapshot
             return
         }
         do {
@@ -79,6 +101,7 @@ struct CommunityEditorSheet: View {
             rules = c.rules ?? []
             originalRules = rules
             loaded = true
+            original = snapshot
         } catch {
             loadError = (error as? APIError)?.message ?? error.localizedDescription
         }
@@ -112,7 +135,7 @@ struct CommunityEditorSheet: View {
                     .padding(10)
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
-            } footer: { Text("Ohne Foto erhält deine Community ein Platzhalterbild.") }
+            } footer: { Group { Text("Ohne Foto erhält deine Community ein Platzhalterbild.") }.font(.wr(.footnote)) }
 
             Section {
                 TextField("Name, z. B. „Häkelkreis Zürich“", text: $name)
@@ -131,9 +154,9 @@ struct CommunityEditorSheet: View {
                 TextField("Worum geht es? Wer ist willkommen?", text: $description, axis: .vertical)
                     .lineLimit(3...10)
                 DiscoverFieldError(message: fields["description"])
-            } header: { Text("Grundlagen") } footer: {
+            } header: { Group { Text("Grundlagen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 if !isEdit { Text("Die Adresse kann später nicht mehr geändert werden.") }
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 Picker("Kategorie", selection: $category) {
@@ -144,7 +167,7 @@ struct CommunityEditorSheet: View {
                 }
                 DiscoverFieldError(message: fields["category"])
                 TextField("Region (optional), z. B. „Zürich“", text: $region)
-            } header: { Text("Einordnung") }
+            } header: { Group { Text("Einordnung") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 Picker("Sichtbarkeit", selection: $visibility) {
@@ -152,7 +175,7 @@ struct CommunityEditorSheet: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } header: { Text("Sichtbarkeit") } footer: { Text(visibilityHint) }
+            } header: { Group { Text("Sichtbarkeit") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text(visibilityHint) }.font(.wr(.footnote)) }
 
             Section {
                 ForEach($rules) { $r in
@@ -165,15 +188,15 @@ struct CommunityEditorSheet: View {
                 .onMove { rules.move(fromOffsets: $0, toOffset: $1) }
                 Button { rules.append(CommunityRule(title: "", body: "")) } label: { Label("Regel hinzufügen", systemImage: "plus") }
                     .disabled(rules.count >= 20)
-            } header: { Text("Regeln") } footer: { Text("Kurz und freundlich – z. B. „Kritik am Werk, nie an der Person.“ Höchstens 20.") }
+            } header: { Group { Text("Regeln") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Kurz und freundlich – z. B. „Kritik am Werk, nie an der Person.“ Höchstens 20.") }.font(.wr(.footnote)) }
         }
-        .scrollContentBackground(.hidden)
+        .formCanvas()
     }
 
     private var visibilityHint: String {
         switch visibility {
-        case "REQUEST": "Alle sehen Name und Beschreibung. Beiträge sehen nur Mitglieder – die Moderation nimmt Anfragen an."
-        case "PRIVATE": "Nur Mitglieder sehen Inhalte. Neue Mitglieder kommen ausschliesslich per Einladung dazu."
+        case "REQUEST": "Alle können lesen. Beitritt nach Freigabe durch die Moderation."
+        case "PRIVATE": "Nur Mitglieder sehen Beiträge. Beitritt per Anfrage oder Einladung."
         default: "Alle können Beiträge lesen und sofort beitreten."
         }
     }

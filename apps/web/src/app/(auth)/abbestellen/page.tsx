@@ -1,11 +1,12 @@
 import { LinkButton } from "@/components/ui/button";
 import { verifyUnsubscribeToken } from "@/server/mail-unsubscribe";
 import { UnsubscribeButton } from "./unsubscribe-button";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "E-Mails abbestellen", robots: { index: false } };
 
-export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<{ t?: string }> }) {
-  const { t } = await searchParams;
+export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {
+  const { t } = flatSearchParams(await searchParams);
   const valid = !!verifyUnsubscribeToken(t);
   return (
     <>

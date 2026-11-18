@@ -210,7 +210,9 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (overlay || target?.closest?.("input, textarea, select, [contenteditable]")) return;
+      // Offener Dialog (Bestätigung, Melden …): Esc/Pfeile gehören ihm – nicht den Betrachter schliessen oder dahinter blättern
+      if (overlay || busy || document.querySelector("dialog[open]")) return;
+      if (target?.closest?.("input, textarea, select, [contenteditable]")) return;
       // Leertaste auf Schaltflächen/Links löst deren eigene Aktion aus – nicht zusätzlich pausieren
       if (e.key === " " && target?.closest?.("button, a, [role=menuitem], [role=button]")) return;
       if (e.key === "ArrowRight") next();
@@ -231,7 +233,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
       document.removeEventListener("visibilitychange", onVis);
       document.body.style.overflow = overflow;
     };
-  }, [next, prev, close, overlay]);
+  }, [next, prev, close, overlay, busy]);
 
   // ── Modal: Hintergrund inert, Fokus hinein und beim Verlassen zurück ──
   useEffect(() => {
@@ -329,11 +331,16 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
 
   async function remove() {
     if (!item || !group) return;
+    // Während Bestätigung und Löschen pausiert; Tasten gehen nicht an den Betrachter
     setBusy(true);
-    const ok = await confirmDialog({ title: "Story löschen?", body: "Sie verschwindet sofort aus dem Story-Kreis, deinem Archiv und allen Highlights." });
-    setBusy(false);
-    if (!ok) return;
-    const r = await callAction(() => deleteStoryAction(item.id));
+    let r: Awaited<ReturnType<typeof deleteStoryAction>>;
+    try {
+      const ok = await confirmDialog({ title: "Story löschen?", body: "Sie verschwindet sofort aus dem Story-Kreis, deinem Archiv und allen Highlights." });
+      if (!ok) return;
+      r = await callAction(() => deleteStoryAction(item.id));
+    } finally {
+      setBusy(false);
+    }
     if (!r.ok) return toast(r.error, "error");
     toast("Story gelöscht.");
     const left = group.items.filter((s) => s.id !== item.id);
@@ -357,8 +364,14 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
   async function blockAuthor() {
     if (!group) return;
     const name = group.author.displayName;
-    if (!(await confirmDialog(`${name} blockieren? Ihr seht gegenseitig keine Stories, Beiträge und Nachrichten mehr.`))) return;
-    const r = await callAction(() => blockAction(group.author.id, true));
+    setBusy(true);
+    let r: Awaited<ReturnType<typeof blockAction>>;
+    try {
+      if (!(await confirmDialog(`${name} blockieren? Ihr seht gegenseitig keine Stories, Beiträge und Nachrichten mehr.`))) return;
+      r = await callAction(() => blockAction(group.author.id, true));
+    } finally {
+      setBusy(false);
+    }
     if (!r.ok) return toast(r.error, "error");
     toast(`${name} ist blockiert.`);
     markStoriesChanged();

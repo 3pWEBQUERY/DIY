@@ -144,6 +144,7 @@ struct JournalEntrySheet: View {
         do {
             _ = try await APIClient.shared.post("/projects/\(projectId)/updates", body) as JSONValue
             Haptics.success()
+            NotificationCenter.default.post(name: .projectsChanged, object: projectId)
             app.show(shareToFeed ? "Fortschritt eingetragen und im Feed geteilt." : "Fortschritt eingetragen.")
             dismiss()
         } catch let e as APIError {

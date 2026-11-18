@@ -381,8 +381,8 @@ struct ConversationView: View {
                     Image(systemName: "photo")
                         .font(.wr(.body))
                         .foregroundStyle(attachments.count >= Self.maxImages ? Color.muted : Color.ink2)
-                        .frame(width: 36, height: 36)
-                        .contentShape(.circle)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
                 }
                 .disabled(attachments.count >= Self.maxImages)
                 .accessibilityLabel("Bilder anhängen")
@@ -398,7 +398,8 @@ struct ConversationView: View {
                         if sending { ProgressView().tint(Color.paper).controlSize(.small) }
                         else { Image(systemName: "arrow.up").font(.wr(.subheadline, .bold)) }
                     }
-                    .frame(width: 36, height: 36)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(.circle)
                 }
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
@@ -435,8 +436,12 @@ struct ConversationView: View {
                         Button { withAnimation(.snappy) { attachments.removeAll { $0.id == a.id } } } label: {
                             Image(systemName: "xmark").font(.wr(size: 9, weight: .bold)).foregroundStyle(.white)
                                 .frame(width: 20, height: 20).background(.black.opacity(0.6), in: Circle())
+                                // 44-pt-Trefferfläche; der sichtbare Kreis bleibt in der Ecke
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
                         }
-                        .padding(3)
+                        .buttonStyle(.plain)
+                        .offset(x: 9, y: -9)
                         .accessibilityLabel("Bild entfernen")
                     }
                 }

@@ -6,7 +6,9 @@ struct OnboardingView: View {
     @State private var step = 0
     @State private var displayName = ""
     @State private var handle = ""
-    @State private var adultConfirmed = true
+    /// Startwert aus `app.me` (in `load()`), danach vom Server; im Zweifel wird der 18+-Schalter gezeigt.
+    @State private var adultConfirmed = false
+    @State private var loadError: APIError?
     @State private var adult = false
     @State private var interests: [String] = []
     @State private var bio = ""
@@ -44,7 +46,15 @@ struct OnboardingView: View {
         }
         .background(Color.paper.ignoresSafeArea())
         .task { await load() }
-        .onChange(of: step) { _, s in if s == 3 { Task { await loadSuggestions() } } }
+        .onChange(of: step) { old, s in
+            // Wischen im Seiten-TabView darf die Prüfung von Schritt 1 nicht umgehen
+            if old == 0, s > 0, !nameStepValid {
+                step = 0
+                Haptics.warning()
+                return
+            }
+            if s == 3 { Task { await loadSuggestions() } }
+        }
     }
 
     // MARK: Kopf & Fuss
@@ -84,11 +94,15 @@ struct OnboardingView: View {
                     Text(step < 3 ? "Weiter" : "Zum Feed").frame(maxWidth: .infinity)
                 }
                 .primaryButton()
-                .disabled(step == 0 && (displayName.trimmed.isEmpty || handle.count < 3 || (!adultConfirmed && !adult)))
+                .disabled(step == 0 && !nameStepValid)
             }
             .padding(.horizontal, Space.gutter)
         }
         .padding(.bottom, 12)
+    }
+
+    private var nameStepValid: Bool {
+        !displayName.trimmed.isEmpty && handle.count >= 3 && (adultConfirmed || adult)
     }
 
     // MARK: Schritte
@@ -97,6 +111,14 @@ struct OnboardingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 PageTitle(kicker: "Schritt 1 · Du", title: "Wie sollen wir dich nennen?", subtitle: "Dein Anzeigename kann später geändert werden. Der Benutzername ist deine Adresse bei Werkuno.")
+                if let loadError {
+                    VStack(alignment: .leading, spacing: 8) {
+                        NoticeView(tone: .warn, title: "Dein Profil konnte nicht geladen werden", message: loadError.message)
+                        Button("Erneut laden", systemImage: "arrow.clockwise") { Task { await load() } }
+                            .font(.wr(.footnote, .semibold))
+                            .buttonStyle(.glass)
+                    }
+                }
                 AuthField(title: "Anzeigename", text: $displayName, error: error?.fields?["displayName"], content: .name)
                 AuthField(title: "Benutzername", text: $handle, error: error?.fields?["handle"], prefix: "@", content: .username)
                     .onChange(of: handle) { _, v in handle = v.lowercased().replacingOccurrences(of: " ", with: "") }
@@ -200,7 +222,14 @@ struct OnboardingView: View {
                                     toggleButton(on: followed.contains(c.userId), onTitle: "Folge ich", offTitle: "Folgen") {
                                         let next = !followed.contains(c.userId)
                                         if next { followed.insert(c.userId) } else { followed.remove(c.userId) }
-                                        Task { do { try await SocialAPI.follow(c.userId, next) } catch { app.show(error: error) } }
+                                        Task {
+                                            do { try await SocialAPI.follow(c.userId, next) }
+                                            catch {
+                                                // Optimistische Änderung zurücknehmen
+                                                withAnimation(.snappy) { if next { followed.remove(c.userId) } else { followed.insert(c.userId) } }
+                                                app.show(error: error)
+                                            }
+                                        }
                                     }
                                 }
                                 .padding(12).cardSurface()
@@ -223,7 +252,10 @@ struct OnboardingView: View {
                                         if next { joined.insert(c.id) } else { joined.remove(c.id) }
                                         Task {
                                             do { _ = try await APIClient.shared.post("/communities/\(c.id)/\(next ? "join" : "leave")") as JSONValue }
-                                            catch { app.show(error: error) }
+                                            catch {
+                                                withAnimation(.snappy) { if next { joined.remove(c.id) } else { joined.insert(c.id) } }
+                                                app.show(error: error)
+                                            }
                                         }
                                     }
                                 }
@@ -254,14 +286,23 @@ struct OnboardingView: View {
     // MARK: Daten
 
     private func load() async {
+        if let a = app.me?.adultConfirmed { adultConfirmed = a }
         struct O: Decodable { var profile: Me.Profile?; var adultConfirmed: Bool }
-        if let o: O = try? await APIClient.shared.get("/onboarding") {
-            displayName = o.profile?.displayName ?? ""
-            handle = o.profile?.handle ?? ""
-            interests = o.profile?.categories ?? []
-            bio = o.profile?.bio ?? ""
-            avatarPath = o.profile?.avatarUrl
+        do {
+            let o: O = try await APIClient.shared.get("/onboarding")
+            // Bereits Eingetipptes (z. B. vor einem erneuten Laden) nicht überschreiben
+            if displayName.isEmpty { displayName = o.profile?.displayName ?? "" }
+            if handle.isEmpty { handle = o.profile?.handle ?? "" }
+            if interests.isEmpty { interests = o.profile?.categories ?? [] }
+            if bio.isEmpty { bio = o.profile?.bio ?? "" }
+            if avatarPath == nil { avatarPath = o.profile?.avatarUrl }
             adultConfirmed = o.adultConfirmed
+            withAnimation { loadError = nil }
+        } catch is CancellationError {
+        } catch let e as APIError {
+            withAnimation { loadError = e }
+        } catch {
+            withAnimation { loadError = APIError(code: "UNKNOWN", message: error.localizedDescription, fields: nil, status: 0) }
         }
     }
 
@@ -284,13 +325,30 @@ struct OnboardingView: View {
             await app.finishOnboarding()
             app.show("Willkommen bei Werkuno, \(displayName.trimmed)!")
         } catch let e as APIError {
-            withAnimation { error = e; if e.fields?["handle"] != nil || e.fields?["displayName"] != nil || e.fields?["adult"] != nil { step = 0 } }
+            withAnimation {
+                error = e
+                // Server verlangt die 18+-Bestätigung → Schalter zeigen
+                if e.fields?["adult"] != nil { adultConfirmed = false }
+                if e.fields?["handle"] != nil || e.fields?["displayName"] != nil || e.fields?["adult"] != nil { step = 0 }
+            }
         } catch { app.show(error: error) }
     }
 
     private func skip() async {
-        if !adultConfirmed { withAnimation { step = 0 }; app.show("Bitte bestätige zuerst, dass du mindestens 18 Jahre alt bist.", style: .warning); return }
-        await app.run { _ = try await APIClient.shared.post("/onboarding/skip") as JSONValue }
-        await app.finishOnboarding()
+        if !adultConfirmed {
+            // Überspringen kennt keine 18+-Bestätigung: ist sie gesetzt und Schritt 1 gültig, normal abschliessen
+            if adult && nameStepValid { await finish(); return }
+            withAnimation { step = 0 }
+            app.show("Bitte bestätige zuerst, dass du mindestens 18 Jahre alt bist.", style: .warning)
+            return
+        }
+        do {
+            _ = try await APIClient.shared.post("/onboarding/skip") as JSONValue
+            await app.finishOnboarding()
+        } catch let e as APIError where e.code == "VALIDATION" {
+            // Einziger Validierungsfehler beim Überspringen: fehlende 18+-Bestätigung
+            withAnimation { adultConfirmed = false; step = 0 }
+            app.show(e.message, style: .warning)
+        } catch { app.show(error: error) }
     }
 }

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
 import { features as features_ } from "@/server/env";
 import { MobileWelcome } from "@/components/landing/mobile-welcome";
+import { one } from "@/lib/search-params";
 
 export const metadata = { alternates: { canonical: "/" } };
 
@@ -116,7 +117,7 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
   const card = (p: LatestProject, className: string, delay: string) => (
     <Link
       href={projectHref(p)}
-      className={cn("absolute block w-[300px] rounded-[22px] border border-line bg-card p-2.5 shadow-xs focus-visible:z-20 animate-rise", className)}
+      className={cn("absolute block w-[300px] rounded-[22px] border border-line bg-card p-2.5 focus-visible:z-20 animate-rise", className)}
       style={{ animationDelay: delay }}
     >
       <Cover url={p.coverUrl} alt="" kind="project" ratio="1/1" sizes="300px" className="rounded-[16px]" />
@@ -136,7 +137,7 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
       {b && card(b, "left-0 top-16 -rotate-6", "120ms")}
       {c && card(c, "right-0 top-24 rotate-6", "200ms")}
       {card(a, "left-1/2 top-0 z-10 -translate-x-1/2", "40ms")}
-      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 shadow-xs animate-rise" style={{ animationDelay: "360ms" }}>
+      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 animate-rise" style={{ animationDelay: "360ms" }}>
         <span className="grid size-9 place-items-center rounded-full bg-pine-soft text-pine">
           <Check size={16} strokeWidth={2.6} aria-hidden />
         </span>
@@ -149,7 +150,8 @@ function HeroCollage({ items }: { items: LatestProject[] }) {
   );
 }
 
-export default async function Landing() {
+export default async function Landing({ searchParams }: { searchParams: Promise<{ konto?: string | string[] }> }) {
+  const deleted = one((await searchParams).konto) === "geloescht";
   if (await currentUser()) redirect("/feed");
   const d = await landingData();
   const [feeBps, holdDays, autoCompleteDays] = await Promise.all([
@@ -165,7 +167,7 @@ export default async function Landing() {
 
   // Mini-Vorschauen der App in den Kacheln – echt wirkende Oberflächen statt Symbolbilder
   const Window = ({ label, chip, children }: { label: string; chip?: React.ReactNode; children: React.ReactNode }) => (
-    <div className="overflow-hidden rounded-2xl border border-line bg-paper shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+    <div className="overflow-hidden rounded-2xl border border-line bg-paper">
       <div className="flex items-center justify-between gap-3 border-b border-line bg-card/70 px-4 py-2.5">
         <span className="flex items-center gap-1.5" aria-hidden>
           <span className="size-2 rounded-full bg-line-strong" />
@@ -366,13 +368,19 @@ export default async function Landing() {
       </div>
       <RevealObserver />
       <main id="main">
+        {/* Rückmeldung nach „Konto löschen“ (deleteAccountAction leitet mit ?konto=geloescht hierher) */}
+        {deleted && (
+          <div role="status" className="border-b border-line bg-moss-soft px-5 py-3 text-center text-[14px] text-ink sm:px-8">
+            <span className="font-semibold">Dein Konto wurde gelöscht.</span> Profil, Beiträge und Projekte werden entfernt. Danke, dass du dabei warst.
+          </div>
+        )}
         <MobileWelcome apple={features_.apple()} pinterest={features_.pinterest()} beta={!!(await getSetting("app.testflightUrl").catch(() => ""))} />
         <div className="hidden md:block">
         {/* ── Hero ───────────────────────────────────────── */}
         <section className="relative overflow-hidden">
           <div className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-14 pt-10 sm:px-8 sm:pt-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-8 lg:pb-20 lg:pt-16">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-card py-1 pl-1.5 pr-3 text-[12.5px] font-semibold text-ink-2 shadow-xs animate-rise">
+              <p className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-card py-1 pl-1.5 pr-3 text-[12.5px] font-semibold text-ink-2 animate-rise">
                 <span aria-hidden className="grid size-5 place-items-center rounded-full bg-moss-soft"><span className="size-1.5 rounded-full bg-moss" /></span>
                 Das soziale Netzwerk für Selbstgemachtes
               </p>
@@ -424,8 +432,6 @@ export default async function Landing() {
 
         {/* ── Live-Showcase ─────────────────────────────── */}
         <section className="relative overflow-hidden bg-ink py-16 text-paper sm:py-20" aria-labelledby="showcase-title">
-          {/* Dunkel wie „So funktioniert's“, eigener Grund: warmer Schein von oben, kein Muster */}
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[linear-gradient(180deg,rgba(182,75,58,0.22),transparent)]" />
           <div className="relative mx-auto flex max-w-[1240px] flex-wrap items-end justify-between gap-6 px-5 sm:px-8">
             <div data-reveal className="max-w-2xl">
               <p className="eyebrow text-[#f0a493]">Live aus der Community</p>
@@ -491,8 +497,6 @@ export default async function Landing() {
             {features.map((f, i) => (
               <div key={f.title} id={`feature-${f.title.toLowerCase()}`} data-reveal className={cn("scroll-mt-24", f.span)} style={{ ["--reveal-i" as string]: i % 2 }}>
                 <article className="relative flex h-full flex-col overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8">
-                  {/* feiner Farbverlauf oben – ruhige Tiefe statt flacher Fläche */}
-                  <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
                   <div className="relative flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3.5">
                       <span className="grid size-12 place-items-center rounded-2xl bg-ink text-paper">
@@ -528,9 +532,6 @@ export default async function Landing() {
 
         {/* ── So funktioniert's ─────────────────────────── */}
         <section className="relative overflow-hidden bg-ink text-paper" aria-labelledby="steps-title">
-          {/* Punktraster wie in der App, sehr dezent */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:22px_22px]" />
-          <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full bg-moss opacity-20 blur-[120px]" />
           <div className="relative mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
             <div data-reveal className="mx-auto max-w-2xl text-center">
               <p className="eyebrow justify-center text-[#f0a493]">So funktioniert&apos;s</p>
@@ -595,7 +596,6 @@ export default async function Landing() {
           <div className="mt-12 grid gap-4 lg:grid-cols-12 lg:gap-5">
             {/* Bestellablauf – genau so, wie der Marktplatz abrechnet */}
             <article data-reveal className="relative overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8 lg:col-span-7">
-              <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-pine-soft),transparent)] opacity-70" />
               <div className="relative flex items-center justify-between gap-4">
                 <h3 className="text-headline font-bold leading-tight">So läuft eine Bestellung</h3>
                 <span className="rounded-full bg-pine-soft px-2.5 py-1 text-[12px] font-bold text-pine">{holdDays > 0 ? "Auszahlung erst nach der Haltefrist" : "Auszahlung erst nach Abschluss"}</span>
@@ -631,7 +631,6 @@ export default async function Landing() {
 
             {/* Rechenbeispiel aus der echten Gebührenlogik */}
             <article data-reveal style={{ ["--reveal-i" as string]: 1 }} className="relative flex flex-col overflow-hidden rounded-[28px] border border-line bg-card p-6 sm:p-8 lg:col-span-5">
-              <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
               <div className="relative flex items-center justify-between gap-4">
                 <h3 className="text-headline font-bold leading-tight">Rechenbeispiel</h3>
                 <Percent size={20} strokeWidth={1.9} className="text-moss-ink" aria-hidden />
@@ -687,7 +686,6 @@ export default async function Landing() {
 
               {/* Weiterhelfen: echte Anlaufstellen statt Deko */}
               <div className="relative mt-8 overflow-hidden rounded-[24px] border border-line bg-card p-5">
-                <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,var(--color-moss-soft),transparent)] opacity-50" />
                 <p className="relative text-[15px] font-bold text-ink">Noch etwas offen?</p>
                 <ul className="relative mt-3 divide-y divide-line">
                   {[
@@ -731,9 +729,6 @@ export default async function Landing() {
 
         {/* ── Abschluss-CTA ─────────────────────────────── */}
         <section className="relative overflow-hidden bg-ink text-paper" aria-labelledby="cta-title">
-          {/* Gleicher Hintergrund wie „So funktioniert's“: Punktraster und warmer Schein oben rechts */}
-          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:22px_22px]" />
-          <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full bg-moss opacity-20 blur-[120px]" />
           <div data-reveal className="relative mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
             <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
               <div className="flex flex-col">

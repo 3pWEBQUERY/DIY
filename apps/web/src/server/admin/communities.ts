@@ -444,6 +444,10 @@ export async function unbanCommunityMember(actor: Actor, id: string, userId: str
     await loadCommunity(id, tx);
     // Die eigene Sperre hebt eine andere Person aus dem Team auf
     assertNotSelf(actor, userId);
+    // Wie beim Sperren: Sperren gleich- oder höherrangiger Teammitglieder hebt nur die Superadministration auf
+    const m = await loadMember(tx, id, userId);
+    if (m.state !== "BANNED") throw fail.conflict("Diese Person ist nicht gesperrt.");
+    assertOutranks(actor, m.user.role);
     const res = await tx.communityMember.deleteMany({ where: { communityId: id, userId, state: "BANNED" } });
     if (!res.count) throw fail.conflict("Diese Person ist nicht gesperrt.");
     await communityLog(tx, { communityId: id, moderatorId: actor.id, targetType: "USER", targetId: userId, action: "UNBAN_MEMBER", reason: "Plattform-Moderation" });

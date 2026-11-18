@@ -11,8 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Label, Select, Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
-import { useAction } from "@/lib/use-action";
+import { callAction, useAction } from "@/lib/use-action";
+import type { ActionResult } from "@/server/errors";
 import { cn, formatDate } from "@/lib/utils";
+import { addDaysToDayKey, zurichDateTimeIso, zurichDayKey } from "@/lib/tz";
 import { RelativeTime } from "@/components/ui/relative-time";
 import {
   addCommunityProjectAction,
@@ -29,16 +31,16 @@ import {
   unbanMemberAction,
 } from "@/app/(app)/communities/actions";
 
-type Result = { ok: boolean; error?: string; message?: string };
 const RANK = { OWNER: 3, ADMIN: 2, MODERATOR: 1, MEMBER: 0 } as const;
 type Role = keyof typeof RANK;
 
 function useRun() {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const run = (p: () => Promise<Result>, onOk?: () => void) =>
+  const run = (p: () => Promise<ActionResult<unknown>>, onOk?: () => void) =>
     start(async () => {
-      const r = await p();
+      // Netz-/Serverfehler → Toast statt Fehlerseite
+      const r = await callAction(p);
       if (r.ok) {
         if (r.message) toast(r.message);
         onOk?.();
@@ -102,7 +104,7 @@ export function InvitePanel({ communityId, invited }: { communityId: string; inv
       >
         <div className="flex-1">
           <Label htmlFor="invite-handle">Benutzername</Label>
-          <div className="flex items-center border border-line-strong bg-card focus-within:border-moss rounded-2xl">
+          <div className="flex items-center border border-field bg-card focus-within:border-moss rounded-2xl">
             <span className="pl-3 text-muted">@</span>
             <input id="invite-handle" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="benutzername" className="h-11 flex-1 bg-transparent px-2 outline-none" autoComplete="off" />
           </div>
@@ -141,7 +143,7 @@ export function MembersManager({ communityId, members, viewer }: { communityId: 
       <div className="mb-3 flex items-center justify-between gap-3">
         <label htmlFor="member-filter" className="sr-only">Mitglieder filtern</label>
         <Input id="member-filter" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mitglieder filtern …" className="h-10 max-w-xs" />
-        <span className="spec">{members.length} angezeigt</span>
+        <span className="spec" aria-live="polite">{q ? `${list.length} von ${members.length} angezeigt` : `${members.length} angezeigt`}</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
@@ -229,7 +231,7 @@ function MuteDialog({ member, onClose, onConfirm, pending }: { member: Member | 
   const [days, setDays] = useState("7");
   const [custom, setCustom] = useState("");
   const [reason, setReason] = useState("");
-  const until = days === "custom" ? (custom ? new Date(`${custom}T23:59:00`).toISOString() : "") : new Date(Date.now() + Number(days) * 86400_000).toISOString();
+  const until = days === "custom" ? (zurichDateTimeIso(custom, "23:59:00") ?? "") : new Date(Date.now() + Number(days) * 86400_000).toISOString();
   return (
     <Dialog open={!!member} onClose={onClose} title={`${member?.displayName ?? ""} stummschalten`} description="Stummgeschaltete Mitglieder können lesen, aber nichts veröffentlichen.">
       <Label htmlFor="mute-days">Dauer</Label>
@@ -240,7 +242,7 @@ function MuteDialog({ member, onClose, onConfirm, pending }: { member: Member | 
         <option value="30">30 Tage</option>
         <option value="custom">Bis Datum …</option>
       </Select>
-      {days === "custom" && <Input type="date" className="mt-2" value={custom} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setCustom(e.target.value)} aria-label="Stumm bis" />}
+      {days === "custom" && <Input type="date" className="mt-2" value={custom} min={zurichDayKey()} onChange={(e) => setCustom(e.target.value)} aria-label="Stumm bis" />}
       <Label htmlFor="mute-reason" className="mt-4">Grund (für das Protokoll)</Label>
       <Textarea id="mute-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
       <Button className="mt-4 w-full" disabled={pending || !until} onClick={() => onConfirm(until, reason)}>
@@ -290,11 +292,13 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
   const [rules, setRules] = useState("");
   const [prize, setPrize] = useState("");
   const [judging, setJudging] = useState<"VOTES" | "JURY">("VOTES");
-  const today = new Date().toISOString().slice(0, 10);
+  // Zürcher Kalendertag (nicht UTC: kurz nach Mitternacht wäre sonst noch „gestern“)
+  const today = zurichDayKey();
   const [startsAt, setStartsAt] = useState(today);
+  const [startError, setStartError] = useState<string | null>(null);
   const [endsAt, setEndsAt] = useState("");
   const [votingEndsAt, setVotingEndsAt] = useState("");
-  const plus7 = (d: string) => (d ? new Date(new Date(`${d}T12:00:00`).getTime() + 7 * 86400_000).toISOString().slice(0, 10) : "");
+  const plus7 = (d: string) => addDaysToDayKey(d, 7);
   const create = useAction(createChallengeAction.bind(null, communityId), {
     onSuccess: () => {
       setTitle("");
@@ -311,15 +315,22 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          // Leeres/ungültiges Datum → Feldfehler statt RangeError (toISOString) und Fehlerseite
+          const start = zurichDateTimeIso(startsAt, "00:00:00");
+          if (!start) {
+            setStartError("Bitte gib ein Startdatum an.");
+            return;
+          }
+          setStartError(null);
           void create.run({
             title,
             description,
             rules,
             prize,
             judging,
-            startsAt: new Date(`${startsAt}T00:00:00`).toISOString(),
-            endsAt: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : "",
-            votingEndsAt: judging === "VOTES" ? new Date(`${votingEndsAt || plus7(endsAt)}T23:59:59`).toISOString() : null,
+            startsAt: start,
+            endsAt: zurichDateTimeIso(endsAt, "23:59:59") ?? "",
+            votingEndsAt: judging === "VOTES" ? (zurichDateTimeIso(votingEndsAt || plus7(endsAt), "23:59:59") ?? "") : null,
           });
         }}
         className="space-y-4"
@@ -345,7 +356,7 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
                 ["JURY", "Jury (Moderation)"],
               ] as const
             ).map(([k, l]) => (
-              <button key={k} type="button" role="radio" aria-checked={judging === k} onClick={() => setJudging(k)} className={cn("h-9 rounded-lg px-2 font-medium text-muted hover:text-ink", judging === k && "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)]")}>
+              <button key={k} type="button" role="radio" aria-checked={judging === k} onClick={() => setJudging(k)} className={cn("h-9 rounded-lg px-2 font-medium text-muted hover:text-ink", judging === k && "bg-card text-ink ring-1 ring-line-strong")}>
                 {l}
               </button>
             ))}
@@ -353,8 +364,8 @@ export function ChallengesManager({ communityId, challenges }: { communityId: st
           <p className="mt-1.5 text-[12.5px] text-muted">{judging === "VOTES" ? "Nach dem Einreichungsschluss vergeben Mitglieder je 3 Stimmen; Platz 1–3 nach Stimmen." : "Nach dem Einreichungsschluss wählt die Moderation Platz 1–3 und veröffentlicht das Ergebnis."}</p>
         </fieldset>
         <div className={cn("grid gap-3", judging === "VOTES" ? "sm:grid-cols-3" : "grid-cols-2")}>
-          <Field label="Start" error={create.fields.startsAt}>
-            {(p) => <Input {...p} type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />}
+          <Field label="Start" error={startError ?? create.fields.startsAt}>
+            {(p) => <Input {...p} type="date" required value={startsAt} onChange={(e) => { setStartsAt(e.target.value); if (e.target.value) setStartError(null); }} />}
           </Field>
           <Field label="Einreichung bis" error={create.fields.endsAt}>
             {(p) => <Input {...p} type="date" value={endsAt} min={startsAt} onChange={(e) => setEndsAt(e.target.value)} />}

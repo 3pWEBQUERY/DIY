@@ -31,7 +31,7 @@ function fileType(mime: string) {
   return map[sub] ?? (sub.length <= 5 ? sub.toUpperCase() : "Datei");
 }
 
-const pill = "inline-flex h-6 items-center gap-1.5 rounded-full bg-card/92 px-2.5 text-[11.5px] font-medium text-ink shadow-[0_1px_2px_rgb(0_0_0/0.08)] backdrop-blur-sm";
+const pill = "inline-flex h-6 items-center gap-1.5 rounded-full bg-card/92 px-2.5 text-[11.5px] font-medium text-ink ring-1 ring-line backdrop-blur-sm";
 
 function Card({ m }: { m: MediaItem }) {
   const [alt, setAlt] = useState(m.alt);
@@ -68,7 +68,7 @@ function Card({ m }: { m: MediaItem }) {
             type="button"
             disabled={del.pending}
             onClick={async () => (await confirmDialog({ title: "Datei endgültig löschen?", body: "Die Datei wird aus deiner Medienbibliothek entfernt. Das kann nicht rückgängig gemacht werden.", confirmLabel: "Löschen" })) && del.run(m.id)}
-            className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-card/92 text-ink-2 shadow-[0_1px_2px_rgb(0_0_0/0.08)] backdrop-blur-sm transition-colors hover:bg-danger hover:text-paper disabled:opacity-50"
+            className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-card/92 text-ink-2 ring-1 ring-line backdrop-blur-sm transition-colors hover:bg-danger hover:text-paper disabled:opacity-50"
             aria-label="Datei löschen"
             title="Löschen"
           >
@@ -114,7 +114,7 @@ function Card({ m }: { m: MediaItem }) {
                 onChange={(e) => setAlt(e.target.value)}
                 maxLength={500}
                 placeholder="Was ist zu sehen?"
-                className={cn("h-9 min-w-0 flex-1 rounded-xl border bg-paper px-3 text-[13px] outline-none transition-colors focus:border-moss", m.alt || dirty ? "border-line-strong" : "border-warn/40")}
+                className={cn("h-9 min-w-0 flex-1 rounded-xl border bg-paper px-3 text-[13px] outline-none transition-colors focus:border-moss", m.alt || dirty ? "border-field" : "border-warn")}
               />
               {dirty && (
                 <Button type="submit" size="sm" disabled={save.pending} className="h-9 px-3">

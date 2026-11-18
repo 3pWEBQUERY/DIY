@@ -8,6 +8,7 @@ import { payableOrders } from "@/server/commerce/checkout";
 import { AwaitConfirmation, ResumePaymentButton } from "@/components/commerce/payment-actions";
 import { LinkButton } from "@/components/ui/button";
 import { Notice } from "@/components/ui/misc";
+import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Danke für deine Bestellung", robots: { index: false } };
 
@@ -15,9 +16,9 @@ export const metadata: Metadata = { title: "Danke für deine Bestellung", robots
  * Rückkehr vom Zahlungsanbieter. Hier wird NICHTS als bezahlt markiert – wir zeigen den
  * Stand, den der Webhook geliefert hat, und warten sonst kurz auf die Bestätigung (§31.4 Nr. 9).
  */
-export default async function CheckoutSuccessPage({ searchParams }: { searchParams: Promise<{ bestellung?: string }> }) {
-  const [{ bestellung }, user] = await Promise.all([searchParams, currentUser()]);
-  if (!user) redirect("/anmelden");
+export default async function CheckoutSuccessPage({ searchParams }: { searchParams: Promise<{ bestellung?: string | string[] }> }) {
+  const [{ bestellung }, user] = await Promise.all([searchParams.then((s) => flatSearchParams(s)), currentUser()]);
+  if (!user) redirect(`/anmelden?weiter=${encodeURIComponent(`/kasse/erfolg${bestellung ? `?bestellung=${encodeURIComponent(bestellung)}` : ""}`)}`);
   if (!bestellung) redirect("/bestellungen");
   const order = await getBuyerOrder(user.id, bestellung);
   if (!order) notFound();

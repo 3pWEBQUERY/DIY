@@ -61,9 +61,15 @@ export function Composer({
   const [coauthorsOpen, setCoauthorsOpen] = useState(false);
   const [coauthors, setCoauthors] = useState<string[]>([]);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
+  const loadCandidates = () => {
+    setCandidatesError(null);
+    // Netz-/Serverfehler: Fehlerzustand mit „Erneut versuchen“ statt unbehandelter Ausnahme
+    void callAction(() => coauthorCandidatesAction()).then((r) => (r.ok ? setCandidates(r.data) : setCandidatesError(r.error)));
+  };
   const openCoauthors = () => {
     setCoauthorsOpen(true);
-    if (!candidates) void coauthorCandidatesAction().then((r) => setCandidates(r.ok ? r.data : []));
+    if (!candidates) loadCandidates();
   };
   const [pending, start] = useTransition();
   const uploading = media.some((m) => m.state === "uploading");
@@ -156,7 +162,14 @@ export function Composer({
                   <X size={15} />
                 </button>
               </div>
-              {candidates == null ? <div className="h-11 animate-pulse rounded-xl bg-sunken" aria-busy /> : <PeoplePicker candidates={candidates} value={coauthors} onChange={setCoauthors} max={3} />}
+              {candidates == null && candidatesError ? (
+                <div role="alert" className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
+                  {candidatesError}
+                  <Button variant="ghost" size="sm" onClick={loadCandidates}>
+                    Erneut versuchen
+                  </Button>
+                </div>
+              ) : candidates == null ? <div className="h-11 animate-pulse rounded-xl bg-sunken" aria-busy /> : <PeoplePicker candidates={candidates} value={coauthors} onChange={setCoauthors} max={3} />}
             </div>
           )}
           {missingAlt && <p className="mt-2 text-xs text-warn">Tipp: Beschreibe deine Bilder kurz – das hilft Menschen mit Screenreader.</p>}

@@ -19,7 +19,15 @@ type RawSP = { [K in keyof SP]?: string | string[] };
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<RawSP> }): Promise<Metadata> {
   const sp = flatSearchParams(await searchParams);
-  return { title: sp.q ? `Material «${sp.q}»` : "Materialien", description: "Die Materialdatenbank der Community: Garne, Stoffe, Hölzer, Farben und mehr – mit Einheiten, Eigenschaften und Sicherheitshinweisen." };
+  const q = sp.q?.trim();
+  const cat = sp.kategorie ? (await listMaterialCategories()).find((c) => c.slug === sp.kategorie) : undefined;
+  return {
+    title: q ? `Material «${q.slice(0, 60)}»` : cat ? `${cat.name} – Materialien` : "Materialien",
+    description: "Die Materialdatenbank der Community: Garne, Stoffe, Hölzer, Farben und mehr – mit Einheiten, Eigenschaften und Sicherheitshinweisen.",
+    // Kanonisch nur Übersicht bzw. Kategorie; Suchergebnisse nicht indexieren
+    alternates: { canonical: cat ? `/materialien?kategorie=${encodeURIComponent(cat.slug)}` : "/materialien" },
+    ...(q ? { robots: { index: false, follow: true } } : {}),
+  };
 }
 
 function formatProp(v: unknown) {

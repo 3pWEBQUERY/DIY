@@ -102,7 +102,7 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                           {c.online && <OnlineDot />}
                         </span>
                       )}
-                      {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 bg-clay", active ? "border-moss" : "border-paper")} aria-hidden />}
+                      {c.unread && <span className={cn("absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2", active ? "border-moss bg-paper" : "border-paper bg-clay")} aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
@@ -112,7 +112,7 @@ export function InboxPane({ box, items, activeId, counts, className }: { box: In
                       {(c.orderNumber || c.isProductInquiry) && (
                         <span className={cn("spec block", active ? "text-paper" : "text-clay-ink")}>{c.orderNumber ? `Bestellung ${c.orderNumber}` : "Produktanfrage"}</span>
                       )}
-                      <span className={cn("mt-0.5 flex items-center gap-1.5 text-[13px]", active ? "text-paper/80" : c.unread ? "text-ink" : "text-muted")}>
+                      <span className={cn("mt-0.5 flex items-center gap-1.5 text-[13px]", active ? "text-paper" : c.unread ? "text-ink" : "text-muted")}>
                         {c.flagged && <ShieldAlert size={13} className={active ? "text-paper" : "text-warn"} aria-label="Warnhinweis" />}
                         {c.lastStatus && <ReceiptTicks status={c.lastStatus} onBubble={active} />}
                         <span className="truncate">{c.lastFromMe && !c.lastStatus && "Du: "}{c.preview}</span>

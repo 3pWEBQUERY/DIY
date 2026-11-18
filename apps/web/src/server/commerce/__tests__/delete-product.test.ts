@@ -11,7 +11,7 @@ const m = vi.hoisted(() => {
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/db", () => ({ db: m.db }));
-vi.mock("@/server/analytics/service", () => ({ track: vi.fn() }));
+vi.mock("@/server/analytics/service", () => ({ track: vi.fn(), recordView: vi.fn(), viewRequest: vi.fn() }));
 vi.mock("@/server/media/service", () => ({ attachMedia: vi.fn(), releaseMedia: m.release }));
 vi.mock("@/server/settings", () => ({ getSetting: async () => null }));
 vi.mock("@/server/visibility", () => ({ relationsFor: vi.fn(), isBlockedBetween: vi.fn() }));
@@ -49,10 +49,14 @@ describe("deleteProduct", () => {
     expect(m.release).not.toHaveBeenCalled();
   });
 
-  it("laufender Kauf in der App (gültige Absicht): nicht löschen", async () => {
-    m.tx.appStorePurchase.groupBy.mockResolvedValue([{ status: "PENDING", _count: 1 }]);
+  it("offene oder abgelaufene Kaufabsicht der letzten 30 Tage: nicht löschen (Apple kann spät melden)", async () => {
+    m.tx.appStorePurchase.groupBy.mockResolvedValue([{ status: "EXPIRED", _count: 1 }]);
     m.tx.appStorePurchase.count.mockResolvedValue(1);
-    await expect(deleteProduct(user, "pr1")).rejects.toMatchObject({ message: expect.stringContaining("gerade in der App") });
+    await expect(deleteProduct(user, "pr1")).rejects.toMatchObject({ code: "CONFLICT", message: expect.stringContaining("In-App-Kauf") });
+    expect(m.tx.appStorePurchase.count).toHaveBeenCalledWith({ where: { productId: "pr1", status: { in: ["PENDING", "EXPIRED"] }, createdAt: { gt: expect.any(Date) } } });
+    const since = (m.tx.appStorePurchase.count.mock.calls[0]![0] as { where: { createdAt: { gt: Date } } }).where.createdAt.gt;
+    expect(Math.round((Date.now() - since.getTime()) / 86_400_000)).toBe(30);
+    expect(m.tx.appStorePurchase.deleteMany).not.toHaveBeenCalled();
     expect(m.tx.product.delete).not.toHaveBeenCalled();
   });
 });

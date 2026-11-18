@@ -205,7 +205,7 @@ export async function patchFrozenMediaRefsLater(mediaIds: (string | null | undef
  * Tatsächliche Verwendung von Medien – auf Abfrage berechnet statt aus dem „klebrigen“ `attachedAt`
  * (wird beim Anhängen gesetzt, aber nie zurückgesetzt, wenn der Inhalt gelöscht wird).
  *
- * Erfasst: Verknüpfungstabellen (Beitrag, Projekt, Produkt, Anleitung), Projekt-Cover (coverMediaId),
+ * Erfasst: Verknüpfungstabellen (Beitrag, Projekt, Produkt, Anleitung), Stories (inkl. Archiv), Projekt-Cover (coverMediaId),
  * digitale Produktdateien, Verweise per URL (Profil, Cover von Projekt/Anleitung/Artikel/Community/Produkt)
  * und JSON-Felder mit Medien-ID (Anleitungsschritte, Journal, Nachrichten, Artikelblöcke inkl. Revisionen).
  * JSON-Abfragen sind auf die Eigentümer:innen eingeschränkt (nur eigene Medien lassen sich anhängen).
@@ -224,15 +224,17 @@ export async function mediaInUse(ids: string[]): Promise<Set<string>> {
   const add = (list: { mediaId?: string | null }[]) => list.forEach((x) => x.mediaId && used.add(x.mediaId));
   const addUrls = (list: Record<string, string | null>[]) => list.forEach((x) => Object.values(x).forEach((u) => u && byUrl.has(u) && used.add(byUrl.get(u)!)));
   const inIds = { in: mediaIds };
-  const [post, project, product, tutorial, covers, digital] = await Promise.all([
+  const [post, project, product, tutorial, covers, digital, stories] = await Promise.all([
     db.postMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
     db.projectMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
     db.productMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
     db.tutorialMedia.findMany({ where: { mediaId: inIds }, select: { mediaId: true }, distinct: ["mediaId"] }),
     db.project.findMany({ where: { coverMediaId: inIds }, select: { coverMediaId: true } }),
     db.product.findMany({ where: { digitalKey: inIds }, select: { digitalKey: true } }),
+    // Stories bleiben nach Ablauf im Archiv bzw. in Highlights – Löschen des Mediums löschte sie mit (Cascade)
+    db.story.findMany({ where: { mediaId: inIds, state: { not: "REMOVED" } }, select: { mediaId: true }, distinct: ["mediaId"] }),
   ]);
-  add([...post, ...project, ...product, ...tutorial, ...covers.map((c) => ({ mediaId: c.coverMediaId })), ...digital.map((d) => ({ mediaId: d.digitalKey }))]);
+  add([...post, ...project, ...product, ...tutorial, ...stories, ...covers.map((c) => ({ mediaId: c.coverMediaId })), ...digital.map((d) => ({ mediaId: d.digitalKey }))]);
   if (urls.length) {
     const inUrls = { in: urls };
     const res = await Promise.all([

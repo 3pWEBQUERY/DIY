@@ -579,6 +579,8 @@ struct CompetitionEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var options: [CompetitionProjectOption]?
+    /// Laden der Projektauswahl fehlgeschlagen → Fehler mit „Erneut versuchen“ statt „kein Projekt“
+    @State private var optionsError: String?
     @State private var projectId: String
     @State private var note: String
     @State private var fields: [String: String] = [:]
@@ -599,7 +601,9 @@ struct CompetitionEntrySheet: View {
                         SpecLabel("Wettbewerb", color: .moss)
                         Text(competition.title).font(.titleSerif).foregroundStyle(Color.ink)
                     }
-                    if let options {
+                    if let optionsError, options == nil {
+                        ErrorStateView(message: optionsError) { await loadOptions() }
+                    } else if let options {
                         if options.isEmpty {
                             EmptyStateView(symbol: "hammer", title: "Noch kein passendes Projekt", message: "Du hast noch kein veröffentlichtes, öffentliches Projekt.", actionTitle: "Projekt anlegen") {
                                 dismiss()
@@ -686,11 +690,10 @@ struct CompetitionEntrySheet: View {
     private func loadOptions() async {
         do {
             let o: [CompetitionProjectOption] = try await APIClient.shared.get("/competitions/\(competition.id)/project-options")
-            withAnimation(.snappy) { options = o }
+            withAnimation(.snappy) { options = o; optionsError = nil }
         } catch is CancellationError {
         } catch {
-            options = []
-            app.show(error: error)
+            withAnimation(.snappy) { optionsError = (error as? APIError)?.message ?? error.localizedDescription }
         }
     }
 

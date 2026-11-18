@@ -70,7 +70,8 @@ export default async function ShopDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {(s.status === "PENDING_VERIFICATION" || s.status === "DRAFT") && (
+          {/* Freigeben geht nur aus „Prüfung ausstehend“ (decideShop) */}
+          {s.status === "PENDING_VERIFICATION" && (
             <ReasonButton action={decideShopAction.bind(null, s.id, "APPROVE")} label="Freigeben" variant="primary" confirmVariant="primary" title={`„${s.name}“ freigeben`} description="Manuelle Freigabe nach Prüfung von Identität, Angebot und Richtlinien. Die Prüfung wird protokolliert. Käufe sind erst möglich, wenn der Shop zusätzlich sein Auszahlungskonto bei Stripe verbunden hat." reasonLabel="Prüfnotiz" confirmLabel="Shop freigeben" />
           )}
           {s.status === "PENDING_VERIFICATION" && (
@@ -85,12 +86,12 @@ export default async function ShopDetailPage({ params }: { params: Promise<{ id:
               confirmLabel="Ablehnen"
             />
           )}
-          {s.status === "ACTIVE" && <ReasonButton action={decideShopAction.bind(null, s.id, "PAUSE")} label="Pausieren" variant="outline" title="Shop pausieren" description="Der Shop und seine Produkte sind vorübergehend nicht sichtbar." confirmLabel="Pausieren" />}
+          {s.status === "ACTIVE" && <ReasonButton action={decideShopAction.bind(null, s.id, "PAUSE")} label="Pausieren" variant="outline" title="Shop pausieren" description="Shop und Angebote bleiben sichtbar, Bestellungen sind aber nicht möglich. Der Shop kann die Pause selbst beenden." reasonLabel="Begründung an die betroffene Person" reasonHint="Wird der Shop-Inhaberin bzw. dem Shop-Inhaber mit der Benachrichtigung angezeigt und im Audit-Protokoll gespeichert." confirmLabel="Pausieren" />}
           {(s.status === "PAUSED" || (s.status === "SUSPENDED" && isAdmin)) && (
             <ReasonButton action={decideShopAction.bind(null, s.id, "REACTIVATE")} label="Reaktivieren" variant="outline" title="Shop reaktivieren" description={s.status === "SUSPENDED" ? "Pausierte Produkte bleiben pausiert und werden vom Shop selbst wieder aktiviert." : undefined} confirmLabel="Reaktivieren" />
           )}
           {s.status !== "SUSPENDED" && s.status !== "DRAFT" && (
-            <ReasonButton action={decideShopAction.bind(null, s.id, "SUSPEND")} label="Sperren" variant="danger" confirmVariant="danger" title="Shop sperren" description="Alle aktiven Produkte werden pausiert und sind nicht mehr kaufbar. Offene Bestellungen bleiben bestehen." confirmLabel="Shop sperren" />
+            <ReasonButton action={decideShopAction.bind(null, s.id, "SUSPEND")} label="Sperren" variant="danger" confirmVariant="danger" title="Shop sperren" description="Alle aktiven Produkte werden pausiert und sind nicht mehr kaufbar. Offene Bestellungen bleiben bestehen." reasonLabel="Begründung an die betroffene Person" reasonHint="Wird der Shop-Inhaberin bzw. dem Shop-Inhaber mit der Benachrichtigung angezeigt und im Audit-Protokoll gespeichert." confirmLabel="Shop sperren" />
           )}
           <ShopEditButton
             action={updateShopAction.bind(null, s.id)}

@@ -151,9 +151,9 @@ struct ProfileView: View {
                             .padding(.horizontal, Space.gutter)
                             .padding(.top, 14)
                             .padding(.bottom, 40)
-                    } header: {
+                    } header: { Group {
                         MeTabSwitcher(items: tabs(p, prof), selection: $tab)
-                    }
+                    }.font(.wr(.footnote, .semibold)) }
                 }
             }
         }

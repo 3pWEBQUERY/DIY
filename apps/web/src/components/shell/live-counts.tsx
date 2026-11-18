@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { PRESENCE_PING_MS } from "@/lib/presence";
+import { backoffDelay } from "@/lib/backoff";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 export type LiveCounts = { notifications: number; messages: number; requests: number; cart: number };
@@ -126,27 +127,50 @@ export function LiveCountsProvider({ initial, enabled, children }: { initial: Li
     if (!enabled || typeof EventSource === "undefined") return;
     let es: EventSource | null = null;
     let debounce: number | undefined;
+    let retry: number | undefined;
+    let attempts = 0;
+    let stopped = false;
+    let dropped = false;
     const soon = () => {
       window.clearTimeout(debounce);
       debounce = window.setTimeout(() => void load(), 250);
     };
     const open = () => {
-      es = new EventSource("/api/v1/stream");
-      es.onopen = () => (liveOk.current = true);
-      es.onerror = () => (liveOk.current = false);
+      if (stopped) return;
+      const src = new EventSource("/api/v1/stream");
+      es = src;
+      src.onopen = () => {
+        liveOk.current = true;
+        attempts = 0;
+        // Was während einer Unterbrechung geschah, nachholen
+        if (dropped) soon();
+        dropped = false;
+      };
+      src.onerror = () => {
+        liveOk.current = false;
+        dropped = true;
+        // EventSource verbindet sich bei CONNECTING selbst neu; nach CLOSED (z. B. 502/Deploy) nie wieder →
+        // selbst mit wachsendem Abstand neu öffnen
+        if (src.readyState !== EventSource.CLOSED || stopped) return;
+        src.close();
+        window.clearTimeout(retry);
+        retry = window.setTimeout(open, backoffDelay(attempts++, { base: 1000, max: 60_000 }));
+      };
       const relay = (type: string) => (ev: MessageEvent) => {
         try {
           window.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: { type, ...JSON.parse(ev.data) } }));
         } catch {}
         soon();
       };
-      es.addEventListener("message", relay("message"));
-      es.addEventListener("read", relay("read"));
-      es.addEventListener("counts", relay("counts"));
+      src.addEventListener("message", relay("message"));
+      src.addEventListener("read", relay("read"));
+      src.addEventListener("counts", relay("counts"));
     };
     open();
     return () => {
+      stopped = true;
       window.clearTimeout(debounce);
+      window.clearTimeout(retry);
       liveOk.current = false;
       es?.close();
     };
