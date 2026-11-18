@@ -41,14 +41,14 @@ struct NotificationsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
-                } header: {
+                } header: { Group {
                     HStack(spacing: 10) {
                         SpecLabel("Einladungen", color: .ink)
                         Rectangle().fill(Color.line).frame(height: 0.75)
                     }
                     .padding(.top, 8)
                     .accessibilityAddTraits(.isHeader)
-                }
+                }.font(.wr(.footnote, .semibold)) }
             }
 
             if !loaded {
@@ -78,14 +78,14 @@ struct NotificationsView: View {
                                     }
                                 }
                         }
-                    } header: {
+                    } header: { Group {
                         HStack(spacing: 10) {
                             SpecLabel(g.title, color: .ink)
                             Rectangle().fill(Color.line).frame(height: 0.75)
                         }
                         .padding(.top, 8)
                         .accessibilityAddTraits(.isHeader)
-                    }
+                    }.font(.wr(.footnote, .semibold)) }
                 }
                 LoadMoreTrigger(hasMore: cursor != nil, failed: moreFailed) { await load(reset: false) }
                     .listRowBackground(Color.clear)

@@ -251,3 +251,12 @@ struct AdaptiveGrid<Content: View>: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: count), spacing: rowSpacing, content: content)
     }
 }
+
+extension View {
+    /// Hintergrund für `Form`/gruppierte Listen: warmes Papier hinter weissen Feldkarten, damit
+    /// Eingabefelder sich klar von Überschriften und Hinweisen abheben.
+    func formCanvas() -> some View {
+        scrollContentBackground(.hidden)
+            .background(Color.sunken)
+    }
+}

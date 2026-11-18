@@ -274,8 +274,7 @@ struct MeCategoryPicker: View {
 extension View {
     /// Werkbuch-Veredelung für `Form`/`List`
     func meFormStyle() -> some View {
-        scrollContentBackground(.hidden)
-            .background(Color.paper)
+        formCanvas()
             .listRowSeparatorTint(Color.line)
     }
 

@@ -73,11 +73,11 @@ struct MaterialStockView: View {
             }
             Section {
                 addForm
-            } header: {
+            } header: { Group {
                 SpecLabel("Hinzufügen")
-            } footer: {
+            }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 if !suggestions.isEmpty && nameFocused { suggestionBar }
-            }
+            }.font(.wr(.footnote)) }
             if entries.isEmpty {
                 Section {
                     EmptyStateView(symbol: "archivebox", title: "Dein Bestand ist noch leer", message: "Trag ein, was du schon zu Hause hast – oder tippe bei einem Material auf „Habe ich schon“. In Materiallisten und Einkaufslisten siehst du dann sofort, was dir noch fehlt.")
@@ -104,9 +104,9 @@ struct MaterialStockView: View {
                                 Button("Aus dem Bestand entfernen", systemImage: "trash", role: .destructive) { Task { await remove(e) } }
                             }
                         }
-                    } header: {
+                    } header: { Group {
                         SpecLabel("\(g.name) · \(g.rows.count)")
-                    }
+                    }.font(.wr(.footnote, .semibold)) }
                 }
             }
         }

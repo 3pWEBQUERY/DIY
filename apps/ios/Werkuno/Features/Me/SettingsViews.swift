@@ -161,7 +161,7 @@ private struct MeProfileSettings: View {
                     .buttonStyle(.borderless)
                 }
                 .padding(.vertical, 4)
-            } header: { Text("Bilder") } footer: { Text("Ohne Foto zeigen wir ein Platzhalterbild.") }
+            } header: { Group { Text("Bilder") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Ohne Foto zeigen wir ein Platzhalterbild.") }.font(.wr(.footnote)) }
 
             Section {
                 TextField("Anzeigename", text: $displayName).textContentType(.name)
@@ -179,22 +179,22 @@ private struct MeProfileSettings: View {
                         .font(.wr(.caption)).foregroundStyle(s.ok ? Color.moss : Color.danger)
                 }
                 if let e = fields["handle"] { fieldError(e) }
-            } header: { Text("Name & Handle") } footer: {
+            } header: { Group { Text("Name & Handle") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Dein Profil: \(AppConfig.webURL("/u/\(handle)").absoluteString). Alte Handles leiten weiter. Höchstens drei Änderungen in 30 Tagen.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 TextField("Erzähl kurz, was du machst", text: $bio, axis: .vertical).lineLimit(3...10)
                 MeCharCounter(count: bio.count, max: 500)
                 TextField("Pronomen (optional)", text: $pronouns)
-            } header: { Text("Über dich") }
+            } header: { Group { Text("Über dich") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 TextField("Region, z. B. Zürich", text: $region)
                 Picker("Land", selection: $country) {
                     ForEach(L.profileCountries, id: \.key) { Text($0.label).tag($0.key) }
                 }
-            } header: { Text("Ort") }
+            } header: { Group { Text("Ort") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 TextField("Website", text: $website)
@@ -217,12 +217,12 @@ private struct MeProfileSettings: View {
                     Button { withAnimation { links.append(MeEditableLink()) } } label: { Label("Link hinzufügen", systemImage: "plus.circle") }
                 }
                 if let e = fields["links"] { fieldError(e) }
-            } header: { Text("Website & Links") } footer: { Text("Bis zu 6 Links. „https://“ ergänzen wir automatisch.") }
+            } header: { Group { Text("Website & Links") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Bis zu 6 Links. „https://“ ergänzen wir automatisch.") }.font(.wr(.footnote)) }
 
             Section {
                 MeCategoryPicker(categories: app.activeCategories, selection: $categories)
                     .padding(.vertical, 6)
-            } header: { Text("Kategorien") } footer: { Text("Worin arbeitest du? Erscheint auf deinem Profil und hilft bei Empfehlungen.") }
+            } header: { Group { Text("Kategorien") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Worin arbeitest du? Erscheint auf deinem Profil und hilft bei Empfehlungen.") }.font(.wr(.footnote)) }
         }
         .meFormStyle()
     }
@@ -325,9 +325,9 @@ private struct MeAccountSettings: View {
                 Button { showEmailChange = true } label: { Label("Adresse ändern", systemImage: "at") }
                 if (a.providers ?? []).contains("apple") { Text("Du meldest dich (auch) mit Apple an.").font(.wr(.caption)).foregroundStyle(Color.muted) }
                 if let c = a.createdAt { LabeledContent("Mitglied seit", value: Fmt.date(c, style: .long)) }
-            } header: { Text("E-Mail-Adresse") } footer: {
+            } header: { Group { Text("E-Mail-Adresse") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("An diese Adresse senden wir Sicherheitshinweise, Bestellbestätigungen und – falls aktiviert – Benachrichtigungen. Sie ist nie öffentlich sichtbar.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 if a.hasPassword {
@@ -340,10 +340,10 @@ private struct MeAccountSettings: View {
                 if !confirm.isEmpty && confirm != next { Text("Stimmt nicht überein").font(.wr(.caption)).foregroundStyle(Color.danger) }
                 AsyncButton { await changePassword(a) } label: { Text(a.hasPassword ? "Passwort ändern" : "Passwort festlegen").fontWeight(.semibold) }
                     .disabled(next.count < 10 || next != confirm || (a.hasPassword && current.isEmpty))
-            } header: { Text(a.hasPassword ? "Passwort ändern" : "Passwort festlegen") } footer: {
+            } header: { Group { Text(a.hasPassword ? "Passwort ändern" : "Passwort festlegen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text(a.hasPassword ? "Mindestens 10 Zeichen, mit Buchstaben und einer Ziffer oder einem Sonderzeichen. Alle anderen Sitzungen werden danach beendet."
                                    : "Du meldest dich bisher nur mit Apple an. Mit einem Passwort kannst du dich zusätzlich per E-Mail anmelden. Mindestens 10 Zeichen, mit Buchstaben und einer Ziffer oder einem Sonderzeichen. Zur Sicherheit bestätigst du das Festlegen gleich noch einmal mit „Mit Apple anmelden“.")
-            }
+            }.font(.wr(.footnote)) }
 
             MeCustomerDetailsSection()
 
@@ -355,15 +355,15 @@ private struct MeAccountSettings: View {
                 AsyncButton { await export() } label: {
                     Label(exportURL == nil ? "Datenexport erstellen (JSON)" : "Neu erstellen", systemImage: "arrow.down.doc")
                 }
-            } header: { Text("Deine Daten herunterladen") } footer: {
+            } header: { Group { Text("Deine Daten herunterladen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Du hast jederzeit das Recht auf Auskunft und Datenübertragbarkeit. Der Export enthält Profil, Beiträge, Projekte mit Journal und Materiallisten, Anleitungen, Artikel, Kommentare, Bestellungen, gefolgte Profile, Gespeichertes und gesendete Nachrichten. Medien sind als Links enthalten.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 Button(role: .destructive) { showDelete = true } label: { Label("Konto löschen …", systemImage: "person.crop.circle.badge.xmark") }
-            } header: { Text("Konto löschen") } footer: {
+            } header: { Group { Text("Konto löschen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Endgültig und nicht rückgängig zu machen. Bestellungen bleiben aus gesetzlichen Gründen (Art. 958f OR) pseudonymisiert erhalten.")
-            }
+            }.font(.wr(.footnote)) }
         }
         .meFormStyle()
     }
@@ -429,35 +429,35 @@ private struct MeDeleteAccountSheet: View {
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                 }
-                Section("Wird gelöscht bzw. entfernt") {
+                Section {
                     bullet("Profil, Bio, Profil- und Titelbild, Links")
                     bullet("Beiträge, Projekte, Anleitungen und Kommentare")
                     bullet("Blogartikel (verborgen)")
                     bullet("Follower- und Folgebeziehungen")
                     bullet("Alle Sitzungen und verknüpften Anmeldungen")
                     if hasShop { bullet("Dein Shop wird gesperrt, Produkte werden deaktiviert") }
-                }
+                } header: { Text("Wird gelöscht bzw. entfernt").font(.wr(.footnote, .semibold)) }
                 if app.me?.profile?.isCreatorPro == true {
                     Section {
                         Text("Hast du Creator Pro im App Store abgeschlossen, kündige das Abo bitte zusätzlich auf deinem iPhone unter Einstellungen › Apple-Account › Abonnements – Apple bucht es sonst weiter ab.")
                             .font(.wr(.footnote)).foregroundStyle(Color.ink)
                         Button("Abonnements öffnen", systemImage: "arrow.up.forward.app") { showManage = true }
-                    } header: { Text("Creator Pro") }
+                    } header: { Group { Text("Creator Pro") }.font(.wr(.footnote, .semibold)) }
                 }
-                Section("Bleibt erhalten") {
+                Section {
                     bullet("Bestellungen und Rechnungsdaten\(orderCount > 0 ? " (\(orderCount))" : "") – 10 Jahre Aufbewahrungspflicht, vom Profil entkoppelt")
                     bullet("Moderationsentscheidungen in pseudonymisierter Form")
                     bullet("Gesendete Nachrichten im Verlauf deiner Gesprächspartner – als „Gelöschtes Konto“")
-                }
+                } header: { Text("Bleibt erhalten").font(.wr(.footnote, .semibold)) }
                 Section {
                     if hasPassword { SecureField("Passwort", text: $password).textContentType(.password) }
                     TextField("Tippe LÖSCHEN", text: $confirmText)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
-                } header: { Text("Bestätigen") } footer: {
+                } header: { Group { Text("Bestätigen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text(hasPassword ? "Zur Sicherheit: dein Passwort und das Wort LÖSCHEN in Grossbuchstaben."
                                      : "Zur Sicherheit: das Wort LÖSCHEN in Grossbuchstaben. Weil dein Konto kein Passwort hat, bestätigst du die Löschung danach noch einmal mit „Mit Apple anmelden“.")
-                }
+                }.font(.wr(.footnote)) }
                 Section {
                     Button(role: .destructive) { finalConfirm = true } label: {
                         Text("Konto endgültig löschen").fontWeight(.semibold).frame(maxWidth: .infinity)
@@ -565,9 +565,9 @@ private struct MeSecuritySettings: View {
                     Label(others > 0 ? "Alle anderen Sitzungen beenden (\(others))" : "Keine anderen Sitzungen", systemImage: "rectangle.portrait.and.arrow.forward")
                 }
                 .disabled(others == 0)
-            } header: { Text("Angemeldete Geräte") } footer: {
+            } header: { Group { Text("Angemeldete Geräte") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Kommt dir etwas unbekannt vor, beende die Sitzung und ändere dein Passwort. Sitzungen laufen nach 30 Tagen ohne Aktivität automatisch ab.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 if d.events.isEmpty {
@@ -583,7 +583,7 @@ private struct MeSecuritySettings: View {
                         .overlay(alignment: .leading) { Capsule().fill(Color.lineStrong).frame(width: 2) }
                     }
                 }
-            } header: { Text("Sicherheitsereignisse") } footer: { Text("Anmeldungen von neuen Geräten, Passwortänderungen und beendete Sitzungen.") }
+            } header: { Group { Text("Sicherheitsereignisse") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Anmeldungen von neuen Geräten, Passwortänderungen und beendete Sitzungen.") }.font(.wr(.footnote)) }
 
             Section {
                 VStack(alignment: .leading, spacing: 8) {
@@ -593,7 +593,7 @@ private struct MeSecuritySettings: View {
                 }
                 .padding(.vertical, 4)
                 Button("Passwort ändern") { router.open(.settingsSection(.account)) }
-            } header: { Text("So schützt du dein Konto") }
+            } header: { Group { Text("So schützt du dein Konto") }.font(.wr(.footnote, .semibold)) }
         }
         .meFormStyle()
     }
@@ -655,9 +655,9 @@ private struct MeNotificationSettingsView: View {
                         if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) }
                     }
                 }
-            } header: { Text("Dieses Gerät") } footer: {
+            } header: { Group { Text("Dieses Gerät") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Der Versand per Push ist serverseitig vorbereitet und startet, sobald er freigeschaltet ist. Bis dahin erscheinen alle Mitteilungen zuverlässig in der App.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 HStack {
@@ -684,20 +684,20 @@ private struct MeNotificationSettingsView: View {
                             .disabled(digest == "OFF")
                     }
                 }
-            } header: { Text("Je Ereignis") } footer: {
+            } header: { Group { Text("Je Ereignis") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Moderationsentscheidungen und Sicherheitshinweise erscheinen aus rechtlichen Gründen immer in der App.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 Picker("E-Mails", selection: Binding(get: { digest }, set: { digest = $0; revision += 1 })) {
                     ForEach(L.emailDigest, id: \.key) { Text($0.label).tag($0.key) }
                 }
-            } header: { Text("E-Mail-Bündelung") } footer: {
+            } header: { Group { Text("E-Mail-Bündelung") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 HStack(spacing: 6) {
                     if saving { ProgressView().controlSize(.mini) }
                     Text(saving ? "Wird gesichert …" : "Änderungen werden automatisch gesichert.")
                 }
-            }
+            }.font(.wr(.footnote)) }
         }
         .meFormStyle()
     }
@@ -787,16 +787,16 @@ private struct MeFeedSettingsView: View {
             Section {
                 MeCategoryPicker(categories: app.activeCategories, selection: Binding(get: { interests }, set: { interests = $0; hidden.removeAll { interests.contains($0) }; dirty = true }))
                     .padding(.vertical, 6)
-            } header: { Text("Interessen") } footer: { Text("Bestimmt, was „Für dich“ bevorzugt zeigt.") }
+            } header: { Group { Text("Interessen") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Bestimmt, was „Für dich“ bevorzugt zeigt.") }.font(.wr(.footnote)) }
             Section {
                 MeCategoryPicker(categories: app.activeCategories, selection: Binding(get: { hidden }, set: { hidden = $0; dirty = true }), exclude: interests)
                     .padding(.vertical, 6)
-            } header: { Text("Ausgeblendete Kategorien") } footer: { Text("Diese Kategorien erscheinen nicht mehr in deinen Empfehlungen.") }
+            } header: { Group { Text("Ausgeblendete Kategorien") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Diese Kategorien erscheinen nicht mehr in deinen Empfehlungen.") }.font(.wr(.footnote)) }
             Section {
                 Picker("Startansicht", selection: Binding(get: { feedDefault }, set: { feedDefault = $0; dirty = true })) {
                     ForEach(L.feedDefaults, id: \.key) { Text($0.label).tag($0.key) }
                 }
-            } header: { Text("Feed beim Öffnen") }
+            } header: { Group { Text("Feed beim Öffnen") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 let muted = (d.muted ?? []).filter { $0.person != nil }
@@ -809,7 +809,7 @@ private struct MeFeedSettingsView: View {
                         }
                     }
                 }
-            } header: { Text("Stummgeschaltet") } footer: { Text("Stummgeschaltete Profile erfahren davon nichts. Ihre Inhalte erscheinen nicht in deinem Feed.") }
+            } header: { Group { Text("Stummgeschaltet") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Stummgeschaltete Profile erfahren davon nichts. Ihre Inhalte erscheinen nicht in deinem Feed.") }.font(.wr(.footnote)) }
 
             Section {
                 LabeledContent("Ausgeblendete Inhalte", value: Fmt.number(d.hiddenCount ?? 0))
@@ -821,7 +821,7 @@ private struct MeFeedSettingsView: View {
                     } catch { app.show(error: error) }
                 } label: { Text("Ausgeblendetes zurücksetzen") }
                 .disabled((d.hiddenCount ?? 0) == 0)
-            } header: { Text("„Weniger davon zeigen“") }
+            } header: { Group { Text("„Weniger davon zeigen“") }.font(.wr(.footnote, .semibold)) }
         }
         .meFormStyle()
     }
@@ -904,26 +904,26 @@ private struct MePrivacySettingsView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } header: { Text("Wer darf dir schreiben?") } footer: {
+            } header: { Group { Text("Wer darf dir schreiben?") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Neue Kontakte landen zuerst in den Anfragen. Zu Bestellungen kann dir immer geschrieben werden.")
-            }
+            }.font(.wr(.footnote)) }
             if d.readReceipts != nil {
                 Section {
                     Toggle("Lesebestätigungen senden", isOn: Binding(get: { readReceipts }, set: { readReceipts = $0; revision += 1 })).tint(.moss)
-                } header: { Text("Lesebestätigungen") } footer: {
+                } header: { Group { Text("Lesebestätigungen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text("✓ gesendet · ✓✓ zugestellt · ✓✓ blau gelesen. Ausgeschaltet sehen andere in Einzelchats nicht, ob du gelesen hast – und du siehst es bei ihnen auch nicht. In Gruppen werden Lesebestätigungen immer angezeigt.")
-                }
+                }.font(.wr(.footnote)) }
             }
             if d.showOnline != nil {
                 Section {
                     Toggle("Online-Status zeigen", isOn: Binding(get: { showOnline }, set: { showOnline = $0; revision += 1 })).tint(.moss)
-                } footer: {
+                } footer: { Group {
                     Text("Personen, mit denen du schreibst, sehen „Online“ bzw. „Zuletzt online …“. Ausgeschaltet siehst du es bei anderen auch nicht. Das Werkuno-Team sieht den Status zur Sicherheit der Plattform immer.")
-                }
+                }.font(.wr(.footnote)) }
             }
             Section {
                 Toggle("Bewegung reduzieren", isOn: Binding(get: { reduceMotion }, set: { reduceMotion = $0; revision += 1 })).tint(.moss)
-            } footer: { Text("Weniger Animationen und keine automatisch drehenden 3D-Szenen im Web. In der App gilt zusätzlich die iOS-Einstellung „Bewegung reduzieren“.") }
+            } footer: { Group { Text("Weniger Animationen und keine automatisch drehenden 3D-Szenen im Web. In der App gilt zusätzlich die iOS-Einstellung „Bewegung reduzieren“.") }.font(.wr(.footnote)) }
 
             Section {
                 let blocked = (d.blocked ?? []).filter { $0.person != nil }
@@ -936,7 +936,7 @@ private struct MePrivacySettingsView: View {
                         }
                     }
                 }
-            } header: { Text("Blockiert") } footer: { Text("Blockierte Profile können dir nicht folgen, schreiben oder deine Inhalte sehen.") }
+            } header: { Group { Text("Blockiert") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Blockierte Profile können dir nicht folgen, schreiben oder deine Inhalte sehen.") }.font(.wr(.footnote)) }
 
             Section {
                 Button("Datenschutzerklärung") { router.open(.web(path: "/rechtliches/datenschutz")) }
@@ -985,9 +985,9 @@ private struct MeSupportView: View {
                 if let e = fields["body"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
                 AsyncButton { await submit() } label: { Text("Anfrage senden").fontWeight(.semibold) }
                     .disabled(subject.trimmed.count < 4 || message.trimmed.count < 20 || message.count > 5000)
-            } header: { Text("Neue Anfrage") } footer: {
+            } header: { Group { Text("Neue Anfrage") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Wir melden uns in der Regel innerhalb von zwei Werktagen per E-Mail. Bei Betrugsversuchen oder übernommenem Konto: sofort Passwort ändern und alle Sitzungen beenden.")
-            }
+            }.font(.wr(.footnote)) }
 
             Section {
                 if let tickets {
@@ -1009,7 +1009,7 @@ private struct MeSupportView: View {
                 } else {
                     ProgressView()
                 }
-            } header: { Text("Deine Anfragen") }
+            } header: { Group { Text("Deine Anfragen") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 Button("Hilfe-Center") { router.open(.web(path: "/hilfe?app=ios")) }
@@ -1017,7 +1017,7 @@ private struct MeSupportView: View {
                 Button("Datenschutz") { router.open(.web(path: "/rechtliches/datenschutz")) }
                 Button("AGB") { router.open(.web(path: "/rechtliches/agb")) }
                 Button("Impressum") { router.open(.web(path: "/rechtliches/impressum")) }
-            } header: { Text("Hilfe & Richtlinien") }
+            } header: { Group { Text("Hilfe & Richtlinien") }.font(.wr(.footnote, .semibold)) }
         }
         .meFormStyle()
         .task { await load() }
@@ -1056,18 +1056,18 @@ private struct MeDeveloperSettings: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
-            } header: { Text("Server-Umgebung") } footer: { Text("Beim Wechsel wirst du abgemeldet, weil Konten je Server getrennt sind.") }
+            } header: { Group { Text("Server-Umgebung") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Beim Wechsel wirst du abgemeldet, weil Konten je Server getrennt sind.") }.font(.wr(.footnote)) }
             Section {
                 LabeledContent("Basis-URL") { Text(AppConfig.baseURL.absoluteString).font(.wr(.footnote)).textSelection(.enabled) }
                 LabeledContent("App-API") { Text("/api/v1/app").font(.wr(.footnote)) }
                 LabeledContent("App", value: MeAppInfo.version)
-            } header: { Text("Verbindung") }
+            } header: { Group { Text("Verbindung") }.font(.wr(.footnote, .semibold)) }
             Section {
                 Button("Bild-Cache leeren", systemImage: "trash") {
                     ImageCache.shared.clear()
                     app.show("Bild-Cache geleert.")
                 }
-            } footer: { Text("Bilder werden beim nächsten Anzeigen neu geladen.") }
+            } footer: { Group { Text("Bilder werden beim nächsten Anzeigen neu geladen.") }.font(.wr(.footnote)) }
         }
         .meFormStyle()
         .confirmationDialog("Server wechseln?", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }), titleVisibility: .visible, presenting: pending) { e in

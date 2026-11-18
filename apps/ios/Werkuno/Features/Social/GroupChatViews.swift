@@ -351,13 +351,13 @@ struct GroupInfoSheet: View {
                                 .buttonStyle(.glassProminent).tint(.action)
                                 .disabled(handles.isEmpty)
                         }
-                    } header: { Text("Personen hinzufügen") }
+                    } header: { Group { Text("Personen hinzufügen") }.font(.wr(.footnote, .semibold)) }
                     .listRowBackground(Color.card)
                 }
 
                 Section {
                     ForEach(current.sortedMembers) { m in memberRow(m) }
-                } header: {
+                } header: { Group {
                     HStack {
                         Text("Mitglieder")
                         Spacer()
@@ -369,7 +369,7 @@ struct GroupInfoSheet: View {
                             .textCase(nil)
                         }
                     }
-                }
+                }.font(.wr(.footnote, .semibold)) }
                 .listRowBackground(Color.card)
 
                 Section {
@@ -377,7 +377,7 @@ struct GroupInfoSheet: View {
                         Label("Gruppe verlassen", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                     .disabled(busy)
-                } footer: { Text("Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") }
+                } footer: { Group { Text("Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") }.font(.wr(.footnote)) }
                 .listRowBackground(Color.card)
             }
             .scrollContentBackground(.hidden)

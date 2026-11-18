@@ -232,7 +232,7 @@ struct CommunityManageView: View {
                         }
                     }
                 }
-            } header: { Text("Beitrittsanfragen (\(m.requests.count))") }
+            } header: { Group { Text("Beitrittsanfragen (\(m.requests.count))") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 HStack {
@@ -249,7 +249,7 @@ struct CommunityManageView: View {
                         .swipeActions { Button("Zurückziehen", role: .destructive) { Task { await revoke(i) } } }
                         .contextMenu { Button("Einladung zurückziehen", systemImage: "xmark", role: .destructive) { Task { await revoke(i) } } }
                 }
-            } header: { Text("Einladen") } footer: { Text(m.invited.isEmpty ? "Eingeladene Personen erhalten eine Benachrichtigung." : "\(Fmt.plural(m.invited.count, "offene Einladung", "offene Einladungen")) – zum Zurückziehen nach links wischen.") }
+            } header: { Group { Text("Einladen") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text(m.invited.isEmpty ? "Eingeladene Personen erhalten eine Benachrichtigung." : "\(Fmt.plural(m.invited.count, "offene Einladung", "offene Einladungen")) – zum Zurückziehen nach links wischen.") }.font(.wr(.footnote)) }
 
             Section {
                 TextField("Mitglied suchen", text: $memberQuery)
@@ -259,10 +259,10 @@ struct CommunityManageView: View {
                     memberRow(mem)
                 }
                 LoadMoreTrigger(hasMore: membersCursor != nil, failed: membersMoreFailed) { await loadMoreMembers() }
-            } header: { Text("Mitglieder (\(p.community.memberCount ?? m.members.items.count))") }
+            } header: { Group { Text("Mitglieder (\(p.community.memberCount ?? m.members.items.count))") }.font(.wr(.footnote, .semibold)) }
 
             if !m.banned.isEmpty {
-                Section("Gesperrt") {
+                Section {
                     ForEach(m.banned) { b in
                         HStack {
                             CommunityMemberLine(member: b)
@@ -270,7 +270,7 @@ struct CommunityManageView: View {
                                 .buttonStyle(.glass)
                         }
                     }
-                }
+                } header: { Text("Gesperrt").font(.wr(.footnote, .semibold)) }
             }
 
             if isManager {
@@ -290,7 +290,7 @@ struct CommunityManageView: View {
                         AsyncButton { await saveRules() } label: { Text("Regeln speichern").frame(maxWidth: .infinity) }
                             .buttonStyle(.glassProminent).tint(.moss)
                     }
-                } header: { Text("Regeln") } footer: { Text("Höchstens 20 Regeln. Zum Sortieren gedrückt halten und ziehen, zum Löschen nach links wischen.") }
+                } header: { Group { Text("Regeln") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Höchstens 20 Regeln. Zum Sortieren gedrückt halten und ziehen, zum Löschen nach links wischen.") }.font(.wr(.footnote)) }
             }
 
             Section {
@@ -306,7 +306,7 @@ struct CommunityManageView: View {
                         AsyncButton("Wiederherstellen") { await restore(post) }.buttonStyle(.glass)
                     }
                 }
-            } header: { Text("Ausgeblendete Beiträge") }
+            } header: { Group { Text("Ausgeblendete Beiträge") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 ForEach(m.challenges) { c in
@@ -331,7 +331,7 @@ struct CommunityManageView: View {
                     }
                 }
                 Button { showChallenge = true } label: { Label("Wettbewerb anlegen", systemImage: "trophy") }
-            } header: { Text("Wettbewerbe") }
+            } header: { Group { Text("Wettbewerbe") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 if m.log.isEmpty { Text("Noch keine Moderationsaktionen.").foregroundStyle(Color.muted) }
@@ -352,20 +352,20 @@ struct CommunityManageView: View {
                     }
                     .accessibilityElement(children: .combine)
                 }
-            } header: { Text("Moderationsprotokoll") }
+            } header: { Group { Text("Moderationsprotokoll") }.font(.wr(.footnote, .semibold)) }
 
             if p.membership?.role == "OWNER" {
                 Section {
                     Button(role: .destructive) { dissolveName = ""; showDissolve = true } label: {
                         Label("Community auflösen …", systemImage: "trash")
                     }
-                } header: { Text("Gefahrenzone") } footer: {
+                } header: { Group { Text("Gefahrenzone") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text("Die Community wird archiviert und ist nicht mehr erreichbar. Beiträge und Moderationsverlauf bleiben für Meldungen nachvollziehbar. Mitglieder werden benachrichtigt.")
-                }
+                }.font(.wr(.footnote)) }
             }
         }
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
+        .formCanvas()
         .refreshable { await load() }
     }
 
@@ -375,7 +375,7 @@ struct CommunityManageView: View {
         return CommunityMemberLine(member: mem, trailing: (isSelf || isOwner) ? nil : AnyView(
             Menu {
                 if isManager {
-                    Section("Rolle") {
+                    Section {
                         ForEach(["ADMIN", "MODERATOR", "MEMBER"], id: \.self) { role in
                             Button {
                                 Task { await memberAction(mem, "role", ["role": .string(role)], success: "\(mem.displayName) ist jetzt \(L.communityRoles[role] ?? role).") }
@@ -383,7 +383,7 @@ struct CommunityManageView: View {
                                 if mem.role == role { Label(L.communityRoles[role] ?? role, systemImage: "checkmark") } else { Text(L.communityRoles[role] ?? role) }
                             }
                         }
-                    }
+                    } header: { Text("Rolle").font(.wr(.footnote, .semibold)) }
                     if page?.membership?.role == "OWNER" || app.me?.isAdmin == true {
                         Button("Leitung übertragen …", systemImage: "crown") { transferTarget = mem }
                     }
@@ -453,14 +453,13 @@ struct CommunityChallengeSheet: View {
                         DatePicker("Abstimmung bis", selection: $votingEndsAt, in: endsAt...)
                         DiscoverFieldError(message: fields["votingEndsAt"])
                     }
-                } footer: {
+                } footer: { Group {
                     Text(judging == "VOTES"
                          ? "Nach der Einreichung vergeben Mitglieder bis zu 3 Stimmen. Laufende Wettbewerbe erscheinen als Banner auf der Community-Seite."
                          : "Nach der Einreichung wählt die Moderation Platz 1–3 und veröffentlicht das Ergebnis.")
-                }
+                }.font(.wr(.footnote)) }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle("Neuer Wettbewerb")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

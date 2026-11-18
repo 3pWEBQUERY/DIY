@@ -26,9 +26,9 @@ struct MeEmailChangeSheet: View {
                         NoticeView(tone: .success, title: "Bestätigungslink unterwegs", message: sentMessage)
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
-                    } footer: {
+                    } footer: { Group {
                         Text("Bis du den Link öffnest, gilt weiterhin \(currentEmail).")
-                    }
+                    }.font(.wr(.footnote)) }
                 } else if !hasPassword || needsPassword {
                     Section {
                         NoticeView(tone: .info, title: "Zuerst ein Passwort festlegen", message: "Du meldest dich bisher nur mit Apple an. Lege unter „Passwort festlegen“ zuerst ein Passwort fest – damit bestätigst du die Änderung.")
@@ -43,15 +43,15 @@ struct MeEmailChangeSheet: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                         if let e = fields["email"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
-                    } header: { Text("Neue Adresse") } footer: {
+                    } header: { Group { Text("Neue Adresse") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                         Text("Wir schicken einen Bestätigungslink an die neue Adresse. Erst nach dem Klick wird umgestellt – bis dahin gilt deine bisherige Adresse.")
-                    }
+                    }.font(.wr(.footnote)) }
                     Section {
                         SecureField("Aktuelles Passwort", text: $password).textContentType(.password)
                         if let e = fields["password"] ?? fields["_"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
-                    } header: { Text("Bestätigen") } footer: {
+                    } header: { Group { Text("Bestätigen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                         Text("Zur Sicherheit bestätigst du die Änderung mit deinem Passwort.")
-                    }
+                    }.font(.wr(.footnote)) }
                     if let errorText {
                         Section { Text(errorText).font(.wr(.subheadline)).foregroundStyle(Color.danger) }
                     }
@@ -158,9 +158,9 @@ struct MeCustomerDetailsSection: View {
                 AsyncButton { await save() } label: { Text("Angaben speichern").fontWeight(.semibold) }
                     .disabled(draft == (saved ?? MeCustomerDetails()))
             }
-        } header: { Text("Angaben für Bestellungen") } footer: {
+        } header: { Group { Text("Angaben für Bestellungen") }.font(.wr(.footnote, .semibold)) } footer: { Group {
             Text("Name und Adresse für Rechnung und Versand. Sie werden bei jeder Bestellung verwendet und nur an den Shop weitergegeben, bei dem du bestellst – nie öffentlich angezeigt. Das Telefon nutzen Shops nur für Rückfragen zu einer Lieferung.")
-        }
+        }.font(.wr(.footnote)) }
         .task { if !loaded { await load() } }
     }
 

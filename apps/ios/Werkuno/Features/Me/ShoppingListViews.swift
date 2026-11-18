@@ -254,10 +254,10 @@ struct ShoppingListView: View {
                 }
             }
             if !open.isEmpty {
-                Section { ForEach(open) { itemRow($0) } } header: { SpecLabel("Offen · \(open.count)") }
+                Section { ForEach(open) { itemRow($0) } } header: { Group { SpecLabel("Offen · \(open.count)") }.font(.wr(.footnote, .semibold)) }
             }
             if !done.isEmpty {
-                Section { ForEach(done) { itemRow($0) } } header: { SpecLabel("Erledigt · \(done.count)") }
+                Section { ForEach(done) { itemRow($0) } } header: { Group { SpecLabel("Erledigt · \(done.count)") }.font(.wr(.footnote, .semibold)) }
             }
         }
         .listStyle(.insetGrouped)
@@ -578,7 +578,7 @@ struct ShoppingListPickerSheet: View {
                         Text(title).font(.wr(.subheadline, .semibold))
                     }
                 }
-            } footer: { Text(kind == "MATERIAL" ? "Steht es schon auf der Liste, wird es zusammengefasst." : "Alle Materialien werden übernommen. Gleiche Materialien werden zusammengefasst, was du schon im Bestand hast, wird als „Habe ich“ markiert.") }
+            } footer: { Group { Text(kind == "MATERIAL" ? "Steht es schon auf der Liste, wird es zusammengefasst." : "Alle Materialien werden übernommen. Gleiche Materialien werden zusammengefasst, was du schon im Bestand hast, wird als „Habe ich“ markiert.") }.font(.wr(.footnote)) }
             if let error {
                 Section { ErrorStateView(message: error) { await load() } }
             } else if let lists {
@@ -591,9 +591,9 @@ struct ShoppingListPickerSheet: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                } header: { Text("Wohin?") }
+                } header: { Group { Text("Wohin?") }.font(.wr(.footnote, .semibold)) }
                 if selection == "new" {
-                    Section { TextField("Titel der neuen Liste", text: $newTitle) } header: { Text("Neue Liste") }
+                    Section { TextField("Titel der neuen Liste", text: $newTitle) } header: { Group { Text("Neue Liste") }.font(.wr(.footnote, .semibold)) }
                 }
             } else {
                 Section { LoadingView() }

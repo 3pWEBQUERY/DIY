@@ -435,20 +435,20 @@ struct MeCollectionEditor: View {
                     TextField("Titel, z. B. „Wohnzimmer“", text: $title)
                         .textInputAutocapitalization(.sentences)
                     if let e = fieldErrors["title"] { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
-                } header: { Text("Titel") }
+                } header: { Group { Text("Titel") }.font(.wr(.footnote, .semibold)) }
                 Section {
                     TextField("Worum geht es? (optional)", text: $description, axis: .vertical).lineLimit(2...6)
                     MeCharCounter(count: description.count, max: 500)
-                } header: { Text("Beschreibung") }
+                } header: { Group { Text("Beschreibung") }.font(.wr(.footnote, .semibold)) }
                 Section {
                     Picker("Sichtbarkeit", selection: $visibility) {
                         ForEach(L.visibility, id: \.key) { Text($0.label).tag($0.key) }
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                } header: { Text("Wer sieht die Sammlung?") } footer: {
+                } header: { Group { Text("Wer sieht die Sammlung?") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text("Öffentliche Sammlungen erscheinen auf deinem Profil. Gespeicherte Inhalte anderer bleiben nur sichtbar, solange sie selbst sichtbar sind.")
-                }
+                }.font(.wr(.footnote)) }
             }
             .meFormStyle()
             .navigationTitle(isNew ? "Neue Sammlung" : "Sammlung bearbeiten")
@@ -624,7 +624,7 @@ struct CollectionPickerSheet: View {
                                 await save(c.id, name: c.title)
                             }
                         }
-                    } header: { Text("Speichern in") }
+                    } header: { Group { Text("Speichern in") }.font(.wr(.footnote, .semibold)) }
                     Section {
                         TextField("Neue Sammlung", text: $newTitle)
                         Picker("Sichtbarkeit", selection: $newVisibility) {
@@ -636,7 +636,7 @@ struct CollectionPickerSheet: View {
                             Label("Anlegen und speichern", systemImage: "folder.badge.plus").font(.wr(.body, .semibold))
                         }
                         .disabled(newTitle.trimmed.isEmpty)
-                    } header: { Text("Neue Sammlung") }
+                    } header: { Group { Text("Neue Sammlung") }.font(.wr(.footnote, .semibold)) }
                 } else {
                     Section { LoadingView() }
                 }

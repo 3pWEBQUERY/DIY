@@ -192,16 +192,16 @@ struct ProductEditorSheet: View {
                     .accessibilityElement(children: .combine)
                 }
             }
-        } header: {
+        } header: { Group {
             Text(restockRequests.isEmpty ? "Wenn ausverkauft" : (restockRequests.count == 1 ? "Wenn ausverkauft · 1 Anfrage" : "Wenn ausverkauft · \(restockRequests.count) Anfragen"))
-        } footer: {
+        }.font(.wr(.footnote, .semibold)) } footer: { Group {
             VStack(alignment: .leading, spacing: 4) {
                 Text(showWhenSoldOut
                      ? "Ohne Bestand bleibt das Produkt als „Ausverkauft“ sichtbar, und Interessierte können eine Nachproduktion anfragen."
                      : "Ohne Bestand verschwindet das Produkt aus Shop, Marktplatz und Suche. Mit neuem Bestand ist es automatisch wieder sichtbar.")
                 if !restockRequests.isEmpty { Text("Füllst du den Bestand auf, werden alle, die angefragt haben, automatisch benachrichtigt.") }
             }
-        }
+        }.font(.wr(.footnote)) }
     }
 
     // MARK: Formular
@@ -221,7 +221,7 @@ struct ProductEditorSheet: View {
             Section {
                 MediaPickerField(items: $media, maxCount: 12, title: "Produktbilder", coverHint: true)
                 MarketFieldError(text: fields["media"])
-            } footer: { Text("Mindestens ein Bild. Zeig die Arbeit bei Tageslicht, auch Details und Rückseite.") }
+            } footer: { Group { Text("Mindestens ein Bild. Zeig die Arbeit bei Tageslicht, auch Details und Rückseite.") }.font(.wr(.footnote)) }
 
             Section {
                 VStack(alignment: .leading, spacing: 4) {
@@ -237,11 +237,11 @@ struct ProductEditorSheet: View {
                 MarketFieldError(text: fields["category"])
                 RichTextField(placeholder: "Beschreibung – wie ist es entstanden, wofür eignet es sich, wie pflegt man es?", markup: $description, minHeight: 120)
                 MarketFieldError(text: fields["description"])
-            } header: { Text("Angebot") } footer: {
+            } header: { Group { Text("Angebot") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 if isDigital { Text("Die Datei (PDF oder ZIP) lädst du weiter unten hoch. In der iOS-App kaufen Kund:innen über Apple; dein Anteil ist gleich wie bei einem Web-Verkauf.") }
                 else if kind == "RAW" { Text("Beschreibe den Zustand ehrlich (mind. 20 Zeichen): Gebrauchsspuren, Mängel, was noch zu tun ist.") }
                 else { Text("Konkret und ehrlich, z. B. „Gehäkelter Korb aus Baumwollkordel, natur“.") }
-            }
+            }.font(.wr(.footnote)) }
 
             if isDigital { digitalFileSection }
 
@@ -263,20 +263,20 @@ struct ProductEditorSheet: View {
                 }
                 feePreview(c)
                 if isDigital, let store = c.appStore, store.enabled { appPriceHint(store) }
-            } header: { Text("Preis & Bestand") } footer: {
+            } header: { Group { Text("Preis & Bestand") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Inklusive allfälliger MWST. Mindestens CHF 1.00.")
                     if kind == "UNIQUE" { Text("Einzelstücke haben höchstens 1 Stück.") }
                     if reserved > 0 { Text("\(reserved) Stück sind in offenen Bestellungen reserviert.") }
                 }
-            }
+            }.font(.wr(.footnote)) }
 
             if !isDigital { variantSection }
 
             if !isDigital { soldOutSection }
 
             if !isDigital {
-                Section("Details & Versand") {
+                Section {
                     TextField("Materialien, z. B. „100 % Baumwolle, Buchenholz, geölt“", text: $materials, axis: .vertical)
                     TextField("Masse, z. B. „Ø 24 cm, Höhe 18 cm, 320 g“", text: $dimensions)
                     HStack {
@@ -295,16 +295,16 @@ struct ProductEditorSheet: View {
                     Picker("Versand ab", selection: $shipsFrom) {
                         ForEach(L.shipCountries, id: \.key) { Text($0.label).tag($0.key) }
                     }
-                }
+                } header: { Text("Details & Versand").font(.wr(.footnote, .semibold)) }
             }
 
             Section {
                 RichTextField(placeholder: "Warnhinweise, Altersempfehlung, Hersteller-/Kontaktangaben", markup: $safetyInfo, minHeight: 72)
-            } header: { Text("Sicherheitshinweise") } footer: { Text("Pflicht bei Kinderprodukten, Kerzen, Elektronik, Kosmetik u. ä.") }
+            } header: { Group { Text("Sicherheitshinweise") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Pflicht bei Kinderprodukten, Kerzen, Elektronik, Kosmetik u. ä.") }.font(.wr(.footnote)) }
 
             Section {
                 RichTextField(placeholder: "Rückgabe & Umtausch", markup: $returnPolicy, minHeight: 72)
-            } footer: { Text("Leer lassen, um die Rückgaberegel deines Shops zu verwenden.") }
+            } footer: { Group { Text("Leer lassen, um die Rückgaberegel deines Shops zu verwenden.") }.font(.wr(.footnote)) }
 
             Section {
                 Picker("Projekt", selection: $projectId) {
@@ -315,7 +315,7 @@ struct ProductEditorSheet: View {
                     Text("Keine").tag("")
                     ForEach(c.links.tutorials) { Text($0.title).tag($0.id) }
                 }
-            } header: { Text("Der Faden dahinter") } footer: { Text("Verknüpfe das Projekt oder die Anleitung, aus der diese Arbeit entstanden ist – Käufer:innen sehen, wie sie gemacht wurde.") }
+            } header: { Group { Text("Der Faden dahinter") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Verknüpfe das Projekt oder die Anleitung, aus der diese Arbeit entstanden ist – Käufer:innen sehen, wie sie gemacht wurde.") }.font(.wr(.footnote)) }
 
             Section {
                 Picker("Status", selection: $status) {
@@ -332,11 +332,11 @@ struct ProductEditorSheet: View {
                         TextField("Neu in meinem Shop: \(title.nilIfEmpty ?? "…")", text: $announceText, axis: .vertical).lineLimit(2...5)
                     }
                 }
-            } header: { Text("Veröffentlichung") } footer: {
+            } header: { Group { Text("Veröffentlichung") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text(announce ? "Die Ankündigung erscheint als gekennzeichneter Verkaufsbeitrag in deinem Profil und im Feed deiner Follower." : "Aktive Produkte ohne Bestand erscheinen als ausverkauft.")
-            }
+            }.font(.wr(.footnote)) }
         }
-        .scrollContentBackground(.hidden)
+        .formCanvas()
         .scrollDismissesKeyboard(.interactively)
         .fileImporter(isPresented: $pickingFile, allowedContentTypes: [.pdf, .zip]) { result in
             if case .success(let url) = result { Task { await uploadDigital(url) } }
@@ -361,9 +361,9 @@ struct ProductEditorSheet: View {
             }
             .disabled(digitalBusy)
             MarketFieldError(text: fields["digital"])
-        } header: { Text("Datei") } footer: {
+        } header: { Group { Text("Datei") }.font(.wr(.footnote, .semibold)) } footer: { Group {
             Text("PDF oder ZIP, höchstens 100 MB. Käufer:innen laden die Datei nach dem Kauf herunter. Ohne Datei kannst du das Produkt nur als Entwurf speichern.")
-        }
+        }.font(.wr(.footnote)) }
     }
 
     private func uploadDigital(_ picked: URL) async {
@@ -458,9 +458,9 @@ struct ProductEditorSheet: View {
                 Button { withAnimation { variants.append(VariantDraft()) } } label: { Label("Variante hinzufügen", systemImage: "plus") }
             }
             MarketFieldError(text: fields["variants"] ?? fields.first { $0.key.hasPrefix("variants.") }?.value)
-        } header: { Text("Varianten (optional)") } footer: {
+        } header: { Group { Text("Varianten (optional)") }.font(.wr(.footnote, .semibold)) } footer: { Group {
             Text("Z. B. Grösse oder Farbe. Jede Variante hat eigenen Bestand; der Aufpreis kann auch negativ sein.")
-        }
+        }.font(.wr(.footnote)) }
     }
 
     // MARK: Speichern

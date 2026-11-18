@@ -115,12 +115,12 @@ struct StoryViewersSheet: View {
                                 }
                                 .accessibilityElement(children: .combine)
                             }
-                        } footer: {
+                        } footer: { Group {
                             Text("Nur du siehst, wer deine Story angeschaut hat.")
-                        }
+                        }.font(.wr(.footnote)) }
                     }
                     .listStyle(.insetGrouped)
-                    .scrollContentBackground(.hidden)
+                    .formCanvas()
                 } else if let error {
                     ErrorStateView(message: error) { await load() }
                 } else {
@@ -167,7 +167,7 @@ struct StoryHighlightPickerSheet: View {
             List {
                 if let list {
                     if !list.isEmpty {
-                        Section("Deine Highlights") {
+                        Section {
                             ForEach(list) { h in
                                 Button { Task { await toggle(h) } } label: {
                                     HStack(spacing: 12) {
@@ -189,7 +189,7 @@ struct StoryHighlightPickerSheet: View {
                                 .disabled(busy != nil)
                                 .accessibilityAddTraits(h.contains ? .isSelected : [])
                             }
-                        }
+                        } header: { Text("Deine Highlights").font(.wr(.footnote, .semibold)) }
                     }
                     Section {
                         HStack {
@@ -201,17 +201,16 @@ struct StoryHighlightPickerSheet: View {
                                 .fontWeight(.semibold)
                                 .disabled(title.trimmed.isEmpty || busy != nil)
                         }
-                    } header: {
+                    } header: { Group {
                         Text("Neues Highlight")
-                    } footer: {
+                    }.font(.wr(.footnote, .semibold)) } footer: { Group {
                         Text("Highlights bleiben auf deinem Profil, auch wenn die Story abgelaufen ist.")
-                    }
+                    }.font(.wr(.footnote)) }
                 } else {
                     HStack { Spacer(); ProgressView(); Spacer() }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle("Zu Highlight hinzufügen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() } } }

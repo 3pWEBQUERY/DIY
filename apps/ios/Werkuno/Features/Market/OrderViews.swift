@@ -428,12 +428,11 @@ struct MarketProblemSheet: View {
             Form {
                 Section {
                     TextField("Was ist passiert?", text: $note, axis: .vertical).lineLimit(4...10)
-                } header: { Text("Beschreibung") } footer: {
+                } header: { Group { Text("Beschreibung") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text(note.trimmed.count < 10 ? "Mindestens 10 Zeichen. Der Shop wird informiert und kann dir direkt antworten." : "Der Shop wird informiert und kann dir direkt antworten.")
-                }
+                }.font(.wr(.footnote)) }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle("Problem melden")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -475,10 +474,9 @@ struct MarketReviewSheet: View {
                 }
                 Section {
                     TextField("Was sollen andere wissen?", text: $text, axis: .vertical).lineLimit(3...8)
-                } header: { Text("Deine Worte (optional)") } footer: { Text("Bewertungen erscheinen öffentlich mit deinem Namen. Bleib fair und konkret.") }
+                } header: { Group { Text("Deine Worte (optional)") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Bewertungen erscheinen öffentlich mit deinem Namen. Bleib fair und konkret.") }.font(.wr(.footnote)) }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle("Bewerten")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

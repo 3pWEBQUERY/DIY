@@ -318,9 +318,9 @@ struct MarketSellerActionSheet: View {
                 case .transition(let s):
                     Section {
                         TextField("Notiz an die Käuferin bzw. den Käufer (optional)", text: $note, axis: .vertical).lineLimit(2...6)
-                    } footer: {
+                    } footer: { Group {
                         Text(s == "PROBLEM" ? "Beschreibe kurz, was nicht stimmt. Ihr klärt es am besten direkt per Nachricht." : "Die Notiz erscheint im Bestellverlauf und in der Benachrichtigung.")
-                    }
+                    }.font(.wr(.footnote)) }
                 case .ship:
                     Section {
                         TextField("Versanddienstleister", text: $carrier)
@@ -330,7 +330,7 @@ struct MarketSellerActionSheet: View {
                             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         MarketFieldError(text: fields["trackingUrl"] ?? (!trackingUrl.isEmpty && !trackingUrl.hasPrefix("https://") ? "Bitte eine https-Adresse angeben" : nil))
                         TextField("Notiz (optional)", text: $note, axis: .vertical).lineLimit(2...4)
-                    } footer: { Text("Die Bestellung wird als versendet markiert und die Käuferin bzw. der Käufer benachrichtigt.") }
+                    } footer: { Group { Text("Die Bestellung wird als versendet markiert und die Käuferin bzw. der Käufer benachrichtigt.") }.font(.wr(.footnote)) }
                 case .refund(let max):
                     Section {
                         HStack {
@@ -343,16 +343,15 @@ struct MarketSellerActionSheet: View {
                         Button("Ganzen Betrag erstatten") { amount = Fmt.moneyInput(max) }
                         TextField("Grund", text: $note, axis: .vertical).lineLimit(2...5)
                         MarketFieldError(text: fields["reason"])
-                    } footer: { Text("Erstattbar: \(Fmt.money(max, currency: currency)). Die Plattformgebühr wird anteilig zurückerstattet. Die Erstattung gilt als bestätigt, sobald der Zahlungsanbieter sie verbucht hat.") }
+                    } footer: { Group { Text("Erstattbar: \(Fmt.money(max, currency: currency)). Die Plattformgebühr wird anteilig zurückerstattet. Die Erstattung gilt als bestätigt, sobald der Zahlungsanbieter sie verbucht hat.") }.font(.wr(.footnote)) }
                 case .cancel:
                     Section {
                         TextField("Grund der Stornierung", text: $note, axis: .vertical).lineLimit(2...5)
                         MarketFieldError(text: fields["reason"])
-                    } footer: { Text("Der Bestand wird zurückgebucht und der bezahlte Betrag vollständig erstattet. Das lässt sich nicht rückgängig machen.") }
+                    } footer: { Group { Text("Der Bestand wird zurückgebucht und der bezahlte Betrag vollständig erstattet. Das lässt sich nicht rückgängig machen.") }.font(.wr(.footnote)) }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

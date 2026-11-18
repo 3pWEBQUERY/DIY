@@ -296,7 +296,7 @@ struct MarketFilterSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Art") {
+                Section {
                     Toggle("Nur Einzelstücke", isOn: $draft.uniqueOnly.animation())
                     if !draft.uniqueOnly {
                         Picker("Art", selection: $draft.kind) {
@@ -304,36 +304,35 @@ struct MarketFilterSheet: View {
                             ForEach(L.productKind, id: \.key) { k in Text(k.label).tag(k.key) }
                         }
                     }
-                }
+                } header: { Text("Art").font(.wr(.footnote, .semibold)) }
                 Section {
                     HStack {
                         TextField("Von", text: $draft.min).keyboardType(.decimalPad)
                         Text("–").foregroundStyle(Color.muted)
                         TextField("Bis", text: $draft.max).keyboardType(.decimalPad)
                     }
-                } header: { Text("Preisbereich (CHF)") } footer: { Text("Leer lassen für keine Grenze.") }
-                Section("Versand ab") {
+                } header: { Group { Text("Preisbereich (CHF)") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Leer lassen für keine Grenze.") }.font(.wr(.footnote)) }
+                Section {
                     Picker("Land", selection: $draft.shipsFrom) {
                         Text("Alle Länder").tag("")
                         ForEach(L.shipCountries, id: \.key) { c in Text(c.label).tag(c.key) }
                     }
-                }
-                Section("Kategorie") {
+                } header: { Text("Versand ab").font(.wr(.footnote, .semibold)) }
+                Section {
                     Picker("Kategorie", selection: $draft.category) {
                         Text("Alle Kategorien").tag("")
                         ForEach(app.activeCategories) { c in Text(c.name).tag(c.slug) }
                     }
-                }
-                Section("Sortierung") {
+                } header: { Text("Kategorie").font(.wr(.footnote, .semibold)) }
+                Section {
                     Picker("Sortieren nach", selection: $draft.sort) {
                         ForEach(MarketFilters.sorts, id: \.key) { s in Text(s.label).tag(s.key) }
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
-                }
+                } header: { Text("Sortierung").font(.wr(.footnote, .semibold)) }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle("Filter")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

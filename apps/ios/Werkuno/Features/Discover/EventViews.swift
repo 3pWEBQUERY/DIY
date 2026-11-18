@@ -602,7 +602,7 @@ struct EventEditorSheet: View {
                     DiscoverFieldError(message: fields["startsAt"])
                     DatePicker("Ende", selection: $endsAt, in: startsAt...)
                     DiscoverFieldError(message: fields["endsAt"])
-                } header: { Text("Wann") }
+                } header: { Group { Text("Wann") }.font(.wr(.footnote, .semibold)) }
                 Section {
                     Picker("Ort", selection: $mode) {
                         ForEach(EventMode.allCases) { Text($0.label).tag($0) }
@@ -621,9 +621,9 @@ struct EventEditorSheet: View {
                             .autocorrectionDisabled()
                         DiscoverFieldError(message: fields["onlineUrl"])
                     }
-                } header: { Text("Wo") } footer: {
+                } header: { Group { Text("Wo") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                     Text(mode == .online ? "Nur Teilnehmende mit Zusage sehen den Link." : "Name des Ortes und Adresse helfen beim Hinfinden.")
-                }
+                }.font(.wr(.footnote)) }
                 Section {
                     TextField("Plätze (leer = unbegrenzt)", text: $capacity)
                         .keyboardType(.numberPad)
@@ -634,16 +634,15 @@ struct EventEditorSheet: View {
                     DiscoverFieldError(message: fields["capacity"])
                     TextField("Kosten, z. B. „CHF 15 Material, bar vor Ort“", text: $costNote)
                     DiscoverFieldError(message: fields["costNote"])
-                } header: { Text("Teilnahme") }
+                } header: { Group { Text("Teilnahme") }.font(.wr(.footnote, .semibold)) }
                 Section {
                     TextField("Was passiert, was bringt man mit, für wen ist es geeignet?", text: $description, axis: .vertical)
                         .lineLimit(4...12)
                     DiscoverFieldError(message: fields["description"])
-                } header: { Text("Beschreibung (optional)") }
+                } header: { Group { Text("Beschreibung (optional)") }.font(.wr(.footnote, .semibold)) }
             }
             .font(.wr(.body))
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle(isEdit ? "Event bearbeiten" : "Neues Event")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

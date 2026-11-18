@@ -450,12 +450,12 @@ struct DiscoverSearchFilterSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Kategorie") {
+                Section {
                     Picker("Kategorie", selection: $draft.category) {
                         Text("Alle").tag(String?.none)
                         ForEach(app.activeCategories) { c in Text(c.name).tag(Optional(c.slug)) }
                     }
-                }
+                } header: { Text("Kategorie").font(.wr(.footnote, .semibold)) }
                 if type == nil || type == .project || type == .tutorial {
                     Section {
                         Picker("Schwierigkeit", selection: $draft.difficulty) {
@@ -466,7 +466,7 @@ struct DiscoverSearchFilterSheet: View {
                             Text("Egal").tag(Int?.none)
                             ForEach(durations, id: \.0) { d in Text(d.1).tag(Optional(d.0)) }
                         }
-                    } header: { Text("Projekte & Anleitungen") }
+                    } header: { Group { Text("Projekte & Anleitungen") }.font(.wr(.footnote, .semibold)) }
                 }
                 if type == nil || type == .product || type == .tutorial {
                     Section {
@@ -480,22 +480,21 @@ struct DiscoverSearchFilterSheet: View {
                             Text("Egal").tag(String?.none)
                             ForEach(L.shipCountries, id: \.key) { c in Text(c.label).tag(Optional(c.key)) }
                         }
-                    } header: { Text("Preis & Herkunft") } footer: { Text("Der Preis gilt für Produkte im Markt.") }
+                    } header: { Group { Text("Preis & Herkunft") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Der Preis gilt für Produkte im Markt.") }.font(.wr(.footnote)) }
                 }
-                Section("Zeitraum") {
+                Section {
                     Picker("Veröffentlicht", selection: $draft.sinceDays) {
                         Text("Jederzeit").tag(Int?.none)
                         ForEach(periods, id: \.0) { p in Text(p.1).tag(Optional(p.0)) }
                     }
-                }
+                } header: { Text("Zeitraum").font(.wr(.footnote, .semibold)) }
                 if draft.activeCount > 0 {
                     Section {
                         Button("Alle Filter zurücksetzen", role: .destructive) { draft = DiscoverSearchFilters() }
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.paper)
+            .formCanvas()
             .navigationTitle("Filter")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

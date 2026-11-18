@@ -253,16 +253,16 @@ struct ReportSheet: View {
                         }.padding(.vertical, 8)
                     }
                 } else {
-                    Section("Grund") {
+                    Section {
                         Picker("Grund", selection: $reason) {
                             ForEach(L.reportReasons, id: \.key) { Text($0.label).tag($0.key) }
                         }
                         .pickerStyle(.inline)
                         .labelsHidden()
-                    }
+                    } header: { Text("Grund").font(.wr(.footnote, .semibold)) }
                     Section {
                         TextField("Was ist passiert? (optional)", text: $details, axis: .vertical).lineLimit(3...8)
-                    } header: { Text("Details") } footer: { Text("Meldungen sind vertraulich. Die gemeldete Person erfährt nicht, wer gemeldet hat.") }
+                    } header: { Group { Text("Details") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Meldungen sind vertraulich. Die gemeldete Person erfährt nicht, wer gemeldet hat.") }.font(.wr(.footnote)) }
                 }
             }
             .navigationTitle(title ?? "Melden")
