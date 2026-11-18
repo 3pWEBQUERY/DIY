@@ -623,6 +623,7 @@ struct MarketStudioProducts: Decodable, Sendable {
 }
 
 struct MarketEditorProduct: Decodable, Sendable {
+    struct DigitalFile: Decodable, Sendable { var id: String; var mime: String?; var bytes: Int?; var state: String? }
     struct M: Decodable, Sendable {
         struct Inner: Decodable, Sendable { var id: String; var variants: MediaVariants? }
         var mediaId: String
@@ -647,6 +648,8 @@ struct MarketEditorProduct: Decodable, Sendable {
     var tutorialId: String?
     var status: String
     var digitalKey: String?
+    /// Hochgeladene Datei eines digitalen Produkts (PDF/ZIP, privat)
+    var digitalFile: DigitalFile?
     var hideWhenSoldOut: Bool?
     var variants: [MarketVariant]?
     var inventory: [MarketStock]?

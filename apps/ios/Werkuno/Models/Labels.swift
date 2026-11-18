@@ -38,7 +38,7 @@ enum L {
         "CANCELLED": "Abgebrochen", "REFUNDED": "Erstattet", "PARTIALLY_REFUNDED": "Teilweise erstattet", "DISPUTED": "Zahlung angefochten",
     ]
     static let productKind: [(key: String, label: String)] = [
-        ("UNIQUE", "Einzelstück"), ("SMALL_BATCH", "Kleinserie"), ("MADE_TO_ORDER", "Auf Bestellung"), ("KIT", "DIY-Materialset"), ("DIGITAL", "Digitale Anleitung"),
+        ("UNIQUE", "Einzelstück"), ("SMALL_BATCH", "Kleinserie"), ("MADE_TO_ORDER", "Auf Bestellung"), ("KIT", "DIY-Materialset"), ("RAW", "Unbearbeiteter Artikel"), ("DIGITAL", "Digitale Anleitung"),
     ]
     static func productKind(_ k: String?) -> String { productKind.first { $0.key == k }?.label ?? (k ?? "") }
     static let productStatus: [String: String] = ["DRAFT": "Entwurf", "ACTIVE": "Aktiv", "PAUSED": "Pausiert", "SOLD_OUT": "Ausverkauft", "DISABLED": "Deaktiviert"]

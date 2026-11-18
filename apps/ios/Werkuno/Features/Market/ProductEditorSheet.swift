@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Produkt anlegen/bearbeiten (PRD §13.4) – Felder nach `productUpsertSchema`, Gebührenvorschau „Du erhältst ca.“.
 struct ProductEditorSheet: View {
@@ -39,6 +40,12 @@ struct ProductEditorSheet: View {
     /// Ausverkauft weiter öffentlich zeigen (Gegenteil von `hideWhenSoldOut` auf dem Server)
     @State private var showWhenSoldOut = true
     @State private var restockRequests: [MarketRestockRequest] = []
+    /// Datei eines digitalen Produkts (PDF/ZIP, privat hochgeladen)
+    @State private var digitalMediaId: String?
+    @State private var digitalLabel: String?
+    @State private var digitalChanged = false
+    @State private var digitalBusy = false
+    @State private var pickingFile = false
 
     @State private var fields: [String: String] = [:]
     @State private var formError: String?
@@ -72,7 +79,7 @@ struct ProductEditorSheet: View {
                     Button { Task { await save() } } label: {
                         if saving { ProgressView() } else { Text("Speichern").fontWeight(.semibold) }
                     }
-                    .disabled(ctx == nil || saving || media.isUploading)
+                    .disabled(ctx == nil || saving || media.isUploading || digitalBusy)
                 }
             }
             .task { if ctx == nil { await load() } }
@@ -155,6 +162,16 @@ struct ProductEditorSheet: View {
         variantStockBase = vb
         reserved = (p.inventory ?? []).reduce(0) { $0 + $1.reserved }
         showWhenSoldOut = !(p.hideWhenSoldOut ?? false)
+        if let f = p.digitalFile {
+            digitalMediaId = f.id
+            digitalLabel = Self.fileLabel(name: nil, mime: f.mime, bytes: f.bytes)
+        }
+    }
+
+    static func fileLabel(name: String?, mime: String?, bytes: Int?) -> String {
+        let type = mime == "application/zip" ? "ZIP" : "PDF"
+        let size = bytes.map { String(format: "%.1f MB", Double($0) / 1_048_576) }
+        return [name ?? type, size].compactMap { $0 }.joined(separator: " · ")
     }
 
     // MARK: Ausverkauft
@@ -212,17 +229,21 @@ struct ProductEditorSheet: View {
                     MarketFieldError(text: fields["title"])
                 }
                 Picker("Art", selection: $kind) {
-                    ForEach(L.productKind.filter { $0.key != "DIGITAL" || kind == "DIGITAL" }, id: \.key) { Text($0.label).tag($0.key) }
+                    ForEach(L.productKind.filter { $0.key != "DIGITAL" || kind == "DIGITAL" || c.digitalEnabled != false }, id: \.key) { Text($0.label).tag($0.key) }
                 }
                 Picker("Kategorie", selection: $category) {
                     ForEach(c.categories) { Text($0.name).tag($0.slug) }
                 }
                 MarketFieldError(text: fields["category"])
                 RichTextField(placeholder: "Beschreibung – wie ist es entstanden, wofür eignet es sich, wie pflegt man es?", markup: $description, minHeight: 120)
+                MarketFieldError(text: fields["description"])
             } header: { Text("Angebot") } footer: {
-                if isDigital { Text("Digitale Dateien verwaltest du im Web. In der iOS-App kaufen Kund:innen über Apple; dein Anteil ist gleich wie bei einem Web-Verkauf.") }
+                if isDigital { Text("Die Datei (PDF oder ZIP) lädst du weiter unten hoch. In der iOS-App kaufen Kund:innen über Apple; dein Anteil ist gleich wie bei einem Web-Verkauf.") }
+                else if kind == "RAW" { Text("Beschreibe den Zustand ehrlich (mind. 20 Zeichen): Gebrauchsspuren, Mängel, was noch zu tun ist.") }
                 else { Text("Konkret und ehrlich, z. B. „Gehäkelter Korb aus Baumwollkordel, natur“.") }
             }
+
+            if isDigital { digitalFileSection }
 
             Section {
                 HStack {
@@ -317,6 +338,63 @@ struct ProductEditorSheet: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
+        .fileImporter(isPresented: $pickingFile, allowedContentTypes: [.pdf, .zip]) { result in
+            if case .success(let url) = result { Task { await uploadDigital(url) } }
+        }
+    }
+
+    // MARK: Datei (digitale Produkte)
+
+    private var digitalFileSection: some View {
+        Section {
+            if let digitalLabel {
+                Label(digitalLabel, systemImage: "doc.fill").font(.wr(.subheadline)).foregroundStyle(Color.ink)
+            }
+            Button {
+                pickingFile = true
+            } label: {
+                HStack {
+                    Label(digitalMediaId == nil ? "PDF oder ZIP hochladen" : "Datei ersetzen", systemImage: "square.and.arrow.up")
+                    Spacer()
+                    if digitalBusy { ProgressView() }
+                }
+            }
+            .disabled(digitalBusy)
+            MarketFieldError(text: fields["digital"])
+        } header: { Text("Datei") } footer: {
+            Text("PDF oder ZIP, höchstens 100 MB. Käufer:innen laden die Datei nach dem Kauf herunter. Ohne Datei kannst du das Produkt nur als Entwurf speichern.")
+        }
+    }
+
+    private func uploadDigital(_ picked: URL) async {
+        digitalBusy = true
+        defer { digitalBusy = false }
+        let scoped = picked.startAccessingSecurityScopedResource()
+        defer { if scoped { picked.stopAccessingSecurityScopedResource() } }
+        let isZip = picked.pathExtension.lowercased() == "zip"
+        // Kopie im temporären Ordner: Der Upload liest die Datei gestreamt und braucht dauerhaften Zugriff
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).\(isZip ? "zip" : "pdf")")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        do {
+            try FileManager.default.copyItem(at: picked, to: tmp)
+            let bytes = (try? tmp.resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+            let r = try await APIClient.shared.upload(file: tmp, mime: isZip ? "application/zip" : "application/pdf", purpose: "private")
+            if r.result.state == "FAILED" {
+                fields["digital"] = "Die Datei konnte nicht verarbeitet werden. Bitte lade sie erneut hoch."
+                return
+            }
+            digitalMediaId = r.id
+            digitalLabel = Self.fileLabel(name: picked.lastPathComponent, mime: isZip ? "application/zip" : "application/pdf", bytes: bytes)
+            digitalChanged = true
+            fields["digital"] = nil
+            Haptics.success()
+        } catch let err as APIError {
+            fields["digital"] = err.message
+            Haptics.warning()
+        } catch {
+            fields["digital"] = "Die Datei konnte nicht gelesen werden. Bitte versuche es erneut."
+            Haptics.warning()
+        }
     }
 
     /// Digitale Produkte: Preis in der iOS-App (Apple-Preisstufen, ganze Franken bis zur höchsten Stufe)
@@ -402,6 +480,8 @@ struct ProductEditorSheet: View {
         if media.refs.isEmpty { e["media"] = "Mindestens ein Produktbild" }
         if category.isEmpty { e["category"] = "Bitte wähle eine Kategorie" }
         if variants.contains(where: { $0.name.trimmed.isEmpty }) { e["variants"] = "Jede Variante braucht eine Bezeichnung" }
+        if kind == "RAW" && description.trimmed.count < 20 { e["description"] = "Beschreibe den Zustand des Artikels (mind. 20 Zeichen)" }
+        if isDigital && status == "ACTIVE" && digitalMediaId == nil { e["digital"] = "Bitte lade die Datei für dein digitales Produkt hoch" }
         fields = e
         guard e.isEmpty else { formError = "Bitte prüfe die markierten Felder."; Haptics.warning(); return }
         formError = nil
@@ -435,6 +515,7 @@ struct ProductEditorSheet: View {
         if !projectId.isEmpty { input["projectId"] = .string(projectId) }
         if !tutorialId.isEmpty { input["tutorialId"] = .string(tutorialId) }
         var extra: [String: JSONValue] = ["announce": .bool(announce && status == "ACTIVE"), "announceText": .string(announceText.trimmed)]
+        if isDigital, digitalChanged, let digitalMediaId { extra["digitalMediaId"] = .string(digitalMediaId) }
         if !isDigital {
             extra["shipsFrom"] = .string(shipsFrom)
             extra["hideWhenSoldOut"] = .bool(!showWhenSoldOut)
