@@ -1,5 +1,6 @@
 "use client";
 
+import { markupHref } from "@/lib/inline-marks";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   ArrowDown,
@@ -462,7 +463,8 @@ function ParagraphBlock({ b, index, ctx }: { b: Of<"paragraph">; index: number; 
     setUrl("");
     if (!href) return ref.current?.focus();
     const safe = /^(https?:\/\/|mailto:|\/)/i.test(href) ? href : `https://${href}`;
-    applyWrap("[", `](${safe})`, "Linktext");
+    // Klammern im Ziel kodieren, sonst endet der Link beim ersten „)“ (z. B. Wikipedia-Adressen)
+    applyWrap("[", `](${markupHref(safe)})`, "Linktext");
   };
   const pick = (it: MenuItem) => {
     ctx.setMenu(null);
