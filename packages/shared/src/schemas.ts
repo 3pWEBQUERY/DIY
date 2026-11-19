@@ -95,6 +95,8 @@ export const materialLineSchema = z.object({
   quantity: z.string().trim().max(40).default(""),
   materialId: z.string().optional(),
   note: z.string().trim().max(200).default(""),
+  /** Richtpreis der ganzen Zeile in Rappen (nur Anleitungen; optional) */
+  costMinor: z.coerce.number().int("Ganze Rappen").min(0, "Preis kann nicht negativ sein").max(10_000_000, "Höchstens CHF 100'000").nullish(),
 });
 
 export const projectUpsertSchema = z.object({

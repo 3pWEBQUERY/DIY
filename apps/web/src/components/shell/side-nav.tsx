@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, LogOut, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays, Trophy, Ruler } from "lucide-react";
+import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, LogOut, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays, Trophy, Ruler, Wrench, ChevronDown } from "lucide-react";
 import { signOutAction } from "@/app/(auth)/actions";
 import { Dialog } from "@/components/ui/dialog";
 import { cn, pad } from "@/lib/utils";
@@ -30,6 +30,70 @@ function isActive(pathname: string, href: string, match?: string[]) {
 }
 
 const NAV_COOKIE = "wr_nav";
+
+/** Menüpunkt „Tools“: Hilfsmittel rund ums Bauen (Einkaufslisten nur mit Konto). */
+export function toolLinks(signedIn: boolean) {
+  return [
+    { href: "/werkzeuge/zuschnitt", icon: Ruler, label: "Zuschnittrechner", hint: "Platten, Schnittplan, Kantenband und Kosten" },
+    ...(signedIn ? [{ href: "/einkaufslisten", icon: ListChecks, label: "Einkaufslisten", hint: "Material aus Projekten und Anleitungen" }] : []),
+  ];
+}
+
+/** Aufklappbarer Menüpunkt „Tools“ in der Seitenleiste (auch eingeklappt: Symbole mit Tooltip). */
+function ToolsGroup({ signedIn, rail, pathname }: { signedIn: boolean; rail: boolean; pathname: string }) {
+  const links = toolLinks(signedIn);
+  const inside = links.some((l) => pathname.startsWith(l.href));
+  const [open, setOpen] = useState(inside);
+  useEffect(() => {
+    if (inside) setOpen(true);
+  }, [inside]);
+  return (
+    <li>
+      <Tip disabled={!rail} content={<TipBody label="Tools" hint="Zuschnittrechner und Einkaufslisten" />}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="nav-tools"
+          className={cn(
+            "group relative flex h-10 w-full items-center gap-3 whitespace-nowrap rounded-xl px-[15px] text-[14px] text-ink-2 transition-colors hover:bg-paper hover:text-ink",
+            inside && !open && "bg-card font-semibold text-ink hover:bg-card",
+          )}
+        >
+          <Wrench size={18} strokeWidth={inside ? 2.1 : 1.7} className={cn("shrink-0", inside && "text-moss")} />
+          <span className="hidden nav-open:inline">Tools</span>
+          <ChevronDown size={14} aria-hidden className={cn("ml-auto hidden text-muted transition-transform duration-200 nav-open:block", open && "rotate-180")} />
+        </button>
+      </Tip>
+      {open && (
+        <ul id="nav-tools" className="mt-px flex flex-col gap-px nav-open:ml-[26px] nav-open:border-l nav-open:border-line nav-open:pl-2">
+          {links.map((l) => {
+            const active = pathname.startsWith(l.href);
+            const Icon = l.icon;
+            return (
+              <li key={l.href}>
+                <Tip disabled={!rail} content={<TipBody label={l.label} hint={l.hint} />}>
+                  <Link
+                    href={l.href}
+                    aria-label={l.label}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex h-9 items-center gap-2.5 whitespace-nowrap rounded-xl px-[17px] text-[13.5px] text-ink-2 transition-colors hover:bg-paper hover:text-ink nav-open:px-2.5",
+                      active && "bg-card font-semibold text-ink hover:bg-card",
+                    )}
+                  >
+                    <Icon size={15} strokeWidth={active ? 2.1 : 1.7} className={cn("shrink-0", active && "text-moss")} />
+                    <span className="hidden nav-open:inline">{l.label}</span>
+                  </Link>
+                </Tip>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
+  );
+}
 
 /** Inhalt eines Rail-Tooltips: Titel, Zähler, kurze Erklärung, optional Tastenkürzel. */
 function TipBody({ label, hint, count, keys }: { label: string; hint?: string; count?: number; keys?: string[] }) {
@@ -152,7 +216,8 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
                 </li>
               );
             }
-            return (
+            const tools = item.href === "/blogs" ? <ToolsGroup key="tools" signedIn={!!user} rail={rail} pathname={pathname} /> : null;
+            return [
               <li key={item.href}>
                 <Tip disabled={!rail} content={<TipBody label={item.label} hint={item.hint} count={count} />}>
                   <Link
@@ -180,8 +245,9 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
                     </span>
                   </Link>
                 </Tip>
-              </li>
-            );
+              </li>,
+              tools,
+            ];
           })}
         </ul>
 
@@ -251,8 +317,6 @@ export function SideNav({ user, collapsed: initial = false, hide = [] }: { user:
 export function secondaryLinks(user: NonNullable<ShellUser>, cart: number, hide: string[] = []) {
   return [
     { href: "/gespeichert", icon: <Bookmark size={14} />, label: "Gespeichert" },
-    { href: "/einkaufslisten", icon: <ListChecks size={14} />, label: "Einkaufslisten" },
-    { href: "/werkzeuge/zuschnitt", icon: <Ruler size={14} />, label: "Zuschnittrechner" },
     { href: "/events", icon: <CalendarDays size={14} />, label: "Events" },
     { href: "/wettbewerbe", icon: <Trophy size={14} />, label: "Wettbewerbe" },
     { href: "/warenkorb", icon: <ShoppingBag size={14} />, label: cart ? `Korb · ${cart}` : "Warenkorb" },
@@ -356,6 +420,19 @@ export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUse
               </Link>
             </li>
           ))}
+          <li className="py-2">
+            <p className="spec px-2 pb-1 pt-1">Tools</p>
+            <ul>
+              {toolLinks(true).map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className={cn("flex h-12 items-center gap-3 rounded-xl px-2 text-[15px] hover:bg-sunken", pathname.startsWith(l.href) && "font-semibold")}>
+                    <l.icon size={18} className="text-muted" aria-hidden />
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </li>
           <li>
             <form action={signOutAction}>
               <button type="submit" className="flex h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-[15px] text-danger hover:bg-sunken">

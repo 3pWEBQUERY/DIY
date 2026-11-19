@@ -14,7 +14,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Input, Label, Select, Textarea } from "@/components/ui/field";
 import { Difficulty, SectionTitle } from "@/components/ui/misc";
 import { toast } from "@/components/ui/toast";
-import { LineEditor, newLine, type Line } from "@/components/materials/line-editor";
+import { LineEditor, formatCostInput, newLine, parseCost, type Line } from "@/components/materials/line-editor";
 import { DurationInput } from "@/components/projects/project-editor";
 import { cn, formatMinutes, pad } from "@/lib/utils";
 import { saveTutorialAction } from "@/app/(app)/anleitungen/actions";
@@ -95,7 +95,7 @@ export function TutorialEditor({
   const [projectId, setProjectId] = useState(initial?.projectId ?? defaultProjectId ?? "");
   const [language, setLanguage] = useState(initial?.language ?? "de-CH");
   const [cover, setCover] = useState<UploadedMedia[]>(initial?.cover ? [{ id: initial.cover.id, alt: initial.cover.alt, preview: initial.cover.preview, state: "ready", progress: 1, kind: "IMAGE" }] : []);
-  const [materials, setMaterials] = useState<Line[]>((initial?.materials ?? []).map((m) => newLine(m)));
+  const [materials, setMaterials] = useState<Line[]>((initial?.materials ?? []).map(({ costMinor, ...m }) => newLine({ ...m, cost: formatCostInput(costMinor) })));
   const [tools, setTools] = useState<Line[]>((initial?.tools ?? []).map((m) => newLine(m)));
   const [steps, setSteps] = useState<StepState[]>(() => fromValues(initial));
 
@@ -146,7 +146,7 @@ export function TutorialEditor({
     projectId: projectId || undefined,
     coverMediaId: cover.find((c) => c.state === "ready")?.id,
     language,
-    materials: materials.filter((m) => m.name.trim()).map((m) => ({ name: m.name, quantity: m.quantity, note: m.note, materialId: m.materialId })),
+    materials: materials.filter((m) => m.name.trim()).map((m) => ({ name: m.name, quantity: m.quantity, note: m.note, materialId: m.materialId, costMinor: parseCost(m.cost) })),
     tools: tools.filter((m) => m.name.trim()).map((m) => ({ name: m.name, quantity: m.quantity, note: m.note })),
     steps: steps.map((s) => ({
       stableKey: s.stableKey,
@@ -264,7 +264,13 @@ export function TutorialEditor({
           <SectionTitle n="02" title="Material & Werkzeug" />
           <div>
             <p className="spec mb-3 text-ink">Material</p>
-            <LineEditor kind="material" value={materials} onChange={setMaterials} errors={fields} errorPrefix="materials" />
+            <LineEditor kind="material" value={materials} onChange={setMaterials} errors={fields} errorPrefix="materials" withCost />
+            <p className="mt-2 text-[12.5px] text-muted">
+              Preis: optionaler Richtpreis für die ganze Zeile. Aus allen Preisen zeigt die Anleitung die ungefähren Materialkosten.
+              {materials.some((m) => parseCost(m.cost) != null) && (
+                <b className="ml-1 text-ink">Summe ca. CHF {(materials.reduce((a, m) => a + (parseCost(m.cost) ?? 0), 0) / 100).toFixed(2)}</b>
+              )}
+            </p>
           </div>
           <div>
             <p className="spec mb-3 text-ink">Werkzeug</p>

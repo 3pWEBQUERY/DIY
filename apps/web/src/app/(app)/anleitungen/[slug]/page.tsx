@@ -3,9 +3,11 @@ import { breadcrumbJsonLd, OG_BASE } from "@/config/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
-import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, formatMoney } from "@werkraum/shared";
+import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, formatMoney, materialsCostEstimate } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getTutorialPage, type TutorialPageView } from "@/server/tutorials/service";
+import { bundlesForTutorial } from "@/server/commerce/promotions";
+import { BundleCard } from "@/components/commerce/bundle-card";
 import { recordViewAfter } from "@/server/analytics/service";
 import { Page } from "@/components/shell/page";
 import { Avatar, Difficulty, Notice, SectionTitle } from "@/components/ui/misc";
@@ -60,7 +62,10 @@ function howTo(t: TutorialPageView) {
     dateModified: t.version.publishedAt,
     version: String(t.version.number),
     author: { "@type": "Person", name: t.author.displayName, url: absUrl(`/u/${t.author.handle}`) },
-    estimatedCost: t.isPaid && t.priceMinor ? { "@type": "MonetaryAmount", currency: "CHF", value: (t.priceMinor / 100).toFixed(2) } : undefined,
+    estimatedCost: (() => {
+      const c = materialsCostEstimate(t.materials);
+      return c?.complete ? { "@type": "MonetaryAmount", currency: "CHF", value: (c.totalMinor / 100).toFixed(2) } : undefined;
+    })(),
     supply: t.materials.map((m) => ({ "@type": "HowToSupply", name: m.name, requiredQuantity: m.quantity || undefined })),
     tool: t.tools.map((x) => ({ "@type": "HowToTool", name: x.name })),
     step: t.steps.map((s) => ({
@@ -86,6 +91,9 @@ export default async function TutorialPage({ params }: Params) {
   const newVersion = t.viewer.hasProgress && t.viewer.versionSeen != null && t.viewer.versionSeen < t.version.number;
   const remixHref = t.project ? `/projekte/neu?nachbau=${t.project.id}` : `/projekte/neu?kategorie=${t.category}`;
   const stepsMinutes = t.steps.reduce((a, s) => a + (s.minutes ?? 0), 0);
+  const cost = materialsCostEstimate(t.materials);
+  // Materialsets aus dem Marktplatz (nur veröffentlichte Anleitungen)
+  const bundles = t.state === "PUBLISHED" && !t.preview ? await bundlesForTutorial(t.id, user?.id ?? null) : [];
   let sec = 0;
   const no = () => pad(++sec);
 
@@ -159,7 +167,9 @@ export default async function TutorialPage({ params }: Params) {
           { label: "Schwierigkeit", value: <span className="flex items-center gap-2"><Difficulty level={t.difficulty} />{DIFFICULTY_LABEL[t.difficulty]}</span> },
           { label: "Dauer", value: formatMinutes(t.minutes ?? (stepsMinutes || null)) },
           { label: "Schritte", value: t.steps.length },
-          { label: "Kosten", value: t.isPaid && t.priceMinor ? formatMoney(t.priceMinor) : "Kostenlos" },
+          t.isPaid && t.priceMinor
+            ? { label: "Preis", value: formatMoney(t.priceMinor) }
+            : { label: "Material ca.", value: cost ? `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor)}` : "–" },
           { label: "Nachgebaut", value: `${t.counts.completions}×` },
           { label: "Aktualisiert", value: formatDate(t.version.publishedAt, { day: "numeric", month: "short", year: "numeric" }) },
         ].map((r) => (
@@ -185,7 +195,7 @@ export default async function TutorialPage({ params }: Params) {
       )}
 
       {/* Material & Werkzeug */}
-      {(t.materials.length > 0 || t.tools.length > 0) && (
+      {(t.materials.length > 0 || t.tools.length > 0 || bundles.length > 0) && (
         <section id="material" aria-labelledby="h-material" className="mt-14">
           <SectionTitle
             n={no()}
@@ -209,10 +219,19 @@ export default async function TutorialPage({ params }: Params) {
                         <span className="font-semibold">{m.name}</span>
                         {m.note && <span className="block text-[13px] text-muted">{m.note}</span>}
                       </span>
-                      <span className="num text-ink-2">{m.quantity || "–"}</span>
+                      <span className="num text-right text-ink-2">
+                        {m.quantity || "–"}
+                        {m.costMinor != null && <span className="block text-[12px] text-muted">ca. {formatMoney(m.costMinor)}</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>
+                {cost && (
+                  <p className="mt-2 flex items-baseline justify-between gap-3 text-[13px]">
+                    <span className="text-muted">Richtpreise der Autorin bzw. des Autors{cost.complete ? "" : ` (${cost.priced} von ${t.materials.length} Positionen)`} – Händlerpreise können abweichen.</span>
+                    <b className="num shrink-0">{cost.complete ? "ca." : "ab"} {formatMoney(cost.totalMinor)}</b>
+                  </p>
+                )}
               </div>
             )}
             {t.tools.length > 0 && (
@@ -232,6 +251,13 @@ export default async function TutorialPage({ params }: Params) {
               </div>
             )}
           </div>
+          {bundles.length > 0 && (
+            <div className={cn("grid gap-4", bundles.length > 1 && "md:grid-cols-2", (t.materials.length > 0 || t.tools.length > 0) && "mt-8")}>
+              {bundles.map((b) => (
+                <BundleCard key={b.id} bundle={b} signedIn={!!user} owner={t.viewer.isOwner} label="Materialset" />
+              ))}
+            </div>
+          )}
         </section>
       )}
 

@@ -281,6 +281,8 @@ export async function createCheckoutSession(input: {
   lines: CheckoutLine[];
   shippingMinor: number;
   applicationFeeMinor: number;
+  /** Rabatt auf die Bestellung (Sets, Gutschein) – als einmaliger Stripe-Coupon der Plattform */
+  discount?: { amountMinor: number; label: string };
   destinationAccountId: string;
   expiresAt: Date;
   idempotencyKey: string;
@@ -298,10 +300,19 @@ export async function createCheckoutSession(input: {
     line_items.push({ quantity: 1, price_data: { currency, unit_amount: input.shippingMinor, product_data: { name: "Versand" } } });
   }
   const metadata = { orderId: input.orderId, orderNumber: input.orderNumber, buyerId: input.buyerId };
+  // Stripe Checkout kennt keine negativen Positionen: Rabatt als einmal nutzbarer Coupon über den Betrag
+  const coupon =
+    input.discount && input.discount.amountMinor > 0
+      ? await stripe().coupons.create(
+          { amount_off: input.discount.amountMinor, currency, duration: "once", max_redemptions: 1, name: input.discount.label.slice(0, 40), metadata },
+          { idempotencyKey: `${input.idempotencyKey}:coupon` },
+        )
+      : null;
   return stripe().checkout.sessions.create(
     {
       mode: "payment",
       line_items,
+      ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
       customer_email: input.buyerEmail,
       client_reference_id: input.orderId,
       locale: "de",

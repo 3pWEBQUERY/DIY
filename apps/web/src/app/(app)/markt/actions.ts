@@ -6,6 +6,7 @@ import { requireUser } from "@/server/auth/session";
 import * as cart from "@/server/commerce/cart";
 import * as checkout from "@/server/commerce/checkout";
 import * as restock from "@/server/commerce/restock";
+import * as promo from "@/server/commerce/promotions";
 
 /** Warenkorb & Kasse. Berechtigungen, Preise und Bestand werden ausschliesslich serverseitig geprüft. */
 
@@ -31,6 +32,30 @@ export async function removeCartItemAction(itemId: string) {
     revalidatePath("/warenkorb");
     return null;
   }, "Aus dem Warenkorb entfernt.");
+}
+
+export async function applyCouponAction(shopId: string, code: string) {
+  return act(async () => {
+    const r = await promo.applyCoupon(await requireUser(), { shopId, code });
+    revalidatePath("/warenkorb");
+    return r;
+  });
+}
+
+export async function removeCouponAction(shopId: string) {
+  return act(async () => {
+    await promo.removeCoupon(await requireUser(), shopId);
+    revalidatePath("/warenkorb");
+    return null;
+  }, "Gutschein entfernt.");
+}
+
+export async function addBundleToCartAction(bundleId: string) {
+  return act(async () => {
+    const r = await promo.addBundleToCart(await requireUser(), bundleId);
+    revalidatePath("/warenkorb");
+    return r;
+  });
 }
 
 export async function startCheckoutAction(input: unknown) {

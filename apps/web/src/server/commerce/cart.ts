@@ -11,6 +11,7 @@ import type { Variants } from "@/components/ui/media";
 import { available, groupByShop, grandTotal, unitPrice } from "./rules";
 import { paymentsMode } from "./stripe";
 import { requireFlag } from "@/server/flags";
+import { fitRows, loadCartDiscounts } from "./discounts";
 
 /**
  * Warenkorb (§13.5): ein Warenkorb je Konto, Positionen je Produkt/Variante.
@@ -111,11 +112,23 @@ export async function getCartView(userId: string) {
   const feeBps = fee.base;
   const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled }) }));
   const priced = lines.map((l) => ({ ...l.view, shopId: l.row.product.shop.id }));
-  const groups = groupByShop(priced, fee).map((g) => {
+  const disc = await loadCartDiscounts(db, { userId, cartId: cart?.id, includePending: false });
+  const details = new Map<string, ReturnType<typeof disc.forShop>>();
+  const groups = groupByShop(priced, fee, (shopId, ls, subtotal) => {
+    const d = disc.forShop(shopId, ls, subtotal);
+    details.set(shopId, d);
+    return d.amountMinor;
+  }).map((g) => {
     const shop = rows.find((r) => r.product.shop.id === g.shopId)!.product.shop;
+    const d = details.get(g.shopId)!;
     return {
       shop: { id: shop.id, slug: shop.slug, name: shop.name, processingDays: shop.processingDays, country: shop.country },
       lines: g.lines,
+      subtotal: g.subtotal,
+      discount: g.discount,
+      discounts: fitRows(d.rows, g.discount),
+      coupon: d.coupon,
+      incompleteBundles: d.incompleteBundles,
       fees: g.fees,
       feeBps: fee(g.shopId),
       purchasable: g.lines.every((l) => !l.problem),

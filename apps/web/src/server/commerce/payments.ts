@@ -121,6 +121,9 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
         const cart = await tx.cart.findUnique({ where: { userId: order.buyerId }, select: { id: true } });
         if (cart) {
           await tx.cartItem.deleteMany({ where: { cartId: cart.id, OR: order.items.map((i) => ({ productId: i.productId, variantId: i.variantId })) } });
+          // Eingelöster Gutschein und Sets dieses Shops sind mit der Bestellung erledigt
+          await tx.cartCoupon.deleteMany({ where: { cartId: cart.id, shopId: order.shopId } });
+          await tx.cartBundle.deleteMany({ where: { cartId: cart.id, bundle: { shopId: order.shopId } } });
         }
         await tx.shop.update({ where: { id: order.shopId }, data: { salesCount: { increment: order.items.reduce((s, i) => s + i.quantity, 0) } } });
 

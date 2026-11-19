@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft } from "lucide-react";
-import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug } from "@werkraum/shared";
+import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, formatMoney, materialsCostEstimate } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getTutorialPage } from "@/server/tutorials/service";
 import { absUrl } from "@/components/projects/json-ld";
@@ -37,10 +37,12 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
   const stepsMinutes = t.steps.reduce((a, s) => a + (s.minutes ?? 0), 0);
   const url = absUrl(t.href) ?? t.href;
   const qr = await QRCode.toString(url, { type: "svg", margin: 0, color: { dark: "#262427", light: "#00000000" } });
+  const cost = materialsCostEstimate(t.materials);
   const facts = [
     { label: "Schwierigkeit", value: DIFFICULTY_LABEL[t.difficulty] },
     { label: "Dauer", value: formatMinutes(t.minutes ?? (stepsMinutes || null)) },
     { label: "Schritte", value: String(t.steps.length) },
+    ...(cost ? [{ label: "Material ca.", value: `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor)}` }] : []),
     { label: "Version", value: t.preview ? "Entwurf" : `v${t.version.number} · ${formatDate(t.version.publishedAt, { day: "numeric", month: "short", year: "numeric" })}` },
   ];
 
@@ -81,7 +83,7 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
           </div>
         </header>
 
-        <dl className="mt-4 grid grid-cols-4 border border-line text-[12.5px]">
+        <dl className={`mt-4 grid border border-line text-[12.5px] ${cost ? "grid-cols-5" : "grid-cols-4"}`}>
           {facts.map((f) => (
             <div key={f.label} className="border-r border-line px-3 py-2 last:border-r-0">
               <dt className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted">{f.label}</dt>
@@ -115,7 +117,10 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
                         <b className="font-semibold">{m.name}</b>
                         {m.note && <span className="text-muted"> · {m.note}</span>}
                       </span>
-                      <span className="shrink-0 tabular-nums text-ink-2">{m.quantity}</span>
+                      <span className="shrink-0 text-right tabular-nums text-ink-2">
+                        {m.quantity}
+                        {m.costMinor != null && <span className="ml-2 text-muted">{formatMoney(m.costMinor)}</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>

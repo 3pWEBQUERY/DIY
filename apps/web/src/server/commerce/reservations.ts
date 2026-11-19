@@ -14,9 +14,11 @@ export async function cancelPendingOrderTx(
   opts: { paymentStatus: "FAILED" | "CANCELLED"; note: string; actorId?: string | null; failureReason?: string | null },
 ) {
   await lockOrder(tx, orderId);
-  const order = await tx.order.findUnique({ where: { id: orderId }, select: { status: true, items: { select: { productId: true, variantId: true, quantity: true, isDigital: true } } } });
+  const order = await tx.order.findUnique({ where: { id: orderId }, select: { status: true, couponId: true, items: { select: { productId: true, variantId: true, quantity: true, isDigital: true } } } });
   if (!order || order.status !== "PENDING_PAYMENT") return false;
   for (const it of order.items) await release(tx, it);
+  // Unbezahlt storniert: der Gutschein wird wieder frei
+  if (order.couponId) await tx.$executeRaw`UPDATE "ShopCoupon" SET "usedCount" = GREATEST("usedCount" - 1, 0), "updatedAt" = NOW() WHERE id = ${order.couponId}`;
   await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date(), reservationExpiresAt: null } });
   await tx.payment.updateMany({
     where: { orderId, status: { in: ["REQUIRES_PAYMENT", "PROCESSING"] } },

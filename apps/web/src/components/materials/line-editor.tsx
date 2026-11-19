@@ -4,11 +4,20 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { cn, pad } from "@/lib/utils";
 
-export type Line = { key: string; name: string; quantity: string; note: string; materialId?: string };
+export type Line = { key: string; name: string; quantity: string; note: string; materialId?: string; /** Richtpreis der Zeile als Text („12.50“), nur mit `withCost` */ cost?: string };
 
 export type MaterialSuggestion = { id: string; name: string; unit: string; category: string; brand: string | null };
 
 export const newLine = (init: Partial<Omit<Line, "key">> = {}): Line => ({ key: crypto.randomUUID(), name: "", quantity: "", note: "", ...init });
+
+/** „12.50“, „12,5“ oder „1'200“ → Rappen; leer/ungültig → null */
+export function parseCost(text: string | undefined): number | null {
+  const t = (text ?? "").trim().replace(/'/g, "").replace(",", ".");
+  if (!t) return null;
+  const v = Number(t);
+  return Number.isFinite(v) && v >= 0 ? Math.round(v * 100) : null;
+}
+export const formatCostInput = (minor: number | null | undefined) => (minor == null ? "" : (minor / 100).toFixed(2));
 
 /**
  * Wiederholbare Zeilen für Material- und Werkzeuglisten (Name, Menge, Notiz).
@@ -21,6 +30,7 @@ export function LineEditor({
   max = 60,
   errors,
   errorPrefix,
+  withCost = false,
 }: {
   value: Line[];
   onChange: (next: Line[]) => void;
@@ -28,6 +38,8 @@ export function LineEditor({
   max?: number;
   errors?: Record<string, string>;
   errorPrefix?: string;
+  /** Spalte „Richtpreis (CHF)“ für die Kostenschätzung einer Anleitung */
+  withCost?: boolean;
 }) {
   const update = (key: string, patch: Partial<Line>) => onChange(value.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const move = (i: number, d: -1 | 1) => {
@@ -42,10 +54,11 @@ export function LineEditor({
   return (
     <div>
       {value.length > 0 && (
-        <div className="hidden grid-cols-[2rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_5.5rem] gap-2 border-b border-rule pb-1.5 sm:grid" aria-hidden>
+        <div className={cn("hidden gap-2 border-b border-rule pb-1.5 sm:grid", withCost ? "grid-cols-[2rem_minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.9fr)_5.5rem]" : "grid-cols-[2rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_5.5rem]")} aria-hidden>
           <span className="spec">Pos.</span>
           <span className="spec">{label}</span>
           <span className="spec">{kind === "material" ? "Menge" : "Anzahl"}</span>
+          {withCost && <span className="spec">Preis CHF</span>}
           <span className="spec">Notiz</span>
           <span />
         </div>
@@ -54,7 +67,7 @@ export function LineEditor({
         {value.map((l, i) => {
           const err = errors?.[`${errorPrefix}.${i}.name`];
           return (
-            <li key={l.key} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-2 py-2 sm:grid-cols-[2rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_5.5rem] sm:items-start">
+            <li key={l.key} className={cn("grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-2 py-2 sm:items-start", withCost ? "sm:grid-cols-[2rem_minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,0.6fr)_minmax(0,0.9fr)_5.5rem]" : "sm:grid-cols-[2rem_minmax(0,1.6fr)_minmax(0,0.7fr)_minmax(0,1fr)_5.5rem]")}>
               <span className="pt-2.5 font-mono text-[11px] text-muted num">{pad(i + 1)}</span>
               <div className="min-w-0">
                 {kind === "material" ? (
@@ -79,7 +92,7 @@ export function LineEditor({
                 )}
                 {err && <p className="mt-1 text-[12px] text-danger">{err}</p>}
               </div>
-              <div className="col-start-2 grid grid-cols-2 gap-2 sm:contents">
+              <div className={cn("col-start-2 grid gap-2 sm:contents", withCost ? "grid-cols-3" : "grid-cols-2")}>
                 <input
                   value={l.quantity}
                   onChange={(e) => update(l.key, { quantity: e.target.value })}
@@ -88,6 +101,17 @@ export function LineEditor({
                   placeholder={kind === "material" ? "z. B. 3 Knäuel" : "1"}
                   className="h-10 w-full border border-field bg-card px-2.5 text-[14px] outline-none hover:border-muted focus:border-moss rounded-2xl"
                 />
+                {withCost && (
+                  <input
+                    value={l.cost ?? ""}
+                    onChange={(e) => update(l.key, { cost: e.target.value.replace(/[^\d.,']/g, "").slice(0, 10) })}
+                    inputMode="decimal"
+                    aria-label={`Richtpreis in CHF für ${label} ${i + 1}`}
+                    aria-invalid={errors?.[`${errorPrefix}.${i}.costMinor`] ? true : undefined}
+                    placeholder="CHF"
+                    className="h-10 w-full border border-field bg-card px-2.5 text-right text-[14px] tabular-nums outline-none hover:border-muted focus:border-moss aria-[invalid=true]:border-danger rounded-2xl"
+                  />
+                )}
                 <input
                   value={l.note}
                   onChange={(e) => update(l.key, { note: e.target.value })}

@@ -8,6 +8,7 @@ import { payableOrders } from "@/server/commerce/checkout";
 import { formatBps } from "@/server/commerce/rules";
 import { CartLines } from "@/components/commerce/cart-lines";
 import { FeeSummary } from "@/components/commerce/order-parts";
+import { CouponField } from "@/components/commerce/coupon-field";
 import { ResumePaymentButton } from "@/components/commerce/payment-actions";
 import { Empty, Notice, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
@@ -68,9 +69,15 @@ export default async function CartPage() {
                   action={<span className="spec">Versand ab {COUNTRY_LABEL[g.shop.country as ShipCountry] ?? g.shop.country}</span>}
                 />
                 <CartLines lines={g.lines} />
+                {g.incompleteBundles.length > 0 && (
+                  <p role="status" className="mt-3 text-[13px] text-warn">
+                    {g.incompleteBundles.map((b) => `Set „${b.title}“`).join(", ")}: Der Set-Rabatt gilt nur, solange alle Teile in der Set-Menge im Warenkorb liegen.
+                  </p>
+                )}
                 <div className="ml-auto max-w-sm border-t border-line pt-3">
-                  <FeeSummary subtotal={g.fees.subtotal} shipping={g.fees.shipping} total={g.fees.total} />
+                  <FeeSummary subtotal={g.subtotal} discounts={g.discounts} shipping={g.fees.shipping} total={g.fees.total} />
                   <p className="mt-1 text-[12px] text-muted">Kombinierter Versand: es gilt der höchste Versandsatz dieses Shops.</p>
+                  <CouponField shopId={g.shop.id} shopName={g.shop.name} coupon={g.coupon} />
                 </div>
               </section>
             ))}
@@ -79,7 +86,12 @@ export default async function CartPage() {
           <aside className="lg:sticky lg:top-6 lg:h-fit">
             <div className="border border-rule bg-card p-5 rounded-2xl">
               <p className="spec mb-3">Zusammenfassung</p>
-              <FeeSummary subtotal={cart.totals.subtotal} shipping={cart.totals.shipping} total={cart.totals.total} />
+              <FeeSummary
+                subtotal={cart.totals.subtotal}
+                discounts={cart.totals.discount ? [{ label: "Rabatte", amountMinor: cart.totals.discount }] : undefined}
+                shipping={cart.totals.shipping}
+                total={cart.totals.total}
+              />
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
                 Für dich fallen keine weiteren Gebühren an. Die Shops zahlen eine Plattformprovision von höchstens {formatBps(cart.feeBps)} auf den Warenwert – sie ist im Preis bereits enthalten.
               </p>

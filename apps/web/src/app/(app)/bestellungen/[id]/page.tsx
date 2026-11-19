@@ -6,6 +6,7 @@ import { formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getBuyerOrder } from "@/server/commerce/orders";
 import { canReview, canTransition } from "@/server/commerce/rules";
+import { orderDiscountRows } from "@/server/commerce/discounts";
 import { AddressBlock, FeeSummary, OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from "@/components/commerce/order-parts";
 import { ConfirmReceiptButton, ReportProblemButton, ReviewForm } from "@/components/commerce/buyer-order-actions";
 import { AbandonOrderButton, ResumePaymentButton } from "@/components/commerce/payment-actions";
@@ -156,7 +157,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               })}
             </ul>
             <div className="ml-auto mt-2 max-w-sm border-t border-line pt-3">
-              <FeeSummary subtotal={o.subtotalMinor} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} />
+              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} />
               <p className="mt-2 text-[12px] text-muted">Endpreis – keine Zusatzgebühren. Die Plattformprovision hat der Shop getragen.</p>
             </div>
           </section>

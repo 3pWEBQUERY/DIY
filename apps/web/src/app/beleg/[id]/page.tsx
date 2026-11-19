@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { orderDiscountRows } from "@/server/commerce/discounts";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { COUNTRY_LABEL, PAYMENT_STATUS_LABEL, SELLER_TYPE_LABEL, formatMoney, type Currency, type ShipCountry } from "@werkraum/shared";
@@ -117,6 +118,14 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
               </td>
               <td className="num pt-3 text-right">{m(o.subtotalMinor)}</td>
             </tr>
+            {orderDiscountRows(o.discounts).map((d, i) => (
+              <tr key={`${d.label}-${i}`}>
+                <td colSpan={3} className="py-1 text-right text-muted">
+                  {d.label}
+                </td>
+                <td className="num py-1 text-right">− {m(d.amountMinor)}</td>
+              </tr>
+            ))}
             <tr>
               <td colSpan={3} className="py-1 text-right text-muted">
                 Versand

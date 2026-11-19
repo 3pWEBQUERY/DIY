@@ -34,7 +34,7 @@ export const DRAFT_VERSION = 0;
 
 type Variants = Record<string, string>;
 export type StepMedia = { mediaId: string; url: string | null; alt: string };
-export type MaterialLine = { name: string; quantity: string; note: string; materialId?: string };
+export type MaterialLine = { name: string; quantity: string; note: string; materialId?: string; costMinor?: number };
 
 const KEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -62,7 +62,13 @@ function asLines(json: unknown): MaterialLine[] {
   if (!Array.isArray(json)) return [];
   return json
     .filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && typeof (x as { name?: unknown }).name === "string")
-    .map((x) => ({ name: String(x.name), quantity: typeof x.quantity === "string" ? x.quantity : "", note: typeof x.note === "string" ? x.note : "", materialId: typeof x.materialId === "string" ? x.materialId : undefined }));
+    .map((x) => ({
+      name: String(x.name),
+      quantity: typeof x.quantity === "string" ? x.quantity : "",
+      note: typeof x.note === "string" ? x.note : "",
+      materialId: typeof x.materialId === "string" ? x.materialId : undefined,
+      ...(typeof x.costMinor === "number" && Number.isFinite(x.costMinor) && x.costMinor >= 0 ? { costMinor: Math.round(x.costMinor) } : {}),
+    }));
 }
 
 /**
@@ -124,7 +130,7 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
   const stepMediaIds = steps.flatMap((s) => s.media.map((m) => m.id));
   const [coverUrl, urls] = await Promise.all([mediaCoverUrl(data.coverMediaId), mediaUrls(stepMediaIds)]);
   const safetyKinds = SAFETY_KINDS.filter((k) => steps.some((s) => s.safetyKinds.includes(k)));
-  const materials: MaterialLine[] = data.materials.map((m) => ({ name: m.name, quantity: m.quantity, note: m.note, ...(m.materialId ? { materialId: m.materialId } : {}) }));
+  const materials: MaterialLine[] = data.materials.map((m) => ({ name: m.name, quantity: m.quantity, note: m.note, ...(m.materialId ? { materialId: m.materialId } : {}), ...(m.costMinor != null ? { costMinor: m.costMinor } : {}) }));
   const tools: MaterialLine[] = data.tools.map((t) => ({ name: t.name, quantity: t.quantity, note: t.note }));
   const neverPublished = !existing?.currentVersionId;
 
