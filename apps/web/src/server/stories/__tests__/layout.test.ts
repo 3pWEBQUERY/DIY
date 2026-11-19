@@ -191,3 +191,10 @@ describe("Anzeigedauer mit Textebenen", () => {
     expect(storyDurationSeconds({ kind: "MEDIA", isVideo: true, durationMs: 9_500, elementText: "x".repeat(500) })).toBe(9.5);
   });
 });
+
+describe("Haupttext als Fläche", () => {
+  it("Hintergrundpaare der Text-Story taugen auch umgekehrt (Fläche in Schriftfarbe)", async () => {
+    const { STORY_BACKGROUNDS } = await import("@werkraum/shared");
+    for (const [k, b] of Object.entries(STORY_BACKGROUNDS)) expect(contrastRatio(b.bg, b.fg), k).toBeGreaterThanOrEqual(4.5);
+  });
+});
