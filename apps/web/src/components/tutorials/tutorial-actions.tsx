@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Pencil } from "lucide-react";
+import { Hammer, Pencil, Printer } from "lucide-react";
 import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu } from "@/components/social/actions";
 import { buttonClass } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -28,7 +28,13 @@ export function TutorialActions({
       <LikeButton type="TUTORIAL" id={tutorial.id} liked={viewer.liked} count={likes} />
       <SaveButton type="TUTORIAL" id={tutorial.id} saved={viewer.saved} label />
       <ShareButton url={tutorial.href} title={tutorial.title} />
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <Link href={`${tutorial.href}/drucken`} className={buttonClass("outline", "sm")} title="Druckfassung mit Material zum Abhaken – auch als PDF">
+          <Printer size={14} aria-hidden /> Drucken / PDF
+        </Link>
+        <Link href={`${tutorial.href}/werkstatt`} className={buttonClass("ink", "sm")} title="Schritt für Schritt im Vollbild, mit Timer">
+          <Hammer size={14} aria-hidden /> Werkstatt-Modus
+        </Link>
         {viewer.isOwner ? (
           <Link href={`/studio/anleitungen/${tutorial.id}`} className={buttonClass("outline", "sm")}>
             <Pencil size={14} /> Bearbeiten

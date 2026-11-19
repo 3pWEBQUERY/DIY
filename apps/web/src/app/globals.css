@@ -419,3 +419,10 @@
     background: #0d1626;
   }
 }
+
+/* Druckfassungen (Anleitung, Medienkit): A4, Farben der Hinweise mitdrucken */
+@media print {
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff; }
+}

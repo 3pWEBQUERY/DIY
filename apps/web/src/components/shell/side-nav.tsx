@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, LogOut, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays, Trophy } from "lucide-react";
+import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, LogOut, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays, Trophy, Ruler } from "lucide-react";
 import { signOutAction } from "@/app/(auth)/actions";
 import { Dialog } from "@/components/ui/dialog";
 import { cn, pad } from "@/lib/utils";
@@ -252,6 +252,7 @@ export function secondaryLinks(user: NonNullable<ShellUser>, cart: number, hide:
   return [
     { href: "/gespeichert", icon: <Bookmark size={14} />, label: "Gespeichert" },
     { href: "/einkaufslisten", icon: <ListChecks size={14} />, label: "Einkaufslisten" },
+    { href: "/werkzeuge/zuschnitt", icon: <Ruler size={14} />, label: "Zuschnittrechner" },
     { href: "/events", icon: <CalendarDays size={14} />, label: "Events" },
     { href: "/wettbewerbe", icon: <Trophy size={14} />, label: "Wettbewerbe" },
     { href: "/warenkorb", icon: <ShoppingBag size={14} />, label: cart ? `Korb · ${cart}` : "Warenkorb" },
