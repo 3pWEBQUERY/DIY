@@ -63,7 +63,7 @@ export function Toaster() {
     el.setAttribute("role", "status");
     el.setAttribute("aria-live", "polite");
     el.setAttribute("popover", "manual");
-    el.className = "pointer-events-none fixed inset-x-0 top-auto bottom-20 z-[90] m-0 block h-auto w-auto max-w-none overflow-visible border-0 bg-transparent p-0 md:bottom-6";
+    el.className = "print:hidden pointer-events-none fixed inset-x-0 top-auto bottom-20 z-[90] m-0 block h-auto w-auto max-w-none overflow-visible border-0 bg-transparent p-0 md:bottom-6";
     document.body.append(el);
     setRegion(el);
     // Öffnet/schliesst sich ein modaler Dialog, zieht die Region mit

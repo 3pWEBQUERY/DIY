@@ -190,7 +190,12 @@ export default async function TutorialPage({ params }: Params) {
           <SectionTitle
             n={no()}
             title={<span id="h-material">Material & Werkzeug</span>}
-            action={t.materials.length > 0 && !t.preview ? <AddToShoppingList kind="TUTORIAL" id={t.id} title={t.title} count={t.materials.length} signedIn={!!viewer} /> : undefined}
+            action={
+              <span className="flex flex-wrap items-center gap-3">
+                <Link href="/werkzeuge/zuschnitt" className="text-[13px] font-semibold text-ink-2 underline-offset-2 hover:underline">Zuschnitt rechnen</Link>
+                {t.materials.length > 0 && !t.preview && <AddToShoppingList kind="TUTORIAL" id={t.id} title={t.title} count={t.materials.length} signedIn={!!viewer} />}
+              </span>
+            }
           />
           <div className="mt-6 grid gap-10 md:grid-cols-2">
             {t.materials.length > 0 && (
