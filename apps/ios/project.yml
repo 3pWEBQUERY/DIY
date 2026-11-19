@@ -80,5 +80,7 @@ schemes:
         - WerkunoUITests
     run:
       config: Debug
-      # Lokaler Test der In-App-Käufe (digitale Produkte) ohne App Store Connect
-      storeKitConfiguration: StoreKit/Werkuno.storekit
+      # Käufe aus Xcode laufen über Apples Sandbox (Sandbox-Apple-Account auf dem Gerät), damit der
+      # Server sie wie in TestFlight und im App-Review annimmt. Für rein lokale Tests ohne App Store
+      # Connect: in Xcode unter Scheme › Run › Options „StoreKit/Werkuno.storekit“ wählen
+      # (nur gegen einen lokalen Server mit APPLE_IAP_ALLOW_XCODE=true).

@@ -54,10 +54,9 @@ enum StorePurchaseError: LocalizedError {
                 return Self.store("Der App Store hat den Kauf abgebrochen (\((underlying as NSError).domain) \((underlying as NSError).code)). Bitte versuche es in einem Moment erneut.")
             case .unsupported:
                 return Self.store("Käufe werden auf diesem Gerät nicht unterstützt.")
-            case .unknown:
-                return Self.store("Der App Store hat den Kauf abgebrochen. Bitte versuche es in einem Moment erneut.")
-            @unknown default:
-                return Self.store("Der App Store hat den Kauf abgebrochen. Bitte versuche es in einem Moment erneut.")
+            default:
+                // .unknown und Fälle neuerer iOS-Versionen
+                return Self.store("Der App Store hat den Kauf abgebrochen (\(String(describing: e))). Bitte versuche es in einem Moment erneut.")
             }
         }
         if let e = error as? Product.PurchaseError {
@@ -70,8 +69,8 @@ enum StorePurchaseError: LocalizedError {
                 return Self.store("Das Angebot konnte nicht angewendet werden. Bitte versuche es ohne Angebot erneut.")
             case .invalidQuantity:
                 return Self.store("Ungültige Menge für diesen Kauf.")
-            @unknown default:
-                return Self.store("Der App Store hat den Kauf abgebrochen. Bitte versuche es in einem Moment erneut.")
+            default:
+                return Self.store("Der App Store hat den Kauf abgebrochen (\(String(describing: e))). Bitte versuche es in einem Moment erneut.")
             }
         }
         return error
