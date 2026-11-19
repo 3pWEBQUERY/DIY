@@ -27,3 +27,13 @@ export function computeFees(subtotal: number, shipping: number, feeBps: number):
   const total = subtotal + shipping;
   return { subtotal, shipping, total, platformFee, sellerNet: total - platformFee };
 }
+
+/**
+ * Ungefähre Materialkosten aus Richtpreisen je Zeile. `null`, wenn keine Zeile einen Preis hat;
+ * `complete` sagt, ob alle Zeilen einen Preis haben (sonst „ab“).
+ */
+export function materialsCostEstimate(lines: { costMinor?: number | null }[]) {
+  const priced = lines.filter((l) => typeof l.costMinor === "number" && l.costMinor >= 0);
+  if (!priced.length) return null;
+  return { totalMinor: priced.reduce((a, l) => a + (l.costMinor as number), 0), complete: priced.length === lines.length, priced: priced.length };
+}
