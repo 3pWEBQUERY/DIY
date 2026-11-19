@@ -69,6 +69,10 @@ alle ganzen Franken von 1 bis 30 (30 Produkte; weitere Stufen zuerst in `APP_STO
 | Beschreibung (max. 45) | Schaufenster, Medienkit, Jahresstatistik | Schaufenster, Medienkit, Jahresstatistik |
 
 - Review-Screenshot: Bildschirm „Ich › Werkuno Studio › Creator Pro“ mit beiden Laufzeiten.
+- **Werbebild (Promotional Image, 1024×1024):** je Produkt ein **eigenes** Bild – Apple lehnt gleiche
+  Bilder ab (Guideline 2.3.2). Monatlich: `bilder/creator-pro-monatlich-1024.png`, jährlich:
+  `bilder/creator-pro-jaehrlich-1024.png`. Bei den digitalen Preisstufen **kein** Werbebild hochladen
+  (bzw. vorhandene löschen) – sie werden nicht im App Store beworben.
 - **Wichtig:** Die erste Version eines Abos und neue In-App-Käufe müssen **zusammen mit der App-Version**
   eingereicht werden (in der Version unter „In-App-Käufe und Abos“ hinzufügen).
 
@@ -256,7 +260,9 @@ Keine Testdaten mit „Test“, „Lorem ipsum“ o. ä. zeigen; keine Preise an
 - [ ] Beitrag, Projekt, Story erstellen; Story ansehen, Herz, Antwort
 - [ ] Melden und Blockieren aus Beitrag, Kommentar, Story, Event, Community, Gruppe
 - [ ] Digitales Produkt kaufen (Sandbox) → Download unter „Meine Bestellungen“; Flugmodus während des Kaufs → „wird verbucht“, danach automatisch verbucht
-- [ ] Creator Pro abonnieren (Sandbox), „Abo verwalten“, „Käufe wiederherstellen“
+- [ ] Creator Pro abonnieren (Sandbox), „Abo verwalten“, „Käufe wiederherstellen“ – **auch auf einem iPad**
+  (Apple prüft auf dem iPad). Scheitert ein Kauf, steht der genaue StoreKit-Fehler unter Admin › Fehler
+  (Quelle „CLIENT“, Pfad `ios/storekit`).
 - [ ] Physisches Produkt in den Warenkorb, Checkout öffnet Stripe im Browser-Fenster
 - [ ] Konto löschen (Testkonto)
 - [ ] Abmelden und mit anderem Konto anmelden → keine Daten des alten Kontos sichtbar

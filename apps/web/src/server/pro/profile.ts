@@ -1,5 +1,7 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { env } from "@/server/env";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import type { SessionUser } from "@/server/auth/session";
@@ -37,14 +39,38 @@ export async function featuredProjects(userId: string, ids: string[], viewerId: 
   return getProjectCards(ids.slice(0, FEATURED_MAX), viewerId);
 }
 
+/**
+ * Vorschau-Link für das eigene, noch private Medienkit. Die App öffnet das Medienkit in einem
+ * Browser-Fenster ohne Anmeldung – mit diesem kurzlebigen, signierten Zusatz sieht die Inhaberin
+ * es trotzdem. Gilt nur für dieses Konto und läuft nach 2 Stunden ab.
+ */
+const PREVIEW_TTL_MS = 2 * 60 * 60_000;
+function previewSig(userId: string, exp: number) {
+  return createHmac("sha256", env().SESSION_SECRET).update(`mediakit-preview:${userId}:${exp}`).digest("base64url").slice(0, 32);
+}
+export function mediaKitPreviewToken(userId: string, now = Date.now()) {
+  const exp = Math.floor((now + PREVIEW_TTL_MS) / 1000);
+  return `${exp.toString(36)}.${previewSig(userId, exp)}`;
+}
+export function isValidMediaKitPreview(token: string | null | undefined, userId: string, now = Date.now()) {
+  if (!token || typeof token !== "string" || token.length > 80) return false;
+  const [e, sig] = token.split(".");
+  const exp = parseInt(e ?? "", 36);
+  if (!sig || !Number.isFinite(exp) || exp * 1000 < now) return false;
+  const want = Buffer.from(previewSig(userId, exp));
+  const got = Buffer.from(sig);
+  return want.length === got.length && timingSafeEqual(want, got);
+}
+
 /** Medienkit: echte, erklärte Zahlen für Kooperationen (öffentlich nur mit Pro + Freigabe). */
-export async function getMediaKit(handle: string, viewerId: string | null | undefined) {
+export async function getMediaKit(handle: string, viewerId: string | null | undefined, opts: { preview?: string | null } = {}) {
   const profile = await db.userProfile.findUnique({
     where: { handle: handle.toLowerCase() },
     include: { user: { select: { id: true, status: true, createdAt: true, shop: { select: { slug: true, name: true, status: true, ratingAvg: true, ratingCount: true } } } } },
   });
   if (!profile || profile.user.status !== "ACTIVE") return null;
-  const isOwner = viewerId === profile.userId;
+  const preview = viewerId !== profile.userId && isValidMediaKitPreview(opts.preview, profile.userId);
+  const isOwner = viewerId === profile.userId || preview;
   const pro = await isPro(profile.userId);
   if (!pro || (!profile.mediaKitPublic && !isOwner)) return null;
   const userId = profile.userId;
@@ -58,6 +84,8 @@ export async function getMediaKit(handle: string, viewerId: string | null | unde
   const shop = profile.user.shop && ["ACTIVE", "PAUSED"].includes(profile.user.shop.status) ? profile.user.shop : null;
   return {
     isOwner,
+    /** Über den Vorschau-Link der App geöffnet (ohne Anmeldung im Browser) */
+    preview,
     public: profile.mediaKitPublic,
     profile: {
       handle: profile.handle,

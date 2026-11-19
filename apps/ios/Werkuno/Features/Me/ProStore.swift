@@ -37,34 +37,76 @@ final class ProStore {
 
     private var cache: [String: Product] = [:]
 
-    /// Abo-Produkte mit lokalisiertem Preis, Monat vor Jahr
+    /// Abo-Produkte mit lokalisiertem Preis, Monat vor Jahr. Ein zweiter Versuch fängt kurze
+    /// Aussetzer des App Stores ab; fehlen Produkte, geht eine Meldung an den Server.
     func products(_ ids: [String]) async -> [Product] {
+        var lastError: Error?
+        for attempt in 0..<2 {
+            let missing = ids.filter { cache[$0] == nil }
+            if missing.isEmpty { break }
+            if attempt > 0 { try? await Task.sleep(for: .milliseconds(800)) }
+            do {
+                for p in try await Product.products(for: missing) { cache[p.id] = p }
+                lastError = nil
+            } catch {
+                lastError = error
+            }
+        }
         let missing = ids.filter { cache[$0] == nil }
-        if !missing.isEmpty, let loaded = try? await Product.products(for: missing) {
-            for p in loaded { cache[p.id] = p }
+        if !missing.isEmpty {
+            StoreDiagnostics.report("pro.products_missing", error: lastError, productIds: missing)
         }
         return ids.compactMap { cache[$0] }.sorted { ($0.subscription?.subscriptionPeriod.unit == .year ? 1 : 0) < ($1.subscription?.subscriptionPeriod.unit == .year ? 1 : 0) }
     }
 
     func purchase(_ product: Product, offer: ProAppleOffer) async throws -> Outcome {
-        guard let token = UUID(uuidString: offer.appAccountToken) else { throw ProStoreError.unavailable }
-        let result = try await product.purchase(options: [.appAccountToken(token)])
+        guard let token = UUID(uuidString: offer.appAccountToken) else {
+            StoreDiagnostics.report("pro.invalid_token", error: nil, productIds: [product.id])
+            throw ProStoreError.unavailable
+        }
+        let result: Product.PurchaseResult
+        do {
+            result = try await product.purchaseInActiveScene(options: [.appAccountToken(token)])
+        } catch {
+            guard let mapped = StorePurchaseError.wrap(error) else {
+                StoreDiagnostics.reportInTesting("pro.purchase_cancelled_error", error: error, productIds: [product.id])
+                return .cancelled
+            }
+            StoreDiagnostics.report("pro.purchase_failed", error: error, productIds: [product.id])
+            throw mapped
+        }
         switch result {
         case .success(let verification):
-            try await deliver(verification)
+            do {
+                try await deliver(verification)
+            } catch {
+                // Apple hat abgebucht, der Server hat (noch) nicht verbucht: Transaktion bleibt offen und
+                // wird beim nächsten Start bzw. über `Transaction.updates` erneut gemeldet.
+                StoreDiagnostics.report("pro.deliver_failed", error: error, productIds: [product.id])
+                throw error
+            }
             return .purchased
         case .pending:
+            StoreDiagnostics.reportInTesting("pro.purchase_pending", error: nil, productIds: [product.id])
             return .pending
         case .userCancelled:
+            StoreDiagnostics.reportInTesting("pro.purchase_cancelled", error: nil, productIds: [product.id])
             return .cancelled
         @unknown default:
+            StoreDiagnostics.reportInTesting("pro.purchase_unknown_result", error: nil, productIds: [product.id])
             return .cancelled
         }
     }
 
     /// „Käufe wiederherstellen“: mit Apple abgleichen und das aktive Abo an den Server melden.
     func restore() async throws {
-        try await AppStore.sync()
+        do {
+            try await AppStore.sync()
+        } catch {
+            guard let mapped = StorePurchaseError.wrap(error) else { return }
+            StoreDiagnostics.report("pro.restore_failed", error: error)
+            throw mapped
+        }
         let delivered = try await syncEntitlements(quiet: false)
         if !delivered { throw ProStoreError.nothingToRestore }
     }
@@ -102,7 +144,10 @@ final class ProStore {
 
     /// Beim Server verbuchen und erst danach abschliessen – ein nicht bestätigter Kauf bleibt offen.
     private func deliver(_ verification: VerificationResult<Transaction>) async throws {
-        if case .unverified = verification { throw ProStoreError.unverified }
+        if case .unverified(_, let reason) = verification {
+            StoreDiagnostics.report("pro.unverified", error: reason)
+            throw ProStoreError.unverified
+        }
         let transaction = verification.unsafePayloadValue
         var body: [String: JSONValue] = ["signedTransaction": .string(verification.jwsRepresentation)]
         if let status = await transaction.subscriptionStatus {

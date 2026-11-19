@@ -1,0 +1,38 @@
+name: iOS
+
+# Baut die iOS-App für den Simulator, sobald sich etwas unter apps/ios ändert – damit Kompilierfehler
+# auffallen, bevor ein Build zu App Store Connect hochgeladen wird.
+on:
+  push:
+    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: iOS-Build (Simulator)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+      - name: Projekt erzeugen
+        working-directory: apps/ios
+        run: xcodegen generate
+      - name: Xcode-Version
+        run: xcodebuild -version
+      - name: Bauen
+        working-directory: apps/ios
+        run: |
+          set +e
+          xcodebuild -project Werkuno.xcodeproj -scheme Werkuno -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1
+          code=$?
+          grep -E "error:|BUILD (SUCCEEDED|FAILED)" build.log | tail -80
+          exit $code

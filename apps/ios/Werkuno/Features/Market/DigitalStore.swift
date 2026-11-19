@@ -111,6 +111,7 @@ final class DigitalStore {
 
         let intent: MarketIAPIntent = try await APIClient.shared.post("/iap/intent", ["productId": JSONValue.string(productId)])
         guard let token = UUID(uuidString: intent.appAccountToken), let product = await product(intent.appleProductId) else {
+            StoreDiagnostics.report("digital.product_missing", error: nil, productIds: [intent.appleProductId])
             throw DigitalStoreError.unavailable
         }
         // Token → Produkt merken, damit offene Transaktionen (gleiche Apple-Preisstufe für viele
@@ -118,16 +119,19 @@ final class DigitalStore {
         remember(token: token, productId: productId)
         let result: Product.PurchaseResult
         do {
-            result = try await product.purchase(options: [.appAccountToken(token)])
+            result = try await product.purchaseInActiveScene(options: [.appAccountToken(token)])
         } catch {
             forget(token: token)
-            throw error
+            guard let mapped = StorePurchaseError.wrap(error) else { return .cancelled }
+            StoreDiagnostics.report("digital.purchase_failed", error: error, productIds: [intent.appleProductId])
+            throw mapped
         }
         switch result {
         case .success(let verification):
             do {
                 return .purchased(try await deliver(verification))
             } catch {
+                StoreDiagnostics.report("digital.deliver_failed", error: error, productIds: [intent.appleProductId])
                 // Apple hat bereits kassiert: Transaktion bleibt offen und wird später verbucht
                 #if DEBUG
                 print("Kauf bezahlt, Verbuchung ausstehend: \(error.localizedDescription)")
