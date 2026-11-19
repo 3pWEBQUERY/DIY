@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { ANNOUNCEMENT_PLACEMENTS, ANNOUNCEMENT_TONES, type AnnouncementPlacement, type AnnouncementTone } from "@werkraum/shared";
+import { ANNOUNCEMENT_PLACEMENTS, type AnnouncementPlacement } from "@werkraum/shared";
 import { adminPage } from "@/server/admin/guard";
-import { getAnnouncement } from "@/server/announcements/service";
+import { announcementStyleOf, getAnnouncement } from "@/server/announcements/service";
 import { AdminHeader } from "@/components/admin/ui";
 import { AnnouncementEditor } from "@/components/admin/announcement-editor";
 
@@ -30,7 +30,10 @@ export default async function EditAnnouncementPage({ params }: { params: Promise
           title: row?.title ?? "",
           body: row?.body ?? "",
           emoji: row?.emoji ?? "",
-          tone: row && row.tone in ANNOUNCEMENT_TONES ? (row.tone as AnnouncementTone) : "coral",
+          ...(row
+            ? announcementStyleOf(row)
+            : { tone: "coral" as const, titleFont: "werkuno" as const, bodyFont: "werkuno" as const, titleSize: "m" as const, bodySize: "m" as const, textColor: "", bgMode: "tone" as const, bgColor: "", bgImageUrl: null, bgOverlay: 45, bgImageLight: "#FFFFFF", bgPosition: "center" as const }),
+          bgMediaId: row?.bgMediaId ?? "",
           ctaLabel: row?.ctaLabel ?? "",
           ctaHref: row?.ctaHref ?? "",
           placements: (row?.placements ?? ["feed"]).filter((p): p is AnnouncementPlacement => (ANNOUNCEMENT_PLACEMENTS as readonly string[]).includes(p)),

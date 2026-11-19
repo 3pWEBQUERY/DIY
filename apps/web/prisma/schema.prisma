@@ -2451,6 +2451,23 @@ model Announcement {
   emoji       String    @default("")
   /// Farbpaar aus ANNOUNCEMENT_TONES (Hintergrund + Schrift)
   tone        String    @default("coral")
+  /// Gestaltung (ANNOUNCEMENT_FONTS, ANNOUNCEMENT_*_SIZES); leere Farben = automatisch
+  titleFont   String    @default("werkuno")
+  bodyFont    String    @default("werkuno")
+  titleSize   String    @default("m")
+  bodySize    String    @default("m")
+  textColor   String    @default("")
+  /// tone | color | image
+  bgMode      String    @default("tone")
+  bgColor     String    @default("")
+  /// Hintergrundbild: Medium (für die Medien-Bereinigung) und die beim Speichern ermittelte Adresse
+  bgMediaId   String?
+  bgImageUrl  String?
+  /// Abdunkeln des Bildes in Prozent (0–85)
+  bgOverlay   Int       @default(45)
+  /// Helle Stelle des Bildes (beim Hochladen gemessen) für die Kontrastprüfung
+  bgImageLight String   @default("#FFFFFF")
+  bgPosition  String    @default("center")
   ctaLabel    String    @default("")
   ctaHref     String    @default("")
   /// Seiten: feed | landing | market | discover
@@ -2469,4 +2486,5 @@ model Announcement {
   updatedAt   DateTime  @updatedAt
 
   @@index([isActive, position])
+  @@index([bgMediaId])
 }

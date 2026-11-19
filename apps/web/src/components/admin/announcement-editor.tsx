@@ -1,17 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   ANNOUNCEMENT_BODY_MAX,
   ANNOUNCEMENT_CTA_MAX,
   ANNOUNCEMENT_PLACEMENTS,
   ANNOUNCEMENT_PLACEMENT_LABEL,
   ANNOUNCEMENT_TITLE_MAX,
-  ANNOUNCEMENT_TONES,
-  ANNOUNCEMENT_TONE_KEYS,
+  announcementColors,
   type AnnouncementPlacement,
-  type AnnouncementTone,
 } from "@werkraum/shared";
 import { useAction } from "@/lib/use-action";
 import { Button } from "@/components/ui/button";
@@ -19,14 +17,14 @@ import { Checkbox, Field, FieldError, Input } from "@/components/ui/field";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { EMOJI_FONT, EmojiPicker } from "@/components/ui/emoji-picker";
 import { AnnouncementCard } from "@/components/announcements/announcement-banner";
+import { AnnouncementDesignControls, type AnnouncementDesign } from "@/components/admin/announcement-design";
 import { cn } from "@/lib/utils";
 import { saveAnnouncementAction } from "@/app/admin/ankuendigungen/actions";
 
-export type AnnouncementEditorValues = {
+export type AnnouncementEditorValues = AnnouncementDesign & {
   title: string;
   body: string;
   emoji: string;
-  tone: AnnouncementTone;
   ctaLabel: string;
   ctaHref: string;
   placements: AnnouncementPlacement[];
@@ -76,6 +74,8 @@ export function AnnouncementEditor({ id, initial }: { id: string | null; initial
     setEdited((e) => (e.has(k) ? e : new Set(e).add(k)));
   };
 
+  const setDesign = <K extends keyof AnnouncementDesign>(k: K, val: AnnouncementDesign[K]) => set(k, val as (typeof v)[K]);
+
   function insertIntoTitle(emoji: string) {
     const el = titleRef.current;
     const start = el?.selectionStart ?? v.title.length;
@@ -93,7 +93,7 @@ export function AnnouncementEditor({ id, initial }: { id: string | null; initial
     set("placements", v.placements.includes(p) ? v.placements.filter((x) => x !== p) : ANNOUNCEMENT_PLACEMENTS.filter((x) => x === p || v.placements.includes(x)));
   }
 
-  const tone = ANNOUNCEMENT_TONES[v.tone];
+  const colors = announcementColors(v);
   const titleCount = [...v.title].length;
 
   return (
@@ -108,6 +108,17 @@ export function AnnouncementEditor({ id, initial }: { id: string | null; initial
           body: v.body,
           emoji: v.emoji,
           tone: v.tone,
+          titleFont: v.titleFont,
+          bodyFont: v.bodyFont,
+          titleSize: v.titleSize,
+          bodySize: v.bodySize,
+          textColor: v.textColor,
+          bgMode: v.bgMode,
+          bgColor: v.bgColor,
+          bgMediaId: v.bgMediaId,
+          bgOverlay: v.bgOverlay,
+          bgImageLight: v.bgImageLight,
+          bgPosition: v.bgPosition,
           ctaLabel: v.ctaLabel,
           ctaHref: v.ctaHref,
           placements: v.placements,
@@ -135,7 +146,7 @@ export function AnnouncementEditor({ id, initial }: { id: string | null; initial
               Symbol <span className="ml-1.5 font-normal text-muted">optional</span>
             </p>
             <div className="flex items-center gap-3">
-              <span aria-hidden className="grid size-12 place-items-center rounded-2xl text-[28px] leading-none" style={{ background: tone.bg, color: tone.fg, fontFamily: EMOJI_FONT }}>
+              <span aria-hidden className="grid size-12 place-items-center rounded-2xl text-[28px] leading-none" style={{ background: colors.bg, color: colors.fg, fontFamily: EMOJI_FONT }}>
                 {v.emoji || <span className="text-[13px] font-semibold opacity-70">–</span>}
               </span>
               <span className="flex items-center gap-1 rounded-xl border border-line px-1 py-1">
@@ -156,31 +167,8 @@ export function AnnouncementEditor({ id, initial }: { id: string | null; initial
           </Field>
         </Section>
 
-        <Section title="Hintergrund" hint="Farben aus der Werkuno-Palette. Die Schrift passt sich automatisch an und bleibt lesbar.">
-          <div role="radiogroup" aria-label="Hintergrundfarbe" className="flex flex-wrap gap-2.5">
-            {ANNOUNCEMENT_TONE_KEYS.map((k) => {
-              const t = ANNOUNCEMENT_TONES[k];
-              const on = v.tone === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => set("tone", k)}
-                  className={cn("group flex flex-col items-center gap-1.5 rounded-xl p-1 focus-visible:outline-2 focus-visible:outline-ink")}
-                >
-                  <span
-                    className={cn("grid size-12 place-items-center rounded-xl border text-[15px] font-bold transition-[box-shadow]", on ? "border-ink ring-2 ring-ink ring-offset-2 ring-offset-paper" : "border-line group-hover:border-line-strong")}
-                    style={{ background: t.bg, color: t.fg }}
-                  >
-                    {on ? <Check size={18} strokeWidth={2.6} aria-hidden /> : "Aa"}
-                  </span>
-                  <span className={cn("text-[12px]", on ? "font-semibold text-ink" : "text-muted")}>{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        <Section title="Gestaltung" hint="Hintergrund, Schrift und Farben. Die Vorschau zeigt sofort, wie es aussieht.">
+          <AnnouncementDesignControls d={v} set={setDesign} errors={fields} />
         </Section>
 
         <Section title="Button" hint="Optional. Beides ausfüllen oder beides leer lassen.">
@@ -249,13 +237,10 @@ export function AnnouncementEditor({ id, initial }: { id: string | null; initial
         <p className="spec mb-2">Vorschau</p>
         <AnnouncementCard
           a={{
+            ...v,
             title: v.title.trim() || "Titel der Ankündigung",
-            body: v.body,
-            emoji: v.emoji,
-            tone: v.tone,
             ctaLabel: v.ctaLabel.trim(),
             ctaHref: v.ctaHref.trim(),
-            dismissible: v.dismissible,
           }}
           onDismiss={() => {}}
         />

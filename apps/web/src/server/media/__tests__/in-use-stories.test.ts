@@ -13,6 +13,7 @@ const m = vi.hoisted(() => {
       project: { findMany: list() },
       product: { findMany: list() },
       story: { findMany: list() },
+      announcement: { findMany: list() },
       userProfile: { findMany: list() },
       tutorial: { findMany: list() },
       blogArticle: { findMany: list() },
@@ -46,5 +47,13 @@ describe("mediaInUse", () => {
     expect(used.has("m1")).toBe(true);
     expect(used.has("m2")).toBe(false);
     expect(m.db.story.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { mediaId: { in: ["m1", "m2"] }, state: { not: "REMOVED" } } }));
+  });
+
+  it("zählt Hintergrundbilder von Ankündigungen als Verwendung", async () => {
+    m.db.story.findMany.mockResolvedValue([]);
+    m.db.announcement.findMany.mockResolvedValue([{ bgMediaId: "m2" }]);
+    const used = await mediaInUse(["m1", "m2"]);
+    expect(used.has("m2")).toBe(true);
+    expect(used.has("m1")).toBe(false);
   });
 });

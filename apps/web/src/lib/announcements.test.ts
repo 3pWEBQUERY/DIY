@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementSchema, announcementStatus, isAllowedAnnouncementHref, isAnnouncementLive, isSingleEmoji } from "@werkraum/shared";
+import { announcementColors, announcementSchema, announcementStatus, isAllowedAnnouncementHref, isAnnouncementLive, isSingleEmoji, type AnnouncementStyle } from "@werkraum/shared";
 import { EMOJI_GROUPS, emojiName, searchEmoji } from "./emoji-data";
 
 const base = { title: "Wartung am Sonntag", placements: ["feed"] };
@@ -84,5 +84,52 @@ describe("Emoji-Suche", () => {
       for (const e of list) expect(isSingleEmoji(e), `${g.id}: ${e}`).toBe(true);
     }
     expect(emojiName("🎉")).not.toBe("Emoji");
+  });
+});
+
+describe("Gestaltung", () => {
+  it("nimmt Schrift, Grössen und Farben an und setzt Standards", () => {
+    const a = announcementSchema.parse(base);
+    expect(a).toMatchObject({ titleFont: "werkuno", bodyFont: "werkuno", titleSize: "m", bodySize: "m", textColor: "", bgMode: "tone", bgColor: "", bgMediaId: "", bgOverlay: 45, bgImageLight: "#FFFFFF", bgPosition: "center" });
+    const b = announcementSchema.parse({ ...base, titleFont: "hand", bodyFont: "serif", titleSize: "xl", bodySize: "l", textColor: "#F2D58A", bgMode: "color", bgColor: "#123456" });
+    expect(b).toMatchObject({ titleFont: "hand", titleSize: "xl", textColor: "#F2D58A", bgColor: "#123456" });
+  });
+
+  it("weist ungültige Werte ab", () => {
+    for (const bad of [{ titleFont: "comic" }, { titleSize: "xxl" }, { textColor: "red" }, { textColor: "#12345" }, { bgColor: "url(x)" }, { bgOverlay: 95 }, { bgPosition: "left" }]) {
+      expect(announcementSchema.safeParse({ ...base, ...bad }).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+
+  it("verlangt Farbe bzw. Bild zum gewählten Hintergrund", () => {
+    expect(announcementSchema.safeParse({ ...base, bgMode: "color" }).success).toBe(false);
+    expect(announcementSchema.safeParse({ ...base, bgMode: "image" }).success).toBe(false);
+    expect(announcementSchema.safeParse({ ...base, bgMode: "image", bgMediaId: "cm123" }).success).toBe(true);
+  });
+
+  const style = (s: Partial<AnnouncementStyle>): AnnouncementStyle => ({ tone: "coral", bgMode: "tone", bgColor: "", bgImageUrl: null, bgOverlay: 45, textColor: "", ...s });
+
+  it("wählt automatisch lesbare Schrift auf eigener Farbe", () => {
+    expect(announcementColors(style({ bgMode: "color", bgColor: "#F2D58A" })).fg).toBe("#262427");
+    expect(announcementColors(style({ bgMode: "color", bgColor: "#123456" })).fg).toBe("#FFFFFF");
+    expect(announcementColors(style({ bgMode: "color", bgColor: "#123456" })).contrast).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("meldet zu wenig Kontrast bei eigener Schriftfarbe", () => {
+    expect(announcementColors(style({ bgMode: "color", bgColor: "#FFFFFF", textColor: "#F2D58A" })).contrast).toBeLessThan(4.5);
+    expect(announcementColors(style({ tone: "ink", textColor: "#FAF8F5" })).contrast).toBeGreaterThan(10);
+  });
+
+  it("rechnet auf Bildern mit der hellsten Stelle unter der Abdunkelung", () => {
+    const weak = announcementColors(style({ bgMode: "image", bgImageUrl: "https://x/y.webp", bgOverlay: 10 }));
+    const strong = announcementColors(style({ bgMode: "image", bgImageUrl: "https://x/y.webp", bgOverlay: 65 }));
+    // Gemessenes, eher dunkles Bild braucht weniger Abdunkelung
+    expect(announcementColors(style({ bgMode: "image", bgImageUrl: "https://x/y.webp", bgOverlay: 30, bgImageLight: "#8A7F74" })).contrast).toBeGreaterThanOrEqual(4.5);
+    expect(announcementColors(style({ bgMode: "image", bgImageUrl: "https://x/y.webp", bgOverlay: 30 })).contrast).toBeLessThan(4.5);
+    expect(weak.image).toBe(true);
+    expect(weak.contrast).toBeLessThan(4.5);
+    expect(strong.contrast).toBeGreaterThanOrEqual(4.5);
+    // Ohne Bild-Adresse gilt die Palettenfarbe
+    expect(announcementColors(style({ bgMode: "image" })).image).toBe(false);
   });
 });

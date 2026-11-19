@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, X } from "lucide-react";
-import { ANNOUNCEMENT_TONES } from "@werkraum/shared";
+import { ANNOUNCEMENT_BODY_SIZES, ANNOUNCEMENT_FONTS, ANNOUNCEMENT_TITLE_SIZES, announcementColors } from "@werkraum/shared";
+// Schriften für Ankündigungen (selbst gehostet; der Browser lädt nur die tatsächlich verwendete)
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/space-grotesk";
+import "@fontsource-variable/caveat";
+import "@fontsource-variable/jetbrains-mono";
 import { FormattedText } from "@/components/ui/formatted-text";
 import { EMOJI_FONT } from "@/components/ui/emoji-picker";
 import { cn } from "@/lib/utils";
@@ -23,15 +28,35 @@ function readHidden(): string[] {
 
 /** Darstellung einer Ankündigung (auch Vorschau im Admin-Bereich) */
 export function AnnouncementCard({ a, onDismiss, className }: { a: Omit<AnnouncementView, "id" | "version">; onDismiss?: () => void; className?: string }) {
-  const tone = ANNOUNCEMENT_TONES[a.tone];
+  const c = announcementColors(a);
+  const titleFont = ANNOUNCEMENT_FONTS[a.titleFont];
+  const bodyFont = ANNOUNCEMENT_FONTS[a.bodyFont];
+  const [t1, t2] = ANNOUNCEMENT_TITLE_SIZES[a.titleSize].rem;
   const external = /^https:/i.test(a.ctaHref);
   return (
     <section
       aria-label={`Ankündigung: ${a.title}`}
-      className={cn("relative rounded-2xl bg-[var(--ann-bg)] px-5 py-5 text-[var(--ann-fg)] sm:px-7 sm:py-6", className)}
-      style={{ "--ann-bg": tone.bg, "--ann-fg": tone.fg } as React.CSSProperties}
+      className={cn("relative isolate overflow-hidden rounded-2xl bg-[var(--ann-bg)] text-[var(--ann-fg)]", c.image && "flex min-h-[200px] items-end sm:min-h-[240px]", className)}
+      style={
+        {
+          "--ann-bg": c.bg,
+          "--ann-fg": c.fg,
+          "--ann-btn-bg": c.buttonBg,
+          "--ann-btn-fg": c.buttonFg,
+          "--ann-t1": `${t1 * titleFont.scale}rem`,
+          "--ann-t2": `${t2 * titleFont.scale}rem`,
+        } as React.CSSProperties
+      }
     >
-      <div className={cn("flex items-start gap-4 sm:gap-5", a.dismissible && onDismiss && "pr-9")}>
+      {c.image && (
+        <>
+          {/* Schmuckbild – der Inhalt steht im Text */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={a.bgImageUrl!} alt="" aria-hidden className="absolute inset-0 -z-20 size-full object-cover" style={{ objectPosition: `center ${a.bgPosition}` }} />
+          <span aria-hidden className="absolute inset-0 -z-10" style={{ background: `rgba(38, 36, 39, ${c.overlay})` }} />
+        </>
+      )}
+      <div className={cn("flex w-full items-start gap-4 px-5 py-5 sm:gap-5 sm:px-7 sm:py-6", a.dismissible && onDismiss && "pr-12 sm:pr-14")}>
         {a.emoji && (
           <span
             aria-hidden
@@ -42,13 +67,22 @@ export function AnnouncementCard({ a, onDismiss, className }: { a: Omit<Announce
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <h2 className="headline text-[1.3rem] leading-tight text-balance sm:text-[1.55rem]">{a.title}</h2>
-          {a.body && <FormattedText text={a.body} className="mt-2 max-w-[62ch] text-[15px] leading-relaxed [&_a]:!text-current [&_a]:!decoration-current [&_strong]:!text-current [&_li]:marker:!text-current" />}
+          <h2
+            className={cn("text-[length:var(--ann-t1)] leading-[1.12] text-balance sm:text-[length:var(--ann-t2)]", a.titleFont === "hand" ? "font-bold" : a.titleFont === "serif" ? "font-semibold tracking-[-0.01em]" : "font-extrabold tracking-[-0.02em]")}
+            style={{ fontFamily: titleFont.css }}
+          >
+            {a.title}
+          </h2>
+          {a.body && (
+            <div style={{ fontFamily: bodyFont.css, fontSize: `${ANNOUNCEMENT_BODY_SIZES[a.bodySize].rem * bodyFont.scale}rem` }}>
+              <FormattedText text={a.body} className="mt-2 max-w-[62ch] leading-relaxed [&_a]:!text-current [&_a]:!decoration-current [&_strong]:!text-current [&_li]:marker:!text-current" />
+            </div>
+          )}
           {a.ctaLabel && a.ctaHref && (
             <Link
               href={a.ctaHref}
               {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-              className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--ann-fg)] px-4 text-[14px] font-semibold text-[var(--ann-bg)] transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ann-fg)]"
+              className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--ann-btn-bg)] px-4 text-[14px] font-semibold text-[var(--ann-btn-fg)] transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ann-fg)]"
             >
               {a.ctaLabel} <ArrowRight size={15} aria-hidden />
             </Link>
