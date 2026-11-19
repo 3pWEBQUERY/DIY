@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnnouncementSlot } from "@/components/announcements/announcement-slot";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ArrowRight, Bookmark, Plus, Sparkles, Users } from "lucide-react";
@@ -150,6 +151,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
 
   return (
     <Page aside={aside}>
+      <AnnouncementSlot placement="feed" className="mb-6" />
       <div className="mb-6 flex items-end justify-between">
         <div>
           <p className="spec">{new Date().toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Zurich" })}</p>

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AnnouncementSlot } from "@/components/announcements/announcement-slot";
 import { JsonLd } from "@/components/projects/json-ld";
 import { siteJsonLd, OG_BASE } from "@/config/seo";
 import Link from "next/link";
@@ -382,6 +383,10 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
             <span className="font-semibold">Dein Konto wurde gelöscht.</span> Profil, Beiträge und Projekte werden entfernt. Danke, dass du dabei warst.
           </div>
         )}
+        {/* Ankündigung über allem – auf dem Handy über dem Willkommensbildschirm */}
+        <div className="mx-auto max-w-[1240px] px-4 pt-4 empty:hidden sm:px-8 md:pt-6">
+          <AnnouncementSlot placement="landing" />
+        </div>
         <MobileWelcome apple={features_.apple()} pinterest={features_.pinterest()} beta={!!(await getSetting("app.testflightUrl").catch(() => ""))} />
         <div className="hidden md:block">
         {/* ── Hero ───────────────────────────────────────── */}

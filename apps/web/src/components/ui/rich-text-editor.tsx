@@ -5,6 +5,7 @@ import { Bold, Italic, Link2, List, ListOrdered, Unlink } from "lucide-react";
 import { markupHref, parseInline, safeHref, type Inline } from "@/lib/inline-marks";
 import { parseRichBlocks } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
+import { EmojiPicker } from "./emoji-picker";
 
 /**
  * WYSIWYG-Editor für Produktbeschreibung, Sicherheitshinweise und Rückgabe: fett, kursiv, Aufzählungen,
@@ -146,6 +147,8 @@ type Props = {
   placeholder?: string;
   maxLength?: number;
   minHeight?: number;
+  /** Emoji-Knopf in der Werkzeugleiste */
+  emoji?: boolean;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean;
 };
@@ -157,8 +160,10 @@ const TOOLS = [
   { cmd: "insertOrderedList", label: "Nummerierte Liste", icon: ListOrdered },
 ] as const;
 
-export function RichTextEditor({ id, value, onChange, placeholder, maxLength, minHeight = 120, ...aria }: Props) {
+export function RichTextEditor({ id, value, onChange, placeholder, maxLength, minHeight = 120, emoji = false, ...aria }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  /** Letzte Einfügestelle im Editor – der Emoji-Picker nimmt den Fokus, das Emoji kommt trotzdem dorthin */
+  const caret = useRef<Range | null>(null);
   const emitted = useRef<string | null>(null);
   const savedRange = useRef<Range | null>(null);
   const [active, setActive] = useState<Record<string, boolean>>({});
@@ -189,6 +194,7 @@ export function RichTextEditor({ id, value, onChange, placeholder, maxLength, mi
     const el = ref.current;
     const sel = document.getSelection();
     if (!el || !sel || !sel.anchorNode || !el.contains(sel.anchorNode)) return;
+    if (sel.rangeCount) caret.current = sel.getRangeAt(0).cloneRange();
     const next: Record<string, boolean> = {};
     for (const t of TOOLS) {
       try {
@@ -252,6 +258,26 @@ export function RichTextEditor({ id, value, onChange, placeholder, maxLength, mi
     emit();
   };
 
+  const insertEmoji = (e: string) => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const sel = document.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      if (caret.current && el.contains(caret.current.startContainer)) sel.addRange(caret.current);
+      else {
+        // Noch nie geklickt: ans Ende
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        r.collapse(false);
+        sel.addRange(r);
+      }
+    }
+    document.execCommand("insertText", false, e);
+    emit();
+  };
+
   const length = emitted.current?.length ?? value.length;
 
   return (
@@ -281,6 +307,7 @@ export function RichTextEditor({ id, value, onChange, placeholder, maxLength, mi
             <Link2 size={16} strokeWidth={2.2} aria-hidden />
           </button>
         )}
+        {emoji && <EmojiPicker onPick={insertEmoji} keepFocus />}
         {maxLength && length > maxLength * 0.8 && (
           <span className={cn("ml-auto pr-1.5 font-mono text-[11px]", length > maxLength ? "text-danger" : "text-muted")} aria-live="polite">
             {length}/{maxLength}

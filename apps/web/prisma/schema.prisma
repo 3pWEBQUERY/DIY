@@ -350,6 +350,8 @@ model User {
   storyHighlights StoryHighlight[]
   storyMutes      StoryMute[] @relation("storyMuter")
   storyMutedBy    StoryMute[] @relation("storyMuted")
+  announcementsCreated Announcement[] @relation("announcementsCreated")
+  announcementsUpdated Announcement[] @relation("announcementsUpdated")
 }
 
 model UserProfile {
@@ -2437,4 +2439,34 @@ model StoryMute {
   createdAt DateTime @default(now())
 
   @@id([muterId, mutedId])
+}
+
+/// Ankündigung der Plattform als Mini-Hero oben auf ausgewählten Seiten (Admin → Ankündigungen).
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  /// Auszeichnung aus dem WYSIWYG-Editor (src/lib/rich-text.ts), nie HTML
+  body        String    @default("")
+  /// Optional: ein Emoji als Bildzeichen links
+  emoji       String    @default("")
+  /// Farbpaar aus ANNOUNCEMENT_TONES (Hintergrund + Schrift)
+  tone        String    @default("coral")
+  ctaLabel    String    @default("")
+  ctaHref     String    @default("")
+  /// Seiten: feed | landing | market | discover
+  placements  String[]
+  startsAt    DateTime?
+  endsAt      DateTime?
+  dismissible Boolean   @default(true)
+  isActive    Boolean   @default(false)
+  /// Kleinere Zahl = weiter oben (bei mehreren gleichzeitig aktiven)
+  position    Int       @default(0)
+  createdById String?
+  createdBy   User?     @relation("announcementsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?     @relation("announcementsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive, position])
 }
