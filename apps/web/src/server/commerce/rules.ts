@@ -83,10 +83,27 @@ export function shippingForLines(lines: Pick<PricedLine, "shippingMinor" | "isDi
   return lines.filter((l) => !l.isDigital).reduce((max, l) => Math.max(max, l.shippingMinor), 0);
 }
 
-export type ShopTotals<L extends PricedLine> = { shopId: string; lines: L[]; fees: FeeBreakdown };
+export type ShopTotals<L extends PricedLine> = {
+  shopId: string;
+  lines: L[];
+  /** Warenwert vor Rabatt */
+  subtotal: number;
+  /** Rabatt auf den Warenwert (Sets, Gutschein); `fees` ist bereits auf den Warenwert nach Rabatt gerechnet */
+  discount: number;
+  fees: FeeBreakdown;
+};
 
-/** Gruppiert Positionen je Shop (→ eine Bestellung pro Shop) und berechnet Gebühren transparent. */
-export function groupByShop<L extends PricedLine>(lines: L[], feeBps: number | ((shopId: string) => number)): ShopTotals<L>[] {
+/**
+ * Gruppiert Positionen je Shop (→ eine Bestellung pro Shop) und berechnet Gebühren transparent.
+ * `discountFor` liefert den Rabatt je Shop; er wird auf den Warenwert begrenzt und so, dass die
+ * Bestellung den Mindestbetrag des Zahlungsanbieters nicht unterschreitet. Die Provision gilt
+ * auf den Warenwert nach Rabatt – den Rabatt trägt der Shop.
+ */
+export function groupByShop<L extends PricedLine>(
+  lines: L[],
+  feeBps: number | ((shopId: string) => number),
+  discountFor?: (shopId: string, lines: L[], subtotal: number) => number,
+): ShopTotals<L>[] {
   const groups = new Map<string, L[]>();
   for (const l of lines) {
     if (!Number.isInteger(l.quantity) || l.quantity < 1) throw new Error("Ungültige Menge");
@@ -96,16 +113,134 @@ export function groupByShop<L extends PricedLine>(lines: L[], feeBps: number | (
   }
   return [...groups.entries()].map(([shopId, ls]) => {
     const subtotal = ls.reduce((s, l) => s + l.unitMinor * l.quantity, 0);
-    return { shopId, lines: ls, fees: computeFees(subtotal, shippingForLines(ls), typeof feeBps === "function" ? feeBps(shopId) : feeBps) };
+    const shipping = shippingForLines(ls);
+    const discount = clampDiscount(discountFor ? discountFor(shopId, ls, subtotal) : 0, subtotal, shipping);
+    return { shopId, lines: ls, subtotal, discount, fees: computeFees(subtotal - discount, shipping, typeof feeBps === "function" ? feeBps(shopId) : feeBps) };
   });
 }
 
-/** Summe mehrerer Shop-Bestellungen (Anzeige im Warenkorb). */
-export function grandTotal(groups: { fees: FeeBreakdown }[]) {
+/** Summe mehrerer Shop-Bestellungen (Anzeige im Warenkorb). `subtotal` = Warenwert vor Rabatt. */
+export function grandTotal(groups: { fees: FeeBreakdown; subtotal?: number; discount?: number }[]) {
   return groups.reduce(
-    (a, g) => ({ subtotal: a.subtotal + g.fees.subtotal, shipping: a.shipping + g.fees.shipping, total: a.total + g.fees.total }),
-    { subtotal: 0, shipping: 0, total: 0 },
+    (a, g) => ({
+      subtotal: a.subtotal + (g.subtotal ?? g.fees.subtotal),
+      discount: a.discount + (g.discount ?? 0),
+      shipping: a.shipping + g.fees.shipping,
+      total: a.total + g.fees.total,
+    }),
+    { subtotal: 0, discount: 0, shipping: 0, total: 0 },
   );
+}
+
+/* ───────────────────────── Rabatte: Gutscheine und Sets ───────────────────────── */
+
+/** Mindestbetrag einer Zahlung (Stripe: CHF/EUR 0.50). Rabatte drücken eine Bestellung nie darunter. */
+export const MIN_CHARGE_MINOR = 50;
+
+/** Rabatt begrenzen: nicht negativ, nicht über dem Warenwert, Gesamtbetrag bleibt ≥ Mindestbetrag. */
+export function clampDiscount(discount: number, subtotal: number, shipping: number) {
+  if (!Number.isFinite(discount) || discount <= 0) return 0;
+  const room = Math.max(0, subtotal + shipping - MIN_CHARGE_MINOR);
+  return Math.min(Math.round(discount), subtotal, room);
+}
+
+export type CouponRule = {
+  code: string;
+  kind: "PERCENT" | "FIXED";
+  value: number;
+  minSubtotalMinor: number;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  maxUses: number | null;
+  usedCount: number;
+  onePerBuyer: boolean;
+  active: boolean;
+};
+
+/**
+ * Warum ein Gutschein gerade nicht gilt – oder `null`. `buyerUses` = bisherige Einlösungen dieses
+ * Kontos (offene oder bezahlte Bestellungen); `subtotal` = Warenwert, auf den er angewendet wird.
+ */
+export function couponProblem(c: CouponRule, ctx: { now: Date; subtotal: number; buyerUses: number; fmt: (minor: number) => string }) {
+  if (!c.active) return "Dieser Gutschein ist nicht mehr gültig.";
+  if (c.startsAt && c.startsAt > ctx.now) return `Dieser Gutschein gilt erst ab ${c.startsAt.toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Zurich" })}.`;
+  if (c.endsAt && c.endsAt < ctx.now) return "Dieser Gutschein ist abgelaufen.";
+  if (c.maxUses != null && c.usedCount >= c.maxUses) return "Dieser Gutschein ist bereits vergeben.";
+  if (c.onePerBuyer && ctx.buyerUses > 0) return "Du hast diesen Gutschein bereits eingelöst.";
+  if (ctx.subtotal < c.minSubtotalMinor) return `Gilt ab einem Warenwert von ${ctx.fmt(c.minSubtotalMinor)} in diesem Shop.`;
+  return null;
+}
+
+/** Gutscheinrabatt auf einen Warenwert (ohne Prüfung der Gültigkeit). */
+export function couponAmount(c: Pick<CouponRule, "kind" | "value">, subtotal: number) {
+  if (subtotal <= 0) return 0;
+  const d = c.kind === "PERCENT" ? Math.round((subtotal * c.value) / 100) : c.value;
+  return Math.max(0, Math.min(subtotal, d));
+}
+
+/** Kurzbeschreibung eines Gutscheins: „10 %“ bzw. „CHF 5.00“. */
+export function couponValueLabel(c: Pick<CouponRule, "kind" | "value">, fmt: (minor: number) => string) {
+  return c.kind === "PERCENT" ? `${c.value} %` : fmt(c.value);
+}
+
+export type BundleRule = { id: string; title: string; discountPct: number; items: { productId: string; quantity: number }[] };
+export type BundleLine = { productId: string; variantId?: string | null; unitMinor: number; quantity: number };
+
+/**
+ * Set-Rabatte: Ein Set gilt, wenn alle Teile (ohne Variante) mindestens in der Set-Menge im
+ * Warenkorb liegen. Jede Einheit zählt höchstens für ein Set; Rabatt = Prozent auf den Set-Anteil.
+ * Reihenfolge der Sets = Reihenfolge, in der sie in den Warenkorb kamen.
+ */
+export function applyBundles(lines: BundleLine[], bundles: BundleRule[]) {
+  const left = new Map<string, { unit: number; qty: number }>();
+  for (const l of lines) {
+    if (l.variantId) continue;
+    const e = left.get(l.productId);
+    if (e) e.qty += l.quantity;
+    else left.set(l.productId, { unit: l.unitMinor, qty: l.quantity });
+  }
+  const applied: { id: string; title: string; amountMinor: number; valueMinor: number }[] = [];
+  const incomplete: { id: string; title: string; missing: string[] }[] = [];
+  for (const b of bundles) {
+    if (!b.items.length) continue;
+    const missing = b.items.filter((i) => (left.get(i.productId)?.qty ?? 0) < i.quantity).map((i) => i.productId);
+    if (missing.length) {
+      incomplete.push({ id: b.id, title: b.title, missing });
+      continue;
+    }
+    let value = 0;
+    for (const i of b.items) {
+      const e = left.get(i.productId)!;
+      e.qty -= i.quantity;
+      value += e.unit * i.quantity;
+    }
+    applied.push({ id: b.id, title: b.title, valueMinor: value, amountMinor: Math.round((value * Math.max(0, Math.min(100, b.discountPct))) / 100) });
+  }
+  return { applied, incomplete };
+}
+
+export type DiscountRow = { kind: "bundle" | "coupon"; label: string; amountMinor: number };
+
+/**
+ * Rabattzeilen an den tatsächlich gewährten (begrenzten) Rabatt anpassen: gekürzt wird von hinten,
+ * also zuerst der Gutschein, dann die Sets.
+ */
+export function fitRows(rows: DiscountRow[], amountMinor: number): DiscountRow[] {
+  let over = rows.reduce((s, r) => s + r.amountMinor, 0) - amountMinor;
+  const out = rows.map((r) => ({ ...r }));
+  for (let i = out.length - 1; i >= 0 && over > 0; i--) {
+    const cut = Math.min(over, out[i]!.amountMinor);
+    out[i]!.amountMinor -= cut;
+    over -= cut;
+  }
+  return out.filter((r) => r.amountMinor > 0);
+}
+
+/** Set-Preis aus Teilen (Anzeige „CHF X statt Y“). */
+export function bundlePrice(items: { unitMinor: number; quantity: number }[], discountPct: number) {
+  const full = items.reduce((s, i) => s + i.unitMinor * i.quantity, 0);
+  const discount = Math.round((full * discountPct) / 100);
+  return { fullMinor: full, discountMinor: discount, priceMinor: full - discount };
 }
 
 /** "24.50" / "24,5" / "24" → 2450 Rappen. Liefert null bei ungültiger Eingabe. */

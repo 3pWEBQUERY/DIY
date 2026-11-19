@@ -69,6 +69,12 @@ export default async function CheckoutPage() {
                     </li>
                   ))}
                 </ul>
+                {g.discounts.map((d, i) => (
+                  <p key={`${d.label}-${i}`} className="mt-2 flex justify-between gap-3 text-[13px] text-moss-ink">
+                    <span>{d.label}</span>
+                    <span className="num shrink-0">− {formatMoney(d.amountMinor)}</span>
+                  </p>
+                ))}
                 <p className="mt-2 flex justify-between text-[13px] text-muted">
                   <span>Versand</span>
                   <span className="num">{g.fees.shipping ? formatMoney(g.fees.shipping) : "kostenlos"}</span>
@@ -77,7 +83,12 @@ export default async function CheckoutPage() {
               </div>
             ))}
             <div className="px-5 py-4">
-              <FeeSummary subtotal={cart.totals.subtotal} shipping={cart.totals.shipping} total={cart.totals.total} />
+              <FeeSummary
+                subtotal={cart.totals.subtotal}
+                discounts={cart.totals.discount ? [{ label: "Rabatte", amountMinor: cart.totals.discount }] : undefined}
+                shipping={cart.totals.shipping}
+                total={cart.totals.total}
+              />
               <p className="mt-3 text-[12px] leading-relaxed text-muted">Endpreis. Keine Zusatzgebühren für Käufer:innen.</p>
             </div>
           </div>

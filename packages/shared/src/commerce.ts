@@ -174,3 +174,52 @@ export function formatDimensions(d: { heightMm?: number | null; widthMm?: number
   const parts = [d.heightMm ? `H ${cm(d.heightMm)}` : null, d.widthMm ? `B ${cm(d.widthMm)}` : null, d.depthMm ? `T ${cm(d.depthMm)}` : null].filter(Boolean);
   return parts.length ? `${parts.join(" × ")} cm` : "";
 }
+
+/* ───────────────────────── Gutscheine und Sets ───────────────────────── */
+
+/** Gutscheincode: 3–24 Zeichen, Buchstaben/Ziffern/-/_; wird in Grossbuchstaben gespeichert. */
+export const couponCodeSchema = z
+  .string()
+  .trim()
+  .transform((s) => s.toUpperCase().replace(/\s+/g, ""))
+  .pipe(z.string().regex(/^[A-Z0-9][A-Z0-9_-]{2,23}$/, "3–24 Zeichen: Buchstaben, Ziffern, - oder _"));
+
+export const COUPON_MAX_PERCENT = 90;
+export const BUNDLE_MAX_PERCENT = 50;
+
+export const couponSchema = z
+  .object({
+    code: couponCodeSchema,
+    kind: z.enum(["PERCENT", "FIXED"]),
+    /** PERCENT: ganze Prozent, FIXED: Rappen */
+    value: z.coerce.number().int("Ganze Zahl").min(1, "Mindestens 1"),
+    minSubtotalMinor: z.coerce.number().int().min(0).max(10_000_000).default(0),
+    startsAt: z.coerce.date().nullish(),
+    endsAt: z.coerce.date().nullish(),
+    maxUses: z.coerce.number().int("Ganze Zahl").min(1, "Mindestens 1").max(100_000).nullish(),
+    onePerBuyer: z.boolean().default(true),
+    active: z.boolean().default(true),
+  })
+  .superRefine((c, ctx) => {
+    if (c.kind === "PERCENT" && c.value > COUPON_MAX_PERCENT) ctx.addIssue({ code: "custom", path: ["value"], message: `Höchstens ${COUPON_MAX_PERCENT} %` });
+    if (c.kind === "FIXED" && c.value > 1_000_000) ctx.addIssue({ code: "custom", path: ["value"], message: "Höchstens CHF 10'000" });
+    if (c.startsAt && c.endsAt && c.endsAt <= c.startsAt) ctx.addIssue({ code: "custom", path: ["endsAt"], message: "Das Ende muss nach dem Beginn liegen" });
+  });
+export type CouponInput = z.input<typeof couponSchema>;
+
+export const applyCouponSchema = z.object({ shopId: z.string().min(1).max(40), code: couponCodeSchema });
+
+export const bundleSchema = z
+  .object({
+    title: z.string().trim().min(3, "Mindestens 3 Zeichen").max(80, "Höchstens 80 Zeichen"),
+    description: z.string().trim().max(500, "Höchstens 500 Zeichen").default(""),
+    tutorialId: z.string().max(40).nullish(),
+    discountPct: z.coerce.number().int("Ganze Prozent").min(0, "Nicht negativ").max(BUNDLE_MAX_PERCENT, `Höchstens ${BUNDLE_MAX_PERCENT} %`),
+    active: z.boolean().default(true),
+    items: z
+      .array(z.object({ productId: z.string().min(1).max(40), quantity: z.coerce.number().int().min(1, "Mindestens 1").max(20, "Höchstens 20") }))
+      .min(2, "Ein Set braucht mindestens zwei Produkte")
+      .max(12, "Höchstens 12 Produkte je Set"),
+  })
+  .refine((b) => new Set(b.items.map((i) => i.productId)).size === b.items.length, { path: ["items"], message: "Jedes Produkt nur einmal – die Menge ist je Zeile einstellbar" });
+export type BundleInput = z.input<typeof bundleSchema>;

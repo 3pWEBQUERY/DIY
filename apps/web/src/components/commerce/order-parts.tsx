@@ -47,12 +47,15 @@ export function FeeSummary({
   currency = "CHF",
   seller,
   refunded,
+  discounts,
   className,
 }: {
   subtotal: number;
   shipping: number;
   total: number;
   currency?: string;
+  /** Rabattzeilen (Sets, Gutschein) – werden vom Warenwert abgezogen */
+  discounts?: { label: string; amountMinor: number }[];
   seller?: { platformFee: number; feeLabel: string };
   refunded?: number;
   className?: string;
@@ -67,12 +70,18 @@ export function FeeSummary({
   return (
     <dl className={cn("text-ink", className)}>
       <Row label="Warenwert" value={formatMoney(subtotal, c)} />
+      {discounts?.map((d, i) => (
+        <div key={`${d.label}-${i}`} className="flex items-baseline justify-between gap-4 py-1.5 text-moss-ink">
+          <dt className="text-[14px]">{d.label}</dt>
+          <dd className="num text-[14px]">− {formatMoney(d.amountMinor, c)}</dd>
+        </div>
+      ))}
       <Row label="Versand" value={shipping ? formatMoney(shipping, c) : "kostenlos"} />
       <Row label="Gesamt" value={formatMoney(total, c)} strong />
       {!!refunded && <Row label="Davon erstattet" value={`− ${formatMoney(refunded, c)}`} muted />}
       {seller && (
         <>
-          <Row label={`Plattformgebühr (${seller.feeLabel} auf den Warenwert)`} value={`− ${formatMoney(seller.platformFee, c)}`} muted />
+          <Row label={`Plattformgebühr (${seller.feeLabel} auf den Warenwert${discounts?.length ? " nach Rabatt" : ""})`} value={`− ${formatMoney(seller.platformFee, c)}`} muted />
           <Row label="Auszahlung an dich (vor Stripe-Gebühren)" value={formatMoney(total - seller.platformFee - (refunded ?? 0), c)} strong />
         </>
       )}

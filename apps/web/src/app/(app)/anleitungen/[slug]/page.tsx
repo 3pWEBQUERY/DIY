@@ -6,6 +6,8 @@ import { ArrowUpRight } from "lucide-react";
 import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, formatMoney, materialsCostEstimate } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getTutorialPage, type TutorialPageView } from "@/server/tutorials/service";
+import { bundlesForTutorial } from "@/server/commerce/promotions";
+import { BundleCard } from "@/components/commerce/bundle-card";
 import { recordViewAfter } from "@/server/analytics/service";
 import { Page } from "@/components/shell/page";
 import { Avatar, Difficulty, Notice, SectionTitle } from "@/components/ui/misc";
@@ -90,6 +92,8 @@ export default async function TutorialPage({ params }: Params) {
   const remixHref = t.project ? `/projekte/neu?nachbau=${t.project.id}` : `/projekte/neu?kategorie=${t.category}`;
   const stepsMinutes = t.steps.reduce((a, s) => a + (s.minutes ?? 0), 0);
   const cost = materialsCostEstimate(t.materials);
+  // Materialsets aus dem Marktplatz (nur veröffentlichte Anleitungen)
+  const bundles = t.state === "PUBLISHED" && !t.preview ? await bundlesForTutorial(t.id, user?.id ?? null) : [];
   let sec = 0;
   const no = () => pad(++sec);
 
@@ -191,7 +195,7 @@ export default async function TutorialPage({ params }: Params) {
       )}
 
       {/* Material & Werkzeug */}
-      {(t.materials.length > 0 || t.tools.length > 0) && (
+      {(t.materials.length > 0 || t.tools.length > 0 || bundles.length > 0) && (
         <section id="material" aria-labelledby="h-material" className="mt-14">
           <SectionTitle
             n={no()}
@@ -247,6 +251,13 @@ export default async function TutorialPage({ params }: Params) {
               </div>
             )}
           </div>
+          {bundles.length > 0 && (
+            <div className={cn("grid gap-4", bundles.length > 1 && "md:grid-cols-2", (t.materials.length > 0 || t.tools.length > 0) && "mt-8")}>
+              {bundles.map((b) => (
+                <BundleCard key={b.id} bundle={b} signedIn={!!user} owner={t.viewer.isOwner} label="Materialset" />
+              ))}
+            </div>
+          )}
         </section>
       )}
 

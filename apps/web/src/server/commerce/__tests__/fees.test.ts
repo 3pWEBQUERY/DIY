@@ -74,7 +74,7 @@ describe("Warenkorb → Bestellungen je Shop", () => {
     expect(a.fees.platformFee).toBe(450);
     const b = groups.find((g) => g.shopId === "b")!;
     expect(b.fees.shipping).toBe(0); // digital → kein Versand
-    expect(grandTotal(groups)).toEqual({ subtotal: 8_300, shipping: 1_200, total: 9_500 });
+    expect(grandTotal(groups)).toEqual({ subtotal: 8_300, discount: 0, shipping: 1_200, total: 9_500 });
   });
 
   it("lehnt Mengen < 1 und Bruchmengen ab", () => {

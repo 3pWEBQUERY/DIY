@@ -8,6 +8,7 @@ import { currentUser, requirePageUser } from "@/server/auth/session";
 import { getSellerOrder } from "@/server/commerce/orders";
 import { canSellerCancel, formatBps, netPlatformFee, refundableAmount } from "@/server/commerce/rules";
 import { orderBuyer } from "@/server/account/customer";
+import { orderDiscountRows } from "@/server/commerce/discounts";
 import { AddressBlock, FeeSummary, OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from "@/components/commerce/order-parts";
 import { SellerOrderActions } from "@/components/commerce/seller-order-actions";
 import { Avatar, Notice, SectionTitle } from "@/components/ui/misc";
@@ -109,7 +110,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
               </tbody>
             </table></div>
             <div className="ml-auto mt-3 max-w-md border-t border-line pt-3">
-              <FeeSummary subtotal={o.subtotalMinor} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} seller={{ platformFee: netFee, feeLabel: formatBps(o.feeBps) }} />
+              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} seller={{ platformFee: netFee, feeLabel: formatBps(o.feeBps) }} />
             </div>
           </section>
 

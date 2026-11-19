@@ -8,6 +8,8 @@ import { FileCheck2, ShieldAlert, Star } from "lucide-react";
 import { COUNTRY_LABEL, PRODUCT_KIND_LABEL, PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency, type ShipCountry, formatDimensions } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getProductPage, moreFromShop } from "@/server/commerce/products";
+import { bundlesForProduct } from "@/server/commerce/promotions";
+import { BundleCard } from "@/components/commerce/bundle-card";
 import { recordViewAfter } from "@/server/analytics/service";
 import { listProductReviews } from "@/server/commerce/reviews";
 import { paymentsMode } from "@/server/commerce/stripe";
@@ -55,7 +57,7 @@ export default async function ProductPage({ params }: Params) {
   // Kopfzeilen (Bot-Erkennung, Dedupe) nur während der Anfrage lesbar – recordViewAfter liest sie vorab
   if (!p.isOwner) await recordViewAfter({ viewerId: user?.id ?? null, targetType: "PRODUCT", targetId: p.id });
 
-  const [reviews, more] = await Promise.all([listProductReviews(p.id, user?.id, 20), moreFromShop(p.shopId, p.id, 4)]);
+  const [reviews, more, bundles] = await Promise.all([listProductReviews(p.id, user?.id, 20), moreFromShop(p.shopId, p.id, 4), bundlesForProduct(p.id, user?.id ?? null)]);
   const currency = (p.currency === "EUR" ? "EUR" : "CHF") as Currency;
   const isDigital = p.kind === "DIGITAL";
   const dims = formatDimensions(p);
@@ -404,6 +406,17 @@ export default async function ProductPage({ params }: Params) {
           )}
         </aside>
       </div>
+
+      {bundles.length > 0 && (
+        <section className="mt-20" aria-labelledby="sets">
+          <SectionTitle title={<span id="sets">Im Set günstiger</span>} />
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {bundles.map((b) => (
+              <BundleCard key={b.id} bundle={b} signedIn={!!user} owner={p.isOwner} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {more.length > 0 && (
         <section className="mt-20" aria-labelledby="mehr">

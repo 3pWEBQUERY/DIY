@@ -981,6 +981,7 @@ model Tutorial {
   assets          TutorialAsset[]
   posts           Post[]
   products        Product[]
+  bundles         ProductBundle[]
 
   /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
   /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
@@ -1418,6 +1419,8 @@ model Shop {
   products         Product[]
   orders           Order[]
   payouts          PayoutRecord[]
+  coupons          ShopCoupon[]
+  bundles          ProductBundle[]
 }
 
 model SellerVerification {
@@ -1493,6 +1496,7 @@ model Product {
   entitlements   DigitalEntitlement[]
   appStorePurchases AppStorePurchase[]
   restockRequests RestockRequest[]
+  bundleItems    ProductBundleItem[]
 
   /// Generierte Spalte (GENERATED ALWAYS AS … STORED, siehe Migration init). dbgenerated() ohne Ausdruck,
   /// damit Prisma die Spalte als „hat Standardwert“ kennt und kein DROP DEFAULT erzeugt.
@@ -1553,6 +1557,8 @@ model Cart {
   updatedAt DateTime   @updatedAt
 
   items     CartItem[]
+  coupons   CartCoupon[]
+  bundles   CartBundle[]
 
   @@unique([userId])
 }
@@ -1583,6 +1589,12 @@ model Order {
   subtotalMinor   Int
   shippingMinor   Int
   totalMinor      Int
+  /// Summe aller Rabatte (Set-Rabatte und Gutschein) auf den Warenwert; totalMinor = subtotal − discount + shipping
+  discountMinor   Int         @default(0)
+  /// Rabattzeilen zum Bestellzeitpunkt: [{ kind: "bundle" | "coupon", label, amountMinor }]
+  discounts       Json?
+  couponId        String?
+  coupon          ShopCoupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
   platformFeeMinor Int
   feeBps          Int
   shippingAddress Json
@@ -1613,6 +1625,7 @@ model Order {
   @@index([buyerId, createdAt])
   @@index([shopId, status, createdAt])
   @@index([status, reservationExpiresAt])
+  @@index([couponId, buyerId])
 }
 
 model OrderItem {
@@ -2487,4 +2500,96 @@ model Announcement {
 
   @@index([isActive, position])
   @@index([bgMediaId])
+}
+
+enum CouponKind {
+  PERCENT
+  FIXED
+}
+
+/// Gutscheincode eines Shops (Rabatt auf den Warenwert dieses Shops, nicht auf den Versand)
+model ShopCoupon {
+  id               String     @id @default(cuid())
+  shopId           String
+  shop             Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  /// Immer in Grossbuchstaben gespeichert
+  code             String
+  kind             CouponKind
+  /// PERCENT: ganze Prozent (1–90), FIXED: Rappen
+  value            Int
+  minSubtotalMinor Int        @default(0)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  maxUses          Int?
+  /// Eingelöst in offenen oder bezahlten Bestellungen (unbezahlt stornierte werden zurückgezählt)
+  usedCount        Int        @default(0)
+  onePerBuyer      Boolean    @default(true)
+  active           Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  carts            CartCoupon[]
+  orders           Order[]
+
+  @@unique([shopId, code])
+}
+
+/// Im Warenkorb eingelöster Gutschein – höchstens einer je Shop
+model CartCoupon {
+  cartId    String
+  cart      Cart       @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  shopId    String
+  couponId  String
+  coupon    ShopCoupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@id([cartId, shopId])
+  @@index([couponId])
+}
+
+/// Set aus mehreren Produkten eines Shops mit Set-Rabatt, z. B. Materialset zu einer Anleitung
+model ProductBundle {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  tutorialId  String?
+  tutorial    Tutorial? @relation(fields: [tutorialId], references: [id], onDelete: SetNull)
+  title       String
+  description String   @default("")
+  /// Set-Rabatt in ganzen Prozent (0–50)
+  discountPct Int      @default(10)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       ProductBundleItem[]
+  carts       CartBundle[]
+
+  @@index([shopId])
+  @@index([tutorialId])
+}
+
+model ProductBundleItem {
+  id        String        @id @default(cuid())
+  bundleId  String
+  bundle    ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int           @default(1)
+  position  Int           @default(0)
+
+  @@unique([bundleId, productId])
+  @@index([productId])
+}
+
+/// Set im Warenkorb: der Set-Rabatt gilt, solange alle Teile in der Menge im Warenkorb liegen
+model CartBundle {
+  cartId    String
+  cart      Cart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  bundleId  String
+  bundle    ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@id([cartId, bundleId])
+  @@index([bundleId])
 }

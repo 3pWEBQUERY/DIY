@@ -15,6 +15,7 @@ import { formatOrderNumber, groupByShop, grandTotal, unitPrice } from "./rules";
 import { createCheckoutSession, expireCheckoutSession, paymentsMode, PAYMENTS_DISABLED_MESSAGE, retrieveCheckoutSession } from "./stripe";
 import { markOrderPaid, markPaymentFailed } from "./payments";
 import { requireFlag } from "@/server/flags";
+import { discountLabel, fitRows, loadCartDiscounts, type DiscountRow } from "./discounts";
 
 /**
  * Checkout (§13.5, §31.4 Nr. 8):
@@ -84,7 +85,18 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
   const cached = await claimIdempotencyKey(user.id, data.idempotencyKey);
   if (cached) return cached;
 
-  let created: { id: string; number: string; totalMinor: number; shippingMinor: number; platformFeeMinor: number; currency: string; destination: string | null; lines: { name: string; unitMinor: number; quantity: number }[] }[] = [];
+  let created: {
+    id: string;
+    number: string;
+    totalMinor: number;
+    shippingMinor: number;
+    platformFeeMinor: number;
+    discountMinor: number;
+    discountLabel: string;
+    currency: string;
+    destination: string | null;
+    lines: { name: string; unitMinor: number; quantity: number }[];
+  }[] = [];
   try {
     await abandonOwnPending(user.id);
     const [reservationMinutes, digitalEnabledWeb, digitalEnabledIos] = await Promise.all([
@@ -150,9 +162,28 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
 
         // Provision je Shop (Creator Pro: tiefer)
         const fee = await feeResolver(lines.map((l) => l.shopId));
-        const groups = groupByShop(lines, fee);
+        // Rabatte (Sets, Gutscheine) – eigene offene Bestellungen wurden oben verworfen und zählen nicht mehr
+        // Lesen über den Pool (verschachtelte Abfragen, siehe oben); gezählt wird atomar in der Transaktion
+        const disc = await loadCartDiscounts(db, { userId: user.id, cartId: cart!.id, includePending: true });
+        const details = new Map<string, ReturnType<typeof disc.forShop>>();
+        const groups = groupByShop(lines, fee, (shopId, ls, subtotal) => {
+          const d = disc.forShop(shopId, ls, subtotal, ls[0]?.currency);
+          details.set(shopId, d);
+          return d.amountMinor;
+        });
         if (data.expectedTotalMinor != null && data.expectedTotalMinor !== grandTotal(groups).total) {
-          throw fail.conflict("Preise oder Versandkosten haben sich geändert. Bitte prüfe deine Bestellung erneut.");
+          const invalid = [...details.values()].find((d) => d.coupon?.problem);
+          throw fail.conflict(
+            invalid ? `Gutschein ${invalid.coupon!.code}: ${invalid.coupon!.problem} Bitte prüfe deine Bestellung erneut.` : "Preise oder Versandkosten haben sich geändert. Bitte prüfe deine Bestellung erneut.",
+          );
+        }
+        // Gutscheine atomar zählen – verhindert, dass ein begrenzter Code öfter eingelöst wird als erlaubt
+        for (const g of groups) {
+          const d = details.get(g.shopId)!;
+          if (!d.coupon || d.coupon.problem || !fitRows(d.rows, g.discount).some((r) => r.kind === "coupon")) continue;
+          const n = await tx.$executeRaw`UPDATE "ShopCoupon" SET "usedCount" = "usedCount" + 1, "updatedAt" = NOW()
+            WHERE id = ${d.coupon.id} AND active AND ("maxUses" IS NULL OR "usedCount" < "maxUses")`;
+          if (n !== 1) throw fail.conflict(`Gutschein ${d.coupon.code}: Dieser Gutschein ist bereits vergeben. Bitte prüfe deine Bestellung erneut.`);
         }
 
         // ── Bestand atomar reservieren ──
@@ -170,6 +201,9 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
         for (const g of groups) {
           const number = await nextOrderNumber(tx);
           const currency = g.lines[0]!.currency;
+          const d = details.get(g.shopId)!;
+          const rows: DiscountRow[] = fitRows(d.rows, g.discount);
+          const couponId = rows.some((r) => r.kind === "coupon") ? d.coupon!.id : null;
           const order = await tx.order.create({
             data: {
               number,
@@ -177,7 +211,10 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
               shopId: g.shopId,
               status: "PENDING_PAYMENT",
               currency,
-              subtotalMinor: g.fees.subtotal,
+              subtotalMinor: g.subtotal,
+              discountMinor: g.discount,
+              discounts: rows.length ? rows : undefined,
+              couponId,
               shippingMinor: g.fees.shipping,
               totalMinor: g.fees.total,
               platformFeeMinor: g.fees.platformFee,
@@ -200,7 +237,14 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
               payments: {
                 create: { provider: mode, status: "REQUIRES_PAYMENT", amountMinor: g.fees.total, currency, applicationFeeMinor: g.fees.platformFee },
               },
-              events: { create: { actorId: user.id, from: null, to: "PENDING_PAYMENT", note: "Bestellung aufgegeben – Zahlung ausstehend" } },
+              events: {
+                create: {
+                  actorId: user.id,
+                  from: null,
+                  to: "PENDING_PAYMENT",
+                  note: `Bestellung aufgegeben – Zahlung ausstehend${rows.length ? ` · Rabatt: ${rows.map((r) => `${r.label} −${formatMoney(r.amountMinor, currency as Currency)}`).join(", ")}` : ""}`,
+                },
+              },
             },
           });
           out.push({
@@ -209,6 +253,8 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
             totalMinor: order.totalMinor,
             shippingMinor: order.shippingMinor,
             platformFeeMinor: order.platformFeeMinor,
+            discountMinor: order.discountMinor,
+            discountLabel: discountLabel(rows),
             currency,
             destination: g.lines[0]!.shop.stripeAccountId,
             lines: g.lines.map((l) => ({ name: l.variantName ? `${l.title} – ${l.variantName}` : l.title, unitMinor: l.unitMinor, quantity: l.quantity })),
@@ -232,6 +278,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
           lines: o.lines,
           shippingMinor: o.shippingMinor,
           applicationFeeMinor: o.platformFeeMinor,
+          discount: o.discountMinor > 0 ? { amountMinor: o.discountMinor, label: o.discountLabel } : undefined,
           destinationAccountId: o.destination!,
           expiresAt: sessionExpiresAt,
           idempotencyKey: `checkout-session:${o.id}`,
