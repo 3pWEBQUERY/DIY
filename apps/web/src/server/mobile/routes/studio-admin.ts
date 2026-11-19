@@ -49,7 +49,8 @@ export const studioAdminRoutes: RouteDef[] = [
       manageHint: status.provider === "apple" ? pro.APPLE_MANAGE_HINT : null,
       featuredProjectIds: profile?.featuredProjectIds ?? [],
       mediaKitPublic: !!profile?.mediaKitPublic,
-      mediaKitUrl: profile ? `/u/${profile.handle}/medienkit` : null,
+      // Privat: mit Vorschau-Zusatz, weil die App das Medienkit in einem Browser-Fenster ohne Anmeldung öffnet
+      mediaKitUrl: profile ? `/u/${profile.handle}/medienkit${profile.mediaKitPublic ? "" : `?vorschau=${proProfile.mediaKitPreviewToken(u.id)}`}` : null,
       featuredMax: proProfile.FEATURED_MAX,
     };
   }),

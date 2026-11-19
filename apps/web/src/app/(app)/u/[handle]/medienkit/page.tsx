@@ -15,7 +15,7 @@ import { Glyph } from "@/components/ui/glyphs";
 import { compactNumber, formatDate, pluralize } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
 
-type Props = { params: Promise<{ handle: string }> };
+type Props = { params: Promise<{ handle: string }>; searchParams: Promise<{ vorschau?: string | string[] }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
@@ -25,10 +25,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /** Creator Pro: Medienkit – beste Arbeiten und ehrlich beschriftete Zahlen auf einer Seite (druckbar). */
-export default async function MediaKitPage({ params }: Props) {
+export default async function MediaKitPage({ params, searchParams }: Props) {
   const { handle } = await params;
+  const { vorschau } = await searchParams;
   const viewer = await currentUser();
-  const kit = await getMediaKit(handle, viewer?.id);
+  const kit = await getMediaKit(handle, viewer?.id, { preview: typeof vorschau === "string" ? vorschau : null });
   if (!kit) notFound();
   const p = kit.profile;
   const s = kit.stats;
@@ -54,7 +55,13 @@ export default async function MediaKitPage({ params }: Props) {
       </div>
       {kit.isOwner && !kit.public && (
         <Notice tone="warn" className="mb-8 print:hidden" title="Nur für dich sichtbar">
-          Gib dein Medienkit im <Link href="/studio/pro" className="font-semibold underline">{BRAND.name} Studio unter Creator Pro</Link> frei, damit andere es über den Link sehen können.
+          {kit.preview ? (
+            <>Schalte in der App unter {BRAND.name} Studio › Creator Pro „Medienkit öffentlich“ ein, damit andere es über den Link sehen können.</>
+          ) : (
+            <>
+              Gib dein Medienkit im <Link href="/studio/pro" className="font-semibold underline">{BRAND.name} Studio unter Creator Pro</Link> frei, damit andere es über den Link sehen können.
+            </>
+          )}
         </Notice>
       )}
 
