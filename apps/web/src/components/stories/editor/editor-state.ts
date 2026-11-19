@@ -15,6 +15,7 @@ import {
   type StoryLayout,
   type StoryStroke,
   type StoryTextAlign,
+  type StoryTextBg,
   type StoryTextStyle,
 } from "@werkraum/shared";
 
@@ -28,7 +29,7 @@ export const HISTORY_MAX = 100;
 
 /** Element ohne Kennung und Ebene – beides vergibt der Reducer */
 export type NewElement = StoryElement extends infer E ? (E extends StoryElement ? Omit<E, "id" | "z"> : never) : never;
-export type ElementPatch = Partial<{ x: number; y: number; scale: number; rotation: number; text: string; color: StoryColor; style: StoryTextStyle; align: StoryTextAlign }>;
+export type ElementPatch = Partial<{ x: number; y: number; scale: number; rotation: number; text: string; color: StoryColor; style: StoryTextStyle; align: StoryTextAlign; bg: StoryTextBg | null }>;
 
 export type EditorState = {
   layout: StoryLayout;
@@ -154,6 +155,10 @@ function patchElement(e: StoryElement, p: ElementPatch): StoryElement {
   if (p.color !== undefined && "color" in e) next.color = p.color;
   if (p.style !== undefined && e.type === "text") next.style = p.style;
   if (p.align !== undefined && e.type === "text") next.align = p.align;
+  if (p.bg !== undefined && e.type === "text") {
+    if (p.bg === null) delete next.bg;
+    else next.bg = p.bg;
+  }
   return next as StoryElement;
 }
 

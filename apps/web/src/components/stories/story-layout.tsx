@@ -5,6 +5,8 @@ import type { CSSProperties, ReactNode } from "react";
 import {
   STORY_ELEMENT_COLORS,
   STORY_STAGE_RATIO,
+  STORY_TEXT_SHADE,
+  STORY_TEXT_SHADE_CSS,
   strokePath,
   type StoryColor,
   type StoryElementView,
@@ -69,13 +71,16 @@ export const alignClass: Record<StoryTextAlign, string> = { left: "text-left", c
 
 function TextElement({ e }: { e: Extract<StoryElementView, { type: "text" }> }) {
   const c = color(e.color);
-  const pill = e.style === "pill";
+  // Hintergrund: eigene Fläche (abgedunkelt oder Palettenfarbe) mit frei gewählter Schrift;
+  // ältere Ebenen mit Stil „Fläche“ (ohne `bg`): Fläche in der Farbe, Schrift aus dem Farbpaar
+  const bg = e.bg === STORY_TEXT_SHADE ? STORY_TEXT_SHADE_CSS : e.bg ? color(e.bg).hex : e.style === "pill" ? c.hex : null;
+  const fg = e.bg ? c.hex : e.style === "pill" ? c.fg : c.hex;
   return (
     <p
       className={cn("w-max max-w-[82cqw] whitespace-pre-wrap break-words", alignClass[e.align])}
-      style={{ fontSize: `${ELEMENT_SIZE.text}cqw`, lineHeight: pill ? 1.42 : 1.15, color: c.hex, ...textStyleCss(e.style) }}
+      style={{ fontSize: `${ELEMENT_SIZE.text}cqw`, lineHeight: bg ? 1.42 : 1.15, color: fg, ...textStyleCss(e.style) }}
     >
-      {pill ? <Pill bg={c.hex} fg={c.fg}>{e.text}</Pill> : e.text}
+      {bg ? <Pill bg={bg} fg={fg}>{e.text}</Pill> : e.text}
     </p>
   );
 }

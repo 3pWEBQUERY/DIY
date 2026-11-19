@@ -107,7 +107,14 @@ const color = z.enum(STORY_COLOR_KEYS as [StoryColor, ...StoryColor[]]);
 const textStyle = z.enum(STORY_TEXT_STYLES);
 const align = z.enum(STORY_TEXT_ALIGNS);
 
-const textElement = z.object({ ...elementBase, type: z.literal("text"), text: z.string().trim().min(1).max(STORY_ELEMENT_TEXT_MAX), color, style: textStyle, align }).strict();
+/** Hintergrund hinter einer Textebene: „shade“ = abgedunkelt (lesbar auf jedem Foto) oder eine Fläche aus der Palette */
+export const STORY_TEXT_SHADE = "shade" as const;
+export type StoryTextBg = StoryColor | typeof STORY_TEXT_SHADE;
+export const STORY_TEXT_SHADE_CSS = "rgba(0, 0, 0, 0.55)";
+const textBg = z.union([color, z.literal(STORY_TEXT_SHADE)]);
+const textElement = z
+  .object({ ...elementBase, type: z.literal("text"), text: z.string().trim().min(1).max(STORY_ELEMENT_TEXT_MAX), color, style: textStyle, align, bg: textBg.optional() })
+  .strict();
 const emojiElement = z.object({ ...elementBase, type: z.literal("emoji"), emoji: z.enum(STORY_EMOJIS) }).strict();
 const mentionElement = z
   .object({
@@ -280,6 +287,11 @@ function luminance(hex: string) {
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
+}
+
+/** Helle oder dunkle Schrift, je nachdem was auf einer Fläche (#RRGGBB) besser lesbar ist */
+export function readableTextColor(bgHex: string): StoryColor {
+  return contrastRatio(bgHex, STORY_ELEMENT_COLORS.white.hex) >= contrastRatio(bgHex, STORY_ELEMENT_COLORS.ink.hex) ? "white" : "ink";
 }
 
 /** Kontrastverhältnis zweier Farben (#RRGGBB) nach WCAG 2.x. */

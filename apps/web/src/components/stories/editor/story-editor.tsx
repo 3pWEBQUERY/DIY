@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Blend, Crop, Layers, PenLine, Redo2, Smile, Type, Undo2 } from "lucide-react";
+import type { StoryColor, StoryTextBg } from "@werkraum/shared";
 import { cn } from "@/lib/utils";
 import { EditorStage, type DrawTool, type EditorStageHandle } from "./editor-stage";
 import { nextElementId, strokeTotals, type EditorAction, type EditorState, type NewElement } from "./editor-state";
@@ -26,6 +27,8 @@ export function StoryEditor({
   projects,
   media,
   onCrop,
+  stageColor,
+  textDefaults,
   form,
 }: {
   state: EditorState;
@@ -39,6 +42,10 @@ export function StoryEditor({
   media: { kind: "IMAGE" | "VIDEO"; url: string } | null;
   /** Foto erneut zuschneiden (nur verfügbar, solange das Original im Browser liegt) */
   onCrop?: () => void;
+  /** Farbe der Text-Story (Kontrastprüfung); null bei Foto/Video */
+  stageColor: string | null;
+  /** Farbe und Hintergrund neuer Textebenen – gut lesbar auf dieser Story */
+  textDefaults: { color: StoryColor; bg?: StoryTextBg };
   form: ReactNode;
 }) {
   const [tool, setTool] = useState<EditorTool | null>(null);
@@ -74,7 +81,7 @@ export function StoryEditor({
 
   function addText() {
     const id = nextElementId(state);
-    dispatch({ type: "add", element: { type: "text", text: "", color: "white", style: "bold", align: "center", x: 0.5, y: 0.42, scale: 1, rotation: 0 } });
+    dispatch({ type: "add", element: { type: "text", text: "", style: "bold", align: "center", x: 0.5, y: 0.42, scale: 1, rotation: 0, ...textDefaults } });
     setEditing(id);
     setTool("text");
   }
@@ -109,7 +116,7 @@ export function StoryEditor({
   if (tool === "draw") panel = <DrawPanel value={draw} onChange={setDraw} strokes={strokeTotals(state.layout).strokes} onDone={() => close()} />;
   else if (tool === "stickers") panel = <StickerPanel projects={projects} onAdd={addSticker} onDone={() => close()} />;
   else if (tool === "filter" && media) panel = <FilterPanel value={state.layout.media ?? { filter: "original", intensity: 100 }} preview={media} dispatch={dispatch} onDone={() => close()} />;
-  else if (tool === "text" && textEl) panel = <TextTool key={textEl.id} element={textEl} dispatch={dispatch} onDone={() => close("stage")} />;
+  else if (tool === "text" && textEl) panel = <TextTool key={textEl.id} element={textEl} dispatch={dispatch} stageColor={stageColor} onDone={() => close("stage")} />;
   else if (tool === "layers")
     panel = (
       <LayersTool
