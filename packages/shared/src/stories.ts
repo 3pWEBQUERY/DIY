@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { mediaRefSchema } from "./schemas";
+import { storyLayoutSchema } from "./story-layout";
 
 /**
  * Stories: Foto, Video oder Text – 24 Stunden im Story-Kreis, danach im eigenen Archiv.
@@ -52,6 +53,8 @@ export const storyCreateSchema = z
     background: z.enum(STORY_BACKGROUND_KEYS as [StoryBackground, ...StoryBackground[]]).optional(),
     visibility: z.enum(STORY_AUDIENCES).default("PUBLIC"),
     projectId: z.string().min(1).optional(),
+    /** Gestaltung aus dem Story-Editor (optional – ältere App-Versionen senden keine) */
+    layout: storyLayoutSchema.optional(),
   })
   .superRefine((s, ctx) => {
     if (s.kind === "MEDIA") {
@@ -82,13 +85,21 @@ export const highlightUpdateSchema = z.object({
   coverStoryId: z.string().min(1).nullable().optional(),
 });
 
-/** Wie lange eine Story angezeigt wird (Sekunden): Videos ihre Länge (gedeckelt), sonst feste Zeit plus Lesezeit. */
-export function storyDurationSeconds(s: { kind: "MEDIA" | "TEXT"; isVideo?: boolean; durationMs?: number | null; text?: string }) {
+/** Längste Anzeigedauer eines Fotos bzw. einer Text-Story (Sekunden). */
+export const STORY_READ_MAX_SECONDS = 15;
+
+/**
+ * Wie lange eine Story angezeigt wird (Sekunden): Videos ihre Länge (gedeckelt), sonst feste Zeit plus
+ * Lesezeit. `elementText` ist der Text der gestalteten Ebenen (`storyLayoutText`).
+ */
+export function storyDurationSeconds(s: { kind: "MEDIA" | "TEXT"; isVideo?: boolean; durationMs?: number | null; text?: string; elementText?: string }) {
   if (s.kind === "MEDIA" && s.isVideo) {
     const sec = (s.durationMs ?? 0) / 1000;
     return sec > 0 ? Math.min(sec, STORY_VIDEO_MAX_SECONDS) : 15;
   }
-  // Längere Texte bekommen etwas mehr Zeit (ca. 15 Zeichen pro Sekunde), höchstens 15 s
-  const words = (s.text ?? "").length;
-  return Math.min(15, Math.max(STORY_IMAGE_SECONDS, Math.round(words / 15)));
+  // Längere Texte bekommen etwas mehr Zeit (ca. 15 Zeichen pro Sekunde) – Bildunterschrift bzw. Text der Text-Story
+  const base = Math.max(STORY_IMAGE_SECONDS, Math.round((s.text ?? "").length / 15));
+  const extra = (s.elementText ?? "").length;
+  // Textebenen: +1 s je angefangene 60 Zeichen; insgesamt höchstens 15 s
+  return Math.min(STORY_READ_MAX_SECONDS, base + Math.ceil(extra / 60));
 }

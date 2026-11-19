@@ -50,6 +50,11 @@ export const FLAGS = {
     description: "Stories erstellen und im Story-Kreis ansehen. Aus: Story-Kreis ausgeblendet, keine neuen Stories. Highlights auf Profilen bleiben sichtbar.",
     default: true,
   },
+  "stories.editor": {
+    label: "Story-Editor",
+    description: "Stories frei gestalten (Text, Zeichnen, Sticker, Filter, Zuschneiden). Aus: Stories nur mit Bildunterschrift/Text, ohne Gestaltungswerkzeuge.",
+    default: true,
+  },
   realtime: {
     label: "Live-Updates",
     description: "Badges, Benachrichtigungen und Chats in Echtzeit. Aus: Aktualisierung alle paar Sekunden statt sofort (entlastet den Server).",
@@ -68,6 +73,7 @@ const PAUSED_MESSAGE: Record<FlagKey, string> = {
   "uploads.video": "Video-Uploads sind gerade pausiert. Fotos kannst du weiterhin hochladen.",
   pro: "Creator Pro kann gerade nicht abgeschlossen werden. Bitte versuche es später erneut.",
   stories: "Stories sind gerade pausiert. Bitte versuche es später erneut.",
+  "stories.editor": "Die Gestaltungswerkzeuge für Stories sind gerade pausiert. Du kannst Stories weiterhin mit Bildunterschrift oder Text teilen.",
   realtime: "Live-Updates sind gerade pausiert.",
 };
 
