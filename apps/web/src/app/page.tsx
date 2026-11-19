@@ -1,4 +1,6 @@
-import type { Viewport } from "next";
+import type { Metadata, Viewport } from "next";
+import { JsonLd } from "@/components/projects/json-ld";
+import { siteJsonLd, OG_BASE } from "@/config/seo";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, ArrowUpRight, Banknote, BookOpen, Check, CreditCard, Flag, Hourglass, Layers, MessageCircle, NotebookPen, PackageCheck, Percent, Plus, Share2, ShieldCheck, Store, Truck, UserPlus, Users } from "lucide-react";
@@ -18,7 +20,12 @@ import { features as features_ } from "@/server/env";
 import { MobileWelcome } from "@/components/landing/mobile-welcome";
 import { one } from "@/lib/search-params";
 
-export const metadata = { alternates: { canonical: "/" } };
+export const metadata: Metadata = {
+  title: { absolute: `${BRAND.name} – Das Netzwerk für Selbstgemachtes: Projekte, Anleitungen & Handmade-Marktplatz` },
+  description: "Häkeln, Nähen, Holz, Upcycling: Zeig deine Projekte, lerne mit Schritt-für-Schritt-Anleitungen, tausch dich in Communities aus und verkaufe Handgemachtes in der Schweiz.",
+  alternates: { canonical: "/" },
+  openGraph: { ...OG_BASE, url: "/", title: `${BRAND.name} – Das Netzwerk für Selbstgemachtes`, description: BRAND.description },
+};
 
 /** Mobil färbt Safari Status- und Werkzeugleiste im Nachtblau des Willkommensbildschirms, am Desktop wie gewohnt hell. */
 export const viewport: Viewport = {
@@ -362,6 +369,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
   return (
     // .landing: Designwerte „Werkbuch 2“ (globals.css) gelten nur auf der Startseite
     <div className="landing bg-paper">
+      <JsonLd data={siteJsonLd()} />
       {/* Mobil: nur der Willkommensbildschirm wie in der iOS-App – ohne Kopfzeile, Gastbereich und Footer */}
       <div className="hidden md:block">
         <MarketingHeader />

@@ -46,20 +46,31 @@ async function build(part: SitemapId): Promise<MetadataRoute.Sitemap> {
   const take = PART_LIMIT;
   switch (part) {
     case "basis": {
-      const [communities, materials] = await Promise.all([
-        db.community.findMany({ where: { state: "PUBLISHED", visibility: { not: "PRIVATE" } }, select: { slug: true, updatedAt: true }, take }),
+      // Öffentlich sichtbare Communities (nicht privat, nicht ausgeblendet) – deren Events und Wettbewerbe gehören dazu
+      const openCommunity = { state: "PUBLISHED" as const, visibility: { not: "PRIVATE" as const } };
+      const [communities, materials, events, competitions] = await Promise.all([
+        db.community.findMany({ where: openCommunity, select: { slug: true, updatedAt: true }, take }),
         db.material.findMany({ select: { slug: true }, take }),
+        db.communityEvent.findMany({
+          where: { state: "SCHEDULED", endsAt: { gte: new Date(Date.now() - 30 * 86400_000) }, community: openCommunity },
+          select: { id: true, updatedAt: true, community: { select: { slug: true } } },
+          orderBy: { startsAt: "asc" },
+          take: 5000,
+        }),
+        db.communityChallenge.findMany({ where: { state: "ACTIVE", community: openCommunity }, select: { id: true, createdAt: true, community: { select: { slug: true } } }, orderBy: { createdAt: "desc" }, take: 2000 }),
       ]);
       return [
         ...staticPages(),
         ...listCategories({ activeOnly: true }).map((c) => ({ url: u(`/entdecken?kategorie=${c.slug}`), changeFrequency: "daily" as const, priority: 0.6 })),
         ...communities.map((c) => ({ url: u(`/c/${c.slug}`), lastModified: c.updatedAt, priority: 0.5 })),
+        ...events.map((e) => ({ url: u(`/c/${e.community.slug}/events/${e.id}`), lastModified: e.updatedAt, priority: 0.6 })),
+        ...competitions.map((c) => ({ url: u(`/c/${c.community.slug}/wettbewerbe/${c.id}`), lastModified: c.createdAt, priority: 0.5 })),
         ...materials.map((m) => ({ url: u(`/materialien/${m.slug}`), changeFrequency: "weekly" as const, priority: 0.5 })),
       ];
     }
     case "projekte": {
       const projects = await db.project.findMany({ where: { state: "PUBLISHED", visibility: "PUBLIC", owner: { status: "ACTIVE" } }, select: { slug: true, updatedAt: true, owner: { select: { profile: { select: { handle: true } } } } }, orderBy: { updatedAt: "desc" }, take });
-      return projects.map((p) => ({ url: u(`/u/${p.owner.profile?.handle}/${p.slug}`), lastModified: p.updatedAt, priority: 0.8 }));
+      return projects.filter((p) => p.owner.profile?.handle).map((p) => ({ url: u(`/u/${p.owner.profile!.handle}/${p.slug}`), lastModified: p.updatedAt, priority: 0.8 }));
     }
     case "anleitungen": {
       const [tutorials, articles] = await Promise.all([
@@ -69,7 +80,7 @@ async function build(part: SitemapId): Promise<MetadataRoute.Sitemap> {
       const blogAuthors = [...new Set(articles.map((a) => a.author.profile?.handle).filter(Boolean))].slice(0, 1000);
       return [
         ...tutorials.map((t) => ({ url: u(`/anleitungen/${t.slug}`), lastModified: t.updatedAt, priority: 0.9 })),
-        ...articles.map((a) => ({ url: u(`/u/${a.author.profile?.handle}/blog/${a.slug}`), lastModified: a.updatedAt, priority: 0.8 })),
+        ...articles.filter((a) => a.author.profile?.handle).map((a) => ({ url: u(`/u/${a.author.profile!.handle}/blog/${a.slug}`), lastModified: a.updatedAt, priority: 0.8 })),
         ...blogAuthors.map((h) => ({ url: u(`/u/${h}/blog`), priority: 0.5 })),
       ];
     }

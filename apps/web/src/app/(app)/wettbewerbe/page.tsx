@@ -8,7 +8,11 @@ import { LinkButton } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
 import { flatSearchParams } from "@/lib/search-params";
 
-export const metadata: Metadata = { title: "Wettbewerbe", description: `Wettbewerbe aus den ${BRAND.name}-Communities: Projekt einreichen, abstimmen, gewinnen.` };
+export const metadata: Metadata = {
+  title: "Wettbewerbe",
+  description: `Wettbewerbe aus den ${BRAND.name}-Communities: Projekt einreichen, abstimmen, gewinnen.`,
+  alternates: { canonical: "/wettbewerbe" },
+};
 export const dynamic = "force-dynamic";
 
 /** Übersicht aller laufenden, kommenden und kürzlich entschiedenen Wettbewerbe. */

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { breadcrumbJsonLd, OG_BASE } from "@/config/seo";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -32,12 +33,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     description,
     alternates: { canonical: t.href },
     robots: t.state === "PUBLISHED" && !t.preview ? undefined : { index: false, follow: false },
-    openGraph: {
+    openGraph: { ...OG_BASE,
       type: "article",
       title: t.title,
       description,
       url: t.href,
-      images: t.coverUrl ? [{ url: t.coverUrl, alt: t.title }] : undefined,
+      images: t.coverUrl ? [{ url: t.coverUrl, alt: t.title }] : OG_BASE.images,
       publishedTime: t.publishedAt ?? undefined,
       modifiedTime: t.version.publishedAt,
       authors: [t.author.displayName],
@@ -91,6 +92,7 @@ export default async function TutorialPage({ params }: Params) {
   return (
     <Page width="wide">
       {t.state === "PUBLISHED" && !t.preview && <JsonLd data={howTo(t)} />}
+      {t.state === "PUBLISHED" && !t.preview && <JsonLd data={breadcrumbJsonLd([{ name: "Anleitungen", path: "/anleitungen" }, { name: t.title, path: `/anleitungen/${t.slug}` }])} />}
 
       <div className="mb-6 flex items-center justify-between gap-4 border-b border-line pb-3">
         <nav aria-label="Brotkrumen" className="spec flex min-w-0 items-center gap-2">

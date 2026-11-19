@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { OG_BASE } from "@/config/seo";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title: `${p.author.displayName}: „${p.body.slice(0, 60) || "Beitrag"}“`,
     description: p.body.slice(0, 160),
     alternates: { canonical: `/beitrag/${id}` },
-    openGraph: { type: "article", images: img ? [img] : undefined },
+    openGraph: { ...OG_BASE, type: "article", images: img ? [img] : OG_BASE.images },
   };
 }
 

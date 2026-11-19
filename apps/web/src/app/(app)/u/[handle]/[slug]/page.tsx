@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { breadcrumbJsonLd, OG_BASE } from "@/config/seo";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowRight, ArrowUpRight, GitFork } from "lucide-react";
@@ -39,12 +40,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     description,
     alternates: { canonical: p.href },
     robots: p.visibility === "PUBLIC" && p.state === "PUBLISHED" ? undefined : { index: false, follow: false },
-    openGraph: {
+    openGraph: { ...OG_BASE,
       type: "article",
       title: p.title,
       description,
       url: p.href,
-      images: p.coverUrl ? [{ url: p.coverUrl, alt: p.cover?.alt || p.title }] : undefined,
+      images: p.coverUrl ? [{ url: p.coverUrl, alt: p.cover?.alt || p.title }] : OG_BASE.images,
       publishedTime: p.publishedAt,
       modifiedTime: p.updatedAt,
       authors: [p.owner.displayName],
@@ -104,6 +105,7 @@ export default async function ProjectPage({ params }: Params) {
   return (
     <Page width="wide">
       {p.visibility === "PUBLIC" && p.state === "PUBLISHED" && <JsonLd data={jsonLd} />}
+      {p.visibility === "PUBLIC" && p.state === "PUBLISHED" && <JsonLd data={breadcrumbJsonLd([{ name: p.owner.displayName, path: `/u/${p.owner.handle}` }, { name: "Projekte", path: `/u/${p.owner.handle}?tab=projekte` }, { name: p.title, path: p.href }])} />}
 
       {/* Kopfzeile des Werkblatts */}
       <div className="mb-6 flex items-center justify-between gap-4 border-b border-line pb-3">

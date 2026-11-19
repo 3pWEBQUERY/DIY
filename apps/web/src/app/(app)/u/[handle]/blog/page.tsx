@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OG_BASE } from "@/config/seo";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, PenLine } from "lucide-react";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description: h.profile.bio?.slice(0, 160) || `Artikel und Werkstattberichte von ${h.profile.displayName}.`,
     alternates: { canonical: `/u/${h.profile.handle}/blog` },
-    openGraph: { title, type: "profile" },
+    openGraph: { ...OG_BASE, title, type: "profile" },
   };
 }
 

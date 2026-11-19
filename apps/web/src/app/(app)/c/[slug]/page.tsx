@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OG_BASE } from "@/config/seo";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
@@ -46,7 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: c.description.slice(0, 160) || `${c.name} – Community auf ${BRAND.name}`,
     alternates: { canonical: `/c/${c.slug}` },
     robots: c.visibility === "PRIVATE" ? { index: false } : undefined,
-    openGraph: { title: c.name, description: c.description.slice(0, 160), images: c.coverUrl ? [{ url: c.coverUrl }] : ["/opengraph-image.png"] },
+    openGraph: { ...OG_BASE, title: c.name, description: c.description.slice(0, 160), images: c.coverUrl ? [{ url: c.coverUrl }] : ["/opengraph-image.png"] },
   };
 }
 
