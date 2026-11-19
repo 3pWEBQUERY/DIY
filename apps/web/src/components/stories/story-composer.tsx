@@ -417,6 +417,7 @@ export function StoryComposer({
             background={stageBackground}
             overlay={stageOverlay}
             projects={projects.filter((p) => p.public !== false)}
+            media={mode === "MEDIA" && hasMedia ? { kind: upload.kind, url: upload.preview } : null}
             form={form}
           />
         ) : (
