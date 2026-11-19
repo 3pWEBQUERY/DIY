@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Shuffle } from "lucide-react";
+import { Plus, Share2, Shuffle } from "lucide-react";
 import { COUPON_MAX_PERCENT, formatMoney, type Currency } from "@werkraum/shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/field";
@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { callAction, useAction } from "@/lib/use-action";
 import type { ActionResult } from "@/server/errors";
 import { minorToInput, parseMoneyInput } from "@/server/commerce/rules";
+import { CouponShareDialog } from "./coupon-share-dialog";
 import { deleteCouponAction, saveCouponAction, setCouponActiveAction } from "@/app/studio/rabatte/actions";
 
 export type CouponRowView = {
@@ -50,9 +51,10 @@ function randomCode() {
 }
 
 /** Gutscheine eines Shops: Liste mit Status und Einlösungen, Anlegen und Bearbeiten im Dialog. */
-export function CouponManager({ coupons, currency, now }: { coupons: CouponRowView[]; currency: Currency; now: number }) {
+export function CouponManager({ coupons, currency, now, shopName }: { coupons: CouponRowView[]; currency: Currency; now: number; shopName: string }) {
   const router = useRouter();
   const [editing, setEditing] = useState<CouponRowView | "new" | null>(null);
+  const [sharing, setSharing] = useState<CouponRowView | null>(null);
   const [, start] = useTransition();
   const fmt = (m: number) => formatMoney(m, currency);
 
@@ -80,76 +82,87 @@ export function CouponManager({ coupons, currency, now }: { coupons: CouponRowVi
       {coupons.length === 0 ? (
         <Empty title="Noch keine Gutscheine" body="Zum Beispiel HERBST10 für 10 % auf alles oder WILLKOMMEN für CHF 5 ab einem Warenwert von CHF 40." action={<Button onClick={() => setEditing("new")}>Ersten Gutschein anlegen</Button>} />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-[14px]">
-            <thead>
-              <tr className="border-b border-rule text-left">
-                <th scope="col" className="spec py-3 font-normal">Code</th>
-                <th scope="col" className="spec py-3 font-normal">Rabatt</th>
-                <th scope="col" className="spec py-3 font-normal">Bedingungen</th>
-                <th scope="col" className="spec py-3 text-right font-normal">Eingelöst</th>
-                <th scope="col" className="spec py-3 pl-6 font-normal">Status</th>
-                <th scope="col" className="py-3"><span className="sr-only">Aktionen</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {coupons.map((c) => {
-                const st = couponState(c, now);
-                const cond = [
-                  c.minSubtotalMinor ? `ab ${fmt(c.minSubtotalMinor)}` : null,
-                  c.startsAt || c.endsAt ? [c.startsAt ? `ab ${dayFmt(c.startsAt)}` : null, c.endsAt ? `bis ${dayFmt(c.endsAt)}` : null].filter(Boolean).join(" ") : null,
-                  c.onePerBuyer ? "1× je Konto" : null,
-                ].filter(Boolean);
-                return (
-                  <tr key={c.id} className="border-b border-line align-top">
-                    <td className="py-3 pr-3 font-mono text-[13px] font-semibold tracking-[0.04em]">{c.code}</td>
-                    <td className="num py-3 pr-3">{c.kind === "PERCENT" ? `${c.value} %` : fmt(c.value)}</td>
-                    <td className="py-3 pr-3 text-[13px] text-ink-2">{cond.length ? cond.join(" · ") : "keine"}</td>
-                    <td className="num py-3 pr-3 text-right">
-                      {c.usedCount}
-                      {c.maxUses != null && <span className="text-muted"> / {c.maxUses}</span>}
-                      {c.stats.orders > 0 && (
-                        <span className="block text-[12px] text-muted">
-                          −{fmt(c.stats.discountMinor)} · {c.stats.orders} {c.stats.orders === 1 ? "Bestellung" : "Bestellungen"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 pl-6 pr-3">
-                      <Badge tone={st.tone}>{st.label}</Badge>
-                    </td>
-                    <td className="py-2 text-right">
-                      <MoreMenu
-                        label={`Aktionen für ${c.code}`}
-                        items={[
-                          { label: "Bearbeiten", onSelect: () => setEditing(c) },
-                          {
-                            label: "Code kopieren",
-                            onSelect: () =>
-                              navigator.clipboard.writeText(c.code).then(
-                                () => toast(`${c.code} kopiert.`),
-                                () => toast("Kopieren nicht möglich.", "error"),
-                              ),
-                          },
-                          c.active ? { label: "Pausieren", onSelect: () => run(() => setCouponActiveAction(c.id, false)) } : { label: "Aktivieren", onSelect: () => run(() => setCouponActiveAction(c.id, true)) },
-                          {
-                            label: "Löschen",
-                            danger: true,
-                            onSelect: async () =>
-                              (await confirmDialog({ title: `Gutschein ${c.code} löschen?`, body: "Der Code kann danach nicht mehr eingelöst werden. Bisherige Bestellungen behalten ihren Rabatt.", confirmLabel: "Löschen", tone: "danger" })) &&
-                              run(() => deleteCouponAction(c.id)),
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        // Liste statt Tabelle mit Scroll-Container: das Aktionsmenü darf über den Rand hinausragen
+        <ul className="border-t border-rule">
+          {coupons.map((c) => {
+            const st = couponState(c, now);
+            const cond = [
+              c.minSubtotalMinor ? `ab ${fmt(c.minSubtotalMinor)}` : null,
+              c.startsAt || c.endsAt ? [c.startsAt ? `ab ${dayFmt(c.startsAt)}` : null, c.endsAt ? `bis ${dayFmt(c.endsAt)}` : null].filter(Boolean).join(" ") : null,
+              c.onePerBuyer ? "1× je Konto" : null,
+            ].filter(Boolean);
+            const shareable = st.label === "Aktiv" || st.label === "Geplant";
+            return (
+              <li key={c.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-line py-3.5 md:grid-cols-[minmax(0,1fr)_6rem_9rem_auto_auto]">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[14px] font-semibold tracking-[0.04em]">{c.code}</span>
+                    <Badge tone={st.tone}>{st.label}</Badge>
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-muted">{cond.length ? cond.join(" · ") : "ohne Bedingungen"}</p>
+                </div>
+                <p className="num order-3 text-[14px] font-semibold md:order-none">
+                  {c.kind === "PERCENT" ? `${c.value} %` : fmt(c.value)}
+                  <span className="block text-[12px] font-normal text-muted md:hidden">Rabatt</span>
+                </p>
+                <p className="num order-4 text-[13.5px] md:order-none">
+                  {c.usedCount}
+                  {c.maxUses != null && <span className="text-muted"> / {c.maxUses}</span>} eingelöst
+                  {c.stats.orders > 0 && (
+                    <span className="block text-[12px] text-muted">
+                      −{fmt(c.stats.discountMinor)} · {c.stats.orders} {c.stats.orders === 1 ? "Bestellung" : "Bestellungen"}
+                    </span>
+                  )}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="order-5 justify-self-start md:order-none"
+                  onClick={() => setSharing(c)}
+                  disabled={!shareable}
+                  title={shareable ? undefined : "Nur aktive Gutscheine können geteilt werden"}
+                  aria-label={`Gutschein ${c.code} teilen`}
+                >
+                  <Share2 size={14} /> Teilen
+                </Button>
+                <div className="order-2 justify-self-end md:order-none">
+                  <MoreMenu
+                    label={`Aktionen für ${c.code}`}
+                    items={[
+                      { label: "Bearbeiten", onSelect: () => setEditing(c) },
+                      ...(shareable ? [{ label: "Teilen", onSelect: () => setSharing(c) }] : []),
+                      {
+                        label: "Code kopieren",
+                        onSelect: () =>
+                          navigator.clipboard.writeText(c.code).then(
+                            () => toast(`${c.code} kopiert.`),
+                            () => toast("Kopieren nicht möglich.", "error"),
+                          ),
+                      },
+                      c.active ? { label: "Pausieren", onSelect: () => run(() => setCouponActiveAction(c.id, false)) } : { label: "Aktivieren", onSelect: () => run(() => setCouponActiveAction(c.id, true)) },
+                      {
+                        label: "Löschen",
+                        danger: true,
+                        onSelect: async () =>
+                          (await confirmDialog({ title: `Gutschein ${c.code} löschen?`, body: "Der Code kann danach nicht mehr eingelöst werden. Bisherige Bestellungen behalten ihren Rabatt.", confirmLabel: "Löschen", tone: "danger" })) &&
+                          run(() => deleteCouponAction(c.id)),
+                      },
+                    ]}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {editing && <CouponDialog coupon={editing === "new" ? null : editing} currency={currency} onClose={() => setEditing(null)} />}
+      {sharing && (
+        <CouponShareDialog
+          coupon={{ id: sharing.id, code: sharing.code, valueLabel: sharing.kind === "PERCENT" ? `${sharing.value} %` : fmt(sharing.value), shopName, minLabel: sharing.minSubtotalMinor ? `ab ${fmt(sharing.minSubtotalMinor)} Warenwert` : null, endsAt: sharing.endsAt }}
+          onClose={() => setSharing(null)}
+        />
+      )}
     </div>
   );
 }

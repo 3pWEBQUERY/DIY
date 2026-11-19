@@ -223,6 +223,15 @@ export type MenuItem = { label: string; icon?: React.ReactNode; onSelect: () => 
  * Kontextmenü (WAI-ARIA Menu Button): Enter/Leertaste/Pfeiltasten öffnen, Pfeiltasten/Pos1/Ende
  * bewegen den Fokus, Esc schliesst und gibt den Fokus an den Auslöser zurück, Tab verlässt das Menü.
  */
+/** Lage des Menüs am Auslöser (fest positioniert); bei zu wenig Platz darunter nach oben. */
+function placeAt(el: HTMLElement | null, count: number): React.CSSProperties {
+  const r = el?.getBoundingClientRect();
+  if (!r) return {};
+  const need = count * 44 + 24;
+  const up = window.innerHeight - r.bottom < need && r.top > need;
+  return { position: "fixed", right: Math.max(8, window.innerWidth - r.right), ...(up ? { bottom: window.innerHeight - r.top + 4, top: "auto" } : { top: r.bottom + 4 }) };
+}
+
 export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline", triggerClassName, onOpenChange }: { items: MenuItem[]; label?: string; variant?: "inline" | "button"; triggerClassName?: string; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -241,29 +250,44 @@ export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline"
 
   useEffect(() => {
     if (!open) return;
-    // Fokus ins Menü
+    // Fokus ins Menü (ohne Scrollen – das Menü ist fest positioniert)
     const els = entries();
-    (startAt.current === "last" ? els.at(-1) : els[0])?.focus();
+    (startAt.current === "last" ? els.at(-1) : els[0])?.focus({ preventScroll: true });
     const outside = (e: Event) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
+    // Fest positioniertes Menü folgt dem Auslöser beim Scrollen und bei Grössenänderungen
+    let raf = 0;
+    const follow = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setPos(placeAt(trigger.current, items.length)));
+    };
     document.addEventListener("mousedown", outside);
     document.addEventListener("focusin", outside);
+    window.addEventListener("scroll", follow, true);
+    window.addEventListener("resize", follow);
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("mousedown", outside);
       document.removeEventListener("focusin", outside);
+      window.removeEventListener("scroll", follow, true);
+      window.removeEventListener("resize", follow);
     };
   }, [open]);
 
+  // Fest positioniert am Auslöser: kein Scroll-Container (Tabellen, Listen) schneidet das Menü ab.
+  // Unten zu wenig Platz → nach oben aufklappen.
+  const [pos, setPos] = useState<React.CSSProperties>({});
   const show = (at: "first" | "last") => {
     startAt.current = at;
+    setPos(placeAt(trigger.current, items.length));
     setOpen(true);
   };
 
   const onMenuKey = (e: React.KeyboardEvent) => {
     const els = entries();
     const i = els.indexOf(document.activeElement as HTMLButtonElement);
-    const focus = (n: number) => els[(n + els.length) % els.length]?.focus();
+    const focus = (n: number) => els[(n + els.length) % els.length]?.focus({ preventScroll: true });
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
@@ -315,7 +339,7 @@ export function MoreMenu({ items, label = "Weitere Aktionen", variant = "inline"
         <MoreHorizontal size={18} aria-hidden />
       </button>
       {open && (
-        <ul ref={menu} id={menuId} role="menu" aria-labelledby={triggerId} onKeyDown={onMenuKey} className="absolute right-0 top-full z-30 mt-1 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise">
+        <ul ref={menu} id={menuId} role="menu" aria-labelledby={triggerId} onKeyDown={onMenuKey} style={pos} className="absolute right-0 top-full z-50 mt-1 min-w-56 overflow-hidden rounded-2xl border border-line bg-card p-1.5 animate-rise data-[fixed]:mt-0" data-fixed={pos.position ? "" : undefined}>
           {items.map((it) => (
             <li key={it.label} role="none">
               <button

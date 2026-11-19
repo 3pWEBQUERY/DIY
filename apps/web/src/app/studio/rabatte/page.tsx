@@ -29,6 +29,7 @@ export default async function StudioDiscountsPage() {
         <SectionTitle n="01" title={<span id="gutscheine">Gutscheine</span>} className="mb-4" />
         <CouponManager
           currency={currency}
+          shopName={shop.name}
           // Momentaufnahme für die Statusanzeige (Server und Client gleich → keine Hydration-Abweichung)
           now={Date.now()}
           coupons={coupons.map((c) => ({
