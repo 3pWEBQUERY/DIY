@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { confirmDialog, loginAs, one, sql, userId } from "./helpers";
 
@@ -182,5 +184,125 @@ test.describe.serial("Stories", () => {
     await sql(`UPDATE "Story" SET state = 'HIDDEN' WHERE id = $1`, [storyId]);
     await mira.goto("/stories/mattia.holz");
     await expect(mira.getByRole("heading", { name: "Gerade keine Stories." })).toBeVisible();
+  });
+});
+
+/** Neue Story im Editor öffnen (Text- oder Foto-Story) */
+async function openComposer(page: Page) {
+  await page.goto("/stories?neu=1");
+  const dlg = page.getByRole("dialog", { name: "Neue Story" });
+  await expect(dlg).toBeVisible();
+  return dlg;
+}
+
+/** Erwähnung über den Sticker-Dialog setzen */
+async function addMention(dlg: ReturnType<Page["getByRole"]>, handle: string) {
+  await dlg.getByRole("button", { name: "Sticker", exact: true }).click();
+  await dlg.getByRole("textbox", { name: "Person erwähnen" }).fill(handle.slice(0, 4));
+  await dlg.getByRole("button", { name: new RegExp(`@${handle.replace(".", "\\.")}`) }).click();
+}
+
+test.describe.serial("Story-Editor", () => {
+  test.beforeAll(async () => {
+    await cleanStories("lena", "mattia", "mira");
+    const [lena, mattia, mira] = await Promise.all([userId("lena"), userId("mattia"), userId("mira")]);
+    const all = [lena, mattia, mira];
+    await sql(`DELETE FROM "UserBlock" WHERE "blockerId" = ANY($1) AND "blockedId" = ANY($1)`, [all]);
+    await sql(`DELETE FROM "UserMute" WHERE "muterId" = ANY($1) AND "mutedId" = ANY($1)`, [all]);
+    // Mattia folgt Lena, Mira folgt Lena nicht
+    await setFollow(mattia, lena, true);
+    await setFollow(mira, lena, false);
+    await sql(`DELETE FROM "Notification" WHERE "recipientId" = $1 AND type = 'MENTION' AND "targetType" = 'STORY'`, [mira]);
+  });
+
+  test("Text-Story gestalten: Textebene per Tastatur, Erwähnung → Follower sieht sie, Erwähnte wird benachrichtigt, Link führt zum Profil", async ({ browser }) => {
+    const lena = await loginAs(browser, "lena");
+    const dlg = await openComposer(lena);
+    await dlg.getByRole("radio", { name: "Text" }).click();
+    await dlg.getByRole("textbox", { name: /^Text/ }).fill("Werkbank-Update");
+    await dlg.getByRole("button", { name: "Text hinzufügen" }).click();
+    await lena.keyboard.type("Frisch gewickelt");
+    await dlg.getByRole("button", { name: "Fläche" }).click();
+    await dlg.getByRole("button", { name: "Fertig" }).click();
+    // Tastaturbedienung (WCAG 2.5.7): Element wählen, verschieben, drehen
+    const el = dlg.getByRole("button", { name: /Text „Frisch gewickelt“/ });
+    await el.focus();
+    for (let i = 0; i < 5; i++) await lena.keyboard.press("ArrowRight");
+    await lena.keyboard.press("]");
+    await addMention(dlg, "mira.strickt");
+    await expect(dlg.getByRole("button", { name: /Erwähnung @mira\.strickt/ })).toBeVisible();
+    await dlg.getByRole("button", { name: "Story teilen" }).click();
+    await expect(dlg).toBeHidden();
+
+    const story = (await one<{ id: string; layout: { elements: { type: string; x: number; rotation: number; userId?: string; text?: string }[] } }>(`SELECT id, layout FROM "Story" WHERE "authorId" = $1 ORDER BY "createdAt" DESC LIMIT 1`, [await userId("lena")]))!;
+    const text = story.layout.elements.find((e) => e.type === "text")!;
+    expect(text.text).toBe("Frisch gewickelt");
+    expect(text.x).toBeGreaterThan(0.5);
+    expect(text.rotation).toBe(5);
+    expect(story.layout.elements.find((e) => e.type === "mention")?.userId).toBe(await userId("mira"));
+
+    // Erwähnte Person: Benachrichtigung mit Link auf die Story
+    const n = await one<{ data: { href: string } }>(`SELECT data FROM "Notification" WHERE "recipientId" = $1 AND type = 'MENTION' AND "targetType" = 'STORY' AND "targetId" = $2`, [await userId("mira"), story.id]);
+    expect(n?.data.href).toBe(`/stories/lena.haekelt?story=${story.id}`);
+
+    // Follower sieht die Story im Story-Kreis samt Ebenen; die Erwähnung führt zum Profil (blättert nicht weiter)
+    const mattia = await loginAs(browser, "mattia");
+    await mattia.goto("/feed");
+    await mattia.getByRole("link", { name: /Story von Lena Brunner, 1 neu/ }).click();
+    await expect(mattia.getByText("Frisch gewickelt")).toBeVisible();
+    await expect(mattia.getByText("Werkbank-Update")).toBeVisible();
+    const mention = mattia.getByRole("link", { name: "Profil von @mira.strickt" });
+    await expect(mention).toBeVisible();
+    await mention.click();
+    await expect(mattia).toHaveURL(/\/u\/mira\.strickt$/);
+  });
+
+  test("„Nur Follower“: Erwähnte ohne Zugriff werden nicht benachrichtigt", async ({ browser }) => {
+    const lena = await loginAs(browser, "lena");
+    const dlg = await openComposer(lena);
+    await dlg.getByRole("radio", { name: "Text" }).click();
+    await dlg.getByRole("textbox", { name: /^Text/ }).fill("Nur für meine Follower");
+    await addMention(dlg, "mira.strickt");
+    await dlg.getByRole("combobox", { name: "Wer sieht die Story?" }).click();
+    await lena.getByRole("option", { name: "Nur Follower" }).click();
+    await dlg.getByRole("button", { name: "Story teilen" }).click();
+    await expect(dlg).toBeHidden();
+    const story = (await one<{ id: string }>(`SELECT id FROM "Story" WHERE "authorId" = $1 AND visibility = 'FOLLOWERS' ORDER BY "createdAt" DESC LIMIT 1`, [await userId("lena")]))!;
+    expect(await one(`SELECT 1 FROM "Notification" WHERE "recipientId" = $1 AND "targetType" = 'STORY' AND "targetId" = $2`, [await userId("mira"), story.id])).toBeFalsy();
+  });
+
+  test("Story ohne Gestaltung (Altbestand) erscheint unverändert", async ({ browser }) => {
+    const mattiaId = await userId("mattia");
+    await sql(
+      `INSERT INTO "Story" (id, "authorId", kind, text, background, visibility, "expiresAt") VALUES ('e2e-alt-story', $1, 'TEXT', 'Alte Story ohne Ebenen', 'sage', 'PUBLIC', now() + interval '2 hours') ON CONFLICT (id) DO UPDATE SET "expiresAt" = excluded."expiresAt", layout = NULL`,
+      [mattiaId],
+    );
+    const lena = await loginAs(browser, "lena");
+    await lena.goto("/stories/mattia.holz?story=e2e-alt-story");
+    await expect(lena.getByText("Alte Story ohne Ebenen")).toBeVisible();
+    await expect(lena.getByRole("link", { name: /^Profil von @/ })).toHaveCount(0);
+    await sql(`DELETE FROM "Story" WHERE id = 'e2e-alt-story'`);
+  });
+
+  test("Foto zuschneiden: nur der 9:16-Ausschnitt wird hochgeladen, Filter wird gespeichert", async ({ browser }) => {
+    const lena = await loginAs(browser, "lena");
+    const dlg = await openComposer(lena);
+    await lena.locator('input[type="file"]').setInputFiles(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/foto.jpg"));
+    await expect(dlg.getByRole("group", { name: "Bildausschnitt" })).toBeVisible();
+    await dlg.getByRole("button", { name: "Zuschnitt übernehmen" }).click();
+    await expect(dlg.getByRole("button", { name: "Zuschneiden", exact: true })).toBeVisible({ timeout: 30_000 });
+    await dlg.getByRole("button", { name: "Filter", exact: true }).click();
+    await dlg.getByRole("button", { name: "Sepia" }).click();
+    await dlg.getByRole("button", { name: "Fertig" }).click();
+    await dlg.getByRole("button", { name: "Story teilen" }).click();
+    await expect(dlg).toBeHidden({ timeout: 30_000 });
+    const s = (await one<{ layout: { media?: { filter: string } }; width: number | null; height: number | null }>(
+      `SELECT s.layout, m.width, m.height FROM "Story" s JOIN "Media" m ON m.id = s."mediaId" WHERE s."authorId" = $1 ORDER BY s."createdAt" DESC LIMIT 1`,
+      [await userId("lena")],
+    ))!;
+    expect(s.layout.media?.filter).toBe("sepia");
+    // Fixture 800 × 1000 → grösster 9:16-Ausschnitt ≈ 563 × 1000
+    expect(s.width).toBeLessThan(800);
+    expect((s.height ?? 0) / (s.width ?? 1)).toBeCloseTo(16 / 9, 1);
   });
 });
