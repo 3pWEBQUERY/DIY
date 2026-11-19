@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnnouncementSlot } from "@/components/announcements/announcement-slot";
 import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 import { categoryBySlug } from "@werkraum/shared";
@@ -74,6 +75,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
   return (
     <Page width="wide">
+      <AnnouncementSlot placement="discover" className="mb-8" />
       {/* Kopf */}
       <header className="mb-10 grid gap-8 border-b border-rule pb-10 lg:grid-cols-[1.3fr_1fr] lg:items-end">
         <div>

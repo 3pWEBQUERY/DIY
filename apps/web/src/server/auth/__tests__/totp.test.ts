@@ -39,7 +39,9 @@ describe("TOTP (RFC 6238)", () => {
     expect(enc).not.toContain("JBSWY3DPEHPK3PXP");
     expect(decryptSecret(enc)).toBe("JBSWY3DPEHPK3PXP");
     const parts = enc.split(".");
-    parts[3] = parts[3]!.slice(0, -2) + (parts[3]!.endsWith("A") ? "B" : "A") + parts[3]!.slice(-1);
+    // Vorletztes Zeichen sicher ändern (voll belegte 6 Bit; das letzte trägt teils nur Füllbits)
+    const d = parts[3]!;
+    parts[3] = d.slice(0, -2) + (d.at(-2) === "A" ? "B" : "A") + d.slice(-1);
     expect(() => decryptSecret(parts.join("."))).toThrow();
   });
 

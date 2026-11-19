@@ -53,6 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       items: [
         { href: "/admin/kategorien", label: "Kategorien & Materialien" },
         { href: "/admin/redaktion", label: "Redaktion" },
+        ...(isAdmin ? [{ href: "/admin/ankuendigungen", label: "Ankündigungen" }] : []),
       ],
     },
     {

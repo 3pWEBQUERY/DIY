@@ -1,4 +1,5 @@
 import Form from "next/form";
+import { AnnouncementSlot } from "@/components/announcements/announcement-slot";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";
@@ -61,6 +62,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
+      <AnnouncementSlot placement="market" className="mb-8" />
       {/* ───── Redaktioneller Kopf ───── */}
       <header className="grid gap-8 border-b border-rule pb-8 md:grid-cols-[1.2fr_1fr] md:items-end">
         <div>
