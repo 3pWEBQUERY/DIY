@@ -68,7 +68,10 @@ final class ProStore {
         do {
             result = try await product.purchaseInActiveScene(options: [.appAccountToken(token)])
         } catch {
-            guard let mapped = StorePurchaseError.wrap(error) else { return .cancelled }
+            guard let mapped = StorePurchaseError.wrap(error) else {
+                StoreDiagnostics.reportInTesting("pro.purchase_cancelled_error", error: error, productIds: [product.id])
+                return .cancelled
+            }
             StoreDiagnostics.report("pro.purchase_failed", error: error, productIds: [product.id])
             throw mapped
         }
@@ -84,10 +87,13 @@ final class ProStore {
             }
             return .purchased
         case .pending:
+            StoreDiagnostics.reportInTesting("pro.purchase_pending", error: nil, productIds: [product.id])
             return .pending
         case .userCancelled:
+            StoreDiagnostics.reportInTesting("pro.purchase_cancelled", error: nil, productIds: [product.id])
             return .cancelled
         @unknown default:
+            StoreDiagnostics.reportInTesting("pro.purchase_unknown_result", error: nil, productIds: [product.id])
             return .cancelled
         }
     }

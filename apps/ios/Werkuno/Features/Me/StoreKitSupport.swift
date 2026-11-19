@@ -78,6 +78,24 @@ enum StorePurchaseError: LocalizedError {
 }
 
 enum StoreDiagnostics {
+    /// Testumgebung (Xcode, TestFlight, App-Review): Apple signiert die App dort für die Sandbox.
+    static func isTestEnvironment() async -> Bool {
+        #if DEBUG
+        return true
+        #else
+        guard let result = try? await AppTransaction.shared else { return false }
+        return result.unsafePayloadValue.environment != .production
+        #endif
+    }
+
+    /// Nur in der Testumgebung melden (z. B. Abbruch durch StoreKit) – im Live-Betrieb wäre das Rauschen.
+    static func reportInTesting(_ context: String, error: Error?, productIds: [String] = []) {
+        Task.detached(priority: .utility) {
+            guard await isTestEnvironment() else { return }
+            report(context, error: error, productIds: productIds)
+        }
+    }
+
     /// Fehler rund um Käufe an den Server melden (ohne Belege oder persönliche Daten).
     static func report(_ context: String, error: Error?, productIds: [String] = [], extra: [String: String] = [:]) {
         Task.detached(priority: .utility) {
