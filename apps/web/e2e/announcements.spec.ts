@@ -1,4 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test, type Browser } from "@playwright/test";
 import { one, sql } from "./helpers";
 
@@ -79,6 +81,51 @@ test("Ankündigung anlegen, auf Werkbank und Startseite sehen, ausblenden", asyn
     await sql(`UPDATE "Announcement" SET "isActive" = false WHERE id = $1`, [row.id]);
     await page.goto("/feed");
     await expect(page.getByRole("region", { name: `Ankündigung: ${title}` })).toBeHidden();
+    await sql(`DELETE FROM "Announcement" WHERE id = $1`, [row.id]);
+  } finally {
+    await ctx.close();
+    await restore();
+  }
+});
+
+test("Gestaltung: Bild, Schrift, Grösse und Schriftfarbe werden gespeichert und angezeigt", async ({ browser }) => {
+  const title = `E2E Gestaltung ${Date.now()}`;
+  const { ctx, restore } = await adminContext(browser);
+  try {
+    const page = await ctx.newPage();
+    await page.goto("/admin/ankuendigungen/neu");
+    await page.getByRole("textbox", { name: "Titel" }).fill(title);
+
+    await page.getByRole("radio", { name: "Bild" }).click();
+    await page.locator("input[type=file]").setInputFiles(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/foto.jpg"));
+    await expect(page.getByRole("img", { name: "Gewähltes Hintergrundbild" })).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole("radiogroup", { name: "Schriftart Titel" }).getByRole("radio", { name: /Serif/ }).click();
+    await page.getByRole("radiogroup", { name: "Grösse Titel" }).getByRole("radio", { name: "XL", exact: true }).click();
+    await page.getByRole("radiogroup", { name: "Schriftfarbe" }).getByRole("radio", { name: "#F2D58A" }).click();
+    // Gelb auf dem Bild reicht nicht → „Lesbar machen“ dunkelt stärker ab und behält die Farbe
+    const fix = page.getByRole("button", { name: "Lesbar machen" });
+    if (await fix.isVisible()) await fix.click();
+    await expect(page.getByText("– gut lesbar.")).toBeVisible();
+    await page.locator("#main").getByRole("checkbox", { name: /^Aktiv/ }).check();
+    await page.getByRole("button", { name: "Ankündigung anlegen" }).click();
+    await expect(page).toHaveURL(/\/admin\/ankuendigungen\/(?!neu)[a-z0-9]+$/);
+
+    const row = (await one<{ id: string; titleFont: string; titleSize: string; textColor: string; bgMode: string; bgImageUrl: string | null; bgMediaId: string | null }>(
+      `SELECT id, "titleFont", "titleSize", "textColor", "bgMode", "bgImageUrl", "bgMediaId" FROM "Announcement" WHERE title = $1`,
+      [title],
+    ))!;
+    expect(row).toMatchObject({ titleFont: "serif", titleSize: "xl", textColor: "#F2D58A", bgMode: "image" });
+    expect(row.bgImageUrl).toBeTruthy();
+    // Medium ist als verwendet markiert (Bereinigung lässt es stehen)
+    expect(await one(`SELECT 1 FROM "Media" WHERE id = $1 AND "attachedAt" IS NOT NULL`, [row.bgMediaId])).toBeTruthy();
+
+    await page.goto("/feed");
+    const banner = page.getByRole("region", { name: `Ankündigung: ${title}` });
+    await expect(banner).toBeVisible();
+    await expect(banner.locator("img")).toHaveAttribute("src", row.bgImageUrl!);
+    await expect(banner.getByRole("heading")).toHaveCSS("color", "rgb(242, 213, 138)");
+    expect(await banner.getByRole("heading").evaluate((el) => getComputedStyle(el).fontFamily)).toContain("Fraunces");
     await sql(`DELETE FROM "Announcement" WHERE id = $1`, [row.id]);
   } finally {
     await ctx.close();

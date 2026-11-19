@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ANNOUNCEMENT_PLACEMENT_LABEL, ANNOUNCEMENT_STATUS_LABEL, ANNOUNCEMENT_TONES, announcementStatus, type AnnouncementPlacement, type AnnouncementTone } from "@werkraum/shared";
+import { ANNOUNCEMENT_PLACEMENT_LABEL, ANNOUNCEMENT_STATUS_LABEL, announcementColors, announcementStatus, type AnnouncementPlacement } from "@werkraum/shared";
 import { adminPage } from "@/server/admin/guard";
-import { listAnnouncements } from "@/server/announcements/service";
+import { announcementStyleOf, listAnnouncements } from "@/server/announcements/service";
 import { AdminHeader, EmptyRow, Table, Td, Th, Tr } from "@/components/admin/ui";
 import { ActionButton } from "@/components/admin/action-controls";
 import { LinkButton } from "@/components/ui/button";
@@ -41,13 +41,18 @@ export default async function AnnouncementsPage() {
           {rows.length === 0 && <EmptyRow cols={6}>Noch keine Ankündigungen. Lege die erste an – sie bleibt ein Entwurf, bis du sie aktivierst.</EmptyRow>}
           {rows.map((a) => {
             const status = announcementStatus(a, now);
-            const tone = ANNOUNCEMENT_TONES[(a.tone in ANNOUNCEMENT_TONES ? a.tone : "coral") as AnnouncementTone];
+            const style = announcementStyleOf(a);
+            const c = announcementColors(style);
             return (
               <Tr key={a.id}>
                 <Td align="right" mono>{a.position}</Td>
                 <Td>
                   <span className="flex items-start gap-2.5">
-                    <span aria-hidden className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg text-[15px]" style={{ background: tone.bg, color: tone.fg, fontFamily: EMOJI_FONT }}>
+                    <span
+                      aria-hidden
+                      className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-cover bg-center text-[15px]"
+                      style={{ backgroundColor: c.bg, backgroundImage: c.image ? `linear-gradient(rgba(38,36,39,${c.overlay}),rgba(38,36,39,${c.overlay})), url(${JSON.stringify(style.bgImageUrl)})` : undefined, color: c.fg, fontFamily: EMOJI_FONT }}
+                    >
                       {a.emoji || "·"}
                     </span>
                     <span className="min-w-0">
