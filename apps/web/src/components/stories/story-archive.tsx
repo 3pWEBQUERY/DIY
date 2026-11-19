@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { createHighlightAction, deleteHighlightAction, storyArchiveAction, updateHighlightAction } from "@/app/(app)/stories/actions";
 import { StoryComposer } from "./story-composer";
 import { StoryThumb } from "./story-thumb";
+import type { StoryProjectOption } from "./story-composer";
 import { HighlightCover } from "./highlight-cover";
 import { rememberStoryReturn } from "./story-return";
 import { callAction } from "@/lib/use-action";
@@ -40,13 +41,16 @@ export function StoryArchive({
   cursor: initialCursor,
   highlights,
   projects,
+  designTools = false,
   openComposer,
 }: {
   handle: string;
   initial: ArchiveItem[];
   cursor: string | null;
   highlights: OwnHighlight[];
-  projects: { id: string; title: string }[];
+  projects: StoryProjectOption[];
+  /** Gestaltungswerkzeuge im Composer (Flag „stories.editor“) */
+  designTools?: boolean;
   openComposer?: boolean;
 }) {
   const router = useRouter();
@@ -166,7 +170,7 @@ export function StoryArchive({
         )}
       </section>
 
-      <StoryComposer open={composer} onClose={() => setComposer(false)} projects={projects} />
+      <StoryComposer open={composer} onClose={() => setComposer(false)} projects={projects} designTools={designTools} />
       {editor && <HighlightEditor key={editor.id ?? "neu"} state={editor} items={items} onClose={() => setEditor(null)} />}
     </div>
   );

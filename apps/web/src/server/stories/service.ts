@@ -199,7 +199,7 @@ export type TrayEntry = { author: StoryAuthor; count: number; unseen: number; la
  * zuerst die mit Neuem (jüngste zuerst), dann die bereits gesehenen.
  */
 export async function storyTray(viewer: SessionUser | null) {
-  if (!viewer?.profile || !(await flagEnabled("stories", viewer.id))) return { enabled: false, own: null, items: [] as TrayEntry[] };
+  if (!viewer?.profile || !(await flagEnabled("stories", viewer.id))) return { enabled: false, editor: false, own: null, items: [] as TrayEntry[] };
   const [rel, storyMutes] = await Promise.all([relationsFor(viewer.id), db.storyMute.findMany({ where: { muterId: viewer.id }, select: { mutedId: true } })]);
   const exclude = new Set([...rel.blocked, ...rel.muted, ...storyMutes.map((m) => m.mutedId)]);
   const authorIds = rel.following.filter((id) => !exclude.has(id));
@@ -239,6 +239,8 @@ export async function storyTray(viewer: SessionUser | null) {
   const ownVariants = (ownLast?.media?.variants ?? {}) as Record<string, string>;
   return {
     enabled: true,
+    /** Gestaltungswerkzeuge im Composer (Flag „stories.editor“) */
+    editor: await flagEnabled("stories.editor", viewer.id),
     own: {
       author: { id: viewer.id, handle: viewer.profile.handle, displayName: viewer.profile.displayName, avatarUrl: viewer.profile.avatarUrl ?? null },
       count: ownRows.length,

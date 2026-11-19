@@ -40,6 +40,8 @@ export const LIMITS = {
   passwordResetIp: [20, 3600],
   post: [30, 3600],
   story: [40, 3600],
+  // Personensuche für Erwähnungen im Story-Editor (tippen löst je Zeichen eine Suche aus)
+  mentionSearch: [300, 3600],
   comment: [60, 3600],
   like: [300, 3600],
   follow: [120, 3600],

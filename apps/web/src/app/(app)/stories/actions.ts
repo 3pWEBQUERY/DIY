@@ -5,6 +5,7 @@ import { act } from "@/server/errors";
 import { currentUser, requireUser } from "@/server/auth/session";
 import * as stories from "@/server/stories/service";
 import * as highlights from "@/server/stories/highlights";
+import { mentionSuggestions } from "@/server/stories/layout";
 
 /** Server Actions für Stories und Highlights. Alle Berechtigungen prüft der Dienst. */
 
@@ -14,6 +15,11 @@ export async function createStoryAction(input: unknown) {
     revalidatePath("/feed");
     return s;
   }, "Deine Story ist online – 24 Stunden lang.");
+}
+
+/** Personen für den Erwähnungs-Sticker im Story-Editor. */
+export async function storyMentionSearchAction(query: string) {
+  return act(async () => mentionSuggestions(await requireUser(), String(query ?? "")));
 }
 
 export async function storyTrayAction() {

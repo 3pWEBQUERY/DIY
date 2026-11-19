@@ -55,7 +55,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
     relationsFor(user.id),
     storyTray(user),
   ]);
-  const projectOptions = await db.project.findMany({ where: { ownerId: user.id, state: { not: "REMOVED" } }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true } });
+  const projectOptions = await db.project.findMany({ where: { ownerId: user.id, state: { not: "REMOVED" } }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true, state: true, visibility: true } });
   const isNew = rel.following.length === 0;
 
   const aside = (
@@ -157,7 +157,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
 
-      <StoryTray tray={stories} projects={projectOptions} />
+      <StoryTray tray={stories} projects={projectOptions.map((p) => ({ id: p.id, title: p.title, public: p.state === "PUBLISHED" && p.visibility === "PUBLIC" }))} />
 
       {(await getSetting("app.testflightUrl")) && <IosBetaHint variant="card" />}
 

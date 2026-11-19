@@ -105,7 +105,7 @@ const linkClass = "pointer-events-auto rounded-[0.6em] outline-none focus-visibl
 
 export type OverlayLinkHandler = () => void;
 
-function ElementBody({ e, interactive, onLink }: { e: StoryElementView; interactive: boolean; onLink?: OverlayLinkHandler }) {
+export function ElementBody({ e, interactive, onLink }: { e: StoryElementView; interactive: boolean; onLink?: OverlayLinkHandler }) {
   const stop = (ev: React.PointerEvent) => ev.stopPropagation();
   switch (e.type) {
     case "text":
@@ -157,9 +157,10 @@ function ElementBody({ e, interactive, onLink }: { e: StoryElementView; interact
 }
 
 /** Zeichnung: ein SVG über die ganze Bühne; Verschieben/Drehen/Skalieren um die Bühnenmitte */
-export function DrawingLayer({ e, className }: { e: Extract<StoryElementView, { type: "drawing" }>; className?: string }) {
+export function DrawingLayer({ e, className, pathClassName, ...svg }: { e: Extract<StoryElementView, { type: "drawing" }>; className?: string; pathClassName?: string } & Omit<React.SVGProps<SVGSVGElement>, "className" | "viewBox" | "style">) {
   return (
     <svg
+      {...svg}
       viewBox={`0 0 1 ${STORY_STAGE_RATIO}`}
       preserveAspectRatio="none"
       className={cn("absolute inset-0 h-full w-full overflow-visible", className)}
@@ -176,6 +177,7 @@ export function DrawingLayer({ e, className }: { e: Extract<StoryElementView, { 
           strokeOpacity={s.tool === "marker" ? 0.55 : 1}
           strokeLinecap={s.tool === "marker" ? "square" : "round"}
           strokeLinejoin="round"
+          className={pathClassName}
         />
       ))}
     </svg>

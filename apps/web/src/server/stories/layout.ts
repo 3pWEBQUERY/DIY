@@ -12,7 +12,10 @@ import {
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import { notify } from "@/server/notifications";
+import { limit } from "@/server/ratelimit";
+import { requireFlag } from "@/server/flags";
 import { canViewContent, relationsFor } from "@/server/visibility";
+import type { SessionUser } from "@/server/auth/session";
 
 /**
  * Gestaltung einer Story (Story-Editor) – Prüfung beim Erstellen und Auflösung für die Anzeige.
@@ -160,4 +163,37 @@ export async function layoutViews(rows: { id: string; layout: unknown }[]) {
   const userMap = new Map(users.flatMap((u) => (u.profile ? [[u.id, { handle: u.profile.handle, visible: VISIBLE_STATUS.has(u.status) }] as const] : [])));
   const projectMap = new Map(projects.flatMap((p) => (p.owner.profile ? [[p.id, { title: p.title, href: `/u/${p.owner.profile.handle}/${p.slug}` }] as const] : [])));
   return new Map(parsed.map(([id, l]) => [id, toLayoutView(l, userMap, projectMap)]));
+}
+
+// ───────────────────────── Erwähnen ─────────────────────────
+
+export type MentionSuggestion = { handle: string; displayName: string; avatarUrl: string | null };
+
+/**
+ * Vorschläge für den Erwähnungs-Sticker: Benutzername beginnt mit bzw. Name enthält die Eingabe.
+ * Ohne (wechselseitig) blockierte, gesperrte und gelöschte Konten; Personen, denen man folgt, zuerst.
+ */
+export async function mentionSuggestions(user: SessionUser, query: string): Promise<MentionSuggestion[]> {
+  await requireFlag("stories.editor", user.id);
+  const q = query.trim().replace(/^@/, "").toLowerCase();
+  if (!q || q.length > 24) return [];
+  await limit("mentionSearch", user.id);
+  const rel = await relationsFor(user.id);
+  const rows = await db.userProfile.findMany({
+    where: {
+      OR: [{ handle: { startsWith: q } }, { displayName: { contains: q, mode: "insensitive" } }],
+      user: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+      ...(rel.blocked.length ? { userId: { notIn: rel.blocked } } : {}),
+    },
+    orderBy: { followerCount: "desc" },
+    take: 30,
+    select: { userId: true, handle: true, displayName: true, avatarUrl: true },
+  });
+  const following = new Set(rel.following);
+  const rank = (r: (typeof rows)[number]) => (following.has(r.userId) ? 0 : 2) + (r.handle.startsWith(q) ? 0 : 1);
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i)
+    .slice(0, 8)
+    .map(({ r }) => ({ handle: r.handle, displayName: r.displayName, avatarUrl: r.avatarUrl ?? null }));
 }
