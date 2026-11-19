@@ -8,6 +8,8 @@ import {
   moderationDecisionSchema,
   type ModerationActionKind,
   type ReportReason,
+  parseStoryLayout,
+  storyLayoutText,
 } from "@werkraum/shared";
 import { db, type ModerationCaseStatus, type Prisma, type TargetType, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
@@ -156,14 +158,16 @@ export async function contentPreview(type: TargetType, id: string): Promise<Cont
       return { ...base, body: r?.body ?? null, meta: [{ label: "Bewertung", value: `${r?.productRating ?? "–"} / 5` }] };
     }
     case "STORY": {
-      const s = await db.story.findUnique({ where: { id }, select: { kind: true, text: true, background: true, visibility: true, expiresAt: true, viewCount: true, media: { select: { kind: true, variants: true } } } });
+      const s = await db.story.findUnique({ where: { id }, select: { kind: true, text: true, background: true, layout: true, visibility: true, expiresAt: true, viewCount: true, media: { select: { kind: true, variants: true } } } });
       if (!s) return base;
       const v = (s.media?.variants ?? {}) as Record<string, string>;
+      // Texte aus der Gestaltung (Textebenen, Erwähnungen, Datum) sind ebenfalls Nutzertext
+      const layoutText = storyLayoutText(parseStoryLayout(s.layout));
       return {
         ...base,
         // Moderation sieht die Story auch nach Ablauf – der öffentliche Link führt dann ins Leere
         href: s.expiresAt > new Date() ? base.href : null,
-        body: s.text || null,
+        body: [s.text, layoutText && `Text auf der Story:\n${layoutText}`].filter(Boolean).join("\n\n") || null,
         imageUrl: v.lg ?? v.md ?? v.poster ?? v.sm ?? null,
         meta: [
           { label: "Art", value: s.kind === "TEXT" ? "Text-Story" : s.media?.kind === "VIDEO" ? "Video-Story" : "Foto-Story" },

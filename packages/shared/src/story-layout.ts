@@ -287,3 +287,12 @@ export function contrastRatio(a: string, b: string) {
   const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
   return (l1 + 0.05) / (l2 + 0.05);
 }
+
+// ───────────────────────── Anzeige ─────────────────────────
+
+/** Projekt hinter einem Projekt-Sticker, wie der Server es zur Anzeige auflöst (nur öffentliche Projekte). */
+export type StoryProjectRef = { title: string; href: string };
+type ProjectLinkElement = Extract<StoryElement, { type: "projectLink" }>;
+/** Ebene, wie sie an die Oberfläche geht: Projekt-Sticker mit aufgelöstem Titel und Link. */
+export type StoryElementView = Exclude<StoryElement, ProjectLinkElement> | (ProjectLinkElement & { project: StoryProjectRef | null });
+export type StoryLayoutView = Omit<StoryLayout, "elements"> & { elements: StoryElementView[] };

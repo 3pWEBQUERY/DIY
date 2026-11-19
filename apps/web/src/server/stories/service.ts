@@ -6,8 +6,10 @@ import {
   STORY_VIDEO_MAX_SECONDS,
   storyCreateSchema,
   storyDurationSeconds,
+  storyLayoutText,
   storyReplySchema,
   type StoryBackground,
+  type StoryLayoutView,
 } from "@werkraum/shared";
 import { db, type Prisma } from "@/server/db";
 import { fail } from "@/server/errors";
@@ -20,6 +22,7 @@ import { attachMedia } from "@/server/media/service";
 import { flagEnabled, requireFlag } from "@/server/flags";
 import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
+import { layoutViews, notifyStoryMentions, prepareStoryLayout } from "./layout";
 
 /**
  * Stories (Foto, Video, Text) – 24 Stunden im Story-Kreis der Follower, danach nur noch im
@@ -39,6 +42,7 @@ export const storySelect = {
   background: true,
   alt: true,
   visibility: true,
+  layout: true,
   state: true,
   viewCount: true,
   likeCount: true,
@@ -63,7 +67,7 @@ function isBackground(v: string | null): v is StoryBackground {
   return !!v && v in STORY_BACKGROUNDS;
 }
 
-function toView(s: StoryRow, v: ViewerState) {
+function toView(s: StoryRow, v: ViewerState, layout: StoryLayoutView | null) {
   const own = !!v.id && v.id === s.authorId;
   const variants = (s.media?.variants ?? {}) as Record<string, string>;
   const isVideo = s.media?.kind === "VIDEO";
@@ -78,7 +82,9 @@ function toView(s: StoryRow, v: ViewerState) {
     createdAt: s.createdAt.toISOString(),
     expiresAt: s.expiresAt.toISOString(),
     expired: s.expiresAt.getTime() <= Date.now(),
-    durationSec: storyDurationSeconds({ kind: s.kind, isVideo, durationMs: s.media?.durationMs, text: s.text }),
+    durationSec: storyDurationSeconds({ kind: s.kind, isVideo, durationMs: s.media?.durationMs, text: s.text, elementText: storyLayoutText(layout) }),
+    /** Gestaltung (Ebenen, Filter, Textstil) – null bei Stories ohne Gestaltung */
+    layout,
     media: s.media
       ? {
           kind: s.media.kind as "IMAGE" | "VIDEO",
@@ -113,8 +119,8 @@ async function viewerState(viewerId: string | null, ids: string[]): Promise<View
 }
 
 export async function hydrateStories(rows: StoryRow[], viewerId: string | null) {
-  const v = await viewerState(viewerId, rows.map((r) => r.id));
-  return rows.map((r) => toView(r, v));
+  const [v, layouts] = await Promise.all([viewerState(viewerId, rows.map((r) => r.id)), layoutViews(rows)]);
+  return rows.map((r) => toView(r, v, layouts.get(r.id) ?? null));
 }
 
 async function follows(followerId: string, followeeId: string) {
@@ -159,6 +165,9 @@ export async function createStory(user: SessionUser, input: unknown) {
     }
   }
 
+  // Gestaltung: nur mit eingeschaltetem Editor; Unpassendes (fremde Projekte, unbekannte oder blockierte Personen) fällt weg
+  const layout = data.layout && (await flagEnabled("stories.editor", user.id)) ? await prepareStoryLayout(user.id, data.kind, data.layout) : null;
+
   const story = await db.$transaction(async (tx) => {
     if (data.kind === "MEDIA") await attachMedia(tx, user.id, [data.media!.id]);
     return tx.story.create({
@@ -171,11 +180,13 @@ export async function createStory(user: SessionUser, input: unknown) {
         alt: data.kind === "MEDIA" ? (data.media?.alt ?? "") : "",
         visibility: data.visibility,
         projectId: data.projectId ?? null,
+        ...(layout ? { layout } : {}),
         expiresAt: new Date(Date.now() + STORY_LIFETIME_HOURS * 3600_000),
       },
       select: { id: true },
     });
   });
+  if (user.profile) await notifyStoryMentions({ id: story.id, authorId: user.id, authorHandle: user.profile.handle, visibility: data.visibility }, layout);
   return story;
 }
 
