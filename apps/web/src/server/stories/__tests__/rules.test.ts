@@ -10,7 +10,7 @@ import {
   storyDurationSeconds,
   storyReplySchema,
 } from "@werkraum/shared";
-import { toStoryRef } from "../ref";
+import { toStoryRef, type StoryRefRow } from "../ref";
 
 describe("Story erstellen (Schema)", () => {
   it("Foto/Video braucht ein Medium", () => {
@@ -77,6 +77,7 @@ describe("Story-Bezug in Nachrichten", () => {
     kind: "MEDIA" as const,
     text: "",
     background: null,
+    layout: null as StoryRefRow["layout"],
     state: "PUBLISHED" as const,
     author: { profile: { handle: "sophie.naeht" } },
     media: { kind: "IMAGE" as const, state: "READY" as const, variants: { sm: "/media/m/s1/sm.webp", lg: "/media/m/s1/lg.webp" } },
@@ -89,5 +90,12 @@ describe("Story-Bezug in Nachrichten", () => {
     expect(toStoryRef({ ...base, expiresAt: new Date(Date.now() - 1000) })).toMatchObject({ available: false, thumb: null });
     expect(toStoryRef({ ...base, state: "HIDDEN", expiresAt: new Date(Date.now() + 3600_000) })).toMatchObject({ available: false, thumb: null });
     expect(toStoryRef(null)).toBeNull();
+  });
+  it("Gestaltung nur solange verfügbar; Projekt-Sticker ohne Titel, kaputter Altbestand ohne", () => {
+    const layout = { version: 1, elements: [{ id: "p", type: "projectLink", projectId: "p1", color: "white", x: 0.5, y: 0.5, scale: 1, rotation: 0, z: 0 }] };
+    const live = toStoryRef({ ...base, layout, expiresAt: new Date(Date.now() + 3600_000) });
+    expect(live?.layout?.elements[0]).toMatchObject({ type: "projectLink", project: null });
+    expect(toStoryRef({ ...base, layout, expiresAt: new Date(Date.now() - 1000) })?.layout).toBeNull();
+    expect(toStoryRef({ ...base, layout: { version: 9 }, expiresAt: new Date(Date.now() + 3600_000) })?.layout).toBeNull();
   });
 });

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { storyFilterCss } from "@werkraum/shared";
 import type { StoryRef } from "@/server/stories/ref";
 import { cn } from "@/lib/utils";
 import { StoryText } from "./story-content";
+import { StoryOverlay } from "./story-layout";
 import { rememberStoryReturn } from "./story-return";
 
 /** Bezug einer Nachricht auf eine Story: kleine Vorschau, solange die Story läuft. */
@@ -20,11 +22,15 @@ export function StoryReplyRef({ story, mine }: { story: StoryRef; mine: boolean 
           aria-label="Story ansehen"
         >
           {story.kind === "TEXT" ? (
-            <StoryText text={story.text ?? ""} background={story.background} />
+            <StoryText text={story.text ?? ""} background={story.background} look={story.layout?.text} />
           ) : story.thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={story.thumb} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={story.thumb} alt="" style={story.layout?.media ? { filter: storyFilterCss(story.layout.media.filter, story.layout.media.intensity) } : undefined} className="absolute inset-0 h-full w-full object-cover" />
           ) : null}
+          {/* Nur Darstellung: der Link ist mit „Story ansehen“ beschriftet */}
+          <span aria-hidden>
+            <StoryOverlay layout={story.layout} />
+          </span>
         </Link>
       ) : (
         <span className="rounded-xl border border-dashed border-line-strong px-3 py-1.5 text-[12px] text-muted">Story nicht mehr verfügbar</span>

@@ -1,4 +1,5 @@
 import "server-only";
+import { parseStoryLayout, storyLayoutText } from "@werkraum/shared";
 import { db, type Tx, type TargetType } from "@/server/db";
 import { isPublicProduct } from "@/server/commerce/restock";
 
@@ -53,8 +54,10 @@ export async function targetMeta(type: TargetType, id: string): Promise<Meta | n
       return r && { ownerId: r.authorId, visibility: "PUBLIC", state: r.state, title: r.body.slice(0, 80), href: `/markt/${r.product.shop.slug}/${r.product.slug}` };
     }
     case "STORY": {
-      const s = await db.story.findUnique({ where: { id }, select: { authorId: true, visibility: true, state: true, text: true, kind: true, author: { select: { profile: { select: { handle: true } } } } } });
-      return s && { ownerId: s.authorId, visibility: s.visibility, state: s.state, title: s.text.slice(0, 80) || (s.kind === "TEXT" ? "Text-Story" : "Story"), href: `/stories/${s.author.profile?.handle ?? ""}?story=${id}` };
+      const s = await db.story.findUnique({ where: { id }, select: { authorId: true, visibility: true, state: true, text: true, kind: true, layout: true, author: { select: { profile: { select: { handle: true } } } } } });
+      // Ohne Bildunterschrift: Text der gestalteten Ebenen als Titel (Meldungen, Moderation)
+      const title = s && (s.text || storyLayoutText(parseStoryLayout(s.layout)).replace(/\s+/g, " ")).slice(0, 80);
+      return s && { ownerId: s.authorId, visibility: s.visibility, state: s.state, title: title || (s.kind === "TEXT" ? "Text-Story" : "Story"), href: `/stories/${s.author.profile?.handle ?? ""}?story=${id}` };
     }
     case "EVENT": {
       const e = await db.communityEvent.findUnique({ where: { id }, select: { organizerId: true, title: true, state: true, community: { select: { slug: true, visibility: true } } } });

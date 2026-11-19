@@ -149,6 +149,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
     case "MENTION":
       if (str(data.kind) === "coauthor_invite") return { lead: name ?? "Jemand", text: "möchte dich als Koautor:in eines Beitrags nennen – bestätigen oder ablehnen.", excerpt };
       if (str(data.kind) === "coauthor_accepted") return { lead: name ?? "Jemand", text: "ist jetzt Koautor:in deines Beitrags.", excerpt };
+      if (n.targetType === "STORY") return { lead: actors(name, count), text: plural ? "haben dich in ihren Stories erwähnt." : "hat dich in einer Story erwähnt.", excerpt: null };
       return { lead: actors(name, count), text: `${plural ? "haben" : "hat"} dich${title ? ` in ${title}` : ""} erwähnt.`, excerpt };
     case "PROJECT_ACTIVITY": {
       const kind = str(data.kind) ?? (excerpt ? "COMMENT" : "LIKE");

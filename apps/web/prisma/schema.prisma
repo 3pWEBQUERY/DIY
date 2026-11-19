@@ -2366,6 +2366,8 @@ model Story {
   project    Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
   /// PUBLIC (alle, die das Profil sehen) oder FOLLOWERS
   visibility Visibility   @default(PUBLIC)
+  /// Gestaltung aus dem Story-Editor (storyLayoutSchema, Version 1): Ebenen, Filter, Textstil. Null = ohne.
+  layout     Json?
   state      ContentState @default(PUBLISHED)
   viewCount  Int          @default(0)
   likeCount  Int          @default(0)

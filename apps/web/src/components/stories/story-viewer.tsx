@@ -13,7 +13,10 @@ import { cn } from "@/lib/utils";
 import { blockAction } from "@/app/(app)/social-actions";
 import { callAction } from "@/lib/use-action";
 import { deleteStoryAction, markStorySeenAction, storyGroupAction, storyLikeAction, storyMuteAction, storyReplyAction } from "@/app/(app)/stories/actions";
+import { storyFilterCss } from "@werkraum/shared";
 import { StoryMedia, StoryText } from "./story-content";
+import { StoryOverlay } from "./story-layout";
+import { storyBackground } from "./story-style";
 import { markStoriesChanged, restoreStoryOpenerFocus, takeStoryReturn } from "./story-return";
 import { StoryViewersDialog } from "./story-viewers-dialog";
 import { HighlightPickerDialog } from "./highlight-picker";
@@ -400,6 +403,8 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
       : [{ label: "Profil ansehen", icon: <User size={15} />, onSelect: () => router.push(`/u/${group.author.handle}`) }];
 
   const hasPrevGroup = groups.slice(0, gi).some((g) => g !== null);
+  // Projekt schon als Sticker auf der Story: Karte im Fuss nicht doppelt zeigen
+  const stickerProjects = new Set(item.layout?.elements.flatMap((e) => (e.type === "projectLink" && e.project ? [e.projectId] : [])) ?? []);
   const iconBtn = "grid size-10 place-items-center rounded-full text-white transition-colors hover:bg-white/15 focus-visible:outline-white";
   /** Steuerung auf der Bühne: dunkle Fläche, damit sie auch auf hellen Fotos und Papier lesbar bleibt */
   const stageBtn = "grid size-9 place-items-center rounded-full bg-black/35 text-white transition-colors hover:bg-black/50 focus-visible:outline-white";
@@ -416,24 +421,37 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
         <ChevronLeft size={22} aria-hidden />
       </button>
 
-      <div className="@container relative h-[100dvh] w-full overflow-hidden bg-black sm:h-[min(92dvh,880px)] sm:w-auto sm:aspect-[9/16] sm:rounded-3xl">
-        {/* Inhalt */}
-        {item.kind === "TEXT" ? (
-          <StoryText text={item.text} background={item.background} />
-        ) : item.media && item.media.state === "READY" ? (
-          <StoryMedia key={item.id} ref={videoRef} media={item.media} alt={item.alt} muted={muted} onLoaded={() => setMediaReady(true)} />
-        ) : (
-          <div className="absolute inset-0 grid place-items-center px-10 text-center">
-            {item.media?.state === "FAILED" ? (
-              <p className="text-sm text-white/85">{item.media.error ?? "Diese Datei konnte nicht verarbeitet werden."} Lösche die Story und versuche es mit einer anderen Datei.</p>
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-sm text-white/85">
-                <Loader2 className="animate-spin" aria-hidden />
-                Das Video wird verarbeitet – deine Story erscheint, sobald es fertig ist.
-              </div>
-            )}
-          </div>
-        )}
+      <div
+        className="relative h-[100dvh] w-full overflow-hidden bg-black [container-type:size] sm:h-[min(92dvh,880px)] sm:w-auto sm:aspect-[9/16] sm:rounded-3xl"
+        // Auf hohen Handys ist die Bühne höher als 9:16 – der Rand nimmt die Farbe der Story auf
+        style={{ background: item.kind === "TEXT" ? storyBackground(item.background).bg : (item.media?.dominant ?? "#151312") }}
+      >
+        {/*
+          Inhalt im 9:16-Rahmen (wie Editor und Miniatur, damit die Ebenen überall gleich sitzen). Liegt über
+          der Tipp- und Wischfläche, lässt Zeigerereignisse aber durch – nur Links auf der Story sind antippbar.
+        */}
+        <div
+          className="@container pointer-events-none absolute left-1/2 top-1/2 z-[15] aspect-[9/16] -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+          style={{ width: "min(100cqw, 100cqh * 9 / 16)" }}
+        >
+          {item.kind === "TEXT" ? (
+            <StoryText text={item.text} background={item.background} look={item.layout?.text} />
+          ) : item.media && item.media.state === "READY" ? (
+            <StoryMedia key={item.id} ref={videoRef} media={item.media} alt={item.alt} muted={muted} filter={storyFilterCss(item.layout?.media?.filter, item.layout?.media?.intensity)} onLoaded={() => setMediaReady(true)} />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center px-10 text-center">
+              {item.media?.state === "FAILED" ? (
+                <p className="text-sm text-white/85">{item.media.error ?? "Diese Datei konnte nicht verarbeitet werden."} Lösche die Story und versuche es mit einer anderen Datei.</p>
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-sm text-white/85">
+                  <Loader2 className="animate-spin" aria-hidden />
+                  Das Video wird verarbeitet – deine Story erscheint, sobald es fertig ist.
+                </div>
+              )}
+            </div>
+          )}
+          {(item.kind === "TEXT" || item.media?.state === "READY") && <StoryOverlay key={`o-${item.id}`} layout={item.layout} interactive onLink={() => setUserPaused(true)} />}
+        </div>
 
         {/* Für Screenreader auf kleinen Bildschirmen (dort fehlen die Pfeile neben der Bühne) */}
         <button type="button" onClick={prev} className="sr-only sm:hidden">Vorherige Story</button>
@@ -501,7 +519,7 @@ export function StoryViewer({ initial, sequence, viewer }: { initial: StoryGroup
           {item.kind === "MEDIA" && item.text && (
             <p className="mx-auto w-fit max-w-full whitespace-pre-line rounded-2xl bg-black/55 px-4 py-2.5 text-center text-[15px] leading-snug">{item.text}</p>
           )}
-          {item.project && (
+          {item.project && !stickerProjects.has(item.project.id) && (
             <Link
               href={`/u/${item.project.handle}/${item.project.slug}`}
               className="pointer-events-auto mx-auto flex max-w-[22rem] items-center gap-3 rounded-2xl bg-card p-2 pr-3 text-ink"

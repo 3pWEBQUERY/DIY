@@ -81,6 +81,12 @@ Das USP – das verknüpfte Projekt – wird als **Projektfaden** sichtbar: eine
 - [x] Verkaufsposts gekennzeichnet; Dedupe im Feed
 - ✅ Umfragen (2–4 Antworten, 1/3/7 Tage, Mehrfachauswahl) · ✅ Entwürfe und geplante Veröffentlichung · ✅ Koautoren (bis 3, mit Bestätigung)
 - ✅ Eigenes Teilen-Menü (Werkuno-Nachricht, WhatsApp, Nachrichten, E-Mail, Instagram, …) · ✅ eigene Bestätigungsdialoge
+- ✅ Stories (Foto, Video, Text – 24 h, „Gesehen von“, Herz, Antwort, Archiv, Highlights)
+- ✅ Story-Editor (Flag `stories.editor`): Text frei platzieren (Stile, Ausrichtung, Farbe, Grösse), Zeichnen
+  (Stift, Marker, Radierer), Sticker (Emoji, Erwähnung, Projekt-Link, Uhrzeit/Datum), Filter mit Intensität,
+  Zuschneiden vor dem Hochladen; Gesten (Ziehen, Pinch/Drehen, Griff, Mausrad), Tastatur und Ebenenliste,
+  Rückgängig/Wiederholen. Layout in `Story.layout` (`storyLayoutSchema`), eine Darstellung für Editor,
+  Betrachter, Miniatur und Archiv (`StoryOverlay`). Offen: iOS zeigt die Gestaltung noch nicht an.
 
 ### WP4 – Projekte (PROJ-001 … PROJ-035) – Produktkern
 - [x] Projekt-CRUD mit allen Feldern aus §10.2, Status §10.3

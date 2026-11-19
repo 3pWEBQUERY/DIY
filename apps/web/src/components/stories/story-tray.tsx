@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import type { StoryTray as TrayData } from "@/server/stories/service";
 import { cn } from "@/lib/utils";
 import { StoryAvatar } from "./story-avatar";
-import { StoryComposer } from "./story-composer";
+import { StoryComposer, type StoryProjectOption } from "./story-composer";
 import { consumeStoriesChanged, rememberStoryReturn } from "./story-return";
 import { storyTrayAction } from "@/app/(app)/stories/actions";
 import { callData } from "@/lib/use-action";
@@ -15,7 +15,7 @@ import { callData } from "@/lib/use-action";
  * Story-Kreis oben im Feed: eigene Story (mit Plus zum Erstellen) und die aktiven Stories der
  * Profile, denen du folgst – Neues zuerst, Gesehenes danach mit grauem Ring.
  */
-export function StoryTray({ tray: initial, projects }: { tray: TrayData; projects: { id: string; title: string }[] }) {
+export function StoryTray({ tray: initial, projects }: { tray: TrayData; projects: StoryProjectOption[] }) {
   const [composer, setComposer] = useState(false);
   const [tray, setTray] = useState(initial);
   useEffect(() => setTray(initial), [initial]);
@@ -73,7 +73,7 @@ export function StoryTray({ tray: initial, projects }: { tray: TrayData; project
           </li>
         )}
       </ul>
-      <StoryComposer open={composer} onClose={() => setComposer(false)} projects={projects} />
+      <StoryComposer open={composer} onClose={() => setComposer(false)} projects={projects} designTools={tray.editor} />
     </section>
   );
 }
