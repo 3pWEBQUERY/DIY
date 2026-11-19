@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Blend, Layers, PenLine, Redo2, Smile, Type, Undo2 } from "lucide-react";
+import { Blend, Crop, Layers, PenLine, Redo2, Smile, Type, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EditorStage, type DrawTool, type EditorStageHandle } from "./editor-stage";
 import { nextElementId, strokeTotals, type EditorAction, type EditorState, type NewElement } from "./editor-state";
@@ -25,6 +25,7 @@ export function StoryEditor({
   overlay,
   projects,
   media,
+  onCrop,
   form,
 }: {
   state: EditorState;
@@ -36,6 +37,8 @@ export function StoryEditor({
   projects: { id: string; title: string }[];
   /** Foto/Video der Story (Vorschau-Adresse) – nur dann gibt es Filter */
   media: { kind: "IMAGE" | "VIDEO"; url: string } | null;
+  /** Foto erneut zuschneiden (nur verfügbar, solange das Original im Browser liegt) */
+  onCrop?: () => void;
   form: ReactNode;
 }) {
   const [tool, setTool] = useState<EditorTool | null>(null);
@@ -143,6 +146,11 @@ export function StoryEditor({
           {media && (
             <button type="button" ref={(el) => void toolButtons.current.set("filter", el)} onClick={() => open("filter")} aria-pressed={tool === "filter"} className={toolBtn(tool === "filter")} aria-label="Filter" title="Filter">
               <Blend size={17} aria-hidden />
+            </button>
+          )}
+          {onCrop && (
+            <button type="button" onClick={onCrop} className={toolBtn(false)} aria-label="Zuschneiden" title="Zuschneiden">
+              <Crop size={17} aria-hidden />
             </button>
           )}
           <button type="button" ref={(el) => void toolButtons.current.set("layers", el)} onClick={() => open("layers")} aria-pressed={tool === "layers"} className={toolBtn(tool === "layers")} aria-label="Ebenen" title="Ebenen">

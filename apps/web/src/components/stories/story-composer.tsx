@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { uploadFile } from "@/components/media/uploader";
-import { createStoryAction } from "@/app/(app)/stories/actions";
+import { createStoryAction, discardStoryUploadAction } from "@/app/(app)/stories/actions";
 import { callAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { StoryMedia, StoryText } from "./story-content";
@@ -30,6 +30,7 @@ import { StoryEditor } from "./editor/story-editor";
 import { DEFAULT_TEXT_LOOK, editorReducer, initialEditorState, layoutForSubmit } from "./editor/editor-state";
 import { Segmented, Slider } from "./editor/editor-ui";
 import { ALIGN_OPTIONS, STYLE_OPTIONS } from "./editor/tool-text";
+import { CropTool, decodeImage } from "./editor/tool-crop";
 
 /** Eigenes Projekt für Projektfaden und Projekt-Sticker; `public` = in Stories sichtbar */
 export type StoryProjectOption = { id: string; title: string; public?: boolean };
@@ -87,6 +88,10 @@ export function StoryComposer({
   const [mediaDesign, mediaDispatch] = useReducer(editorReducer, undefined, () => initialEditorState());
   const [textDesign, textDispatch] = useReducer(editorReducer, undefined, () => initialEditorState());
   const [pending, start] = useTransition();
+  /** Zuschneiden vor dem Hochladen (nur Fotos): Originaldatei und geöffnetes Bild */
+  const [crop, setCrop] = useState<{ file: File; bitmap: ImageBitmap; again: boolean } | null>(null);
+  /** Originaldatei des Fotos – für erneutes Zuschneiden */
+  const original = useRef<File | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const uploadSeq = useRef(0);
@@ -102,8 +107,22 @@ export function StoryComposer({
     if (open && mode === "TEXT") textRef.current?.focus();
   }, [open, mode]);
 
-  function reset() {
+  /** Hochgeladene, nicht geteilte Fassung gleich löschen (still – die Bereinigung räumt sonst nach 14 Tagen auf) */
+  function discard(mediaId: string | undefined) {
+    if (mediaId) void callAction(() => discardStoryUploadAction(mediaId));
+  }
+  function closeCrop() {
+    setCrop((c) => {
+      c?.bitmap.close();
+      return null;
+    });
+  }
+
+  function reset(opts: { discardUpload?: boolean } = {}) {
+    if (opts.discardUpload && upload.status === "ready") discard(upload.mediaId);
     uploadSeq.current++;
+    closeCrop();
+    original.current = null;
     setMode("MEDIA");
     setUpload({ status: "idle" });
     setPreviewUrl(null);
@@ -139,7 +158,7 @@ export function StoryComposer({
       if (bodyRef.current?.closest("dialog")?.open === false) onClose();
       return;
     }
-    reset();
+    reset({ discardUpload: true });
     onClose();
   }
 
@@ -152,7 +171,28 @@ export function StoryComposer({
         setUpload({ status: "error", message: `Das Video ist ${Math.round(sec)} Sekunden lang. Story-Videos dürfen höchstens ${STORY_VIDEO_MAX_SECONDS} Sekunden lang sein – längere Videos teilst du als Beitrag.` });
         return;
       }
+      original.current = null;
+      return startUpload(file, kind);
     }
+    // Foto: erst zuschneiden (falls der Browser das Format lesen kann), dann hochladen
+    original.current = file;
+    const bitmap = designTools ? await decodeImage(file) : null;
+    if (!bitmap) return startUpload(file, kind);
+    closeCrop();
+    setCrop({ file, bitmap, again: false });
+  }
+
+  /** Zuschnitt erneut öffnen (Original bleibt im Speicher; neue Fassung ersetzt die hochgeladene) */
+  async function recrop() {
+    const file = original.current;
+    if (!file) return;
+    const bitmap = await decodeImage(file);
+    if (bitmap) setCrop({ file, bitmap, again: true });
+  }
+
+  async function startUpload(file: File, kind: "IMAGE" | "VIDEO") {
+    // Vorherige, nicht geteilte Fassung (andere Datei, neuer Zuschnitt) nicht liegen lassen
+    if (upload.status === "ready") discard(upload.mediaId);
     const seq = ++uploadSeq.current;
     const preview = URL.createObjectURL(file);
     setPreviewUrl(preview);
@@ -192,7 +232,7 @@ export function StoryComposer({
         return;
       }
       toast(mode === "MEDIA" && upload.status === "ready" && upload.processing ? "Deine Story erscheint, sobald das Video verarbeitet ist." : (r.message ?? "Story geteilt."));
-      reset();
+      reset({ discardUpload: false });
       onClose();
       router.refresh();
     });
@@ -410,7 +450,27 @@ export function StoryComposer({
       className={designTools ? "open:grid grid-rows-[auto_minmax(0,1fr)] max-sm:h-dvh max-sm:max-h-dvh max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0" : undefined}
     >
       <div ref={bodyRef}>
-        {editing ? (
+        {crop ? (
+          <CropTool
+            key={crop.file.name + crop.file.lastModified + String(crop.again)}
+            bitmap={crop.bitmap}
+            fileName={crop.file.name}
+            onApply={(file) => {
+              closeCrop();
+              void startUpload(file, "IMAGE");
+            }}
+            onSkip={() => {
+              const f = crop.file;
+              closeCrop();
+              void startUpload(f, "IMAGE");
+            }}
+            onCancel={() => {
+              // Erster Zuschnitt abgebrochen: keine Datei gewählt; erneuter Zuschnitt: alles bleibt
+              if (!crop.again) original.current = null;
+              closeCrop();
+            }}
+          />
+        ) : editing ? (
           <StoryEditor
             state={mode === "MEDIA" ? mediaDesign : textDesign}
             dispatch={mode === "MEDIA" ? mediaDispatch : textDispatch}
@@ -418,6 +478,7 @@ export function StoryComposer({
             overlay={stageOverlay}
             projects={projects.filter((p) => p.public !== false)}
             media={mode === "MEDIA" && hasMedia ? { kind: upload.kind, url: upload.preview } : null}
+            onCrop={mode === "MEDIA" && upload.status === "ready" && upload.kind === "IMAGE" && original.current ? () => void recrop() : undefined}
             form={form}
           />
         ) : (

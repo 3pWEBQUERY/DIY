@@ -6,6 +6,7 @@ import { currentUser, requireUser } from "@/server/auth/session";
 import * as stories from "@/server/stories/service";
 import * as highlights from "@/server/stories/highlights";
 import { mentionSuggestions } from "@/server/stories/layout";
+import { deleteUnusedMedia } from "@/server/analytics/studio";
 
 /** Server Actions für Stories und Highlights. Alle Berechtigungen prüft der Dienst. */
 
@@ -20,6 +21,17 @@ export async function createStoryAction(input: unknown) {
 /** Personen für den Erwähnungs-Sticker im Story-Editor. */
 export async function storyMentionSearchAction(query: string) {
   return act(async () => mentionSuggestions(await requireUser(), String(query ?? "")));
+}
+
+/**
+ * Hochgeladene, (noch) nicht verwendete Fassung verwerfen – z. B. nach neuem Zuschnitt oder anderer
+ * Datei, damit kein ungenutztes Foto öffentlich abrufbar bleibt. Verwendete Medien bleiben unberührt.
+ */
+export async function discardStoryUploadAction(mediaId: string) {
+  return act(async () => {
+    await deleteUnusedMedia((await requireUser()).id, String(mediaId));
+    return null;
+  });
 }
 
 export async function storyTrayAction() {
