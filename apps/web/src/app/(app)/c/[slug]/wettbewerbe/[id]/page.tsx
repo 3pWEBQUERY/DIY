@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { metaDescription } from "@/config/seo";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Gift, Trophy, Users, Vote } from "lucide-react";
@@ -23,7 +24,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { c } = await load(id);
   if (!c) return { title: "Wettbewerb", robots: { index: false } };
-  return { title: `${c.title} · Wettbewerb · ${c.community.name}`, description: c.description.slice(0, 160) || `Wettbewerb in ${c.community.name}` };
+  return {
+    title: `${c.title} · Wettbewerb · ${c.community.name}`,
+    description: metaDescription(c.description, `Wettbewerb in ${c.community.name}: Projekt einreichen, abstimmen, gewinnen.`),
+    alternates: { canonical: `/c/${c.community.slug}/wettbewerbe/${id}` },
+  };
 }
 
 const PHASE_TONE: Record<CompetitionPhase, string> = {

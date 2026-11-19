@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { breadcrumbJsonLd, OG_BASE } from "@/config/seo";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -43,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     robots: res.isLive ? undefined : { index: false, follow: false },
     authors: [{ name: res.author.displayName, url: `/u/${res.author.handle}` }],
     keywords: a.tags,
-    openGraph: {
+    openGraph: { ...OG_BASE,
       type: "article",
       url,
       title,
@@ -55,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       authors: [`/u/${res.author.handle}`],
       section: a.category?.name,
       tags: a.tags,
-      images: a.coverUrl ? [{ url: a.coverUrl, alt: a.title }] : undefined,
+      images: a.coverUrl ? [{ url: a.coverUrl, alt: a.title }] : OG_BASE.images,
     },
     twitter: { card: a.coverUrl ? "summary_large_image" : "summary", title, description },
   };
@@ -106,6 +107,7 @@ export default async function ArticlePage({ params }: Props) {
   return (
     <div className="px-4 py-6 sm:px-6 md:py-10 lg:px-10">
       {isLive && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(ld)} />}
+      {isLive && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbJsonLd([{ name: author.displayName, path: `/u/${author.handle}` }, { name: "Blog", path: `/u/${author.handle}/blog` }, { name: a.title, path: href }]))} />}
 
       {!isLive && isAuthor && (
         <Notice tone="warn" className="mx-auto mb-8 max-w-[1100px]" title={a.state === "SCHEDULED" ? "Vorschau · geplant" : a.state === "HIDDEN" ? "Ausgeblendet" : "Vorschau · Entwurf"}>

@@ -1,4 +1,5 @@
 import Form from "next/form";
+import { OG_BASE } from "@/config/seo";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, PenLine, Search } from "lucide-react";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   title: "Blogs",
   description: "Werkstattberichte, Materialkunde und Geschichten von Menschen, die mit den Händen erschaffen.",
   alternates: { canonical: "/blogs" },
-  openGraph: { title: "Blogs aus den Werkstätten", type: "website", images: ["/opengraph-image.png"] },
+  openGraph: { ...OG_BASE, title: "Blogs aus den Werkstätten", type: "website", images: ["/opengraph-image.png"] },
 };
 
 type SP = { q?: string; rubrik?: string; tag?: string; nach?: string };

@@ -1,6 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Wordmark } from "@/components/shell/wordmark";
 import { AuthAside } from "@/components/auth/auth-aside";
+
+// Anmelden, Registrieren, Passwort … gehören nicht in die Suchergebnisse (Links darauf dürfen gefolgt werden)
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

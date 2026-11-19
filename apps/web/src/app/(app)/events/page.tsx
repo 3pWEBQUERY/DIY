@@ -11,7 +11,11 @@ import { cn } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
 import { flatSearchParams } from "@/lib/search-params";
 
-export const metadata: Metadata = { title: "Events", description: `Treffen, Workshops und Tauschbörsen aus den ${BRAND.name}-Communities – vor Ort und online.` };
+export const metadata: Metadata = {
+  title: "Events – Workshops, Treffen & Tauschbörsen",
+  description: `Treffen, Workshops und Tauschbörsen aus den ${BRAND.name}-Communities – vor Ort in der Schweiz und online.`,
+  alternates: { canonical: "/events" },
+};
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage({ searchParams }: { searchParams: Promise<{ ort?: string | string[]; kategorie?: string | string[] }> }) {

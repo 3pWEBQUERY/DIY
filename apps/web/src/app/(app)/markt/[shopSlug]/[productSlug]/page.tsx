@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { breadcrumbJsonLd, OG_BASE } from "@/config/seo";
 import { FormattedText } from "@/components/ui/formatted-text";
 import { richToPlain } from "@/lib/rich-text";
 import { notFound } from "next/navigation";
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: `${p.title} – ${p.shop.name}`,
     description: desc,
     alternates: { canonical: `/markt/${p.shop.slug}/${p.slug}` },
-    openGraph: { title: p.title, description: desc, type: "website", images: img ? [{ url: img }] : undefined },
+    openGraph: { ...OG_BASE, title: p.title, description: desc, type: "website", images: img ? [{ url: img }] : OG_BASE.images },
   };
 }
 
@@ -92,6 +93,7 @@ export default async function ProductPage({ params }: Params) {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-6 md:py-10 lg:px-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd([{ name: "Marktplatz", path: "/markt" }, { name: p.shop.name, path: `/markt/${p.shop.slug}` }, { name: p.title, path: href }])).replace(/</g, "\\u003c") }} />
       <nav aria-label="Brotkrumen" className="spec mb-6 truncate">
         <Link href="/markt" className="hover:text-ink">
           Marktplatz

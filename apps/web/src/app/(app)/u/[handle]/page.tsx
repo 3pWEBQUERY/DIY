@@ -36,6 +36,8 @@ import { isStoryMuted, storyRing } from "@/server/stories/service";
 import { listHighlights } from "@/server/stories/highlights";
 import { ProfileHighlights, StoryAvatarLink } from "@/components/stories/profile-stories";
 import { flatSearchParams } from "@/lib/search-params";
+import { JsonLd } from "@/components/projects/json-ld";
+import { absoluteUrl, OG_BASE } from "@/config/seo";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string | string[]; art?: string | string[] }> };
 
@@ -56,12 +58,12 @@ async function load(handle: string) {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { handle } = await params;
   const p = await load(handle);
-  if (!p) return { title: "Profil nicht gefunden" };
+  if (!p) return { title: "Profil nicht gefunden", robots: { index: false } };
   return {
     title: `${p.displayName} (@${p.handle})`,
     description: p.bio || `${p.displayName} auf ${BRAND.name} – Projekte, Anleitungen und mehr.`,
     alternates: { canonical: `/u/${p.handle}` },
-    openGraph: { type: "profile", images: p.avatarUrl ? [p.avatarUrl] : ["/opengraph-image.png"] },
+    openGraph: { ...OG_BASE, type: "profile", images: p.avatarUrl ? [p.avatarUrl] : ["/opengraph-image.png"] },
   };
 }
 
@@ -145,8 +147,28 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     ["Beiträge", profile.postCount],
   ] as const;
 
+  const profileLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    dateCreated: profile.user.createdAt.toISOString(),
+    dateModified: profile.updatedAt.toISOString(),
+    mainEntity: {
+      "@type": "Person",
+      name: profile.displayName,
+      alternateName: `@${profile.handle}`,
+      identifier: profile.handle,
+      url: absoluteUrl(`/u/${profile.handle}`),
+      ...(profile.bio ? { description: profile.bio.slice(0, 500) } : {}),
+      ...(profile.avatarUrl ? { image: absoluteUrl(profile.avatarUrl) } : {}),
+      interactionStatistic: [
+        { "@type": "InteractionCounter", interactionType: "https://schema.org/FollowAction", userInteractionCount: profile.followerCount },
+      ],
+    },
+  };
+
   return (
     <div>
+      {!blocked && <JsonLd data={profileLd} />}
       {!isSelf && !blocked && <TrackView targetType="USER" targetId={userId} />}
       {/* Titelbild: Foto oder das Werkbank-Platzhalterbild (wie in der iOS-App) */}
       <div className="mx-auto max-w-[1120px] px-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">

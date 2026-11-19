@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OG_BASE } from "@/config/seo";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Star } from "lucide-react";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: `${shop.name} – Shop`,
     description: shop.tagline || shop.description.slice(0, 160) || `Handgemachtes von ${shop.owner.profile?.displayName} auf ${BRAND.name}.`,
     alternates: { canonical: `/markt/${shop.slug}` },
-    openGraph: { title: shop.name, description: shop.tagline || undefined, type: "website", images: ["/opengraph-image.png"] },
+    openGraph: { ...OG_BASE, title: shop.name, description: shop.tagline || undefined, type: "website", images: ["/opengraph-image.png"] },
   };
 }
 

@@ -12,6 +12,8 @@ import { RsvpButtons } from "@/components/events/rsvp";
 import { ReportButton, ShareButton } from "@/components/social/actions";
 import { Avatar, Badge, Notice, SectionTitle } from "@/components/ui/misc";
 import { LinkButton, buttonClass } from "@/components/ui/button";
+import { JsonLd } from "@/components/projects/json-ld";
+import { absoluteUrl, breadcrumbJsonLd, metaDescription, OG_BASE } from "@/config/seo";
 
 type Props = { params: Promise<{ slug: string; id: string }> };
 
@@ -24,7 +26,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const { e } = await load(id);
   if (!e) return { title: "Event", robots: { index: false } };
-  return { title: `${e.title} · ${e.community.name}`, description: e.description.slice(0, 160) || `${EVENT_KIND_LABEL[e.kind as keyof typeof EVENT_KIND_LABEL]} am ${eventDate(e.startsAt)}` };
+  const description = metaDescription(e.description, `${EVENT_KIND_LABEL[e.kind as keyof typeof EVENT_KIND_LABEL] ?? "Event"} am ${eventDate(e.startsAt)} in ${e.community.name}`);
+  return {
+    title: `${e.title} · ${e.community.name}`,
+    description,
+    alternates: { canonical: e.href },
+    openGraph: { ...OG_BASE, type: "website", title: e.title, description, url: e.href, ...(e.community.coverUrl ? { images: [{ url: e.community.coverUrl }] } : {}) },
+  };
 }
 
 export default async function EventPage({ params }: Props) {
@@ -34,9 +42,30 @@ export default async function EventPage({ params }: Props) {
   const sameDay = eventDate(e.startsAt) === eventDate(e.endsAt);
   const mapQuery = encodeURIComponent([e.locationName, e.address].filter(Boolean).join(", "));
   const spots = e.capacity ? Math.max(0, e.capacity - e.goingCount) : null;
+  // Strukturierte Daten: Google zeigt Events mit Datum und Ort direkt in der Suche
+  const eventLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: e.title,
+    description: e.description.slice(0, 5000) || undefined,
+    startDate: e.startsAt,
+    endDate: e.endsAt,
+    url: absoluteUrl(e.href),
+    eventStatus: e.cancelled ? "https://schema.org/EventCancelled" : "https://schema.org/EventScheduled",
+    eventAttendanceMode: e.mode === "ONLINE" ? "https://schema.org/OnlineEventAttendanceMode" : "https://schema.org/OfflineEventAttendanceMode",
+    location:
+      e.mode === "ONLINE"
+        ? { "@type": "VirtualLocation", url: absoluteUrl(e.href) }
+        : { "@type": "Place", name: e.locationName || e.community.name, ...(e.address ? { address: e.address } : {}) },
+    ...(e.community.coverUrl ? { image: [absoluteUrl(e.community.coverUrl)] } : {}),
+    organizer: { "@type": "Person", name: e.organizer.displayName, url: absoluteUrl(`/u/${e.organizer.handle}`) },
+    ...(e.costNote ? {} : { isAccessibleForFree: true }),
+  };
 
   return (
     <Page width="wide">
+      <JsonLd data={eventLd} />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Communities", path: "/communities" }, { name: e.community.name, path: `/c/${e.community.slug}` }, { name: e.title, path: e.href }])} />
       <Link href={`/c/${e.community.slug}?tab=events`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
         <ArrowLeft size={14} aria-hidden /> {e.community.name} · Events
       </Link>

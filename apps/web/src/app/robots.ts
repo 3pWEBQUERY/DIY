@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: ["/api/", "/studio", "/admin", "/einstellungen", "/nachrichten", "/benachrichtigungen", "/warenkorb", "/kasse", "/bestellungen", "/willkommen", "/passwort-vergessen", "/passwort-zuruecksetzen", "/verifizieren", "/liste", "/gespeichert", "/einkaufslisten", "/beleg", "/go/", "/materialien/bestand"] }],
     // Aufgeteilte Sitemaps (je < 50'000 URLs), siehe app/sitemap.ts
-    sitemap: SITEMAP_IDS.map((id) => `${base}/sitemap/${id}.xml`),
+    sitemap: [`${base}/sitemap_index.xml`, ...SITEMAP_IDS.map((id) => `${base}/sitemap/${id}.xml`)],
     host: base,
   };
 }
