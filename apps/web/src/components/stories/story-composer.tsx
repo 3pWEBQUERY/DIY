@@ -11,6 +11,8 @@ import {
   STORY_CAPTION_MAX,
   STORY_TEXT_MAX,
   STORY_VIDEO_MAX_SECONDS,
+  STORY_TEXT_SHADE,
+  readableTextColor,
   storyFilterCss,
   type StoryAudience,
   type StoryBackground,
@@ -479,6 +481,9 @@ export function StoryComposer({
             projects={projects.filter((p) => p.public !== false)}
             media={mode === "MEDIA" && hasMedia ? { kind: upload.kind, url: upload.preview } : null}
             onCrop={mode === "MEDIA" && upload.status === "ready" && upload.kind === "IMAGE" && original.current ? () => void recrop() : undefined}
+            stageColor={mode === "TEXT" ? STORY_BACKGROUNDS[background].bg : null}
+            // Neue Textebenen lesbar: auf der Farbfläche in Kontrastfarbe, auf Fotos weiss auf abgedunkeltem Grund
+            textDefaults={mode === "TEXT" ? { color: readableTextColor(STORY_BACKGROUNDS[background].bg) } : { color: "white", bg: STORY_TEXT_SHADE }}
             form={form}
           />
         ) : (

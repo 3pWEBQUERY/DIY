@@ -205,3 +205,15 @@ describe("Editor: Absenden", () => {
     expect(layoutForSubmit(l, "MEDIA").layout?.elements[0]).not.toHaveProperty("userId");
   });
 });
+
+describe("Editor: Hintergrund der Textebene", () => {
+  it("setzen und wieder entfernen", () => {
+    let s = run([{ type: "add", element: textEl() }, { type: "update", id: "1", patch: { bg: "shade" } }]);
+    expect(s.layout.elements[0]).toMatchObject({ bg: "shade" });
+    s = editorReducer(s, { type: "update", id: "1", patch: { bg: null } });
+    expect(s.layout.elements[0]).not.toHaveProperty("bg");
+    // Nur für Text
+    s = run([{ type: "add", element: emojiEl() }, { type: "update", id: "1", patch: { bg: "coral" } }]);
+    expect(s.layout.elements[0]).not.toHaveProperty("bg");
+  });
+});

@@ -198,3 +198,23 @@ describe("Haupttext als Fläche", () => {
     for (const [k, b] of Object.entries(STORY_BACKGROUNDS)) expect(contrastRatio(b.bg, b.fg), k).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+describe("Hintergrund hinter Textebenen", () => {
+  it("abgedunkelt oder Palettenfarbe, sonst nichts", () => {
+    expect(storyLayoutSchema.safeParse(layout([text("a", "Hallo", { bg: "shade" } as never)])).success).toBe(true);
+    expect(storyLayoutSchema.safeParse(layout([text("a", "Hallo", { bg: "coral" } as never)])).success).toBe(true);
+    expect(storyLayoutSchema.safeParse(layout([text("a", "Hallo", { bg: "#000" } as never)])).success).toBe(false);
+    expect(storyLayoutSchema.safeParse(layout([{ ...base, id: "e", type: "emoji", emoji: "🧶", bg: "shade" }])).success).toBe(false);
+  });
+  it("lesbare Schrift je Fläche", async () => {
+    const { readableTextColor, STORY_BACKGROUNDS } = await import("@werkraum/shared");
+    expect(readableTextColor(STORY_BACKGROUNDS.paper.bg)).toBe("ink");
+    expect(readableTextColor(STORY_BACKGROUNDS.ink.bg)).toBe("white");
+    expect(readableTextColor(STORY_ELEMENT_COLORS.sun.hex)).toBe("ink");
+    // Jede Palettenfarbe als Fläche hat mit der vorgeschlagenen Schrift mindestens 4,5:1
+    for (const k of STORY_COLOR_KEYS) {
+      const fg = STORY_ELEMENT_COLORS[readableTextColor(STORY_ELEMENT_COLORS[k].hex)].hex;
+      expect(contrastRatio(fg, STORY_ELEMENT_COLORS[k].hex), k).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
