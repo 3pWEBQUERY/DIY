@@ -290,6 +290,23 @@ struct TutorialDetailView: View {
 
     // MARK: Schritte (Übersicht)
 
+    /// Kurzinfos unter dem Schritt-Titel (Dauer, Sicherheit, Medien, Fragen)
+    private func stepMeta(_ s: TutorialPageStep, questions: Int) -> some View {
+        let mediaCount = s.media?.count ?? 0
+        let hasSafety = !(s.safetyKinds ?? []).isEmpty || s.safety?.nilIfEmpty != nil
+        return HStack(spacing: 8) {
+            if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
+            if hasSafety {
+                Label("Sicherheit", systemImage: "exclamationmark.triangle.fill").labelStyle(.compact).foregroundStyle(Color.danger)
+            }
+            if mediaCount > 0 { Label("\(mediaCount)", systemImage: "photo").labelStyle(.compact) }
+            if questions > 0 {
+                Label(Fmt.plural(questions, "Frage", "Fragen"), systemImage: "questionmark.bubble").labelStyle(.compact)
+            }
+        }
+        .font(.wr(.caption2)).foregroundStyle(Color.muted)
+    }
+
     private func stepsSection(_ t: TutorialPage, number: String) -> some View {
         ProjectsSection(title: "Schritte", number: number, subtitle: Fmt.plural(t.steps.count, "Schritt", "Schritte")) {
             VStack(spacing: 0) {
@@ -303,17 +320,7 @@ struct TutorialDetailView: View {
                                 .frame(width: 34, alignment: .leading)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(s.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
-                                HStack(spacing: 8) {
-                                    if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
-                                    if !(s.safetyKinds ?? []).isEmpty || s.safety?.nilIfEmpty != nil {
-                                        Label("Sicherheit", systemImage: "exclamationmark.triangle.fill").labelStyle(.compact).foregroundStyle(Color.danger)
-                                    }
-                                    if !(s.media ?? []).isEmpty { Label("\(s.media?.count ?? 0)", systemImage: "photo").labelStyle(.compact) }
-                                    if let q = t.stepQuestions?[s.stableKey], q > 0 {
-                                        Label(Fmt.plural(q, "Frage", "Fragen"), systemImage: "questionmark.bubble").labelStyle(.compact)
-                                    }
-                                }
-                                .font(.wr(.caption2)).foregroundStyle(Color.muted)
+                                stepMeta(s, questions: t.stepQuestions?[s.stableKey] ?? 0)
                             }
                             Spacer(minLength: 8)
                             Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
