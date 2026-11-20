@@ -33,6 +33,8 @@ struct TutorialEditorSheet: View {
     @State private var minutes: Int?
     /// Sprache der Anleitung – beim Bearbeiten die geladene behalten, neue Anleitungen in Schweizer Hochdeutsch
     @State private var language = "de-CH"
+    /// Nur für Unterstützer:innen (Unterstützer-Abo)
+    @State private var supportersOnly = false
     @State private var projectId = ""
     @State private var coverId: String?
     @State private var coverPreview: String?
@@ -187,6 +189,12 @@ struct TutorialEditorSheet: View {
             }
             ProjectsField(label: "Gesamtdauer", hint: "Leer lassen, um die Minuten der Schritte zu summieren (\(Fmt.minutes(steps.reduce(0) { $0 + ($1.minutes ?? 0) }))).", error: errors["minutes"]) {
                 ProjectsDurationField(minutes: $minutes).id("min-\(durationSeed)")
+            }
+            ProjectsField(label: "Sichtbarkeit", hint: supportersOnly ? "Alle sehen Titel, Bild und Beschreibung. Schritte, Material und Fragen sehen nur Personen, die dich mit dem Unterstützer-Abo unterstützen." : "Einschalten, um die Anleitung exklusiv für Unterstützer:innen zu veröffentlichen (Studio › Unterstützer:innen).", error: errors["supportersOnly"]) {
+                Toggle("Nur für Unterstützer:innen", isOn: $supportersOnly)
+                    .tint(.moss)
+                    .padding(14)
+                    .cardSurface()
             }
             ProjectsField(label: "Verknüpftes Projekt", hint: "Leser:innen sehen dein Projekt als Beispiel – und können es nachbauen.", error: errors["projectId"]) {
                 Menu {
@@ -442,6 +450,7 @@ struct TutorialEditorSheet: View {
         difficulty = v.difficulty ?? 2
         minutes = v.minutes
         language = v.language?.nilIfEmpty ?? "de-CH"
+        supportersOnly = v.supportersOnly ?? false
         projectId = v.projectId ?? ""
         coverId = v.cover?.id
         coverPreview = v.cover?.preview?.nilIfEmpty
@@ -482,6 +491,7 @@ struct TutorialEditorSheet: View {
             "category": .string(category),
             "difficulty": .number(Double(difficulty)),
             "language": .string(language),
+            "supportersOnly": .bool(supportersOnly),
             "materials": materials.cleaned.json,
             "tools": tools.cleaned.json,
             "steps": .array(steps.map(\.json)),

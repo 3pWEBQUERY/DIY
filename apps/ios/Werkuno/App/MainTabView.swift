@@ -245,6 +245,7 @@ struct StudioSectionView: View {
         case .media: StudioMediaView()
         case .stats: StudioStatsView()
         case .revenue: StudioRevenueView()
+        case .supporters: StudioSupportView()
         }
     }
 }

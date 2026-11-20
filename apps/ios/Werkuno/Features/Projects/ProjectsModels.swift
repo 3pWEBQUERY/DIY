@@ -136,6 +136,12 @@ struct ProjectPage: Decodable, Hashable, Sendable {
     var viewer: Viewer?
     /// Anzahl Fragen je Schritt (stableKey → n)
     var stepQuestions: [String: Int]?
+    /// Exklusiv für Unterstützer:innen; `locked` = ohne Zugang (keine Schritte, kein Material)
+    var supportersOnly: Bool?
+    var locked: Bool?
+    var stepCount: Int?
+
+    var isLocked: Bool { locked ?? false }
 
     var isOwner: Bool { viewer?.isOwner ?? false }
     var galleryItems: [MediaItem] { gallery ?? [] }
@@ -369,6 +375,7 @@ struct TutorialEditValues: Decodable, Sendable {
     var minutes: Int?
     var projectId: String?
     var language: String?
+    var supportersOnly: Bool?
     var cover: MediaRefValue?
     var materials: [ProjectsLineValue]?
     var tools: [ProjectsLineValue]?

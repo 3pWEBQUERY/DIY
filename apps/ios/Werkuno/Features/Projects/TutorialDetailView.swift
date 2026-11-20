@@ -90,9 +90,15 @@ struct TutorialDetailView: View {
                     .padding(.top, 22)
                     .padding(.bottom, 26)
 
-                progressCard(t)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.bottom, 28)
+                if t.isLocked {
+                    lockedSection(t)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.bottom, 28)
+                } else {
+                    progressCard(t)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.bottom, 28)
+                }
 
                 let kinds = t.safetyKinds ?? []
                 if !kinds.isEmpty {
@@ -101,17 +107,21 @@ struct TutorialDetailView: View {
                     }
                 }
 
-                materialsSection(t, number: kinds.isEmpty ? "01" : "02")
-                stepsSection(t, number: kinds.isEmpty ? "02" : "03")
+                if !t.isLocked {
+                    materialsSection(t, number: kinds.isEmpty ? "01" : "02")
+                    stepsSection(t, number: kinds.isEmpty ? "02" : "03")
+                }
                 linkedSection(t)
-                finishCard(t)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.vertical, 28)
-                    .hairline(.top)
-                CommentsSection(type: "TUTORIAL", id: t.id, title: "Fragen & Kommentare", placeholder: "Frage zur Anleitung stellen …", initial: t.comments)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.vertical, 28)
-                    .hairline(.top)
+                if !t.isLocked {
+                    finishCard(t)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.vertical, 28)
+                        .hairline(.top)
+                    CommentsSection(type: "TUTORIAL", id: t.id, title: "Fragen & Kommentare", placeholder: "Frage zur Anleitung stellen …", initial: t.comments)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.vertical, 28)
+                        .hairline(.top)
+                }
             }
             .padding(.bottom, 24)
         }
@@ -144,7 +154,7 @@ struct TutorialDetailView: View {
             }
 
             HStack(spacing: 0) {
-                StatCell(value: "\(t.steps.count)", label: "Schritte").frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(value: "\(t.stepCount ?? t.steps.count)", label: "Schritte").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.minutes(t.minutes ?? t.totalStepMinutes), label: "Dauer").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: t.difficulty.flatMap { L.difficulty[$0] } ?? "–", label: "Stufe").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.number(t.counts?.completions), label: "Nachgebaut").frame(maxWidth: .infinity, alignment: .leading)
@@ -378,6 +388,18 @@ struct TutorialDetailView: View {
     }
 
     // MARK: Aktionsleiste & Menü
+
+    /// Exklusive Anleitung ohne Unterstützung: Umfang und Angebot statt Schritten
+    private func lockedSection(_ t: TutorialPage) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            let n = t.stepCount ?? 0
+            Text("\(Fmt.plural(n, "Schritt", "Schritte"))\(t.minutes.map { " · ca. \(Fmt.minutes($0))" } ?? "") mit Material- und Werkzeugliste, Bildern, Tipps und Sicherheitshinweisen. Diese Anleitung hat \(t.author.displayName) exklusiv für Unterstützer:innen veröffentlicht.")
+                .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+            SupportCardView(creatorId: t.author.id, creatorName: t.author.displayName, variant: .locked) {
+                Task { await load() }
+            }
+        }
+    }
 
     private func actionBar(_ t: TutorialPage) -> some View {
         let next = t.steps.firstIndex { !done.contains($0.stableKey) }

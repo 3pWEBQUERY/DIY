@@ -519,6 +519,24 @@ export async function syncAppleSupportFromApp(user: Pick<SessionUser, "id">, cre
   return supportStateFor(user.id, creatorId);
 }
 
+/**
+ * Kauf ohne bekannte Person verbuchen (z. B. offene Transaktion nach Neuinstallation der App): Die
+ * Person ergibt sich aus dem Konto-Token, das nur für (Konto, Creator) passt.
+ */
+export async function syncAppleSupportByToken(user: Pick<SessionUser, "id">, input: { signedTransaction?: unknown }) {
+  const signed = typeof input.signedTransaction === "string" ? input.signedTransaction : "";
+  if (!signed) throw fail.invalid("Kaufbeleg fehlt.", { signedTransaction: "Pflichtfeld" });
+  const t = verify<AppStoreTransaction>(signed);
+  const token = (t.appAccountToken ?? "").toLowerCase();
+  if (!token) throw fail.invalid("Der Kaufbeleg enthält keine Zuordnung.");
+  const known = await db.supportPayment.findUnique({ where: { appleTransactionId: t.transactionId }, select: { creatorId: true } });
+  if (known) return { creatorId: known.creatorId, ...(await supportStateFor(user.id, known.creatorId)) };
+  const plans = await db.supportPlan.findMany({ select: { userId: true }, take: 50_000 });
+  const creatorId = plans.map((p) => p.userId).find((id) => supportAccountToken(user.id, id) === token);
+  if (!creatorId) throw fail.forbidden("Dieser Kauf gehört zu einem anderen Konto.");
+  return { creatorId, ...(await syncAppleSupportFromApp(user, creatorId, input)) };
+}
+
 async function supportStateFor(userId: string, creatorId: string) {
   const r = await db.supporter.findUnique({ where: { creatorId_supporterId: { creatorId, supporterId: userId } } });
   return { active: isSupportActive(r), currentPeriodEnd: r?.currentPeriodEnd?.toISOString() ?? null, provider: r?.provider ?? null };

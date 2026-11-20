@@ -22,6 +22,11 @@ export const supporterRoutes: RouteDef[] = [
     const b = z.object({ signedTransaction: z.string().min(20) }).parse(await c.json());
     return support.syncAppleSupportFromApp(await me(), c.p.id!, b);
   }),
+  /** Kauf verbuchen, Person aus dem Konto-Token (offene Transaktionen, Neuinstallation) */
+  POST("/support/apple", async (c) => {
+    const b = z.object({ signedTransaction: z.string().min(20) }).parse(await c.json());
+    return support.syncAppleSupportByToken(await me(), b);
+  }),
   /** Web-Abo kündigen bzw. Kündigung zurücknehmen */
   POST("/creators/:id/support/cancel", async (c) => {
     const { cancel } = await c.body({ cancel: zBool });

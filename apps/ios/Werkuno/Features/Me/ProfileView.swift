@@ -223,6 +223,10 @@ struct ProfileView: View {
                     }
                 }
                 counts(prof)
+                // Unterstützer-Abo (nur wenn die Person eines anbietet bzw. man sie schon unterstützt)
+                if !viewer.isSelf && !viewer.blocked {
+                    SupportCardView(creatorId: prof.userId, creatorName: prof.displayName)
+                }
                 if !viewer.blocked, viewer.isSelf || !(stories?.highlights ?? []).isEmpty {
                     ProfileHighlightsRow(highlights: stories?.highlights ?? [], isSelf: viewer.isSelf)
                         .padding(.horizontal, -Space.gutter)

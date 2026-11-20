@@ -16,6 +16,7 @@ struct SettingsView: View {
                     row(.profile, "Name, Handle, Bio, Bilder, Links")
                     row(.account, "E-Mail, Passwort, Bestellangaben, Datenexport, Löschen")
                     row(.security, "Angemeldete Geräte, Ereignisse")
+                    row(.supporting, "Creator:innen, die du unterstützt")
                 }
                 MeGroup(title: "Erlebnis") {
                     row(.notifications, "In-App, E-Mail, Push")
@@ -73,6 +74,7 @@ struct SettingsSectionView: View {
             case .feed: MeFeedSettingsView()
             case .privacy: MePrivacySettingsView()
             case .support: MeSupportView()
+            case .supporting: MeSupportingView()
             case .developer:
                 #if DEBUG
                 MeDeveloperSettings()
