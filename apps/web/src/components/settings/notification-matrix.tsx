@@ -6,7 +6,7 @@ import { useAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./section";
-import { updateNotificationPrefsAction } from "@/app/(app)/einstellungen/actions";
+import { sendWeeklyPreviewAction, updateNotificationPrefsAction } from "@/app/(app)/einstellungen/actions";
 
 type Row = { type: NotificationType; inApp: boolean; email: boolean; locked: boolean };
 
@@ -30,7 +30,9 @@ function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onCh
   );
 }
 
-export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[]; digest: string }) {
+export function NotificationMatrix({ rows, digest: initialDigest, weekly: initialWeekly = true }: { rows: Row[]; digest: string; weekly?: boolean }) {
+  const [weekly, setWeekly] = useState(initialWeekly);
+  const preview = useAction(sendWeeklyPreviewAction, { success: "Beispiel verschickt – schau in dein Postfach." });
   const [state, setState] = useState(() => Object.fromEntries(rows.map((r) => [r.type, { inApp: r.inApp, email: r.email }])) as Record<NotificationType, { inApp: boolean; email: boolean }>);
   const [digest, setDigest] = useState<EmailDigest>((EMAIL_DIGEST as readonly string[]).includes(initialDigest) ? (initialDigest as EmailDigest) : "DAILY");
   const locked = new Set(rows.filter((r) => r.locked).map((r) => r.type));
@@ -41,7 +43,7 @@ export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        run({ prefs: state, emailDigest: digest });
+        run({ prefs: state, emailDigest: digest, weeklyDigest: weekly });
       }}
     >
       <SettingsSection n="01" title="Ereignisse & Kanäle" description="Wähle pro Ereignis, ob es in der App erscheint und ob du zusätzlich eine E-Mail bekommst. Sicherheits- und Moderationshinweise erscheinen immer in der App.">
@@ -96,6 +98,24 @@ export function NotificationMatrix({ rows, digest: initialDigest }: { rows: Row[
             </label>
           ))}
         </fieldset>
+      </SettingsSection>
+
+      <SettingsSection n="03" title="Wochenrückblick" description="Jeden Sonntag eine E-Mail mit dem Neuesten aus deinen Kategorien, von Leuten, denen du folgst, und mit Neuigkeiten zu Gemerktem. Ohne neue Inhalte kommt keine Mail.">
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={weekly}
+            onChange={(e) => setWeekly(e.target.checked)}
+            className="mt-0.5 size-[18px] shrink-0 cursor-pointer appearance-none rounded-xs border border-field bg-card grid place-content-center before:size-2.5 before:scale-0 before:bg-paper before:content-[''] before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)] checked:border-moss checked:bg-moss checked:before:scale-100"
+          />
+          <span>
+            <span className="font-semibold">Wochenrückblick per E-Mail erhalten</span>
+            {digest === "OFF" && <span className="mt-0.5 block text-[13px] text-muted">Du hast E-Mails oben ausgeschaltet – solange bekommst du auch keinen Rückblick.</span>}
+          </span>
+        </label>
+        <Button type="button" variant="ghost" size="sm" className="mt-3" onClick={() => preview.run()} disabled={preview.pending}>
+          {preview.pending ? "Wird verschickt …" : "Beispiel an mich senden"}
+        </Button>
       </SettingsSection>
 
       <div className="flex justify-end border-t border-line pt-4">

@@ -1,23 +1,26 @@
 import { LinkButton } from "@/components/ui/button";
-import { verifyUnsubscribeToken } from "@/server/mail-unsubscribe";
+import { listFromParam, verifyUnsubscribeToken } from "@/server/mail-unsubscribe";
 import { UnsubscribeButton } from "./unsubscribe-button";
 import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata = { title: "E-Mails abbestellen", robots: { index: false } };
 
-export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {
-  const { t } = flatSearchParams(await searchParams);
-  const valid = !!verifyUnsubscribeToken(t);
+export default async function UnsubscribePage({ searchParams }: { searchParams: Promise<{ t?: string | string[]; liste?: string | string[] }> }) {
+  const { t, liste } = flatSearchParams(await searchParams);
+  const list = listFromParam(liste);
+  const valid = !!verifyUnsubscribeToken(t, list);
   return (
     <>
       <p className="spec mb-3">Benachrichtigungen</p>
-      <h1 className="display text-5xl">{valid ? "E-Mails abbestellen" : "Link ungültig"}</h1>
+      <h1 className="display text-5xl">{valid ? (list === "weekly" ? "Wochenrückblick abbestellen" : "E-Mails abbestellen") : "Link ungültig"}</h1>
       {valid ? (
         <>
           <p className="mt-3 text-muted">
-            Du bekommst dann keine E-Mails mehr zu Likes, Kommentaren, Followern und anderen Neuigkeiten. Wichtige Mails zu Sicherheit, Bestellungen und Moderation erhältst du weiterhin.
+            {list === "weekly"
+              ? "Du bekommst dann keine wöchentliche Zusammenfassung mit neuen Projekten und Anleitungen mehr. Benachrichtigungen per E-Mail bleiben, wie du sie eingestellt hast."
+              : "Du bekommst dann keine E-Mails mehr zu Likes, Kommentaren, Followern und anderen Neuigkeiten. Wichtige Mails zu Sicherheit, Bestellungen und Moderation erhältst du weiterhin."}
           </p>
-          <UnsubscribeButton token={t!} />
+          <UnsubscribeButton token={t!} list={list} />
         </>
       ) : (
         <>

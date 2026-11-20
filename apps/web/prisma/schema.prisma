@@ -469,6 +469,9 @@ model UserPreference {
   materials         String[] @default([])
   notificationPrefs Json     @default("{}")
   emailDigest       String   @default("DAILY") // OFF | INSTANT | DAILY | WEEKLY
+  /// Wöchentlicher Rückblick per E-Mail (neue Inhalte in den eigenen Kategorien, von gefolgten Personen, Gemerktes)
+  weeklyDigest      Boolean  @default(true)
+  weeklyDigestSentAt DateTime?
   feedDefault       String   @default("FOR_YOU")
   reduceMotion      Boolean  @default(false)
   /// Lesebestätigungen in Einzelchats senden und sehen (gegenseitig wie bei WhatsApp; Gruppen immer)

@@ -182,6 +182,12 @@ export const identityRoutes: RouteDef[] = [
     await account.updateNotificationSettings(await meAllowSuspended(), await c.json());
     return { ok: true };
   }),
+  /** Wochenrückblick sofort als Beispiel an sich selbst (begrenzt) */
+  POST("/settings/weekly-digest/preview", async () => {
+    const u = await me();
+    const { sendWeeklyDigestPreview } = await import("@/server/digest/weekly");
+    return sendWeeklyDigestPreview({ id: u.id, email: u.email });
+  }),
 
   // ── Feed ──
   GET("/settings/feed", async () => account.getFeedSettings((await me()).id)),

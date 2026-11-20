@@ -63,6 +63,8 @@ export const LOCKED_IN_APP_NOTIFICATIONS = ["MODERATION", "SECURITY"] as const;
 export const notificationPrefsSchema = z.object({
   prefs: z.partialRecord(z.enum(NOTIFICATION_TYPES), z.object({ inApp: z.boolean(), email: z.boolean() })),
   emailDigest: z.enum(EMAIL_DIGEST),
+  /** Wochenrückblick per E-Mail; fehlt bei älteren App-Versionen → unverändert */
+  weeklyDigest: z.boolean().optional(),
 });
 
 export const FEED_DEFAULTS = ["FOR_YOU", "FOLLOWING", "NEW"] as const;

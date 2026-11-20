@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAs, one, sql, userId } from "./helpers";
+import { loginAs, one, runServer, sql, userId } from "./helpers";
 
 /** Benachrichtigungen löschen: einzeln (Knopf am Eintrag) und gesammelt („Gelesene“ / „Alle löschen“). */
 
@@ -46,4 +46,32 @@ test("Benachrichtigungen einzeln und gesammelt löschen", async ({ browser }) =>
   await page.locator('dialog[aria-labelledby="confirm-title"]').getByRole("button", { name: "Alle löschen" }).click();
   await expect(page.getByText("Alles ruhig")).toBeVisible();
   await expect.poll(async () => (await one<{ n: number }>(`SELECT count(*)::int AS n FROM "Notification" WHERE "recipientId" = $1`, [me]))!.n).toBe(0);
+});
+
+test("Wochenrückblick: Einstellung speichern und per Link abbestellen", async ({ browser }) => {
+  const me = await userId("elias");
+  await sql(`INSERT INTO "UserPreference" ("userId", "updatedAt") VALUES ($1, now()) ON CONFLICT ("userId") DO UPDATE SET "weeklyDigest" = true, "emailDigest" = 'DAILY'`, [me]);
+  const page = await loginAs(browser, "elias");
+  await page.goto("/einstellungen/benachrichtigungen");
+  const box = page.getByRole("checkbox", { name: "Wochenrückblick per E-Mail erhalten" });
+  await expect(box).toBeChecked();
+  await box.uncheck();
+  await page.getByRole("button", { name: "Einstellungen speichern" }).click();
+  await expect.poll(async () => (await one<{ w: boolean }>(`SELECT "weeklyDigest" AS w FROM "UserPreference" WHERE "userId" = $1`, [me]))!.w).toBe(false);
+
+  // Abbestell-Link aus der Mail (eigene Liste, eigenes Token)
+  await sql(`UPDATE "UserPreference" SET "weeklyDigest" = true WHERE "userId" = $1`, [me]);
+  const url = runServer(`import("./src/server/mail-unsubscribe").then((m) => console.log(m.unsubscribeUrl("${me}", "weekly")))`).trim().split("\n").pop()!;
+  const u = new URL(url);
+  const guest = await (await browser.newContext()).newPage();
+  await guest.goto(`${u.pathname}${u.search}`);
+  await expect(guest.getByRole("heading", { name: "Wochenrückblick abbestellen" })).toBeVisible();
+  await guest.getByRole("button", { name: "Wochenrückblick abbestellen" }).click();
+  await expect(guest.getByText("Erledigt – du bekommst keinen Wochenrückblick mehr.")).toBeVisible();
+  const pref = await one<{ w: boolean; d: string }>(`SELECT "weeklyDigest" AS w, "emailDigest" AS d FROM "UserPreference" WHERE "userId" = $1`, [me]);
+  expect(pref).toEqual({ w: false, d: "DAILY" }); // Benachrichtigungs-Mails bleiben
+  // Das Token der einen Liste gilt nicht für die andere
+  await guest.goto(`/abbestellen?t=${encodeURIComponent(u.searchParams.get("t")!)}`);
+  await expect(guest.getByRole("heading", { name: "Link ungültig" })).toBeVisible();
+  await guest.context().close();
 });
