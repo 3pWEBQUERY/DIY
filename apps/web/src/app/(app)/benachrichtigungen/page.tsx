@@ -9,7 +9,7 @@ import { listNotifications, unreadByFilter } from "@/server/notifications-inbox"
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
 import { Empty } from "@/components/ui/misc";
 import { NotificationList } from "@/components/notifications/notification-list";
-import { MarkAllRead } from "./mark-all-read";
+import { DeleteNotificationsMenu, MarkAllRead } from "./mark-all-read";
 import { flatSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Benachrichtigungen", robots: { index: false } };
@@ -39,6 +39,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         actions={
           <>
             {(unread.all ?? 0) > 0 && <MarkAllRead />}
+            {page.items.length > 0 && <DeleteNotificationsMenu hasRead={page.items.some((n) => n.read)} />}
             <Link href="/einstellungen/benachrichtigungen" className="grid size-10 place-items-center border border-line-strong hover:border-rule-strong rounded-xl" aria-label="Benachrichtigungen einstellen">
               <Settings size={16} aria-hidden />
             </Link>
@@ -57,7 +58,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         }))}
       />
       {page.items.length ? (
-        <NotificationList key={`${filter}:${unread.all ?? 0}`} initial={page.items} cursor={page.nextCursor} filter={filter} now={new Date().toISOString()} />
+        <NotificationList key={`${filter}:${unread.all ?? 0}:${page.items.length}:${page.items.map((i) => i.id).join(".").slice(-64)}`} initial={page.items} cursor={page.nextCursor} filter={filter} now={new Date().toISOString()} />
       ) : (
         <Empty className="mt-8" title={empty.title} body={empty.body} />
       )}

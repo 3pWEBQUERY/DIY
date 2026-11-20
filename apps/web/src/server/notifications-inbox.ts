@@ -112,3 +112,14 @@ export async function unreadByFilter(userId: string) {
   }
   return out;
 }
+
+/**
+ * Benachrichtigungen löschen: einzelne (`ids`), alle gelesenen (`"read"`) oder alle (`"all"`).
+ * Nur eigene; ein späteres Ereignis legt einfach einen neuen Eintrag an.
+ */
+export async function deleteNotifications(userId: string, which: string[] | "read" | "all") {
+  const where: Prisma.NotificationWhereInput =
+    which === "all" ? { recipientId: userId } : which === "read" ? { recipientId: userId, readAt: { not: null } } : { recipientId: userId, id: { in: which.slice(0, 200) } };
+  const res = await db.notification.deleteMany({ where });
+  return { deleted: res.count };
+}
