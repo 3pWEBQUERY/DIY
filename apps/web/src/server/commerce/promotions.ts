@@ -289,3 +289,40 @@ export async function addBundleToCart(user: SessionUser, bundleId: string) {
   await db.cartBundle.upsert({ where: { cartId_bundleId: { cartId: cart.id, bundleId } }, create: { cartId: cart.id, bundleId }, update: {} });
   return { title: b.title };
 }
+
+/* ───────────────────────── Gutschein teilen (öffentlich) ───────────────────────── */
+
+/**
+ * Öffentliche Ansicht eines Gutscheins für die Teilen-Seite und das Bild. Adressiert über die
+ * (nicht erratbare) ID, damit sich Codes nicht über die URL durchprobieren lassen. Den Code zeigt
+ * sie nur, solange er eingelöst werden kann.
+ */
+export async function publicCoupon(id: string) {
+  if (!/^[a-z0-9]{20,40}$/.test(id)) return null;
+  const c = await db.shopCoupon.findUnique({
+    where: { id },
+    include: { shop: { select: { slug: true, name: true, currency: true, status: true, owner: { select: { status: true } } } } },
+  });
+  if (!c || c.shop.status !== "ACTIVE" || c.shop.owner.status !== "ACTIVE") return null;
+  const now = new Date();
+  const fmt = (m: number) => formatMoney(m, c.shop.currency as Currency);
+  const problem = couponProblem(c, { now, subtotal: Number.MAX_SAFE_INTEGER, buyerUses: 0, fmt });
+  const startsLater = !!c.startsAt && c.startsAt > now;
+  const valid = !problem || startsLater;
+  return {
+    id: c.id,
+    code: valid ? c.code : null,
+    valid,
+    problem: valid ? null : problem,
+    startsAt: c.startsAt,
+    endsAt: c.endsAt,
+    onePerBuyer: c.onePerBuyer,
+    minSubtotalMinor: c.minSubtotalMinor,
+    valueLabel: c.kind === "PERCENT" ? `${c.value} %` : fmt(c.value),
+    headline: c.kind === "PERCENT" ? `${c.value} % Rabatt` : `${fmt(c.value)} Rabatt`,
+    minLabel: c.minSubtotalMinor ? `ab ${fmt(c.minSubtotalMinor)} Warenwert` : null,
+    shop: { slug: c.shop.slug, name: c.shop.name },
+  };
+}
+
+export type PublicCoupon = NonNullable<Awaited<ReturnType<typeof publicCoupon>>>;

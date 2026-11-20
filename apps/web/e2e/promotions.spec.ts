@@ -47,10 +47,26 @@ test.describe.serial("Gutscheine und Sets", () => {
     await dlg.getByLabel("Rabatt in %").fill("20");
     await dlg.getByRole("button", { name: "Gutschein anlegen" }).click();
     await expect(dlg).toBeHidden();
-    const row = lena.getByRole("row").filter({ hasText: CODE });
+    const row = lena.getByRole("listitem").filter({ hasText: CODE });
     await expect(row).toContainText("20 %");
     await expect(row).toContainText("1× je Konto");
     await expect(row).toContainText("Aktiv");
+
+    // Teilen: fertiges Bild mit Code, Beitragstext, öffentliche Gutscheinseite mit Vorschaubild
+    await lena.getByRole("button", { name: `Gutschein ${CODE} teilen` }).click();
+    const share = lena.getByRole("dialog", { name: `Gutschein ${CODE} teilen` });
+    await expect(share.getByLabel("Beitragstext")).toHaveValue(new RegExp(`Mit dem Code ${CODE} bekommst du 20 % Rabatt`));
+    const img = share.getByRole("img", { name: `Gutschein ${CODE}` });
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth), { timeout: 30_000 }).toBe(1080);
+    const caption = await share.getByLabel("Beitragstext").inputValue();
+    const pageUrl = caption.match(/https?:\/\/\S+\/gutschein\/\w+/)![0];
+    await share.getByRole("button", { name: "Schliessen" }).click();
+    const guest = await (await browser.newContext()).newPage();
+    await guest.goto(new URL(pageUrl).pathname);
+    await expect(guest.getByRole("heading", { level: 1, name: "20 % Rabatt" })).toBeVisible();
+    await expect(guest.getByText(CODE, { exact: true })).toBeVisible();
+    await expect(guest.locator('meta[property="og:image"]')).toHaveAttribute("content", /\/gutschein\/\w+\/bild$/);
+    await guest.context().close();
   });
 
   test("Käufer löst den Code ein und bezahlt den reduzierten Betrag", async ({ browser }) => {

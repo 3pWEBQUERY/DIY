@@ -44,7 +44,7 @@ function NumInput({ value, onChange, label, min = 0, max = 10000, step = 1, clas
           const v = Number(e.target.value);
           onChange(isFinite(v) ? Math.min(max, Math.max(min, v)) : 0);
         }}
-        className={cn("h-10 w-full rounded-lg border border-field bg-card px-2.5 text-right text-[14px] tabular-nums outline-none focus:border-moss", suffix && "pr-9")}
+        className={cn("h-10 w-full rounded-lg border border-rule-strong bg-card transition-colors hover:border-muted px-2.5 text-right text-[14px] tabular-nums outline-none focus:border-moss", suffix && "pr-9")}
       />
       {suffix && <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-muted">{suffix}</span>}
     </label>
@@ -194,7 +194,7 @@ export function CuttingCalculator() {
           <div className="mt-3 flex items-center gap-2 text-[13px]">
             <span className="text-muted">Währung</span>
             {(["CHF", "EUR"] as const).map((c) => (
-              <button key={c} type="button" aria-pressed={cur === c} onClick={() => setCur(c)} className={cn("h-8 rounded-full border px-3 font-semibold", cur === c ? "border-ink bg-ink text-paper" : "border-line-strong text-ink-2")}>
+              <button key={c} type="button" aria-pressed={cur === c} onClick={() => setCur(c)} className={cn("h-8 rounded-full border px-3 font-semibold", cur === c ? "border-moss bg-moss text-paper" : "border-rule-strong text-ink-2 hover:border-muted hover:text-ink")}>
                 {c}
               </button>
             ))}
@@ -221,7 +221,7 @@ export function CuttingCalculator() {
             <div className="mt-3 rounded-xl border border-line bg-card p-3">
               <label htmlFor="zs-paste" className="text-[13px] font-semibold">Aus Excel, Numbers oder Text einfügen</label>
               <p className="text-[12.5px] text-muted">Eine Zeile pro Teil: Bezeichnung; Länge; Breite; Stück – getrennt mit Tab, Semikolon oder Komma.</p>
-              <textarea id="zs-paste" value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} placeholder={"Seite; 720; 560; 2\nBoden; 762; 560; 2"} className="mt-2 w-full rounded-lg border border-field bg-paper p-2.5 font-mono text-[13px] outline-none focus:border-moss" />
+              <textarea id="zs-paste" value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} placeholder={"Seite; 720; 560; 2\nBoden; 762; 560; 2"} className="mt-2 w-full rounded-lg border border-rule-strong bg-paper transition-colors hover:border-muted p-2.5 font-mono text-[13px] outline-none focus:border-moss" />
               <div className="mt-2 flex gap-2">
                 <Button
                   type="button"
@@ -262,7 +262,7 @@ export function CuttingCalculator() {
                     <tr key={p.id} className="border-t border-line align-top">
                       <td className="py-1.5 pr-2">
                         <label className="sr-only" htmlFor={`zs-n-${p.id}`}>Bezeichnung Teil {i + 1}</label>
-                        <input id={`zs-n-${p.id}`} value={p.name} maxLength={60} onChange={(e) => update(p.id, { name: e.target.value })} placeholder={`Teil ${i + 1}`} className="h-10 w-full rounded-lg border border-field bg-card px-2.5 outline-none focus:border-moss" />
+                        <input id={`zs-n-${p.id}`} value={p.name} maxLength={60} onChange={(e) => update(p.id, { name: e.target.value })} placeholder={`Teil ${i + 1}`} className="h-10 w-full rounded-lg border border-rule-strong bg-card transition-colors hover:border-muted px-2.5 outline-none focus:border-moss" />
                         {big && <p className="mt-1 text-[12px] font-medium text-danger">Grösser als die nutzbare Platte ({usableL} × {usableW})</p>}
                       </td>
                       <td className="py-1.5 pr-2"><NumInput label={`Länge Teil ${i + 1} in mm`} value={p.length} onChange={(v) => update(p.id, { length: Math.round(v) })} /></td>
@@ -273,7 +273,7 @@ export function CuttingCalculator() {
                           {(["edgesL", "edgesW"] as const).map((k) => (
                             <label key={k} className="flex-1">
                               <span className="sr-only">{k === "edgesL" ? "Längskanten" : "Breitkanten"} Teil {i + 1}</span>
-                              <select value={p[k]} onChange={(e) => update(p.id, { [k]: Number(e.target.value) })} className="h-10 w-full rounded-lg border border-field bg-card px-1.5 text-[13px] outline-none focus:border-moss">
+                              <select value={p[k]} onChange={(e) => update(p.id, { [k]: Number(e.target.value) })} className="h-10 w-full rounded-lg border border-rule-strong bg-card transition-colors hover:border-muted px-1.5 text-[13px] outline-none focus:border-moss">
                                 <option value={0}>0</option>
                                 <option value={1}>1</option>
                                 <option value={2}>2</option>
@@ -283,7 +283,7 @@ export function CuttingCalculator() {
                         </div>
                       </td>
                       <td className="py-1.5 pr-2">
-                        <button type="button" role="switch" aria-checked={p.rotate} aria-label={`Teil ${i + 1} darf gedreht werden`} onClick={() => update(p.id, { rotate: !p.rotate })} className={cn("grid h-10 w-full place-items-center rounded-lg border", p.rotate ? "border-moss bg-moss-soft text-moss-ink" : "border-field text-muted")}>
+                        <button type="button" role="switch" aria-checked={p.rotate} aria-label={`Teil ${i + 1} darf gedreht werden`} onClick={() => update(p.id, { rotate: !p.rotate })} className={cn("grid h-10 w-full place-items-center rounded-lg border", p.rotate ? "border-moss bg-moss-soft text-moss-ink" : "border-rule-strong text-muted hover:border-muted")}>
                           <RotateCw size={15} aria-hidden />
                         </button>
                       </td>
