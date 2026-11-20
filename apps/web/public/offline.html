@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FAF8F5">
+<title>Offline – Werkuno</title>
+<style>
+  :root { color-scheme: light; }
+  html, body { margin: 0; height: 100%; background: #FAF8F5; color: #262427; font-family: Manrope, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { min-height: 100%; display: grid; place-items: center; padding: 32px 20px; box-sizing: border-box; }
+  .box { max-width: 420px; text-align: center; }
+  img { width: 72px; height: 72px; }
+  .kicker { margin: 22px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #6b6461; }
+  h1 { margin: 0 0 10px; font-size: 28px; line-height: 1.15; font-weight: 800; letter-spacing: -.02em; }
+  p { margin: 0 0 22px; font-size: 15.5px; line-height: 1.6; color: #3d393c; }
+  button { appearance: none; border: 0; border-radius: 12px; background: #b64b3a; color: #fff; font: inherit; font-weight: 700; font-size: 15px; padding: 13px 22px; cursor: pointer; }
+  button:focus-visible { outline: 2px solid #b64b3a; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="box">
+    <img src="/brand/werkuno-icon-192.png" alt="" width="72" height="72">
+    <p class="kicker">Keine Verbindung</p>
+    <h1>Du bist gerade offline</h1>
+    <p>Werkuno braucht eine Internetverbindung. Sobald du wieder online bist, geht es hier weiter.</p>
+    <button type="button" onclick="location.reload()">Erneut versuchen</button>
+  </div>
+</main>
+<script>window.addEventListener("online", function () { location.reload(); });</script>
+</body>
+</html>

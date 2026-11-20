@@ -1,7 +1,51 @@
-/* Werkuno Service Worker – nur für Push-Benachrichtigungen (kein Offline-Cache). */
+/*
+ * Werkuno Service Worker: Push-Benachrichtigungen und installierbare Web-App (Android).
+ * Kein Offline-Cache für Inhalte (angemeldete Seiten sollen nie aus einem geteilten Cache kommen) –
+ * nur eine Offline-Seite, wenn eine Seite ohne Verbindung aufgerufen wird.
+ */
 
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+const SHELL = "werkuno-shell-v1";
+const SHELL_FILES = ["/offline.html", "/brand/werkuno-icon-192.png"];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(SHELL);
+      await cache.addAll(SHELL_FILES).catch(() => {});
+      await self.skipWaiting();
+    })(),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      // Alte Shell-Caches aufräumen
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k.startsWith("werkuno-shell-") && k !== SHELL).map((k) => caches.delete(k)));
+      if (self.registration.navigationPreload) await self.registration.navigationPreload.enable().catch(() => {});
+      await self.clients.claim();
+    })(),
+  );
+});
+
+// Nur Seitenaufrufe: normal aus dem Netz, ohne Verbindung die Offline-Seite
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET" || req.mode !== "navigate") return;
+  event.respondWith(
+    (async () => {
+      try {
+        const preload = await event.preloadResponse;
+        if (preload) return preload;
+        return await fetch(req);
+      } catch {
+        const cached = await caches.match("/offline.html");
+        return cached || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+    })(),
+  );
+});
 
 self.addEventListener("push", (event) => {
   let data = {};

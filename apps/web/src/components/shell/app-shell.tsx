@@ -14,6 +14,7 @@ import { NotificationBell } from "./notification-bell";
 import { shellCounts } from "@/server/shell/counts";
 import { flagsFor } from "@/server/flags";
 import { VerifyEmailBanner } from "./verify-email-banner";
+import { InstallBanner } from "./pwa";
 
 /** Hauptlayout: linke Navigation, zentraler Inhalt, optionale rechte Kontextspalte (§28.5). */
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -59,6 +60,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         {user && !user.emailVerifiedAt && user.status === "ACTIVE" && <VerifyEmailBanner email={user.email} />}
+        <InstallBanner />
         <main id="main" className="flex-1 pb-20 md:pb-0">
           <PageTransition>{children}</PageTransition>
         </main>

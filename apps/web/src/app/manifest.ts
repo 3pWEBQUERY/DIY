@@ -13,15 +13,26 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: BRAND.locale,
     dir: "ltr",
     start_url: "/feed",
+    scope: "/",
     display: "standalone",
+    orientation: "portrait",
     background_color: "#FAF8F5",
     theme_color: "#FAF8F5",
-    // Nur „any“: Das vorhandene Icon füllt die Fläche fast bis zum Rand und hat keinen deckenden
-    // Hintergrund – als „maskable“ würden die Ecken der vier Kacheln von der runden Maske abgeschnitten
-    // (Safe Zone = Kreis mit 80 % Durchmesser). Für ein maskierbares Icon braucht es eine eigene Variante.
+    categories: ["lifestyle", "social", "shopping", "education"],
+    // „any“: Originalicon (transparent). „maskable“: eigene Variante mit deckendem Hintergrund und dem
+    // Logo innerhalb der Safe Zone (Kreis mit 80 % Durchmesser) – Android schneidet sie rund/eckig zu.
     icons: [
       { src: "/brand/werkuno-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/brand/werkuno-icon.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/brand/werkuno-icon-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/brand/werkuno-icon-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+    // Langes Drücken auf das App-Symbol (Android)
+    shortcuts: [
+      { name: "Entdecken", url: "/entdecken", icons: [{ src: "/brand/werkuno-icon-maskable-192.png", sizes: "192x192", type: "image/png" }] },
+      { name: "Projekt erstellen", short_name: "Erstellen", url: "/erstellen", icons: [{ src: "/brand/werkuno-icon-maskable-192.png", sizes: "192x192", type: "image/png" }] },
+      { name: "Marktplatz", url: "/markt", icons: [{ src: "/brand/werkuno-icon-maskable-192.png", sizes: "192x192", type: "image/png" }] },
+      { name: "Benachrichtigungen", url: "/benachrichtigungen", icons: [{ src: "/brand/werkuno-icon-maskable-192.png", sizes: "192x192", type: "image/png" }] },
     ],
   };
 }
