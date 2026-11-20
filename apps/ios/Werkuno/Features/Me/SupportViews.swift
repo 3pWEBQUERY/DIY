@@ -135,7 +135,8 @@ struct SupportCardView: View {
     @State private var loaded = false
 
     var body: some View {
-        Group {
+        // Immer ein (ggf. leerer) Container, damit `.task` auch ohne Angebot läuft
+        VStack(spacing: 0) {
             if let offer = data?.offer, offer.enabled || offer.me != nil {
                 card(offer)
             } else if variant == .locked && loaded {
@@ -143,6 +144,8 @@ struct SupportCardView: View {
                     .font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16).cardSurface()
+            } else {
+                Color.clear.frame(height: 0)
             }
         }
         .task(id: creatorId) { await load() }

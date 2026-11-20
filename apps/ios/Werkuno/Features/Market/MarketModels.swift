@@ -260,6 +260,8 @@ struct MarketFees: Decodable, Hashable, Sendable {
     var total: Int
     var platformFee: Int?
     var sellerNet: Int?
+    /// Summe der Rabatte (nur in den Warenkorb-Summen)
+    var discount: Int?
 }
 
 struct MarketCartLine: Decodable, Hashable, Identifiable, Sendable {
@@ -287,6 +289,12 @@ struct MarketCartGroup: Decodable, Hashable, Identifiable, Sendable {
     var lines: [MarketCartLine]
     var fees: MarketFees
     var purchasable: Bool
+    /// Warenwert vor Rabatt, Rabatt und Rabattzeilen (Sets, Gutschein); `fees` gilt nach Rabatt
+    var subtotal: Int?
+    var discount: Int?
+    var discounts: [MarketDiscountRow]?
+    var coupon: MarketCartCoupon?
+    var incompleteBundles: [IdTitle]?
     var id: String { shop.id }
 }
 
@@ -496,6 +504,9 @@ struct MarketOrderDetail: Decodable, Hashable, Identifiable, Sendable {
     var shopId: String?
     var status: String
     var currency: String?
+    /// Rabatt und Rabattzeilen (Sets, Gutschein) zum Bestellzeitpunkt
+    var discountMinor: Int?
+    var discounts: [MarketDiscountRow]?
     var subtotalMinor: Int
     var shippingMinor: Int
     var totalMinor: Int

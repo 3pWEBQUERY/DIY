@@ -112,6 +112,9 @@ struct TutorialDetailView: View {
                     stepsSection(t, number: kinds.isEmpty ? "02" : "03")
                 }
                 linkedSection(t)
+                if t.preview != true {
+                    MarketBundlesSection(source: .tutorial(t.id), title: "Materialset kaufen", label: "Materialset", isOwner: t.isOwner, horizontalPadding: Space.gutter, verticalPadding: 20)
+                }
                 if !t.isLocked {
                     finishCard(t)
                         .padding(.horizontal, Space.gutter)

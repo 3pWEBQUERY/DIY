@@ -224,9 +224,11 @@ struct MarketFeeSummary: View {
     var shipping: Int
     var total: Int
     var currency: String? = "CHF"
+    var discounts: [MarketDiscountRow] = []
     var body: some View {
         VStack(spacing: 8) {
             MarketAmountRow(label: "Zwischensumme", value: Fmt.money(subtotal, currency: currency))
+            MarketDiscountRows(rows: discounts, currency: currency)
             MarketAmountRow(label: "Versand", value: shipping == 0 ? "kostenlos" : Fmt.money(shipping, currency: currency))
             Divider().overlay(Color.line)
             MarketAmountRow(label: "Total", value: Fmt.money(total, currency: currency), strong: true)
@@ -240,7 +242,7 @@ struct MarketOrderTotals: View {
     var seller = false
     var body: some View {
         VStack(spacing: 8) {
-            MarketFeeSummary(subtotal: order.subtotalMinor, shipping: order.shippingMinor, total: order.totalMinor, currency: order.currency)
+            MarketFeeSummary(subtotal: order.subtotalMinor, shipping: order.shippingMinor, total: order.totalMinor, currency: order.currency, discounts: order.discounts ?? [])
             if seller, let fee = order.platformFeeMinor {
                 if order.isApplePayment {
                     // Apple-Kauf: einbehaltener Betrag deckt Apples Anteil und die Provision
