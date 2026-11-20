@@ -14,6 +14,7 @@ import { requireAdult } from "@/server/auth/adult";
 import { attachMedia, mediaCoverUrl, patchFrozenMediaRefsLater, releaseMedia } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
 import { listCommentPage, stepQuestionCounts } from "@/server/social/interactions";
+import { canAccessSupporterContent, supportOffer } from "@/server/supporters/service";
 import { slugify } from "@/lib/utils";
 import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
@@ -162,6 +163,7 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
       language: data.language,
       projectId: data.projectId ?? null,
       coverUrl,
+      ...(data.supportersOnly !== undefined ? { supportersOnly: data.supportersOnly } : {}),
     };
     let t: { id: string; slug: string };
     if (!existing) {
@@ -388,6 +390,7 @@ export const tutorialCardSelect = {
   coverUrl: true,
   isPaid: true,
   priceMinor: true,
+  supportersOnly: true,
   safetyKinds: true,
   completionCount: true,
   saveCount: true,
@@ -414,6 +417,8 @@ export type TutorialCardData = {
   coverUrl: string | null;
   isPaid: boolean;
   priceMinor: number | null;
+  /** Exklusiv für Unterstützer:innen */
+  supportersOnly: boolean;
   safetyKinds: SafetyKind[];
   state: "PUBLISHED" | "DRAFT" | "HIDDEN" | "REMOVED";
   steps: number;
@@ -439,6 +444,7 @@ export function toTutorialCard(t: TutorialCardRow): TutorialCardData {
     coverUrl: t.coverUrl,
     isPaid: t.isPaid,
     priceMinor: t.priceMinor,
+    supportersOnly: t.supportersOnly,
     safetyKinds: t.safetyKinds.filter((k): k is SafetyKind => (SAFETY_KINDS as readonly string[]).includes(k)),
     state: t.state,
     steps: t.currentVersion?._count.steps ?? 0,
@@ -611,21 +617,31 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     preview = true;
   }
 
+  // Exklusiv für Unterstützer:innen: ohne Zugang nur Titel, Beschreibung und Angebot – keine Schritte,
+  // kein Material, keine Fragen
+  const locked = t.supportersOnly && !preview && !isOwner && !(await canAccessSupporterContent(viewerId, t.authorId));
+  const support = t.supportersOnly && !preview ? await supportOffer(t.authorId, viewerId) : null;
   const [progress, liked, saved, followingAuthor, commentPage, project, stepQuestions] = await Promise.all([
     viewerId ? db.tutorialProgress.findUnique({ where: { userId_tutorialId: { userId: viewerId, tutorialId: t.id } }, select: { completedKeys: true, versionSeen: true, completedAt: true } }) : null,
     viewerId ? db.reaction.findFirst({ where: { userId: viewerId, targetType: "TUTORIAL", targetId: t.id }, select: { userId: true } }) : null,
     viewerId ? db.bookmark.findFirst({ where: { userId: viewerId, targetType: "TUTORIAL", targetId: t.id }, select: { userId: true } }) : null,
     viewerId && !isOwner ? db.follow.findUnique({ where: { followerId_followeeId: { followerId: viewerId, followeeId: t.authorId } }, select: { followerId: true } }) : null,
-    listCommentPage("TUTORIAL", t.id, viewerId),
+    locked ? Promise.resolve({ items: [], nextCursor: null }) : listCommentPage("TUTORIAL", t.id, viewerId),
     t.project && (await canViewContent(viewerId, { ownerId: t.project.ownerId, visibility: t.project.visibility, state: t.project.state }))
       ? t.project
       : null,
-    preview ? Promise.resolve({} as Record<string, number>) : stepQuestionCounts(t.id, viewerId),
+    preview || locked ? Promise.resolve({} as Record<string, number>) : stepQuestionCounts(t.id, viewerId),
   ]);
 
-  const steps = version.steps.map(mapStep);
+  const steps = locked ? [] : version.steps.map(mapStep);
   const keys = new Set(steps.map((s) => s.stableKey));
   return {
+    supportersOnly: t.supportersOnly,
+    /** Exklusiv und ohne Zugang: Schritte, Material und Fragen fehlen */
+    locked,
+    /** Anzahl Schritte (auch wenn sie gesperrt sind) */
+    stepCount: version.steps.length,
+    support,
     id: t.id,
     slug: t.slug,
     href: `/anleitungen/${t.slug}`,
@@ -646,8 +662,8 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     preview,
     version: { number: preview ? 0 : version.version, changeNote: version.changeNote, isMajor: version.isMajor, publishedAt: version.publishedAt.toISOString() },
     versions: t.versions.map((v) => ({ ...v, publishedAt: v.publishedAt.toISOString() })),
-    materials: asLines(version.materials),
-    tools: asLines(version.tools),
+    materials: locked ? [] : asLines(version.materials),
+    tools: locked ? [] : asLines(version.tools),
     steps,
     author: { id: t.authorId, handle: t.author.profile?.handle ?? "unbekannt", displayName: t.author.profile?.displayName ?? "Unbekannt", avatarUrl: t.author.profile?.avatarUrl ?? null, bio: t.author.profile?.bio ?? "", followerCount: t.author.profile?.followerCount ?? 0 },
     project: project ? { id: project.id, title: project.title, status: project.status, coverUrl: project.coverUrl, category: project.category, href: `/u/${project.owner.profile?.handle}/${project.slug}`, ownerName: project.owner.profile?.displayName ?? "" } : null,
@@ -702,6 +718,7 @@ export async function getTutorialForEdit(user: SessionUser, tutorialId: string) 
       minutes: t.minutes,
       projectId: t.projectId,
       language: t.language,
+      supportersOnly: t.supportersOnly,
       cover: cover ? { id: cover.mediaId, alt: "", preview: coverVariants.sm ?? coverVariants.md ?? t.coverUrl ?? "" } : null,
       materials: asLines(source?.materials),
       tools: asLines(source?.tools),
@@ -739,6 +756,7 @@ export async function getTutorialSeedFromProject(userId: string, projectId: stri
   if (!p || p.ownerId !== userId) return null;
   return {
     title: `${p.title} – Schritt für Schritt`.slice(0, 140),
+    supportersOnly: false,
     summary: "",
     category: p.category,
     difficulty: p.difficulty,

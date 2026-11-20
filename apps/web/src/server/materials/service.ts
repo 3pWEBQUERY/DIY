@@ -294,8 +294,13 @@ async function sourceItems(viewerId: string, kind: SourceKind, id: string): Prom
     if (!p || !(await canViewContent(viewerId, { ownerId: p.ownerId, visibility: p.visibility, state: p.state }))) throw fail.notFound();
     return { title: p.title, items: p.materials.map((m) => ({ ...m, sourceType: "PROJECT", sourceId: id, sourceTitle: p.title })) };
   }
-  const t = await db.tutorial.findUnique({ where: { id }, select: { title: true, authorId: true, state: true, currentVersion: { select: { materials: true } } } });
+  const t = await db.tutorial.findUnique({ where: { id }, select: { title: true, authorId: true, state: true, supportersOnly: true, currentVersion: { select: { materials: true } } } });
   if (!t || !t.currentVersion || !(await canViewContent(viewerId, { ownerId: t.authorId, visibility: "PUBLIC", state: t.state }))) throw fail.notFound();
+  // Exklusive Anleitung: Materialliste nur für Unterstützer:innen
+  if (t.supportersOnly) {
+    const { canAccessSupporterContent } = await import("@/server/supporters/service");
+    if (!(await canAccessSupporterContent(viewerId, t.authorId))) throw fail.forbidden("Diese Anleitung ist exklusiv für Unterstützer:innen.");
+  }
   const lines = Array.isArray(t.currentVersion.materials) ? (t.currentVersion.materials as { name?: unknown; quantity?: unknown; materialId?: unknown }[]) : [];
   const ids = lines.map((l) => (typeof l.materialId === "string" ? l.materialId : null)).filter((x): x is string => !!x);
   const valid = new Set((await db.material.findMany({ where: { id: { in: ids } }, select: { id: true } })).map((m) => m.id));

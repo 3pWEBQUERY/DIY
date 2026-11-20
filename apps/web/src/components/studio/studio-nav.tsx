@@ -15,6 +15,7 @@ export const STUDIO_NAV = [
   { href: "/studio/produkte", label: "Produkte", shop: true },
   { href: "/studio/bestellungen", label: "Bestellungen", shop: true },
   { href: "/studio/rabatte", label: "Gutscheine & Sets", shop: true },
+  { href: "/studio/unterstuetzer", label: "Unterstützer:innen" },
   { href: "/studio/shop", label: "Shopverwaltung" },
   { href: "/studio/medien", label: "Medienbibliothek" },
   { href: "/studio/statistiken", label: "Statistiken" },

@@ -5,6 +5,8 @@ import { MapPin, Link2, MessageSquare, Store, BookOpen, Settings, LayoutDashboar
 import { VISIBILITY_LABEL, categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
 import { db } from "@/server/db";
 import { currentUser } from "@/server/auth/session";
+import { confirmSupportCheckout, supportOffer } from "@/server/supporters/service";
+import { SupportCard } from "@/components/supporters/support-card";
 import { relationsFor } from "@/server/visibility";
 import { listPublicCollections } from "@/server/collections/service";
 import { listProjects } from "@/server/projects/service";
@@ -39,7 +41,7 @@ import { flatSearchParams } from "@/lib/search-params";
 import { JsonLd } from "@/components/projects/json-ld";
 import { absoluteUrl, OG_BASE } from "@/config/seo";
 
-type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string | string[]; art?: string | string[] }> };
+type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string | string[]; art?: string | string[]; unterstuetzt?: string | string[]; session_id?: string | string[] }> };
 
 async function load(handle: string) {
   const profile = await db.userProfile.findUnique({
@@ -87,6 +89,10 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     : [];
   const blocked = blocks.length > 0;
   const blockedByMe = blocks.some((b) => b.blockerId === viewerId);
+
+  // Unterstützer-Abo: Rückkehr aus dem Checkout sofort übernehmen, dann Angebot/Stand laden
+  if (viewerId && sp.unterstuetzt && sp.session_id) await confirmSupportCheckout(viewerId, sp.session_id);
+  const supportOfferView = !blocked ? await supportOffer(userId, viewerId) : null;
 
   const rel = await relationsFor(viewerId);
   const following = rel.following.includes(userId);
@@ -355,6 +361,20 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             </div>
 
             <aside className="space-y-8" aria-label="Profilinformationen">
+              {sp.unterstuetzt && supportOfferView?.me?.active && (
+                <p role="status" className="rounded-2xl bg-moss-soft px-4 py-3 text-[14px] font-semibold text-moss-ink">
+                  Danke für deine Unterstützung! Exklusive Anleitungen sind jetzt freigeschaltet.
+                </p>
+              )}
+              {supportOfferView && !isSelf && (supportOfferView.enabled || supportOfferView.me) && (
+                <SupportCard offer={supportOfferView} signedIn={!!viewer} returnTo={`/u/${profile.handle}`} />
+              )}
+              {isSelf && supportOfferView?.enabled && (
+                <p className="rounded-2xl border border-line px-4 py-3 text-[13.5px] text-ink-2">
+                  Dein Unterstützer-Abo ist aktiv ({formatMoney(supportOfferView.priceMinor)}/Monat).{" "}
+                  <Link href="/studio/unterstuetzer" className="font-semibold underline-offset-2 hover:underline">Im Studio verwalten</Link>
+                </p>
+              )}
               <dl className="grid grid-cols-4 border-y border-rule py-4 lg:grid-cols-2 lg:gap-y-5">
                 {stats.map(([l, v]) => (
                   <div key={l}>

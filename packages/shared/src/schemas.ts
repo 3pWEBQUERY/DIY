@@ -157,6 +157,8 @@ export const tutorialUpsertSchema = z.object({
   steps: z.array(tutorialStepSchema).min(1, "Mindestens ein Schritt").max(80),
   changeNote: z.string().trim().max(500).optional(),
   notifyReaders: z.boolean().default(false),
+  /** Nur für Unterstützer:innen (fehlt bei älteren Apps → unverändert) */
+  supportersOnly: z.boolean().optional(),
 });
 
 export const reportSchema = z.object({

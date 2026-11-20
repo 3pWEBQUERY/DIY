@@ -594,7 +594,9 @@ export async function handleAppStoreNotification(body: { signedPayload?: unknown
       log("info", "appstore_pro_notification", { type: n.notificationType, subtype: n.subtype, known });
     } else if ((n.notificationType === "REFUND" || n.notificationType === "REVOKE") && n.data?.signedTransactionInfo) {
       const t = verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo);
-      await revokePurchase(t.transactionId, n.notificationType === "REFUND" ? "Erstattung durch Apple" : "Kauf widerrufen");
+      // Unterstützer-Abo (Apple-Monat) oder digitales Produkt
+      const { handleAppleSupportRefund } = await import("@/server/supporters/service");
+      if (!(await handleAppleSupportRefund(t.transactionId))) await revokePurchase(t.transactionId, n.notificationType === "REFUND" ? "Erstattung durch Apple" : "Kauf widerrufen");
     } else if (n.notificationType === "REFUND_REVERSED" && n.data?.signedTransactionInfo) {
       const t = verifyAppStoreJws<AppStoreTransaction>(n.data.signedTransactionInfo);
       await restorePurchase(t.transactionId);

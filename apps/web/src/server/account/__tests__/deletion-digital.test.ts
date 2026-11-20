@@ -13,6 +13,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/server/db", () => ({ db: m.db }));
 vi.mock("@/server/storage", () => ({ storage: () => ({ del: vi.fn(async () => {}) }) }));
 vi.mock("@/server/pro/service", () => ({ endProForDeletedAccount: vi.fn() }));
+vi.mock("@/server/supporters/service", () => ({ endSupportsForDeletedAccount: vi.fn() }));
 vi.mock("@/server/commerce/payments", () => ({ markPaymentFailed: vi.fn() }));
 vi.mock("@/server/commerce/stripe", () => ({ paymentsMode: () => "simulated" }));
 vi.mock("@/server/identity/apple-token", () => ({ revokeAppleTokensForUser: vi.fn(async () => {}) }));

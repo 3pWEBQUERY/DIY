@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft } from "lucide-react";
 import { DIFFICULTY_LABEL, SAFETY_LABEL, categoryBySlug, formatMoney, materialsCostEstimate } from "@werkraum/shared";
@@ -32,6 +32,8 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
   const user = await currentUser();
   const t = await getTutorialPage(slug, user?.id ?? null);
   if (!t) notFound();
+  // Exklusive Anleitung ohne Unterstützung → zur Anleitung mit dem Angebot
+  if (t.locked) redirect(t.href);
 
   const cat = categoryBySlug(t.category);
   const stepsMinutes = t.steps.reduce((a, s) => a + (s.minutes ?? 0), 0);

@@ -27,6 +27,7 @@ vi.mock("@/server/events", () => ({ emit: async () => {} }));
 vi.mock("@/server/audit", () => ({ audit: async () => {} }));
 vi.mock("@/server/monitoring", () => ({ captureError: async () => null }));
 vi.mock("@/server/visibility", () => ({ isBlockedBetween: async () => false }));
+vi.mock("@/server/supporters/service", () => ({ handleAppleSupportRefund: async () => false }));
 vi.mock("../fees", () => ({ feeForShop: async () => 600 }));
 vi.mock("../stripe", () => ({ paymentsMode: () => "stripe", isStripeError: () => false, createSellerTransfer: async () => ({}), reverseSellerTransfer: async () => ({}) }));
 vi.mock("../appstore-verify", () => ({

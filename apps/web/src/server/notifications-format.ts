@@ -288,6 +288,7 @@ export function notificationHref(n: Pick<NotificationLike, "type" | "data">): st
     case "ORDER_STATUS":
       return "/bestellungen";
     case "SECURITY":
+      if (str(data.kind) === "SUPPORT") return safeHref(str(data.href)) ?? "/einstellungen/unterstuetzungen";
       return str(data.kind) === "PRO" ? "/studio/pro" : "/einstellungen/sicherheit";
     default:
       return "/benachrichtigungen";
@@ -297,4 +298,9 @@ export function notificationHref(n: Pick<NotificationLike, "type" | "data">): st
 export function notificationGroup(type: string): NotificationGroup | null {
   for (const f of NOTIFICATION_FILTERS) if (f.types?.includes(type as NotificationType)) return f.key as NotificationGroup;
   return null;
+}
+
+/** Nur interne Pfade als Ziel (keine fremden Domains aus gespeicherten Daten). */
+function safeHref(h: string | null) {
+  return h && h.startsWith("/") && !h.startsWith("//") ? h : null;
 }

@@ -33,6 +33,7 @@ import { migrateStripePayoutSchedules, runScheduledPayouts, syncPayouts } from "
 import { autoCompleteShippedOrders } from "@/server/commerce/orders";
 import { retryCancelledRefunds } from "@/server/commerce/payments";
 import { retrySellerTransfers } from "@/server/commerce/appstore";
+import { supportMaintenance } from "@/server/supporters/service";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
@@ -443,6 +444,8 @@ async function main() {
       await retryCancelledRefunds();
       // Shop-Anteile aus Apple-Käufen überweisen (nach Fehlern, z. B. zu wenig Plattformguthaben)
       await retrySellerTransfers();
+      // Unterstützer-Abo: Creator-Anteile aus Apple-Käufen, Erinnerungen vor Ablauf, abgelaufene beenden
+      await supportMaintenance();
     }));
 
   await boss.schedule(Q.outbox, "* * * * *");

@@ -670,6 +670,11 @@ async function orderExists(id: string | null | undefined) {
 
 /** Fachliche Behandlung eines verifizierten Stripe-Events. Muss idempotent sein. */
 export async function handleStripeEvent(event: Stripe.Event) {
+  // Unterstützer-Abo (metadata.kind = "support") – vor Creator Pro, damit es dort nicht als Pro gilt
+  if (/^(checkout\.session\.completed|customer\.subscription\.|invoice\.(paid|payment_succeeded))/.test(event.type)) {
+    const { handleSupportStripeEvent } = await import("@/server/supporters/service");
+    if (await handleSupportStripeEvent(event)) return;
+  }
   // Creator Pro (Abo) – eigene Ereignisse, Bestell-Checkout bleibt unberührt
   if (/^(checkout\.session\.completed|customer\.subscription\.|invoice\.payment_failed)/.test(event.type)) {
     const { handleProStripeEvent } = await import("@/server/pro/service");
