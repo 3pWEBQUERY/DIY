@@ -16,6 +16,7 @@ struct SettingsView: View {
                     row(.profile, "Name, Handle, Bio, Bilder, Links")
                     row(.account, "E-Mail, Passwort, Bestellangaben, Datenexport, Löschen")
                     row(.security, "Angemeldete Geräte, Ereignisse")
+                    row(.supporting, "Creator:innen, die du unterstützt")
                 }
                 MeGroup(title: "Erlebnis") {
                     row(.notifications, "In-App, E-Mail, Push")
@@ -73,6 +74,7 @@ struct SettingsSectionView: View {
             case .feed: MeFeedSettingsView()
             case .privacy: MePrivacySettingsView()
             case .support: MeSupportView()
+            case .supporting: MeSupportingView()
             case .developer:
                 #if DEBUG
                 MeDeveloperSettings()
@@ -626,6 +628,7 @@ private struct MeNotificationSettingsView: View {
     @State private var locked: Set<String> = []
     @State private var order: [String] = []
     @State private var digest = "DAILY"
+    @State private var weekly = true
     @State private var loaded = false
     @State private var error: String?
     @State private var revision = 0
@@ -698,6 +701,20 @@ private struct MeNotificationSettingsView: View {
                     Text(saving ? "Wird gesichert …" : "Änderungen werden automatisch gesichert.")
                 }
             }.font(.wr(.footnote)) }
+
+            Section {
+                Toggle("Wochenrückblick per E-Mail", isOn: Binding(get: { weekly }, set: { weekly = $0; Haptics.selection(); revision += 1 }))
+                    .tint(.moss)
+                    .disabled(digest == "OFF")
+                Button("Beispiel an mich senden") {
+                    Task { _ = await app.run("Beispiel verschickt – schau in dein Postfach.") { _ = try await APIClient.shared.post("/settings/weekly-digest/preview") as JSONValue } }
+                }
+                .font(.wr(.subheadline))
+            } header: { Group { Text("Wochenrückblick") }.font(.wr(.footnote, .semibold)) } footer: { Group {
+                Text(digest == "OFF"
+                     ? "Du hast E-Mails ausgeschaltet – solange bekommst du auch keinen Rückblick."
+                     : "Jeden Sonntag das Neueste aus deinen Kategorien, von Leuten, denen du folgst, und Neuigkeiten zu Gemerktem. Ohne neue Inhalte kommt keine Mail.")
+            }.font(.wr(.footnote)) }
         }
         .meFormStyle()
     }
@@ -725,6 +742,7 @@ private struct MeNotificationSettingsView: View {
             let known = L.notificationTypes.map(\.key)
             order = known.filter { p[$0] != nil } + s.matrix.map(\.type).filter { !known.contains($0) }
             digest = s.emailDigest
+            weekly = s.weeklyDigest ?? true
             loaded = true
             error = nil
         } catch { self.error = MeErr.text(error) }
@@ -735,7 +753,7 @@ private struct MeNotificationSettingsView: View {
         defer { saving = false }
         var obj: [String: JSONValue] = [:]
         for (k, v) in prefs { obj[k] = ["inApp": .bool(locked.contains(k) ? true : v.inApp), "email": .bool(v.email)] }
-        do { _ = try await APIClient.shared.put("/settings/notifications", ["prefs": JSONValue.object(obj), "emailDigest": .string(digest)]) as JSONValue }
+        do { _ = try await APIClient.shared.put("/settings/notifications", ["prefs": JSONValue.object(obj), "emailDigest": .string(digest), "weeklyDigest": .bool(weekly)]) as JSONValue }
         catch { app.show(error: error); await load() }
     }
 

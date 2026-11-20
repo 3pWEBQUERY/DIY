@@ -52,7 +52,7 @@ export function TutorialCard({ tutorial: t, showAuthor = true, priority, classNa
         <div className="mt-auto pt-3">
           <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
             <Difficulty level={t.difficulty} />
-            <span className="spec text-ink-2">{t.isPaid && t.priceMinor ? formatMoney(t.priceMinor) : "Kostenlos"}</span>
+            <span className="spec text-ink-2">{t.supportersOnly ? "Für Unterstützer:innen" : t.isPaid && t.priceMinor ? formatMoney(t.priceMinor) : "Kostenlos"}</span>
           </div>
           {showAuthor && (
             <Link href={`/u/${t.author.handle}`} className="mt-3 flex min-w-0 items-center gap-2 text-[13px] text-muted hover:text-ink">

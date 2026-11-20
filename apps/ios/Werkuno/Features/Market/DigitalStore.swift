@@ -241,6 +241,11 @@ final class DigitalStore {
             await ProStore.shared.deliverQuietly(verification)
             return
         }
+        // Unterstützer-Abo (Monat ohne automatische Verlängerung): an den Unterstützer-Speicher weitergeben
+        if transaction.productType == .nonRenewable, SupportStore.productIds.contains(transaction.productID) {
+            await SupportStore.shared.deliverQuietly(verification)
+            return
+        }
         // Sonst nur Werkuno-Verbrauchsartikel; widerrufene Käufe abschliessen, ohne zu verbuchen
         guard transaction.productType == .consumable else { return }
         if transaction.revocationDate != nil {

@@ -73,6 +73,7 @@ export function TutorialEditor({
   defaultProjectId,
   slug,
   categories = CATEGORIES,
+  supportPlanEnabled = false,
 }: {
   tutorialId: string | null;
   initial?: Values;
@@ -82,6 +83,8 @@ export function TutorialEditor({
   slug?: string;
   /** Angebotene Kategorien (aktive + ggf. bereits gespeicherte); Standard: alle */
   categories?: readonly CategoryOption[];
+  /** Unterstützer-Abo eingeschaltet → Anleitung kann exklusiv sein */
+  supportPlanEnabled?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -94,6 +97,7 @@ export function TutorialEditor({
   const [minutes, setMinutes] = useState<number | null>(initial?.minutes ?? null);
   const [projectId, setProjectId] = useState(initial?.projectId ?? defaultProjectId ?? "");
   const [language, setLanguage] = useState(initial?.language ?? "de-CH");
+  const [supportersOnly, setSupportersOnly] = useState(initial?.supportersOnly ?? false);
   const [cover, setCover] = useState<UploadedMedia[]>(initial?.cover ? [{ id: initial.cover.id, alt: initial.cover.alt, preview: initial.cover.preview, state: "ready", progress: 1, kind: "IMAGE" }] : []);
   const [materials, setMaterials] = useState<Line[]>((initial?.materials ?? []).map(({ costMinor, ...m }) => newLine({ ...m, cost: formatCostInput(costMinor) })));
   const [tools, setTools] = useState<Line[]>((initial?.tools ?? []).map((m) => newLine(m)));
@@ -107,7 +111,7 @@ export function TutorialEditor({
 
   // Ungespeicherte Änderungen: Vergleich mit dem zuletzt gespeicherten Stand
   const serialized = JSON.stringify({
-    title, summary, category, difficulty, minutes, projectId, language,
+    title, summary, category, difficulty, minutes, projectId, language, supportersOnly,
     cover: cover.map((c) => [c.id, c.state]),
     materials, tools,
     steps: steps.map((x) => ({ ...x, open: undefined, media: x.media.map((m) => [m.id, m.alt, m.state]) })),
@@ -146,6 +150,7 @@ export function TutorialEditor({
     projectId: projectId || undefined,
     coverMediaId: cover.find((c) => c.state === "ready")?.id,
     language,
+    supportersOnly,
     materials: materials.filter((m) => m.name.trim()).map((m) => ({ name: m.name, quantity: m.quantity, note: m.note, materialId: m.materialId, costMinor: parseCost(m.cost) })),
     tools: tools.filter((m) => m.name.trim()).map((m) => ({ name: m.name, quantity: m.quantity, note: m.note })),
     steps: steps.map((s) => ({
@@ -235,6 +240,19 @@ export function TutorialEditor({
               ))}
             </div>
           </fieldset>
+          {(supportPlanEnabled || supportersOnly) && (
+            <div className="rounded-2xl border border-line bg-sunken/60 p-4">
+              <Checkbox
+                label={<span className="font-semibold">Nur für Unterstützer:innen</span>}
+                checked={supportersOnly}
+                onChange={(e) => setSupportersOnly(e.target.checked)}
+              />
+              <p className="mt-1.5 pl-[30px] text-[13px] leading-relaxed text-muted">
+                Alle sehen Titel, Bild und Beschreibung. Schritte, Material und Fragen sehen nur Personen, die dich mit dem Unterstützer-Abo unterstützen.
+                {!supportPlanEnabled && " Dein Unterstützer-Abo ist ausgeschaltet – solange sieht niemand ausser dir die Inhalte."}
+              </p>
+            </div>
+          )}
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Gesamtdauer" optional hint={minutes ? formatMinutes(minutes) : stepMinutes ? `Leer lassen: Summe der Schritte (${formatMinutes(stepMinutes)})` : "Leer lassen: Summe der Schritte"} error={fields.minutes}>
               {(a) => <DurationInput id={a.id} value={minutes} onChange={setMinutes} describedBy={a["aria-describedby"]} invalid={a["aria-invalid"]} />}

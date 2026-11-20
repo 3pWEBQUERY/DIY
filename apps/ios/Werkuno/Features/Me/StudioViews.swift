@@ -126,6 +126,7 @@ struct StudioView: View {
         case .media: "Bilder, Videos, Alt-Texte"
         case .stats: "Kennzahlen je Inhalt"
         case .revenue: "Umsatz, Gebühren, Auszahlungen"
+        case .supporters: "Unterstützer-Abo, exklusive Anleitungen"
         }
     }
 

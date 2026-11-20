@@ -94,6 +94,14 @@ export async function signOutAction() {
   redirect("/");
 }
 
+export async function sendWeeklyPreviewAction() {
+  return act(async () => {
+    const u = await requireUser();
+    const { sendWeeklyDigestPreview } = await import("@/server/digest/weekly");
+    return sendWeeklyDigestPreview({ id: u.id, email: u.email });
+  });
+}
+
 export async function updateNotificationPrefsAction(input: unknown) {
   return act(async () => {
     const u = await requireUser({ allowSuspended: true });

@@ -8,6 +8,7 @@ import { currentUser } from "@/server/auth/session";
 import { getTutorialPage, type TutorialPageView } from "@/server/tutorials/service";
 import { bundlesForTutorial } from "@/server/commerce/promotions";
 import { BundleCard } from "@/components/commerce/bundle-card";
+import { SupportCard } from "@/components/supporters/support-card";
 import { recordViewAfter } from "@/server/analytics/service";
 import { Page } from "@/components/shell/page";
 import { Avatar, Difficulty, Notice, SectionTitle } from "@/components/ui/misc";
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const user = await currentUser();
   const t = await getTutorialPage(slug, user?.id ?? null);
   if (!t) return { title: "Anleitung nicht gefunden", robots: { index: false } };
-  const description = (t.summary.replace(/\s+/g, " ").trim().slice(0, 158) || `Schritt-für-Schritt-Anleitung: ${t.title} – ${t.steps.length} Schritte, ${DIFFICULTY_LABEL[t.difficulty]}.`).trim();
+  const description = (t.summary.replace(/\s+/g, " ").trim().slice(0, 158) || `Schritt-für-Schritt-Anleitung: ${t.title} – ${t.stepCount} Schritte, ${DIFFICULTY_LABEL[t.difficulty]}.`).trim();
   return {
     title: `${t.title} – Anleitung`,
     description,
@@ -154,7 +155,7 @@ export default async function TutorialPage({ params }: Params) {
 
       <div className="mt-8">
         <TutorialActions
-          tutorial={{ id: t.id, title: t.title, href: t.href }}
+          tutorial={{ id: t.id, title: t.title, href: t.href, locked: t.locked }}
           author={{ id: t.author.id, displayName: t.author.displayName }}
           viewer={{ signedIn: !!viewer, isOwner: t.viewer.isOwner, liked: t.viewer.liked, saved: t.viewer.saved }}
           likes={t.counts.likes}
@@ -166,7 +167,7 @@ export default async function TutorialPage({ params }: Params) {
         {[
           { label: "Schwierigkeit", value: <span className="flex items-center gap-2"><Difficulty level={t.difficulty} />{DIFFICULTY_LABEL[t.difficulty]}</span> },
           { label: "Dauer", value: formatMinutes(t.minutes ?? (stepsMinutes || null)) },
-          { label: "Schritte", value: t.steps.length },
+          { label: "Schritte", value: t.stepCount },
           t.isPaid && t.priceMinor
             ? { label: "Preis", value: formatMoney(t.priceMinor) }
             : { label: "Material ca.", value: cost ? `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor)}` : "–" },
@@ -192,6 +193,25 @@ export default async function TutorialPage({ params }: Params) {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Exklusiv: ohne Unterstützung nur das Angebot */}
+      {t.locked && (
+        <section aria-label="Exklusive Anleitung" className="mt-14 grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,380px)] md:items-start">
+          <div className="max-w-[60ch]">
+            <p className="spec">Inhalt</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
+              {t.stepCount === 1 ? "1 Schritt" : `${t.stepCount} Schritte`}
+              {t.minutes ? ` · ca. ${formatMinutes(t.minutes)}` : ""} mit Material- und Werkzeugliste, Bildern, Tipps und Sicherheitshinweisen.
+              Diese Anleitung hat {t.author.displayName} exklusiv für Unterstützer:innen veröffentlicht.
+            </p>
+          </div>
+          {t.support ? (
+            <SupportCard offer={t.support} signedIn={!!viewer} variant="locked" returnTo={t.href} />
+          ) : (
+            <p className="rounded-2xl border border-line bg-sunken p-5 text-[14px] text-muted">{t.author.displayName} nimmt gerade keine neuen Unterstützungen an.</p>
+          )}
+        </section>
       )}
 
       {/* Material & Werkzeug */}
@@ -262,6 +282,7 @@ export default async function TutorialPage({ params }: Params) {
       )}
 
       {/* Schritte */}
+      {!t.locked && (
       <section id="schritte" aria-labelledby="h-schritte" className="mt-14">
         <SectionTitle n={no()} title={<span id="h-schritte">Schritt für Schritt</span>} action={<span className="spec">{t.steps.length} Schritte</span>} />
         <div className="mt-8">
@@ -274,9 +295,13 @@ export default async function TutorialPage({ params }: Params) {
             isOwner={t.viewer.isOwner}
             preview={t.preview}
             remixHref={remixHref}
+            stepQuestions={t.stepQuestions}
+            viewer={viewer}
           />
         </div>
       </section>
+
+      )}
 
       <p className="mt-10 max-w-[70ch] border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
         <span className="font-mono uppercase tracking-[0.08em] text-ink-2">Hinweis · </span>
@@ -284,12 +309,16 @@ export default async function TutorialPage({ params }: Params) {
       </p>
 
       <div className="mt-16 grid gap-14 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section id="fragen" aria-labelledby="h-fragen" className="min-w-0">
-          <SectionTitle n={no()} title={<span id="h-fragen">Fragen zur Anleitung</span>} />
-          <div className="mt-6 max-w-[68ch]">
-            <Comments targetType="TUTORIAL" targetId={t.id} initial={t.comments} initialCursor={t.commentsCursor} viewer={viewer} questionsMode placeholder="Frage zu einem Schritt stellen …" />
-          </div>
-        </section>
+        {t.locked ? (
+          <div />
+        ) : (
+          <section id="fragen" aria-labelledby="h-fragen" className="min-w-0">
+            <SectionTitle n={no()} title={<span id="h-fragen">Fragen zur Anleitung</span>} />
+            <div className="mt-6 max-w-[68ch]">
+              <Comments targetType="TUTORIAL" targetId={t.id} initial={t.comments} initialCursor={t.commentsCursor} viewer={viewer} questionsMode placeholder="Frage zu einem Schritt stellen …" />
+            </div>
+          </section>
+        )}
 
         <aside className="space-y-10" aria-label="Verknüpft">
           {t.project && (

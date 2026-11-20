@@ -9,6 +9,7 @@ export const SETTINGS_NAV = [
   { href: "/einstellungen/konto", label: "Konto & Daten" },
   { href: "/einstellungen/sicherheit", label: "Sicherheit" },
   { href: "/einstellungen/benachrichtigungen", label: "Benachrichtigungen" },
+  { href: "/einstellungen/unterstuetzungen", label: "Unterstützungen" },
   { href: "/einstellungen/feed", label: "Feed & Interessen" },
   { href: "/einstellungen/privatsphaere", label: "Privatsphäre" },
   { href: "/einstellungen/hilfe-support", label: "Hilfe & Support" },

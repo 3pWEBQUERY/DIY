@@ -14,6 +14,7 @@ import { hostname } from "node:os";
 import { PgBoss } from "pg-boss";
 import { db, Prisma } from "@/server/db";
 import { sendEmails } from "@/server/notifications-mail";
+import { sendWeeklyDigests } from "@/server/digest/weekly";
 import { processMedia } from "@/server/media/process";
 import { mediaInUse } from "@/server/media/service";
 import { notify, notifyMany } from "@/server/notifications";
@@ -32,6 +33,7 @@ import { migrateStripePayoutSchedules, runScheduledPayouts, syncPayouts } from "
 import { autoCompleteShippedOrders } from "@/server/commerce/orders";
 import { retryCancelledRefunds } from "@/server/commerce/payments";
 import { retrySellerTransfers } from "@/server/commerce/appstore";
+import { supportMaintenance } from "@/server/supporters/service";
 import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
@@ -60,6 +62,7 @@ const Q = {
   contentNotify: "notify.content",
   emailInstant: "email.instant",
   emailDigest: "email.digest",
+  weeklyDigest: "email.weekly",
   reservations: "commerce.reservations",
   scheduled: "blog.scheduled",
   cleanup: "maintenance.cleanup",
@@ -400,6 +403,7 @@ async function main() {
   }));
   await boss.work(Q.emailInstant, guarded(Q.emailInstant, async () => sendEmails("instant")));
   await boss.work(Q.emailDigest, guarded(Q.emailDigest, async () => sendEmails("digest")));
+  await boss.work(Q.weeklyDigest, guarded(Q.weeklyDigest, async () => void (await sendWeeklyDigests())));
   await boss.work(Q.cleanup, guarded(Q.cleanup, async () => cleanup()));
   await boss.work(Q.competitions, guarded(Q.competitions, async () => void (await runCompetitionPhases())));
   await boss.work(Q.proSync, guarded(Q.proSync, async () => void (await syncProSubscriptions())));
@@ -440,11 +444,15 @@ async function main() {
       await retryCancelledRefunds();
       // Shop-Anteile aus Apple-Käufen überweisen (nach Fehlern, z. B. zu wenig Plattformguthaben)
       await retrySellerTransfers();
+      // Unterstützer-Abo: Creator-Anteile aus Apple-Käufen, Erinnerungen vor Ablauf, abgelaufene beenden
+      await supportMaintenance();
     }));
 
   await boss.schedule(Q.outbox, "* * * * *");
   await boss.schedule(Q.emailInstant, "*/2 * * * *");
   await boss.schedule(Q.emailDigest, "0 7 * * *", null, { tz: "Europe/Zurich" });
+  // Wochenrückblick sonntags um 09:10
+  await boss.schedule(Q.weeklyDigest, "10 9 * * 0", null, { tz: "Europe/Zurich" });
   await boss.schedule(Q.reservations, "* * * * *");
   await boss.schedule(Q.scheduled, "* * * * *");
   await boss.schedule(Q.cleanup, "30 3 * * *", null, { tz: "Europe/Zurich" });

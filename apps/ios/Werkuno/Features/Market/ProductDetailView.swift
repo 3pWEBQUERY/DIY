@@ -100,6 +100,7 @@ struct ProductDetailView: View {
                     linked(p)
                     shopCard(p)
                     reviews(p)
+                    MarketBundlesSection(source: .product(p.id), title: "Im Set günstiger", isOwner: p.isOwner ?? false)
                     more(p)
                 }
                 .padding(.horizontal, Space.gutter)

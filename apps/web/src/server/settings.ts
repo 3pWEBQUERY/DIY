@@ -24,6 +24,8 @@ export const SETTING_DEFAULTS = {
   "pro.feeBps": 400, // tiefere Provision für Pro-Shops
   "pro.maxVideoSeconds": 600,
   "pro.maxVideoMb": 1000,
+  // Unterstützer-Abo: Anteil von Werkuno am Monatsbetrag (deckt Zahlungsgebühren; 1500 = 15 %)
+  "supporters.feeBps": 1500,
   // Öffentlicher TestFlight-Link der iOS-Beta (leer = Beta-Hinweise auf der Website ausgeblendet)
   "app.testflightUrl": "" as string,
 } as const;

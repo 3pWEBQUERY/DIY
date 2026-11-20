@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Settings, LayoutDashboard, ShieldCheck, Bookmark, ShoppingBag, LogIn, LogOut, Package, ListChecks, Menu, MessageSquare, ChevronLeft, CalendarDays, Trophy, Ruler, Wrench, ChevronDown } from "lucide-react";
 import { signOutAction } from "@/app/(auth)/actions";
 import { Dialog } from "@/components/ui/dialog";
+import { InstallAppButton } from "./pwa";
 import { cn, pad } from "@/lib/utils";
 import { MAIN_NAV, MOBILE_NAV } from "./nav-config";
 import { Wordmark } from "./wordmark";
@@ -433,6 +434,7 @@ export function MobileMoreMenu({ user, hide = [] }: { user: NonNullable<ShellUse
               ))}
             </ul>
           </li>
+          <InstallAppMenuItem onDone={() => setOpen(false)} />
           <li>
             <form action={signOutAction}>
               <button type="submit" className="flex h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-[15px] text-danger hover:bg-sunken">
@@ -500,5 +502,14 @@ export function BottomNav({ user, hide = [] }: { user: ShellUser; hide?: string[
         })}
       </ul>
     </nav>
+  );
+}
+
+/** „App installieren“ im Mehr-Menü – nur sichtbar, wenn der Browser die Installation anbietet. */
+function InstallAppMenuItem({ onDone }: { onDone: () => void }) {
+  return (
+    <li className="empty:hidden">
+      <InstallAppButton onDone={onDone} className="flex h-12 w-full items-center gap-3 rounded-xl px-2 text-left text-[15px] hover:bg-sunken [&_svg]:text-muted" />
+    </li>
   );
 }

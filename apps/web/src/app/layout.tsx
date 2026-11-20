@@ -3,6 +3,7 @@ import "./globals.css";
 import { BRAND } from "@/config/brand";
 import { SEO_KEYWORDS } from "@/config/seo";
 import { Toaster } from "@/components/ui/toast";
+import { PwaRegistrar } from "@/components/shell/pwa";
 import { ConfirmHost } from "@/components/ui/confirm";
 import { Suspense } from "react";
 import { NavProgress } from "@/components/shell/page-transition";
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh">
         <ErrorReporter />
         <VersionWatcher />
+        <PwaRegistrar />
         <CategoryRegistrySync data={categoryRegistrySnapshot()} />
         <a href="#main" className="skip-link">
           Zum Inhalt springen

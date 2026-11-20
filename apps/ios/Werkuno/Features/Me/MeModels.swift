@@ -486,6 +486,8 @@ struct MeNotificationSettings: Decodable, Sendable {
     struct Row: Decodable, Sendable, Hashable { var type: String; var inApp: Bool; var email: Bool; var locked: Bool? }
     var matrix: [Row]
     var emailDigest: String
+    /// Wochenrückblick per E-Mail (ältere Server: fehlt)
+    var weeklyDigest: Bool?
 }
 
 struct MeRelationEntry: Decodable, Sendable, Identifiable, Hashable {

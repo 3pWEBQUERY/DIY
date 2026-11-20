@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import { storage } from "@/server/storage";
 import { endProForDeletedAccount } from "@/server/pro/service";
+import { endSupportsForDeletedAccount } from "@/server/supporters/service";
 import { markPaymentFailed } from "@/server/commerce/payments";
 import { paymentsMode } from "@/server/commerce/stripe";
 import { revokeAppleTokensForUser } from "@/server/identity/apple-token";
@@ -37,6 +38,7 @@ export async function purgeDeletedAccount(userId: string) {
 
   // 1. Laufendes Creator-Pro-Abo sofort beenden (sonst bucht Stripe weiter ab)
   await endProForDeletedAccount(userId);
+  await endSupportsForDeletedAccount(userId);
 
   // 2. Offene, noch unbezahlte eigene Bestellungen verwerfen → Reservierungen frei
   const pending = await db.order.findMany({ where: { buyerId: userId, status: "PENDING_PAYMENT" }, select: { id: true } });

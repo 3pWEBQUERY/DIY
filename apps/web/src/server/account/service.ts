@@ -204,6 +204,7 @@ export async function getNotificationSettings(userId: string) {
   return {
     matrix: NOTIFICATION_TYPES.map((t) => ({ type: t, ...prefFor(prefs, t), locked: (LOCKED_IN_APP_NOTIFICATIONS as readonly string[]).includes(t) })),
     emailDigest: p.emailDigest,
+    weeklyDigest: p.weeklyDigest,
   };
 }
 
@@ -216,8 +217,8 @@ export async function updateNotificationSettings(user: U, input: unknown) {
   }
   await db.userPreference.upsert({
     where: { userId: user.id },
-    create: { userId: user.id, notificationPrefs: prefs, emailDigest: d.emailDigest },
-    update: { notificationPrefs: prefs, emailDigest: d.emailDigest },
+    create: { userId: user.id, notificationPrefs: prefs, emailDigest: d.emailDigest, ...(d.weeklyDigest !== undefined ? { weeklyDigest: d.weeklyDigest } : {}) },
+    update: { notificationPrefs: prefs, emailDigest: d.emailDigest, ...(d.weeklyDigest !== undefined ? { weeklyDigest: d.weeklyDigest } : {}) },
   });
 }
 

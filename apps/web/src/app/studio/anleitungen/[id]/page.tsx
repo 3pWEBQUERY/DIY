@@ -1,3 +1,4 @@
+import { db } from "@/server/db";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -23,7 +24,7 @@ export default async function EditTutorialPage({ params }: { params: Promise<{ i
         <ArrowLeft size={13} /> Alle Anleitungen
       </Link>
       <PageHeader kicker={data.currentVersion ? `Studio · Version ${data.currentVersion} veröffentlicht` : "Studio · Entwurf"} title={data.values.title || "Ohne Titel"} />
-      <TutorialEditor key={data.id} tutorialId={data.id} slug={data.slug} initial={data.values} currentVersion={data.currentVersion} projects={projects} categories={await categoryOptions(data.values.category)} />
+      <TutorialEditor supportPlanEnabled={!!(await db.supportPlan.findUnique({ where: { userId: user.id }, select: { enabled: true } }))?.enabled} key={data.id} tutorialId={data.id} slug={data.slug} initial={data.values} currentVersion={data.currentVersion} projects={projects} categories={await categoryOptions(data.values.category)} />
     </div>
   );
 }

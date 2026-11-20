@@ -1,4 +1,5 @@
 import "server-only";
+import * as promo from "@/server/commerce/promotions";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import * as products from "@/server/commerce/products";
@@ -121,6 +122,19 @@ export const commerceRoutes: RouteDef[] = [
     }
     return cart.addToCart(await me(), body, { channel: "ios" });
   }),
+
+  // ── Gutscheine (je Shop) und Sets ──
+  POST("/cart/coupon", async (c) => {
+    const b = z.object({ shopId: z.string().min(1), code: z.string().min(1).max(40) }).parse(await c.json());
+    return promo.applyCoupon(await me(), b);
+  }),
+  DELETE("/cart/coupon/:shopId", async (c) => {
+    await promo.removeCoupon(await me(), c.p.shopId!);
+    return { ok: true };
+  }),
+  GET("/tutorials/:id/bundles", async (c) => promo.bundlesForTutorial(c.p.id!, await viewerId())),
+  GET("/bundles/for-product/:id", async (c) => promo.bundlesForProduct(c.p.id!, await viewerId())),
+  POST("/bundles/:id/cart", async (c) => promo.addBundleToCart(await me(), c.p.id!, { channel: "ios" })),
 
   // ── Digitale Produkte: Kauf über Apple (In-App-Kauf) ──
   POST("/iap/intent", async (c) => appstore.createPurchaseIntent(await me(), await c.json())),

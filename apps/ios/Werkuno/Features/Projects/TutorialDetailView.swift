@@ -90,9 +90,15 @@ struct TutorialDetailView: View {
                     .padding(.top, 22)
                     .padding(.bottom, 26)
 
-                progressCard(t)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.bottom, 28)
+                if t.isLocked {
+                    lockedSection(t)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.bottom, 28)
+                } else {
+                    progressCard(t)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.bottom, 28)
+                }
 
                 let kinds = t.safetyKinds ?? []
                 if !kinds.isEmpty {
@@ -101,17 +107,24 @@ struct TutorialDetailView: View {
                     }
                 }
 
-                materialsSection(t, number: kinds.isEmpty ? "01" : "02")
-                stepsSection(t, number: kinds.isEmpty ? "02" : "03")
+                if !t.isLocked {
+                    materialsSection(t, number: kinds.isEmpty ? "01" : "02")
+                    stepsSection(t, number: kinds.isEmpty ? "02" : "03")
+                }
                 linkedSection(t)
-                finishCard(t)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.vertical, 28)
-                    .hairline(.top)
-                CommentsSection(type: "TUTORIAL", id: t.id, title: "Fragen & Kommentare", placeholder: "Frage zur Anleitung stellen …", initial: t.comments)
-                    .padding(.horizontal, Space.gutter)
-                    .padding(.vertical, 28)
-                    .hairline(.top)
+                if t.preview != true {
+                    MarketBundlesSection(source: .tutorial(t.id), title: "Materialset kaufen", label: "Materialset", isOwner: t.isOwner, horizontalPadding: Space.gutter, verticalPadding: 20)
+                }
+                if !t.isLocked {
+                    finishCard(t)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.vertical, 28)
+                        .hairline(.top)
+                    CommentsSection(type: "TUTORIAL", id: t.id, title: "Fragen & Kommentare", placeholder: "Frage zur Anleitung stellen …", initial: t.comments)
+                        .padding(.horizontal, Space.gutter)
+                        .padding(.vertical, 28)
+                        .hairline(.top)
+                }
             }
             .padding(.bottom, 24)
         }
@@ -144,7 +157,7 @@ struct TutorialDetailView: View {
             }
 
             HStack(spacing: 0) {
-                StatCell(value: "\(t.steps.count)", label: "Schritte").frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(value: "\(t.stepCount ?? t.steps.count)", label: "Schritte").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.minutes(t.minutes ?? t.totalStepMinutes), label: "Dauer").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: t.difficulty.flatMap { L.difficulty[$0] } ?? "–", label: "Stufe").frame(maxWidth: .infinity, alignment: .leading)
                 StatCell(value: Fmt.number(t.counts?.completions), label: "Nachgebaut").frame(maxWidth: .infinity, alignment: .leading)
@@ -277,6 +290,23 @@ struct TutorialDetailView: View {
 
     // MARK: Schritte (Übersicht)
 
+    /// Kurzinfos unter dem Schritt-Titel (Dauer, Sicherheit, Medien, Fragen)
+    private func stepMeta(_ s: TutorialPageStep, questions: Int) -> some View {
+        let mediaCount = s.media?.count ?? 0
+        let hasSafety = !(s.safetyKinds ?? []).isEmpty || s.safety?.nilIfEmpty != nil
+        return HStack(spacing: 8) {
+            if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
+            if hasSafety {
+                Label("Sicherheit", systemImage: "exclamationmark.triangle.fill").labelStyle(.compact).foregroundStyle(Color.danger)
+            }
+            if mediaCount > 0 { Label("\(mediaCount)", systemImage: "photo").labelStyle(.compact) }
+            if questions > 0 {
+                Label(Fmt.plural(questions, "Frage", "Fragen"), systemImage: "questionmark.bubble").labelStyle(.compact)
+            }
+        }
+        .font(.wr(.caption2)).foregroundStyle(Color.muted)
+    }
+
     private func stepsSection(_ t: TutorialPage, number: String) -> some View {
         ProjectsSection(title: "Schritte", number: number, subtitle: Fmt.plural(t.steps.count, "Schritt", "Schritte")) {
             VStack(spacing: 0) {
@@ -290,14 +320,7 @@ struct TutorialDetailView: View {
                                 .frame(width: 34, alignment: .leading)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(s.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).multilineTextAlignment(.leading)
-                                HStack(spacing: 8) {
-                                    if let m = s.minutes, m > 0 { Label(Fmt.minutes(m), systemImage: "clock").labelStyle(.compact) }
-                                    if !(s.safetyKinds ?? []).isEmpty || s.safety?.nilIfEmpty != nil {
-                                        Label("Sicherheit", systemImage: "exclamationmark.triangle.fill").labelStyle(.compact).foregroundStyle(Color.danger)
-                                    }
-                                    if !(s.media ?? []).isEmpty { Label("\(s.media?.count ?? 0)", systemImage: "photo").labelStyle(.compact) }
-                                }
-                                .font(.wr(.caption2)).foregroundStyle(Color.muted)
+                                stepMeta(s, questions: t.stepQuestions?[s.stableKey] ?? 0)
                             }
                             Spacer(minLength: 8)
                             Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
@@ -375,6 +398,18 @@ struct TutorialDetailView: View {
     }
 
     // MARK: Aktionsleiste & Menü
+
+    /// Exklusive Anleitung ohne Unterstützung: Umfang und Angebot statt Schritten
+    private func lockedSection(_ t: TutorialPage) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            let n = t.stepCount ?? 0
+            Text("\(Fmt.plural(n, "Schritt", "Schritte"))\(t.minutes.map { " · ca. \(Fmt.minutes($0))" } ?? "") mit Material- und Werkzeugliste, Bildern, Tipps und Sicherheitshinweisen. Diese Anleitung hat \(t.author.displayName) exklusiv für Unterstützer:innen veröffentlicht.")
+                .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+            SupportCardView(creatorId: t.author.id, creatorName: t.author.displayName, variant: .locked) {
+                Task { await load() }
+            }
+        }
+    }
 
     private func actionBar(_ t: TutorialPage) -> some View {
         let next = t.steps.firstIndex { !done.contains($0.stableKey) }

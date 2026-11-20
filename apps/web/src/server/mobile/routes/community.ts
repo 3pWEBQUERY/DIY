@@ -8,7 +8,7 @@ import * as blog from "@/server/blog/service";
 import { recordViewAfter } from "@/server/analytics/service";
 import * as msg from "@/server/messaging/service";
 import * as groups from "@/server/messaging/groups";
-import { listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
+import { deleteNotifications, listNotifications, markNotificationsRead, unreadByFilter } from "@/server/notifications-inbox";
 import { browseCategories, categoryOptions, effectiveCategories } from "@/server/categories/settings";
 import { z } from "zod";
 import { ArticleState } from "@/server/db";
@@ -295,6 +295,16 @@ export const communityRoutes: RouteDef[] = [
     if (!b.ids?.length) throw fail.invalid("ids fehlen.");
     return markNotificationsRead(u.id, b.ids.slice(0, 200));
   }),
+
+  /** Löschen: `ids` (einzeln) oder `scope: "read" | "all"` */
+  POST("/notifications/delete", async (c) => {
+    const u = await meAllowSuspended();
+    const b = await c.body({ ids: zIds, scope: z.enum(["read", "all"]).optional() });
+    if (b.scope) return deleteNotifications(u.id, b.scope);
+    if (!b.ids?.length) throw fail.invalid("ids fehlen.");
+    return deleteNotifications(u.id, b.ids.slice(0, 200));
+  }),
+  DELETE("/notifications/:id", async (c) => deleteNotifications((await meAllowSuspended()).id, [c.p.id!])),
 
   GET("/categories/all", async () => effectiveCategories()),
 ];

@@ -17,7 +17,7 @@ export function TutorialActions({
   viewer,
   likes,
 }: {
-  tutorial: { id: string; title: string; href: string };
+  tutorial: { id: string; title: string; href: string; locked?: boolean };
   author: { id: string; displayName: string };
   viewer: { signedIn: boolean; isOwner: boolean; liked: boolean; saved: boolean };
   likes: number;
@@ -29,12 +29,16 @@ export function TutorialActions({
       <SaveButton type="TUTORIAL" id={tutorial.id} saved={viewer.saved} label />
       <ShareButton url={tutorial.href} title={tutorial.title} />
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <Link href={`${tutorial.href}/drucken`} className={buttonClass("outline", "sm")} title="Druckfassung mit Material zum Abhaken – auch als PDF">
-          <Printer size={14} aria-hidden /> Drucken / PDF
-        </Link>
-        <Link href={`${tutorial.href}/werkstatt`} className={buttonClass("ink", "sm")} title="Schritt für Schritt im Vollbild, mit Timer">
-          <Hammer size={14} aria-hidden /> Werkstatt-Modus
-        </Link>
+        {!tutorial.locked && (
+          <>
+            <Link href={`${tutorial.href}/drucken`} className={buttonClass("outline", "sm")} title="Druckfassung mit Material zum Abhaken – auch als PDF">
+              <Printer size={14} aria-hidden /> Drucken / PDF
+            </Link>
+            <Link href={`${tutorial.href}/werkstatt`} className={buttonClass("ink", "sm")} title="Schritt für Schritt im Vollbild, mit Timer">
+              <Hammer size={14} aria-hidden /> Werkstatt-Modus
+            </Link>
+          </>
+        )}
         {viewer.isOwner ? (
           <Link href={`/studio/anleitungen/${tutorial.id}`} className={buttonClass("outline", "sm")}>
             <Pencil size={14} /> Bearbeiten

@@ -48,8 +48,9 @@ export async function sendMail(to: string, subject: string, text: string, opts: 
 function plainText(text: string, opts: MailOptions) {
   const parts = [text];
   if (opts.items?.length) parts.push(opts.items.map((i) => `• ${i.text}${i.excerpt ? `\n  „${i.excerpt}“` : ""}${i.url ? `\n  ${i.url}` : ""}`).join("\n\n"));
+  for (const sec of opts.sections ?? []) if (sec.cards.length) parts.push(`${sec.title.toUpperCase()}\n${sec.cards.map((c) => `• ${c.title}${c.meta ? ` – ${c.meta}` : ""}\n  ${c.url}`).join("\n")}`);
   if (opts.cta) parts.push(`${opts.cta.label}: ${opts.cta.url}`);
-  parts.push(`—\n${BRAND.name} · ${BRAND.claim}\n${LEGAL.company} · ${LEGAL_ADDRESS} · ${BRAND.supportEmail}${opts.unsubscribeUrl ? `\nE-Mails abbestellen: ${opts.unsubscribeUrl}` : ""}`);
+  parts.push(`—\n${BRAND.name} · ${BRAND.claim}\n${LEGAL.company} · ${LEGAL_ADDRESS} · ${BRAND.supportEmail}${opts.unsubscribeUrl ? `\n${opts.unsubscribeLabel ?? "E-Mails abbestellen"}: ${opts.unsubscribeUrl}` : ""}`);
   return parts.join("\n\n");
 }
 
@@ -132,7 +133,13 @@ export type MailOptions = {
   items?: MailItem[];
   /** Benachrichtigungs-Mails: Abmeldelink (Fusszeile + List-Unsubscribe-Header). */
   unsubscribeUrl?: string;
+  /** Beschriftung des Abmeldelinks (Standard „E-Mails abbestellen“) */
+  unsubscribeLabel?: string;
+  /** Abschnitte mit Inhaltskarten (Bild, Titel, Zusatz), z. B. im Wochenrückblick */
+  sections?: MailSection[];
 };
+export type MailCard = { title: string; meta?: string; url: string; imageUrl?: string | null };
+export type MailSection = { title: string; intro?: string; cards: MailCard[] };
 
 /** Text in Absätze; einfache Aufzählungen („• “) werden zu Listenpunkten. */
 function paragraphs(text: string) {
@@ -160,6 +167,26 @@ function itemCards(items: MailItem[]) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 14px">${rows}</table>`;
 }
 
+/** Abschnitte mit Karten: Vorschaubild links (falls vorhanden), Titel und Zusatz rechts. */
+function sectionBlocks(sections: MailSection[]) {
+  return sections
+    .filter((s) => s.cards.length)
+    .map((s) => {
+      const cards = s.cards
+        .map((c) => {
+          const img = c.imageUrl
+            ? `<td width="76" valign="top" style="padding:0 14px 0 0"><img src="${esc(c.imageUrl)}" width="76" height="76" alt="" style="display:block;width:76px;height:76px;border-radius:10px;object-fit:cover;background:${C.sunken};border:0"></td>`
+            : "";
+          const meta = c.meta ? `<div style="margin-top:4px;font-size:13px;line-height:1.5;color:${C.muted}">${esc(c.meta)}</div>` : "";
+          return `<tr><td style="padding:0 0 12px"><a href="${esc(c.url)}" style="text-decoration:none;color:${C.ink};display:block"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${img}<td valign="middle"><div style="font-size:15px;line-height:1.45;font-weight:700;color:${C.ink}">${esc(c.title)}</div>${meta}</td></tr></table></a></td></tr>`;
+        })
+        .join("");
+      const intro = s.intro ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:${C.muted}">${esc(s.intro)}</p>` : "";
+      return `<h2 style="margin:26px 0 10px;padding-top:18px;border-top:1px solid ${C.line};font-family:${FONT};font-size:17px;line-height:1.3;font-weight:800;color:${C.ink}">${esc(s.title)}</h2>${intro}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cards}</table>`;
+    })
+    .join("");
+}
+
 function button(cta: { label: string; url: string }) {
   const url = esc(cta.url);
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 22px"><tr><td style="background:${C.coral};border-radius:12px">
@@ -176,7 +203,7 @@ export function renderMail(subject: string, text: string, opts: MailOptions = {}
     ? `<p style="margin:0 0 14px;font-size:11px;line-height:16px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${C.ink2}"><span style="display:inline-block;width:7px;height:7px;background:${C.coral};border-radius:50%;vertical-align:1px;margin-right:9px"></span>${esc(opts.eyebrow)}</p>`
     : "";
   const footerLinks = [
-    opts.unsubscribeUrl ? `<a href="${esc(opts.unsubscribeUrl)}" style="color:${C.muted};text-decoration:underline;white-space:nowrap">E-Mails abbestellen</a>` : null,
+    opts.unsubscribeUrl ? `<a href="${esc(opts.unsubscribeUrl)}" style="color:${C.muted};text-decoration:underline;white-space:nowrap">${esc(opts.unsubscribeLabel ?? "E-Mails abbestellen")}</a>` : null,
     `<a href="${app}/einstellungen/benachrichtigungen" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Benachrichtigungen</a>`,
     `<a href="${app}/hilfe" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Hilfe</a>`,
     `<a href="${app}/rechtliches/datenschutz" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Datenschutz</a>`,
@@ -196,7 +223,7 @@ export function renderMail(subject: string, text: string, opts: MailOptions = {}
 <tr><td style="background:${C.card};border:1px solid ${C.line};border-radius:16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="wk-pad" style="padding:40px 40px 34px;font-family:${FONT}">
 ${eyebrow}<h1 class="wk-h1" style="margin:0 0 18px;font-family:${FONT};font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em;color:${C.ink}">${esc(heading)}</h1>
-${paragraphs(text)}${opts.items?.length ? itemCards(opts.items) : ""}${opts.cta ? button(opts.cta) : ""}
+${paragraphs(text)}${opts.items?.length ? itemCards(opts.items) : ""}${opts.sections?.length ? sectionBlocks(opts.sections) : ""}${opts.cta ? button(opts.cta) : ""}
 </td></tr></table>
 </td></tr>
 <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.muted}">

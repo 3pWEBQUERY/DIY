@@ -178,3 +178,30 @@ test.describe.serial("Gutscheine und Sets", () => {
     await sql(`UPDATE "ShopCoupon" SET active = false WHERE code = $1`, [CODE]);
   });
 });
+
+test("App-Schnittstelle: Gutschein, Sets und Unterstützer-Abo erreichbar", async ({ browser }) => {
+  const elias = await loginAs(browser, "elias");
+  const kit = await lenaProduct("Häkelset Markttasche");
+  const shop = await one<{ id: string }>(`SELECT id FROM "Shop" WHERE slug = $1`, [SHOP]);
+  // Unbekannter Code → verständliche Ablehnung
+  await emptyCart("elias");
+  await addToCart(elias, kit.id);
+  const bad = await elias.request.post("/api/v1/app/cart/coupon", { data: { shopId: shop!.id, code: "GIBTESNICHT" } });
+  expect(bad.status()).toBe(422);
+  expect(JSON.stringify(await bad.json())).toContain("nicht gültig");
+  // Sets zu Produkt und Anleitung (Liste, auch leer)
+  const forProduct = await elias.request.get(`/api/v1/app/bundles/for-product/${kit.id}`);
+  expect(forProduct.ok(), await forProduct.text()).toBe(true);
+  expect(Array.isArray((await forProduct.json()).data)).toBe(true);
+  const t = await one<{ id: string }>(`SELECT id FROM "Tutorial" WHERE state = 'PUBLISHED' ORDER BY "createdAt" LIMIT 1`);
+  const forTutorial = await elias.request.get(`/api/v1/app/tutorials/${t!.id}/bundles`);
+  expect(forTutorial.ok(), await forTutorial.text()).toBe(true);
+  // Unterstützer-Abo: Angebot (null ohne Plan) und eigene Unterstützungen
+  const lena = await userId("lena");
+  const offer = await elias.request.get(`/api/v1/app/creators/${lena}/support`);
+  expect(offer.ok(), await offer.text()).toBe(true);
+  expect(await offer.json()).toHaveProperty("data.offer");
+  const mine = await elias.request.get("/api/v1/app/me/supporting");
+  expect(mine.ok()).toBe(true);
+  await emptyCart("elias");
+});

@@ -156,9 +156,17 @@ struct CartView: View {
             VStack(spacing: 6) {
                 // Beträge ohne digitale Positionen (deren Preis gilt nur über Apple auf der Produktseite)
                 let digital = digitalMinor(g.lines)
-                MarketAmountRow(label: "Warenwert", value: Fmt.money(max(0, g.fees.subtotal - digital)))
+                MarketAmountRow(label: "Warenwert", value: Fmt.money(max(0, (g.subtotal ?? g.fees.subtotal) - digital)))
+                MarketDiscountRows(rows: g.discounts ?? [])
                 MarketAmountRow(label: "Versand (kombiniert)", value: g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping))
                 MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(max(0, g.fees.total - digital)), strong: false)
+                if let inc = g.incompleteBundles, !inc.isEmpty {
+                    Text("\(inc.map { "Set „\($0.title)“" }.joined(separator: ", ")): Der Set-Rabatt gilt nur, solange alle Teile im Warenkorb liegen.")
+                        .font(.wr(.caption)).foregroundStyle(Color.warn).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                MarketCouponField(shopId: g.shop.id, shopName: g.shop.name, coupon: g.coupon) { await load() }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
                 if let d = g.shop.processingDays, g.lines.contains(where: { !$0.isDigital }) {
                     Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.wr(.caption)).foregroundStyle(Color.muted).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -240,7 +248,8 @@ struct CartView: View {
     private func summary(_ c: MarketCart) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             let digital = c.groups.reduce(0) { $0 + digitalMinor($1.lines) }
-            MarketFeeSummary(subtotal: max(0, c.totals.subtotal - digital), shipping: c.totals.shipping, total: max(0, c.totals.total - digital))
+            MarketFeeSummary(subtotal: max(0, c.totals.subtotal - digital), shipping: c.totals.shipping, total: max(0, c.totals.total - digital),
+                             discounts: (c.totals.discount ?? 0) > 0 ? [MarketDiscountRow(kind: "total", label: "Rabatte", amountMinor: c.totals.discount ?? 0)] : [])
             if c.groups.count > 1 {
                 Label("\(c.groups.count) Shops – du erhältst \(c.groups.count) getrennte Bestellungen, jede mit eigener Zahlung.", systemImage: "square.stack")
                     .font(.wr(.footnote)).foregroundStyle(Color.ink2)

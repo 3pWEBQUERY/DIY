@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   UserPlus,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import type { NotificationView } from "@/server/notifications-inbox";
@@ -27,7 +28,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { loadNotificationsAction, markReadAction } from "@/app/(app)/benachrichtigungen/actions";
+import { deleteNotificationsAction, loadNotificationsAction, markReadAction } from "@/app/(app)/benachrichtigungen/actions";
 import { adjustCounts, refreshCounts } from "@/components/shell/live-counts";
 import { callAction } from "@/lib/use-action";
 
@@ -99,6 +100,21 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
     });
   }
 
+  function remove(n: NotificationView) {
+    const index = items.findIndex((x) => x.id === n.id);
+    setItems((prev) => prev.filter((x) => x.id !== n.id));
+    if (!n.read) adjustCounts({ notifications: -1 });
+    void callAction(() => deleteNotificationsAction([n.id])).then((r) => {
+      if (!r.ok) {
+        // Zurück an die alte Stelle
+        setItems((prev) => (prev.some((x) => x.id === n.id) ? prev : [...prev.slice(0, index), n, ...prev.slice(index)]));
+        if (!n.read) adjustCounts({ notifications: 1 });
+        toast(r.error, "error");
+      }
+      refreshCounts();
+    });
+  }
+
   function loadMore() {
     if (!cursor) return;
     start(async () => {
@@ -121,7 +137,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
             {g.items.map((n) => {
               const Icon = ICONS[n.icon] ?? Bell;
               return (
-                <li key={n.id} className="border-b border-line">
+                <li key={n.id} className="group/n relative border-b border-line">
                   <Link
                     href={n.href}
                     onClick={(e) => {
@@ -130,7 +146,7 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                       open(n);
                     }}
                     className={cn(
-                      "group relative flex gap-3.5 overflow-hidden rounded-l-none rounded-r-2xl py-3.5 pl-4 pr-3 transition-colors hover:bg-sunken focus-visible:bg-sunken",
+                      "group relative flex gap-3.5 overflow-hidden rounded-l-none rounded-r-2xl py-3.5 pl-4 pr-12 transition-colors hover:bg-sunken focus-visible:bg-sunken",
                       !n.read && "bg-card before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-clay",
                     )}
                   >
@@ -162,6 +178,16 @@ export function NotificationList({ initial, cursor: initialCursor, filter, now }
                     </span>
                     {!n.read && <span aria-hidden className="mt-2 size-2 shrink-0 rounded-full bg-clay" />}
                   </Link>
+                  {/* Löschen: am Desktop beim Darüberfahren/Fokus, auf Touch-Geräten immer sichtbar */}
+                  <button
+                    type="button"
+                    onClick={() => remove(n)}
+                    aria-label={`Benachrichtigung löschen: ${[n.lead, n.body].filter(Boolean).join(" ")}`}
+                    title="Löschen"
+                    className="absolute right-1.5 top-2.5 grid size-9 place-items-center rounded-xl text-muted transition-opacity hover:bg-paper hover:text-danger focus-visible:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover/n:opacity-100 pointer-fine:group-focus-within/n:opacity-100"
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
                 </li>
               );
             })}

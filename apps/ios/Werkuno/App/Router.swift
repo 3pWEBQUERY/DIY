@@ -4,7 +4,7 @@ import Observation
 // MARK: - Navigationsziele
 
 enum StudioSection: String, Hashable, CaseIterable, Identifiable {
-    case content, projects, tutorials, articles, products, orders, shop, media, stats, revenue
+    case content, projects, tutorials, articles, products, orders, shop, media, stats, revenue, supporters
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -18,6 +18,7 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .media: "Medienbibliothek"
         case .stats: "Statistiken"
         case .revenue: "Einnahmen"
+        case .supporters: "Unterstützer:innen"
         }
     }
     var symbol: String {
@@ -32,12 +33,13 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .media: "photo.on.rectangle"
         case .stats: "chart.bar.xaxis"
         case .revenue: "banknote"
+        case .supporters: "heart"
         }
     }
 }
 
 enum SettingsSection: String, Hashable, CaseIterable, Identifiable {
-    case profile, account, security, notifications, feed, privacy, support, developer
+    case profile, account, security, notifications, feed, privacy, support, supporting, developer
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -48,6 +50,7 @@ enum SettingsSection: String, Hashable, CaseIterable, Identifiable {
         case .feed: "Feed & Interessen"
         case .privacy: "Privatsphäre"
         case .support: "Hilfe & Support"
+        case .supporting: "Unterstützungen"
         case .developer: "Server & Entwicklung"
         }
     }
@@ -60,6 +63,7 @@ enum SettingsSection: String, Hashable, CaseIterable, Identifiable {
         case .feed: "sparkles.rectangle.stack"
         case .privacy: "hand.raised"
         case .support: "questionmark.bubble"
+        case .supporting: "heart.circle"
         case .developer: "server.rack"
         }
     }
@@ -192,10 +196,10 @@ enum Route: Hashable {
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
             case ("studio", 2) where s[1] == "pro": return .creatorPro
             case ("studio", _):
-                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "produkte": .products, "bestellungen": .orders, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue]
+                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "produkte": .products, "bestellungen": .orders, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
                 return map[s[1]].map { .studioSection($0) } ?? .studio
             case ("einstellungen", _):
-                let map: [String: SettingsSection] = ["profil": .profile, "konto": .account, "sicherheit": .security, "benachrichtigungen": .notifications, "feed": .feed, "privatsphaere": .privacy, "hilfe-support": .support]
+                let map: [String: SettingsSection] = ["profil": .profile, "konto": .account, "sicherheit": .security, "benachrichtigungen": .notifications, "feed": .feed, "privatsphaere": .privacy, "hilfe-support": .support, "unterstuetzungen": .supporting]
                 return map[s[1]].map { .settingsSection($0) } ?? .settings
             case ("admin", 3) where s[1] == "moderation": return .moderationCase(id: s[2])
             case ("admin", 3) where s[1] == "nutzer": return .adminUser(id: s[2])

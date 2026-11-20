@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { act } from "@/server/errors";
 import { requireUser } from "@/server/auth/session";
-import { listNotifications, markNotificationsRead } from "@/server/notifications-inbox";
+import { deleteNotifications, listNotifications, markNotificationsRead } from "@/server/notifications-inbox";
 
 export async function markReadAction(ids: string[]) {
   return act(async () => {
@@ -26,4 +26,13 @@ export async function loadNotificationsAction(filter: string, cursor: string | n
     const u = await requireUser({ allowSuspended: true });
     return listNotifications(u.id, { filter, cursor, limit: 40 });
   });
+}
+
+export async function deleteNotificationsAction(which: string[] | "read" | "all") {
+  return act(async () => {
+    const u = await requireUser({ allowSuspended: true });
+    const r = await deleteNotifications(u.id, Array.isArray(which) ? which.filter((x) => typeof x === "string").slice(0, 200) : which === "all" ? "all" : "read");
+    if (!Array.isArray(which)) revalidatePath("/benachrichtigungen");
+    return r;
+  }, Array.isArray(which) ? undefined : which === "all" ? "Alle Benachrichtigungen gelöscht." : "Gelesene Benachrichtigungen gelöscht.");
 }

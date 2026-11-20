@@ -1,3 +1,4 @@
+import { db } from "@/server/db";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/server/auth/session";
 import { listOwnProjectOptions } from "@/server/projects/service";
@@ -22,7 +23,7 @@ export default async function NewTutorialPage({ searchParams }: { searchParams: 
         title={seed ? "Anleitung zum Projekt" : "Neue Anleitung"}
         description="Schreibe in Ruhe – veröffentlicht wird erst, wenn du so weit bist. Bis dahin bleibt alles ein Entwurf."
       />
-      <TutorialEditor tutorialId={null} currentVersion={null} projects={projects} defaultProjectId={seed?.projectId ?? undefined} initial={seed ?? undefined} categories={await categoryOptions(seed?.category)} />
+      <TutorialEditor supportPlanEnabled={!!(await db.supportPlan.findUnique({ where: { userId: user.id }, select: { enabled: true } }))?.enabled} tutorialId={null} currentVersion={null} projects={projects} defaultProjectId={seed?.projectId ?? undefined} initial={seed ?? undefined} categories={await categoryOptions(seed?.category)} />
     </div>
   );
 }

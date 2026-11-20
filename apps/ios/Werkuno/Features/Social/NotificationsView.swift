@@ -15,6 +15,7 @@ struct NotificationsView: View {
     @State private var error: String?
     /// Offene Koautor:innen-Einladungen (`GET /me/coauthor-invites`)
     @State private var invites: [SocialCoauthorInvite] = []
+    @State private var confirmDeleteAll = false
 
     var body: some View {
         List {
@@ -77,6 +78,10 @@ struct NotificationsView: View {
                                             .tint(.moss)
                                     }
                                 }
+                                // Nach links wischen → „Löschen“ (ganz durchwischen löscht sofort)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) { Task { await delete(n) } } label: { Label("Löschen", systemImage: "trash") }
+                                }
                         }
                     } header: { Group {
                         HStack(spacing: 10) {
@@ -104,10 +109,27 @@ struct NotificationsView: View {
                         .accessibilityLabel("Alle als gelesen markieren")
                 }
             }
+            if !items.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if items.contains(where: \.read) {
+                            Button("Gelesene löschen", systemImage: "trash") { Task { await deleteAll(scope: "read") } }
+                        }
+                        Button("Alle löschen", systemImage: "trash", role: .destructive) { confirmDeleteAll = true }
+                    } label: { Image(systemName: "trash") }
+                        .accessibilityLabel("Benachrichtigungen löschen")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { router.open(.settingsSection(.notifications)) } label: { Image(systemName: "gearshape") }
                     .accessibilityLabel("Benachrichtigungen einstellen")
             }
+        }
+        .confirmationDialog("Alle Benachrichtigungen löschen?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
+            Button("Alle löschen", role: .destructive) { Task { await deleteAll(scope: "all") } }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Auch ungelesene werden entfernt. Das lässt sich nicht rückgängig machen.")
         }
         .task(id: filter) { await load(reset: true) }
         .task { await loadInvites() }
@@ -246,6 +268,44 @@ struct NotificationsView: View {
         if ok {
             setRead(items.map(\.id))
             withAnimation(.snappy) { unread = [:] }
+            await load(reset: true)
+        }
+        await app.refreshCounts()
+    }
+
+    /// Einzelne Benachrichtigung löschen – sofort aus der Liste, bei Fehler wieder einfügen.
+    private func delete(_ n: NotificationItem) async {
+        guard let index = items.firstIndex(where: { $0.id == n.id }) else { return }
+        Haptics.tap()
+        withAnimation(.snappy) {
+            items.remove(at: index)
+            if !n.read {
+                if let c = unread["all"], c > 0 { unread["all"] = c - 1 }
+                if let g = n.group, let c = unread[g], c > 0 { unread[g] = c - 1 }
+            }
+        }
+        if !n.read { app.markNotificationsRead(1) }
+        do {
+            _ = try await APIClient.shared.delete("/notifications/\(n.id)") as JSONValue
+        } catch {
+            withAnimation(.snappy) {
+                if !items.contains(where: { $0.id == n.id }) { items.insert(n, at: min(index, items.count)) }
+            }
+            app.show(error: error)
+        }
+        await app.refreshCounts()
+    }
+
+    /// „Gelesene löschen“ (`read`) oder „Alle löschen“ (`all`).
+    private func deleteAll(scope: String) async {
+        let ok = await app.run(scope == "all" ? "Alle Benachrichtigungen gelöscht." : "Gelesene Benachrichtigungen gelöscht.") {
+            _ = try await APIClient.shared.post("/notifications/delete", ["scope": JSONValue.string(scope)]) as JSONValue
+        }
+        if ok {
+            withAnimation(.snappy) {
+                if scope == "all" { items = []; unread = [:] } else { items.removeAll(where: \.read) }
+            }
+            if scope == "all" { app.markNotificationsRead() }
             await load(reset: true)
         }
         await app.refreshCounts()

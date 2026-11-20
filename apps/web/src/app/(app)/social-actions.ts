@@ -46,7 +46,7 @@ export async function bookmarkAction(type: TargetType, id: string, saved: boolea
   return act(async () => ix.setBookmark(await requireUser(), type, id, saved, collectionId));
 }
 
-export async function commentAction(type: TargetType, id: string, input: { body: string; parentId?: string }) {
+export async function commentAction(type: TargetType, id: string, input: { body: string; parentId?: string; stepKey?: string }) {
   return act(async () => {
     const c = await ix.createComment(await requireUser(), type, id, input);
     return { id: c.id };
@@ -61,10 +61,10 @@ export async function deleteCommentAction(id: string) {
 }
 
 /** Kommentare seitenweise: ohne Cursor die neuesten, mit Cursor die nächstälteren. */
-export async function listCommentsAction(type: TargetType, id: string, cursor?: string | null) {
+export async function listCommentsAction(type: TargetType, id: string, cursor?: string | null, stepKey?: string | null) {
   const { currentUser } = await import("@/server/auth/session");
   const u = await currentUser();
-  return ix.listCommentPage(type, id, u?.id ?? null, cursor ?? null);
+  return ix.listCommentPage(type, id, u?.id ?? null, cursor ?? null, typeof stepKey === "string" && stepKey.length <= 64 ? stepKey : null);
 }
 
 export async function followAction(userId: string, follow: boolean) {

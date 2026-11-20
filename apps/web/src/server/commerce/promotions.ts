@@ -271,19 +271,21 @@ export function bundlesForProduct(productId: string, viewerId: string | null) {
 }
 
 /** Legt alle Teile eines Sets (in der Set-Menge) in den Warenkorb und merkt sich das Set für den Rabatt. */
-export async function addBundleToCart(user: SessionUser, bundleId: string) {
+export async function addBundleToCart(user: SessionUser, bundleId: string, opts: { channel?: "web" | "ios" } = {}) {
   await requireFlag("marketplace", user.id);
   await rateLimit(`cart:${user.id}`, 120, 3600);
   const b = await db.productBundle.findUnique({ where: { id: bundleId }, include: publicBundleInclude });
   if (!b || !b.active || b.shop.status !== "ACTIVE") throw fail.notFound();
   const view = bundleView(b);
   if (!view.purchasable) throw fail.conflict("Dieses Set ist gerade nicht vollständig erhältlich.");
+  // In der App kein Warenkorb für Digitales (nur In-App-Kauf auf der Produktseite)
+  if (opts.channel === "ios" && view.items.some((i) => i.kind === "DIGITAL")) throw fail.invalid("Dieses Set enthält digitale Produkte und ist in der App nicht erhältlich.");
   const cart = await db.cart.upsert({ where: { userId: user.id }, create: { userId: user.id }, update: {}, select: { id: true, items: { where: { variantId: null }, select: { productId: true, quantity: true } } } });
   const have = new Map(cart.items.map((i) => [i.productId, i.quantity]));
   for (const it of view.items) {
     const missing = it.quantity - (have.get(it.productId) ?? 0);
     if (missing <= 0) continue;
-    const r = await addToCart(user, { productId: it.productId, quantity: missing });
+    const r = await addToCart(user, { productId: it.productId, quantity: missing }, { channel: opts.channel });
     if (r.capped) throw fail.conflict(`„${it.title}“ ist nicht mehr in der Set-Menge verfügbar.`);
   }
   await db.cartBundle.upsert({ where: { cartId_bundleId: { cartId: cart.id, bundleId } }, create: { cartId: cart.id, bundleId }, update: {} });

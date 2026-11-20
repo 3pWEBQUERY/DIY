@@ -223,3 +223,25 @@ export const bundleSchema = z
   })
   .refine((b) => new Set(b.items.map((i) => i.productId)).size === b.items.length, { path: ["items"], message: "Jedes Produkt nur einmal – die Menge ist je Zeile einstellbar" });
 export type BundleInput = z.input<typeof bundleSchema>;
+
+/* ───────────────────────── Unterstützer-Abo ───────────────────────── */
+
+/** Feste Monatsstufen im Web (Rappen). In der App gelten eigene Apple-Produkte je Stufe. */
+export const SUPPORT_TIERS_MINOR = [300, 500, 1000] as const;
+export type SupportTier = (typeof SUPPORT_TIERS_MINOR)[number];
+/** Apple-Produkte (Abo ohne automatische Verlängerung, 1 Monat) je Web-Stufe */
+export const SUPPORT_APPLE_PRODUCTS: Record<SupportTier, string> = {
+  300: "ch.werkuno.app.support.tier3",
+  500: "ch.werkuno.app.support.tier5",
+  1000: "ch.werkuno.app.support.tier10",
+};
+export function supportTierForAppleProduct(productId: string | null | undefined): SupportTier | null {
+  const e = Object.entries(SUPPORT_APPLE_PRODUCTS).find(([, id]) => id === productId);
+  return e ? (Number(e[0]) as SupportTier) : null;
+}
+
+export const supportPlanSchema = z.object({
+  enabled: z.boolean(),
+  priceMinor: z.coerce.number().refine((v): v is SupportTier => (SUPPORT_TIERS_MINOR as readonly number[]).includes(v), "Bitte eine der Stufen wählen"),
+  perks: z.string().trim().max(1000, "Höchstens 1000 Zeichen").default(""),
+});

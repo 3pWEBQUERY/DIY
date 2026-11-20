@@ -197,6 +197,14 @@ struct CommentItem: Codable, Hashable, Identifiable, Sendable {
     var isAnswer: Bool?
     var author: UserMini
     var replies: [CommentItem]?
+    /// Frage zu einem Anleitungsschritt (Schlüssel und aktuelle Nummer/Titel)
+    var stepKey: String? = nil
+    var step: CommentStep? = nil
+}
+
+struct CommentStep: Codable, Hashable, Sendable {
+    var n: Int
+    var title: String
 }
 
 // MARK: - Projekte (§10)

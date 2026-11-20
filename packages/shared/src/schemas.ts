@@ -88,6 +88,8 @@ export function isValidSchedule(d: Date, now = Date.now()) {
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1, "Kommentar ist leer").max(2000),
   parentId: z.string().optional(),
+  /** Frage zu einem Anleitungsschritt (stableKey) – nur bei Anleitungen */
+  stepKey: z.string().trim().min(1).max(64).optional(),
 });
 
 export const materialLineSchema = z.object({
@@ -155,6 +157,8 @@ export const tutorialUpsertSchema = z.object({
   steps: z.array(tutorialStepSchema).min(1, "Mindestens ein Schritt").max(80),
   changeNote: z.string().trim().max(500).optional(),
   notifyReaders: z.boolean().default(false),
+  /** Nur für Unterstützer:innen (fehlt bei älteren Apps → unverändert) */
+  supportersOnly: z.boolean().optional(),
 });
 
 export const reportSchema = z.object({
