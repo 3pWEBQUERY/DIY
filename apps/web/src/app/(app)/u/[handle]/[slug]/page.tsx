@@ -25,6 +25,8 @@ import { AddToShoppingList } from "@/components/materials/add-to-list";
 import { StockToggle } from "@/components/materials/stock";
 import { stockLookup } from "@/server/materials/stock";
 import { cn, formatDate, formatMinutes, pad, pluralize, relativeTime } from "@/lib/utils";
+import { Linkified } from "@/components/ui/linkify";
+import { hashtagHref, tagToHashtag } from "@werkraum/shared";
 
 type Params = { params: Promise<{ handle: string; slug: string }> };
 
@@ -189,7 +191,7 @@ export default async function ProjectPage({ params }: Params) {
             <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Schlagwörter">
               {p.tags.map((t) => (
                 <li key={t}>
-                  <Link href={`/projekte?q=${encodeURIComponent(t)}`} className="inline-flex h-7 items-center border border-line px-2.5 font-mono text-[11px] text-ink-2 hover:border-rule-strong rounded-xl">#{t}</Link>
+                  <Link href={hashtagHref(tagToHashtag(t)?.name ?? t)} scroll={false} className="inline-flex h-7 items-center border border-line px-2.5 font-mono text-[11px] text-ink-2 hover:border-rule-strong rounded-xl">#{t}</Link>
                 </li>
               ))}
             </ul>
@@ -203,7 +205,7 @@ export default async function ProjectPage({ params }: Params) {
           <section id="beschreibung" aria-labelledby="h-beschreibung">
             <SectionTitle n={no()} title={<span id="h-beschreibung">Idee & Beschreibung</span>} />
             {p.description ? (
-              <div className="prose-werk mt-6 max-w-[68ch] whitespace-pre-line">{p.description}</div>
+              <div className="prose-werk mt-6 max-w-[68ch] whitespace-pre-line"><Linkified text={p.description} /></div>
             ) : (
               <p className="mt-6 text-sm text-muted">{isOwner ? "Noch keine Beschreibung. Erzähle, was dich zu diesem Projekt gebracht hat." : "Keine Beschreibung."}</p>
             )}
@@ -448,18 +450,18 @@ function Journal({ p }: { p: ProjectPageView }) {
                   <h3 className="headline mt-0.5 text-[1.4rem] text-balance">{e.milestone}</h3>
                 </>
               )}
-              <p className={cn("whitespace-pre-line text-[15.5px] leading-relaxed text-ink-2", e.milestone && "mt-2")}>{e.body}</p>
+              <p className={cn("whitespace-pre-line text-[15.5px] leading-relaxed text-ink-2", e.milestone && "mt-2")}><Linkified text={e.body} /></p>
               {(e.problem || e.solution) && (
                 <div className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2 rounded-2xl overflow-hidden">
                   {e.problem && (
                     <div className="bg-clay-soft px-4 py-3 rounded-2xl">
                       <p className="spec text-clay-ink">Problem</p>
-                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2">{e.problem}</p>
+                      <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2"><Linkified text={e.problem} /></p>
                     </div>
                   )}
                   <div className={cn("bg-moss-soft px-4 py-3 rounded-2xl", !e.problem && "sm:col-span-2")}>
                     <p className="spec text-moss-ink">Lösung</p>
-                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2">{e.solution || <span className="text-muted">Noch offen – weisst du Rat? Schreib es in die Fragen.</span>}</p>
+                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-ink-2">{e.solution ? <Linkified text={e.solution} /> : <span className="text-muted">Noch offen – weisst du Rat? Schreib es in die Fragen.</span>}</p>
                   </div>
                 </div>
               )}

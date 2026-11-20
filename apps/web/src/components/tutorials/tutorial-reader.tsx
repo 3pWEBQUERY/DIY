@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { cn, formatMinutes, pad } from "@/lib/utils";
 import { completeTutorialAction, resetTutorialProgressAction, toggleTutorialStepAction } from "@/app/(app)/anleitungen/actions";
 import { callAction } from "@/lib/use-action";
+import { Linkified } from "@/components/ui/linkify";
 
 type Props = {
   tutorialId: string;
@@ -242,7 +243,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                     </ul>
                   )}
 
-                  {s.body && <div className="prose-werk mt-6 max-w-[66ch] whitespace-pre-line">{s.body}</div>}
+                  {s.body && <div className="prose-werk mt-6 max-w-[66ch] whitespace-pre-line"><Linkified text={s.body} /></div>}
 
                   {(s.materials.length > 0 || s.tools.length > 0) && (
                     <dl className="mt-6 grid max-w-[66ch] gap-3 border-y border-line py-3 sm:grid-cols-2">
@@ -267,7 +268,7 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                         <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-moss-ink">Tipp aus der Werkstatt</span>
                         <span className="text-[11px] text-muted">Erfahrung der Autorin bzw. des Autors</span>
                       </p>
-                      <p className="mt-1 whitespace-pre-line text-[14.5px] leading-relaxed text-ink-2">{s.tip}</p>
+                      <p className="mt-1 whitespace-pre-line text-[14.5px] leading-relaxed text-ink-2"><Linkified text={s.tip} /></p>
                     </aside>
                   )}
 

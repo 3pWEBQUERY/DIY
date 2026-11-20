@@ -1,5 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
+import { hashtagHref } from "@werkraum/shared";
+import { suggestHashtags } from "@/server/hashtags/service";
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
 import { DIFFICULTY_LABEL, formatMoney, type Currency } from "@werkraum/shared";
@@ -43,6 +45,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     limit: type ? 40 : 8,
   };
   const results = q.length >= 2 ? await search(filters, viewerId) : null;
+  // „#diy“ oder ein einzelnes Wort: passende Hashtags anbieten
+  const tagQuery = /^#?[\p{L}\p{M}\p{N}_]{2,50}$/u.test(q) ? q.replace(/^#/, "") : null;
+  const tags = tagQuery && (!type || q.startsWith("#")) ? await suggestHashtags(tagQuery, q.startsWith("#") ? 8 : 4) : [];
   const [projects, tutorials] = results
     ? await Promise.all([getProjectCards(results.project.map((h) => h.id), viewerId), getTutorialCards(results.tutorial.map((h) => h.id), viewerId)])
     : [[], []];
@@ -66,6 +71,19 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         {type && <input type="hidden" name="typ" value={type} />}
         <button className={buttonClass("ink", "lg")}>Suchen</button>
       </Form>
+
+      {tags.length > 0 && (
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="spec mr-1">Hashtags</span>
+          {tags.map((h) => (
+            <Link key={h.name} href={hashtagHref(h.name)} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-line px-3 text-[13.5px] text-ink-2 hover:border-rule-strong hover:text-ink">
+              <span className="text-moss">#</span>
+              {h.display}
+              <span className="font-mono text-[11px] text-muted">{h.count}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {q && (
         <>

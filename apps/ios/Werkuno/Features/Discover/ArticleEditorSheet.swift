@@ -606,7 +606,7 @@ struct ArticleEditorSheet: View {
                     }
                     BlogBlocksView(blocks: blocks)
                         .allowsHitTesting(false)
-                    if !tags.isEmpty { TagList(tags: tags) }
+                    if !tags.isEmpty { TagList(tags: tags, linked: false) }
                 }
                 .padding(Space.gutter)
             }

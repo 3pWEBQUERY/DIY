@@ -13,6 +13,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
+import { Linkified } from "@/components/ui/linkify";
 import { cn, compactNumber, smoothScroll } from "@/lib/utils";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { LikeButton, SaveButton, ShareButton, MoreMenu, useSafetyMenu, type MenuItem } from "./actions";
@@ -32,27 +33,11 @@ const KIND_LABEL: Partial<Record<string, string>> = {
   REPOST: "Geteilt",
 };
 
-/** @handle als Links, Zeilenumbrüche erhalten. Kein HTML-Rendering (XSS-sicher). */
+/** @Erwähnungen, #Hashtags und Links klickbar, Zeilenumbrüche erhalten. Kein HTML-Rendering (XSS-sicher). */
 export function RichText({ text, className }: { text: string; className?: string }) {
-  // Handles enden nie auf Punkt/Unterstrich; Satzzeichen am Ende gehören weder zum Handle noch zur URL
-  // Lookbehind: @ mitten in E-Mail-Adressen (info@werkuno.ch) ist keine Erwähnung
-  const parts = text.split(/((?<![a-z0-9._@])@[a-z0-9][a-z0-9._]{1,22}[a-z0-9]|https?:\/\/[^\s]+?(?=[.,;:!?)\]]*(?:\s|$)))/gi);
   return (
     <p className={cn("whitespace-pre-line text-pretty", className)}>
-      {parts.map((p, i) =>
-        i % 2 === 1 && p.startsWith("@") ? (
-          <Link key={i} href={`/u/${p.slice(1).toLowerCase()}`} className="font-semibold text-moss hover:underline">
-            {p}
-          </Link>
-        ) : i % 2 === 1 && /^https?:\/\//.test(p) ? (
-          <a key={i} href={p} rel="nofollow noopener ugc" target="_blank" className="text-moss underline underline-offset-2 break-all">
-            {p.replace(/^https?:\/\//, "").slice(0, 40)}
-            {p.length > 48 ? "…" : ""}
-          </a>
-        ) : (
-          p
-        ),
-      )}
+      <Linkified text={text} />
     </p>
   );
 }

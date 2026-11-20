@@ -64,13 +64,14 @@ export function PageHeader({
  * Reiter als Links (serverseitig, ohne JS). Bewusst keine ARIA-Tabs: Jeder Reiter lädt eine eigene
  * Ansicht (kein Tabpanel, keine Pfeiltasten) – also normale Links mit aria-current.
  */
-export function TabLinks({ tabs, active, className, label }: { tabs: { href: string; label: string; count?: number; key: string }[]; active: string; className?: string; label?: string }) {
+export function TabLinks({ tabs, active, className, label, replace }: { tabs: { href: string; label: string; count?: number; key: string }[]; active: string; className?: string; label?: string; replace?: boolean }) {
   return (
     <nav aria-label={label ?? "Ansichten"} className={cn("flex gap-6 overflow-x-auto border-b border-line scrollbar-none", className)}>
       {tabs.map((t) => (
         <Link
           key={t.key}
           scroll={false}
+          replace={replace}
           aria-current={active === t.key ? "page" : undefined}
           href={t.href}
           className={cn(

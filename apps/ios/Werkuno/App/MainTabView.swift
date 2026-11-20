@@ -186,6 +186,7 @@ struct RouteView: View {
             case .material(let s): MaterialDetailView(slug: s)
             case .materialStock: MaterialStockView()
             case .storyArchive: StoryArchiveView()
+            case .hashtag(let tag): HashtagView(tag: tag)
             }
         }
     }

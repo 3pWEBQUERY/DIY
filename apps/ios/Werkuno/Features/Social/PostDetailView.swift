@@ -113,12 +113,13 @@ struct PostDetailView: View {
             }
 
             if !post.body.isEmpty {
-                Text(post.body)
+                Text(LinkedText.attributed(post.body))
                     .font(.wr(.title3))
                     .lineSpacing(3)
                     .foregroundStyle(Color.ink)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                    .contentLinks()
             }
 
             if let poll = post.poll, poll.isUsable {

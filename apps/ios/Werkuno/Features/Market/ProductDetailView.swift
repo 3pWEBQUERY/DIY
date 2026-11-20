@@ -86,7 +86,7 @@ struct ProductDetailView: View {
                     if needsVariant(p) { variantPicker(p) }
                     if !p.isDigital && !(p.isOwner ?? false) && (p.purchasable ?? false) { quantityRow(p) }
                     if let d = p.description?.nilIfEmpty {
-                        RichTextBlock(text: d)
+                        RichTextBlock(text: d, hashtags: true).contentLinks()
                     }
                     dataSheet(p)
                     if let s = p.safetyInfo?.nilIfEmpty {

@@ -198,6 +198,8 @@ struct RichTextBlock: View {
     var text: String
     var font: Font = .wr(.body)
     var color: Color = .ink2
+    /// #Hashtags und @Erwähnungen tippbar machen (Ansicht braucht dann `.contentLinks()`)
+    var hashtags = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -245,7 +247,7 @@ struct RichTextBlock: View {
     private func inline(_ s: String) -> some View {
         var a = AttributedString()
         for r in RichMarkup.parseInline(s) {
-            var part = AttributedString(r.text)
+            var part = hashtags && r.link == nil ? LinkedText.attributed(r.text) : AttributedString(r.text)
             if r.bold && r.italic { part.font = font.bold().italic() }
             else if r.bold { part.font = font.bold() }
             else if r.italic { part.font = font.italic() }

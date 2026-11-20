@@ -127,6 +127,8 @@ enum Route: Hashable {
     case event(id: String)
     /// „Deine Stories“: Archiv und Highlights verwalten (`/stories`)
     case storyArchive
+    /// Hashtag-Seite (`/hashtag/:name`): alle Inhalte mit dem Hashtag, im aktuellen Tab
+    case hashtag(String)
 
     /// Web-Pfade (Benachrichtigungen, geteilte Links, Server-`href`) → native Ziele.
     static func from(href: String) -> Route? {
@@ -167,6 +169,7 @@ enum Route: Hashable {
             }
         default:
             switch (s[0], s.count) {
+            case ("hashtag", 2): return Hashtags.isValid(s[1]) ? .hashtag(Hashtags.normalize(s[1])) : nil
             case ("beitrag", _): return .post(id: s[1])
             case ("u", 2): return .profile(handle: s[1])
             case ("u", 3) where s[2] == "blog": return .userBlog(handle: s[1])

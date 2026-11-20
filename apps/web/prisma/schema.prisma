@@ -2084,6 +2084,31 @@ model FeatureFlag {
   updatedAt   DateTime @updatedAt
 }
 
+/// Hashtag (#DIY): normalisiert klein geschrieben, Schreibweise der ersten Verwendung für die Anzeige
+model Hashtag {
+  id        String       @id @default(cuid())
+  /// normalisiert (klein, NFKC), z. B. "diy", "möbelbau"
+  name      String       @unique
+  display   String
+  createdAt DateTime     @default(now())
+  uses      HashtagUse[]
+}
+
+/// Verwendung eines Hashtags in einem Inhalt (Beitrag, Kommentar, Projekt, Anleitung, Artikel, Produkt).
+/// Sichtbarkeit wird beim Lesen über den Inhalt geprüft; der Abgleich im Worker räumt verwaiste Einträge auf.
+model HashtagUse {
+  hashtagId  String
+  hashtag    Hashtag    @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+  targetType TargetType
+  targetId   String
+  createdAt  DateTime   @default(now())
+
+  @@id([hashtagId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([hashtagId, targetType, createdAt])
+  @@index([createdAt])
+}
+
 model SystemSetting {
   key       String   @id
   value     Json

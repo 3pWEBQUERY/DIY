@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { hashtagHref } from "@werkraum/shared";
+import { trendingHashtags } from "@/server/hashtags/service";
 import { AnnouncementSlot } from "@/components/announcements/announcement-slot";
 import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
@@ -72,6 +74,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   );
   const viewer = user?.profile ? { id: user.id, displayName: user.profile.displayName, avatarUrl: user.profile.avatarUrl } : null;
   const viewer2 = viewer;
+  const hashtags = cat ? [] : await trendingHashtags(14);
 
   return (
     <Page width="wide">
@@ -112,6 +115,24 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           </Link>
         ))}
       </nav>
+
+      {hashtags.length > 0 && (
+        <section aria-labelledby="beliebte-hashtags" className="-mt-6 mb-14">
+          <h2 id="beliebte-hashtags" className="spec mb-3">
+            Beliebte Hashtags
+          </h2>
+          <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
+            {hashtags.map((h) => (
+              <li key={h.name} className="shrink-0">
+                <Link href={hashtagHref(h.name)} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-line px-3 text-[13.5px] text-ink-2 hover:border-rule-strong hover:text-ink">
+                  <span className="text-moss">#</span>
+                  {h.display}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="space-y-20">
         <section>

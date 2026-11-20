@@ -28,6 +28,7 @@ import { leaveGroupAction } from "@/app/(app)/nachrichten/actions";
 import { LIVE_EVENT, refreshCounts, type LiveDetail } from "@/components/shell/live-counts";
 import { callAction } from "@/lib/use-action";
 import { BRAND } from "@/config/brand";
+import { Linkified } from "@/components/ui/linkify";
 
 const POLL_MS = 5000; // Rückfall, falls der Live-Kanal (SSE) nicht verfügbar ist
 
@@ -106,7 +107,7 @@ function Bubble({ m, otherName, onReport, showTime, sender, status }: { m: Messa
               )}
               {m.body &&
                 (flagged ? (
-                  <p className="whitespace-pre-line break-words text-[15px] leading-relaxed">{m.body}</p>
+                  <p className="whitespace-pre-line break-words text-[15px] leading-relaxed"><Linkified text={m.body} links={false} mentions={false} /></p>
                 ) : (
                   <RichText text={m.body} className={cn("break-words text-[15px] leading-relaxed", m.mine && "[&_a]:text-paper [&_a]:underline")} />
                 ))}

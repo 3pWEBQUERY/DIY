@@ -28,6 +28,7 @@ import { createProjectAction, updateProjectAction } from "@/app/(app)/projekte/a
 import { StatusMark } from "./status";
 import { TagInput } from "@/components/ui/tag-input";
 import { callAction } from "@/lib/use-action";
+import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
 type Values = ProjectEditData["values"];
 
@@ -85,6 +86,7 @@ export function ProjectEditor({
 
   const [title, setTitle] = useState(initial?.title ?? (remixSource ? `Mein Nachbau: ${remixSource.title}`.slice(0, 120) : ""));
   const [description, setDescription] = useState(initial?.description ?? "");
+  const descTags = useHashtagAssist(description, setDescription);
   const [category, setCategory] = useState<string>(initial?.category ?? remixSource?.category ?? defaultCategory ?? "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [status, setStatus] = useState<ProjectStatus>(initial?.status ?? (remixSource ? "PLANNING" : "IN_PROGRESS"));
@@ -193,7 +195,7 @@ export function ProjectEditor({
           {(a) => <Input {...a} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} required placeholder="z. B. Hocker aus Eschenholz" className="h-12 font-serif text-xl" />}
         </Field>
         <Field label="Beschreibung" optional hint="Idee, Motivation, Besonderheiten. Fortschritte trägst du später im Journal ein." error={fields.description}>
-          {(a) => <Textarea {...a} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={10000} rows={7} />}
+          {(a) => (<div className="relative"><Textarea {...a} value={description} ref={descTags.ref} onChange={descTags.onChange} onSelect={descTags.onSelect} onKeyDown={(e) => void descTags.onKeyDown(e)} {...descTags.aria} maxLength={10000} rows={7} />{descTags.popup}</div>)}
         </Field>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Kategorie" error={fields.category}>

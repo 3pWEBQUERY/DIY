@@ -19,6 +19,7 @@ import { slugify } from "@/lib/utils";
 import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
+import { indexHashtags } from "@/server/hashtags/sync";
 
 /**
  * Anleitungen (PRD §11).
@@ -246,6 +247,7 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
     }
   }
   const { duplicate: _duplicate, ...out } = result;
+  await indexHashtags("TUTORIAL", out.id);
   return { ...out, href };
 }
 
@@ -475,7 +477,7 @@ export type TutorialFilters = {
   sort?: "new" | "popular" | "updated";
 };
 
-async function visibleTutorialsWhere(viewerId: string | null | undefined): Promise<Prisma.TutorialWhereInput> {
+export async function visibleTutorialsWhere(viewerId: string | null | undefined): Promise<Prisma.TutorialWhereInput> {
   const rel = await relationsFor(viewerId);
   const hidden = rel.hidden.filter((h) => h.targetType === "TUTORIAL").map((h) => h.targetId);
   return {

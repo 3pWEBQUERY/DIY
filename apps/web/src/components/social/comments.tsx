@@ -9,11 +9,13 @@ import type { CommentView } from "@/server/social/interactions";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { Linkified } from "@/components/ui/linkify";
 import { cn } from "@/lib/utils";
 import { RelativeTime } from "@/components/ui/relative-time";
 import { commentAction, deleteCommentAction, listCommentsAction } from "@/app/(app)/social-actions";
 import { LikeButton, ReportDialog } from "./actions";
 import { callAction, callData } from "@/lib/use-action";
+import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
 /** Kommentare & Fragen mit einer Antwortebene (§9.4). */
 export function Comments({
@@ -137,6 +139,7 @@ export function Comments({
 
 function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDone, autoFocus, initialBody = "", stepKey }: { targetType: TargetType; targetId: string; parentId?: string; viewer: { displayName: string; avatarUrl: string | null }; placeholder: string; onDone: () => void; autoFocus?: boolean; initialBody?: string; stepKey?: string }) {
   const [body, setBody] = useState(initialBody);
+  const tags = useHashtagAssist(body, setBody);
   const field = useRef<HTMLTextAreaElement>(null);
   // Bei vorausgefüllter @Erwähnung den Cursor ans Ende setzen
   useEffect(() => {
@@ -170,17 +173,23 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
       }}
     >
       <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={32} />
-      <div className="flex-1">
+      <div className="relative flex-1">
         <textarea
-          ref={field}
+          ref={(el) => {
+            field.current = el;
+            tags.ref(el);
+          }}
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={tags.onChange}
+          onSelect={tags.onSelect}
+          {...tags.aria}
           placeholder={placeholder}
           aria-label={placeholder}
           rows={1}
           autoFocus={autoFocus}
           maxLength={2000}
           onKeyDown={(e) => {
+            if (tags.onKeyDown(e)) return;
             // Enter sendet (wie im Chat), Umschalt+Enter für eine neue Zeile
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
@@ -189,6 +198,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
           }}
           className="block min-h-10 w-full resize-none border-b border-line-strong bg-transparent py-2 text-[15px] outline-none field-sizing-content focus:border-moss"
         />
+        {tags.popup}
         {body.trim() && body.trim() !== initialBody.trim() && (
           <div className="mt-2 flex justify-end">
             <Button type="submit" size="sm" disabled={pending}>Senden</Button>
@@ -221,7 +231,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
             </a>
           )}
         </div>
-        <p className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-ink-2"><WithMentions text={c.body} /></p>
+        <p className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-ink-2"><Linkified text={c.body} links={false} /></p>
         <div className="mt-1.5 flex items-center gap-4">
           <LikeButton type="COMMENT" id={c.id} liked={c.liked} count={c.likeCount} size="sm" />
           {viewer && (
@@ -275,20 +285,3 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
 }
 
 /** @Erwähnungen im Kommentartext als Profil-Links hervorheben. */
-function WithMentions({ text }: { text: string }) {
-  // Lookbehind: kein Link mitten in E-Mail-Adressen (info@werkuno.ch) oder Wörtern
-  const parts = text.split(/(?<![a-z0-9._@])(@[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?)/gi);
-  return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          <Link key={i} href={`/u/${part.slice(1).toLowerCase()}`} className="font-semibold text-moss hover:underline">
-            {part}
-          </Link>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
-}

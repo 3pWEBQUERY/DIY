@@ -19,6 +19,7 @@ import { DurationInput } from "@/components/projects/project-editor";
 import { cn, formatMinutes, pad } from "@/lib/utils";
 import { saveTutorialAction } from "@/app/(app)/anleitungen/actions";
 import { callAction } from "@/lib/use-action";
+import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
 type Values = TutorialEditData["values"];
 
@@ -92,6 +93,7 @@ export function TutorialEditor({
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [summary, setSummary] = useState(initial?.summary ?? "");
+  const summaryTags = useHashtagAssist(summary, setSummary);
   const [category, setCategory] = useState(initial?.category ?? "");
   const [difficulty, setDifficulty] = useState(initial?.difficulty ?? 2);
   const [minutes, setMinutes] = useState<number | null>(initial?.minutes ?? null);
@@ -204,7 +206,7 @@ export function TutorialEditor({
             {(a) => <Input {...a} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} placeholder="z. B. Hocker mit Zapfenverbindung bauen" className="h-12 font-serif text-xl" />}
           </Field>
           <Field label="Kurzbeschreibung" optional hint="Was entsteht, für wen eignet sich die Anleitung?" error={fields.summary}>
-            {(a) => <Textarea {...a} value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={2000} rows={3} />}
+            {(a) => (<div className="relative"><Textarea {...a} value={summary} ref={summaryTags.ref} onChange={summaryTags.onChange} onSelect={summaryTags.onSelect} onKeyDown={(e) => void summaryTags.onKeyDown(e)} {...summaryTags.aria} maxLength={2000} rows={3} />{summaryTags.popup}</div>)}
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Kategorie" error={fields.category}>

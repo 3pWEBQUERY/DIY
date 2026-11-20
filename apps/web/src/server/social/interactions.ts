@@ -11,6 +11,7 @@ import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
 import { bumpCounter, targetMeta } from "./targets";
 import { openOrAttachCase } from "@/server/moderation/cases";
+import { indexHashtags } from "@/server/hashtags/sync";
 
 /**
  * Erlaubte Ziele je Interaktion – zentral, damit Web (Server Actions) und API (iOS) gleich prüfen.
@@ -184,6 +185,7 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
       ...(step ? { bundle: false } : {}),
     });
   }
+  await indexHashtags("COMMENT", comment.id);
   return comment;
 }
 

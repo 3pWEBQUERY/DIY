@@ -18,6 +18,7 @@ import { slugify } from "@/lib/utils";
 import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
+import { indexHashtags } from "@/server/hashtags/sync";
 
 /**
  * Projekte – der Produktkern (PRD §10). Ein Projekt bündelt Journal, Anleitung,
@@ -239,6 +240,7 @@ export async function createProject(user: SessionUser, input: unknown) {
       data: { title: original.title, remixTitle: project.title, href },
     });
   }
+  await indexHashtags("PROJECT", project.id);
   return { id: project.id, slug: project.slug, href };
 }
 
@@ -294,6 +296,7 @@ export async function updateProject(user: SessionUser, projectId: string, input:
     await syncProjectCount(tx, user.id);
   });
   if (coverId && !coverUrl) await patchFrozenMediaRefsLater([coverId]);
+  await indexHashtags("PROJECT", projectId);
   return { id: projectId, slug: prev.slug, href: ownerHref(user.profile?.handle, prev.slug) };
 }
 
@@ -407,6 +410,8 @@ export async function addProjectUpdate(user: SessionUser, projectId: string, inp
     );
     postId = post.id;
   }
+  await indexHashtags("PROJECT", projectId);
+  if (postId) await indexHashtags("POST", postId);
   return { id: entry.id, postId, href };
 }
 

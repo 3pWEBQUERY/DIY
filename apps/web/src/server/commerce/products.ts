@@ -16,6 +16,7 @@ import { requireOwnShop } from "./shops";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { requireFlag } from "@/server/flags";
 import { publicProductWhere, publicProductSql, isPublicProduct, restockSummary, notifyBackInStock, pendingRestockCounts } from "@/server/commerce/restock";
+import { indexHashtags } from "@/server/hashtags/sync";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -91,6 +92,8 @@ export type ProductFilters = {
   projectId?: string;
   tutorialId?: string;
   excludeIds?: string[];
+  /** Nur diese Produkte (z. B. Treffer eines Hashtags) */
+  ids?: string[];
   includeSoldOut?: boolean;
   /** Standard: nur aktive Shops. Shopseite: auch pausierte (sichtbar, nicht kaufbar). */
   shopStatuses?: ("ACTIVE" | "PAUSED" | "PENDING_VERIFICATION" | "DRAFT")[];
@@ -138,24 +141,16 @@ async function searchProductIds(q: string) {
   return rows.map((r) => r.id);
 }
 
-/**
- * Öffentliche Produktliste für Marktplatz, Suche, Profile und Entdecken.
- * Nur aktive Produkte aktiver Shops, keine Produkte blockierter Konten,
- * digitale Produkte nur wenn im Web freigeschaltet. Cursor = letzte Produkt-ID.
- */
-export async function listProducts(
-  filters: ProductFilters = {},
-  cursor?: string | null,
-  opts: { take?: number; viewerId?: string | null } = {},
-): Promise<{ items: ProductCardData[]; nextCursor: string | null }> {
-  const take = Math.min(opts.take ?? 24, 60);
-  const [rel, digitalEnabled] = await Promise.all([relationsFor(opts.viewerId), getSetting("commerce.digitalEnabledWeb")]);
+/** Filter der öffentlichen Produktliste (auch für Zählungen). null = Suche ohne Treffer. */
+export async function productListWhere(filters: ProductFilters, viewerId?: string | null): Promise<Prisma.ProductWhereInput | null> {
+  const [rel, digitalEnabled] = await Promise.all([relationsFor(viewerId), getSetting("commerce.digitalEnabledWeb")]);
   const and: Prisma.ProductWhereInput[] = [];
   if (filters.q) {
     const ids = await searchProductIds(filters.q);
-    if (!ids.length) return { items: [], nextCursor: null };
+    if (!ids.length) return null;
     and.push({ id: { in: ids } });
   }
+  if (filters.ids) and.push({ id: { in: filters.ids } });
   if (filters.excludeIds?.length) and.push({ id: { notIn: filters.excludeIds } });
   if (!digitalEnabled) and.push({ kind: { not: "DIGITAL" } });
   if (filters.uniqueOnly) and.push({ kind: "UNIQUE" });
@@ -163,7 +158,7 @@ export async function listProducts(
   if (filters.minPriceMinor != null || filters.maxPriceMinor != null) {
     and.push({ priceMinor: { ...(filters.minPriceMinor != null ? { gte: filters.minPriceMinor } : {}), ...(filters.maxPriceMinor != null ? { lte: filters.maxPriceMinor } : {}) } });
   }
-  const where: Prisma.ProductWhereInput = {
+  return {
     // Ausverkaufte nur dort, wo gewünscht (Shopseite) – und nur, wenn der Shop sie nicht ausblendet
     ...(filters.includeSoldOut ? publicProductWhere : { status: "ACTIVE" as const }),
     ...(filters.category ? { category: filters.category } : {}),
@@ -178,6 +173,21 @@ export async function listProducts(
     },
     ...(and.length ? { AND: and } : {}),
   };
+}
+
+/**
+ * Öffentliche Produktliste für Marktplatz, Suche, Profile und Entdecken.
+ * Nur aktive Produkte aktiver Shops, keine Produkte blockierter Konten,
+ * digitale Produkte nur wenn im Web freigeschaltet. Cursor = letzte Produkt-ID.
+ */
+export async function listProducts(
+  filters: ProductFilters = {},
+  cursor?: string | null,
+  opts: { take?: number; viewerId?: string | null } = {},
+): Promise<{ items: ProductCardData[]; nextCursor: string | null }> {
+  const take = Math.min(opts.take ?? 24, 60);
+  const where = await productListWhere(filters, opts.viewerId);
+  if (!where) return { items: [], nextCursor: null };
   const orderBy: Prisma.ProductOrderByWithRelationInput[] =
     filters.sort === "preis-auf"
       ? [{ priceMinor: "asc" }, { id: "asc" }]
@@ -451,6 +461,7 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
     await createPost(user, { body, media: [] }, { productId: product.id });
     announced = true;
   }
+  await indexHashtags("PRODUCT", product.id);
   return { id: product.id, slug: product.slug, shopSlug: product.shop.slug, status: product.status, announced };
 }
 

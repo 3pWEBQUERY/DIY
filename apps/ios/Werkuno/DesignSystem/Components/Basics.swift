@@ -214,14 +214,31 @@ struct FlowLayout: Layout {
 
 struct TagList: View {
     var tags: [String]
+    /// Schlagwörter öffnen die Hashtag-Seite (aus im Editor-Vorschau)
+    var linked = true
+    @Environment(Router.self) private var router
+
     var body: some View {
         FlowLayout {
             ForEach(tags, id: \.self) { t in
-                Text("#\(t)").font(.wr(.footnote)).foregroundStyle(Color.ink2)
-                    .padding(.horizontal, 9).padding(.vertical, 4)
-                    .background(Color.sunken, in: Capsule())
+                if linked, let tag = Hashtags.fromTag(t) {
+                    Button {
+                        Haptics.selection()
+                        router.open(.hashtag(Hashtags.normalize(tag)))
+                    } label: { chip(t, color: .moss) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Hashtag \(tag)")
+                } else {
+                    chip(t, color: .ink2)
+                }
             }
         }
+    }
+
+    private func chip(_ t: String, color: Color) -> some View {
+        Text("#\(t)").font(.wr(.footnote)).foregroundStyle(color)
+            .padding(.horizontal, 9).padding(.vertical, 4)
+            .background(Color.sunken, in: Capsule())
     }
 }
 
