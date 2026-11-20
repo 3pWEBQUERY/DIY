@@ -130,15 +130,25 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
       await assertCanCommentInCommunity(post.communityId, user.id);
     }
   }
+  // Frage zu einem Schritt: nur bei Anleitungen und nur zu einem Schritt der veröffentlichten Fassung
+  let step: { key: string; n: number; title: string } | null = null;
+  if (data.stepKey && !data.parentId) {
+    if (type !== "TUTORIAL") throw fail.invalid("Schritte gibt es nur bei Anleitungen.");
+    const s = await db.tutorialStep.findFirst({ where: { stableKey: data.stepKey, version: { current: { id } } }, select: { stableKey: true, position: true, title: true } });
+    if (!s) throw fail.invalid("Diesen Schritt gibt es nicht (mehr).");
+    step = { key: s.stableKey, n: s.position + 1, title: s.title };
+  }
   let parentAuthor: string | null = null;
+  let parentStepKey: string | null = null;
   if (data.parentId) {
-    const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true, state: true } });
+    const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true, state: true, stepKey: true } });
     if (!parent || parent.targetId !== id || parent.targetType !== type) throw fail.invalid("Antwort passt nicht zum Inhalt.");
     // Antworten unter ausgeblendeten/gelöschten Kommentaren wären unsichtbar, würden aber gezählt und benachrichtigen
     const top = parent.parentId ? await db.comment.findUnique({ where: { id: parent.parentId }, select: { state: true } }) : null;
     if (parent.state !== "PUBLISHED" || (top && top.state !== "PUBLISHED")) throw fail.invalid("Auf diesen Kommentar kann nicht mehr geantwortet werden.");
     if (parent.parentId) data.parentId = parent.parentId; // nur eine Antwortebene
     parentAuthor = parent.authorId;
+    parentStepKey = parent.stepKey; // Antworten gehören zum selben Schritt
   }
   const comment = await db.$transaction(async (tx) => {
     const c = await tx.comment.create({
@@ -149,7 +159,9 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
         postId: type === "POST" ? id : null,
         parentId: data.parentId,
         body: data.body,
-        isQuestion: /\?\s*$/.test(data.body) && type !== "POST",
+        stepKey: step?.key ?? parentStepKey,
+        // Beitrag zu einem Schritt ist eine Frage – auch ohne Fragezeichen
+        isQuestion: (!!step || /\?\s*$/.test(data.body)) && type !== "POST",
       },
     });
     await bumpCounter(tx, type, id, "comment", 1);
@@ -161,7 +173,16 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
     await notify({ recipientId: parentAuthor, type: "REPLY", actorId: user.id, targetType: "COMMENT", targetId: comment.id, data: { title: meta.title, href, excerpt: data.body.slice(0, 120) }, bundle: false });
   }
   if (meta.ownerId !== parentAuthor) {
-    await notify({ recipientId: meta.ownerId, type: type === "PROJECT" ? "PROJECT_ACTIVITY" : "COMMENT", actorId: user.id, targetType: type, targetId: id, data: { title: meta.title, href, excerpt: data.body.slice(0, 120) } });
+    await notify({
+      recipientId: meta.ownerId,
+      type: type === "PROJECT" ? "PROJECT_ACTIVITY" : "COMMENT",
+      actorId: user.id,
+      targetType: type,
+      targetId: id,
+      // Frage zu einem Schritt: direkt zum Schritt springen, nicht mit anderen Kommentaren bündeln
+      data: step ? { title: `${meta.title} · Schritt ${step.n}`, href: `${href}#schritt-${step.n}`, excerpt: data.body.slice(0, 120), step: step.n } : { title: meta.title, href, excerpt: data.body.slice(0, 120) },
+      ...(step ? { bundle: false } : {}),
+    });
   }
   return comment;
 }
@@ -225,6 +246,9 @@ export type CommentView = {
   liked: boolean;
   isQuestion: boolean;
   isAnswer: boolean;
+  /** Frage zu einem Anleitungsschritt: Schlüssel, Nummer und Titel (sonst null) */
+  stepKey?: string | null;
+  step?: { n: number; title: string } | null;
   author: { id: string; handle: string; displayName: string; avatarUrl: string | null };
   replies: Omit<CommentView, "replies" | "replyCount">[];
   /** Alle sichtbaren Antworten (kann grösser sein als `replies`, siehe REPLY_LIMIT). Zusätzlich, optional für Clients. */
@@ -237,7 +261,7 @@ export type CommentPage = { items: CommentView[]; nextCursor: string | null };
  * neuesten Kommentare, `nextCursor` führt zu den älteren. Innerhalb einer Seite chronologisch aufsteigend.
  * Ohne Kommentare gesperrter/gelöschter Konten und blockierter Personen.
  */
-export async function listCommentPage(type: TargetType, id: string, viewerId: string | null, cursor?: string | null): Promise<CommentPage> {
+export async function listCommentPage(type: TargetType, id: string, viewerId: string | null, cursor?: string | null, stepKey?: string | null): Promise<CommentPage> {
   const empty: CommentPage = { items: [], nextCursor: null };
   if (!isAllowedTarget(COMMENT_TARGETS, type)) return empty;
   const after = decodeCommentCursor(cursor);
@@ -260,7 +284,7 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
     replies: { where: { state: "PUBLISHED", ...visibleAuthor }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: REPLY_LIMIT, include: { author: commentAuthor } },
     _count: { select: { replies: { where: { state: "PUBLISHED", ...visibleAuthor } } } },
   } satisfies Prisma.CommentInclude;
-  const base = { targetType: type, targetId: id, parentId: null, state: "PUBLISHED", ...visibleAuthor } satisfies Prisma.CommentWhereInput;
+  const base = { targetType: type, targetId: id, parentId: null, state: "PUBLISHED", ...visibleAuthor, ...(stepKey ? { stepKey } : {}) } satisfies Prisma.CommentWhereInput;
   const [answers, latest] = await Promise.all([
     after ? Promise.resolve([]) : db.comment.findMany({ where: { ...base, isAnswer: true }, orderBy: { createdAt: "asc" }, take: 50, include }),
     db.comment.findMany({
@@ -280,6 +304,12 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
   const rows = [...answers, ...page.reverse()];
   const ids = rows.flatMap((r) => [r.id, ...r.replies.map((x) => x.id)]);
   const liked = viewerId && ids.length ? new Set((await db.reaction.findMany({ where: { userId: viewerId, targetType: "COMMENT", targetId: { in: ids } }, select: { targetId: true } })).map((r) => r.targetId)) : new Set<string>();
+  // Schrittnummer und -titel der aktuellen Fassung (Schritte können sich zwischen Versionen verschieben)
+  const stepKeys = [...new Set(rows.map((r) => r.stepKey).filter((k): k is string => !!k))];
+  const steps =
+    type === "TUTORIAL" && stepKeys.length
+      ? new Map((await db.tutorialStep.findMany({ where: { stableKey: { in: stepKeys }, version: { current: { id } } }, select: { stableKey: true, position: true, title: true } })).map((x) => [x.stableKey, { n: x.position + 1, title: x.title }]))
+      : new Map<string, { n: number; title: string }>();
   const map = (c: (typeof rows)[number] | (typeof rows)[number]["replies"][number]): Omit<CommentView, "replies" | "replyCount"> => ({
     id: c.id,
     body: c.body,
@@ -289,9 +319,32 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
     liked: liked.has(c.id),
     isQuestion: c.isQuestion,
     isAnswer: c.isAnswer,
+    stepKey: c.stepKey,
+    step: c.stepKey ? (steps.get(c.stepKey) ?? null) : null,
     author: { id: c.author.id, handle: c.author.profile?.handle ?? "", displayName: c.author.profile?.displayName ?? "", avatarUrl: c.author.profile?.avatarUrl ?? null },
   });
   return { items: rows.map((r) => ({ ...map(r), replies: [...r.replies].reverse().map(map), replyCount: r._count?.replies ?? r.replies.length })), nextCursor };
+}
+
+/** Anzahl sichtbarer Fragen je Anleitungsschritt (nur Hauptbeiträge), für die Knöpfe „Fragen (n)“. */
+export async function stepQuestionCounts(tutorialId: string, viewerId: string | null): Promise<Record<string, number>> {
+  const blocked = viewerId
+    ? (await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] }, select: { blockerId: true, blockedId: true } })).flatMap((b) => [b.blockerId, b.blockedId]).filter((x) => x !== viewerId)
+    : [];
+  const rows = await db.comment.groupBy({
+    by: ["stepKey"],
+    where: {
+      targetType: "TUTORIAL",
+      targetId: tutorialId,
+      parentId: null,
+      state: "PUBLISHED",
+      stepKey: { not: null },
+      author: { status: { in: ["ACTIVE", "SUSPENDED"] } },
+      ...(blocked.length ? { authorId: { notIn: blocked } } : {}),
+    },
+    _count: { _all: true },
+  });
+  return Object.fromEntries(rows.map((r) => [r.stepKey!, r._count._all]));
 }
 
 // ───────────── Beziehungen ─────────────

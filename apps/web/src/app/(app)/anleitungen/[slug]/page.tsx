@@ -274,6 +274,8 @@ export default async function TutorialPage({ params }: Params) {
             isOwner={t.viewer.isOwner}
             preview={t.preview}
             remixHref={remixHref}
+            stepQuestions={t.stepQuestions}
+            viewer={viewer}
           />
         </div>
       </section>

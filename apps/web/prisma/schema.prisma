@@ -615,6 +615,8 @@ model Comment {
   body       String
   isQuestion Boolean      @default(false)
   isAnswer   Boolean      @default(false)
+  /// Frage zu einem Anleitungsschritt: stableKey des Schritts (bleibt über Versionen gleich)
+  stepKey    String?
   state      ContentState @default(PUBLISHED)
   likeCount  Int          @default(0)
   editedAt   DateTime?
@@ -622,6 +624,7 @@ model Comment {
   updatedAt  DateTime     @updatedAt
 
   @@index([targetType, targetId, createdAt])
+  @@index([targetType, targetId, stepKey])
   @@index([parentId])
   @@index([authorId])
   @@index([postId])

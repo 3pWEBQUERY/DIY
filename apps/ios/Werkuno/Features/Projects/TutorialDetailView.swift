@@ -296,6 +296,9 @@ struct TutorialDetailView: View {
                                         Label("Sicherheit", systemImage: "exclamationmark.triangle.fill").labelStyle(.compact).foregroundStyle(Color.danger)
                                     }
                                     if !(s.media ?? []).isEmpty { Label("\(s.media?.count ?? 0)", systemImage: "photo").labelStyle(.compact) }
+                                    if let q = t.stepQuestions?[s.stableKey], q > 0 {
+                                        Label(Fmt.plural(q, "Frage", "Fragen"), systemImage: "questionmark.bubble").labelStyle(.compact)
+                                    }
                                 }
                                 .font(.wr(.caption2)).foregroundStyle(Color.muted)
                             }

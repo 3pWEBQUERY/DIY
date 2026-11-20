@@ -88,6 +88,8 @@ export function isValidSchedule(d: Date, now = Date.now()) {
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1, "Kommentar ist leer").max(2000),
   parentId: z.string().optional(),
+  /** Frage zu einem Anleitungsschritt (stableKey) – nur bei Anleitungen */
+  stepKey: z.string().trim().min(1).max(64).optional(),
 });
 
 export const materialLineSchema = z.object({

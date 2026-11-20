@@ -134,6 +134,8 @@ struct ProjectPage: Decodable, Hashable, Sendable {
     var remixes: [ProjectRemix]?
     var comments: [CommentItem]?
     var viewer: Viewer?
+    /// Anzahl Fragen je Schritt (stableKey → n)
+    var stepQuestions: [String: Int]?
 
     var isOwner: Bool { viewer?.isOwner ?? false }
     var galleryItems: [MediaItem] { gallery ?? [] }

@@ -13,7 +13,7 @@ import type { SessionUser } from "@/server/auth/session";
 import { requireAdult } from "@/server/auth/adult";
 import { attachMedia, mediaCoverUrl, patchFrozenMediaRefsLater, releaseMedia } from "@/server/media/service";
 import { createPost } from "@/server/social/posts";
-import { listCommentPage } from "@/server/social/interactions";
+import { listCommentPage, stepQuestionCounts } from "@/server/social/interactions";
 import { slugify } from "@/lib/utils";
 import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
@@ -611,7 +611,7 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     preview = true;
   }
 
-  const [progress, liked, saved, followingAuthor, commentPage, project] = await Promise.all([
+  const [progress, liked, saved, followingAuthor, commentPage, project, stepQuestions] = await Promise.all([
     viewerId ? db.tutorialProgress.findUnique({ where: { userId_tutorialId: { userId: viewerId, tutorialId: t.id } }, select: { completedKeys: true, versionSeen: true, completedAt: true } }) : null,
     viewerId ? db.reaction.findFirst({ where: { userId: viewerId, targetType: "TUTORIAL", targetId: t.id }, select: { userId: true } }) : null,
     viewerId ? db.bookmark.findFirst({ where: { userId: viewerId, targetType: "TUTORIAL", targetId: t.id }, select: { userId: true } }) : null,
@@ -620,6 +620,7 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     t.project && (await canViewContent(viewerId, { ownerId: t.project.ownerId, visibility: t.project.visibility, state: t.project.state }))
       ? t.project
       : null,
+    preview ? Promise.resolve({} as Record<string, number>) : stepQuestionCounts(t.id, viewerId),
   ]);
 
   const steps = version.steps.map(mapStep);
@@ -654,6 +655,8 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     comments: commentPage.items,
     /** Cursor für ältere Kommentare (null = alle geladen) */
     commentsCursor: commentPage.nextCursor,
+    /** Anzahl Fragen je Schritt (stableKey → n) */
+    stepQuestions,
     viewer: {
       isOwner,
       signedIn: !!viewerId,

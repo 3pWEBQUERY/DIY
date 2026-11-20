@@ -27,7 +27,8 @@ import { listHighlights } from "@/server/stories/highlights";
  */
 export async function commentsResponse(type: "POST" | "PROJECT" | "TUTORIAL" | "ARTICLE", id: string, q: URLSearchParams) {
   const cursor = str(q, "cursor") ?? null;
-  const page = await ix.listCommentPage(type, id, await viewerId(), cursor);
+  const step = str(q, "step") ?? null;
+  const page = await ix.listCommentPage(type, id, await viewerId(), cursor, type === "TUTORIAL" && step && step.length <= 64 ? step : null);
   return cursor || q.get("paged") === "1" || q.get("paged") === "true" ? page : page.items;
 }
 
@@ -134,8 +135,8 @@ export const socialRoutes: RouteDef[] = [
     return commentsResponse(t.data, id, c.q);
   }),
   POST("/comments", async (c) => {
-    const b = z.object({ type: z.enum(["POST", "PROJECT", "TUTORIAL", "ARTICLE"]), id: z.string(), body: z.string(), parentId: z.string().optional() }).parse(await c.json());
-    const r = await ix.createComment(await me(), b.type, b.id, { body: b.body, parentId: b.parentId });
+    const b = z.object({ type: z.enum(["POST", "PROJECT", "TUTORIAL", "ARTICLE"]), id: z.string(), body: z.string(), parentId: z.string().nullish(), stepKey: z.string().max(64).nullish() }).parse(await c.json());
+    const r = await ix.createComment(await me(), b.type, b.id, { body: b.body, parentId: b.parentId ?? undefined, stepKey: b.stepKey ?? undefined });
     return { id: r.id };
   }),
   DELETE("/comments/:id", async (c) => {

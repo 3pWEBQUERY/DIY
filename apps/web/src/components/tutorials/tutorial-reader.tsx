@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Flag, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, Flag, MessageCircleQuestion, RotateCcw } from "lucide-react";
 import { SAFETY_LABEL } from "@werkraum/shared";
 import type { TutorialStepView } from "@/server/tutorials/service";
 import { ReportDialog } from "@/components/social/actions";
+import { Comments } from "@/components/social/comments";
 import { MediaImage } from "@/components/ui/media";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -23,13 +24,33 @@ type Props = {
   isOwner: boolean;
   preview: boolean;
   remixHref: string;
+  /** Fragen je Schritt (stableKey → Anzahl) */
+  stepQuestions?: Record<string, number>;
+  viewer?: { id: string; displayName: string; avatarUrl: string | null } | null;
 };
 
 /**
  * Lesemodus einer Anleitung: Schrittnavigation (sticky) mit Fortschritt,
  * Schritte mit Abhaken, Tipps (Erfahrung) klar getrennt von Sicherheitshinweisen (§11.6).
  */
-export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, signedIn, isOwner, preview, remixHref }: Props) {
+export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, signedIn, isOwner, preview, remixHref, stepQuestions = {}, viewer = null }: Props) {
+  // Fragen-Bereich je Schritt: offen/zu und aktuelle Anzahl
+  const [openQ, setOpenQ] = useState<Set<string>>(new Set());
+  const [qCount, setQCount] = useState<Record<string, number>>(stepQuestions);
+  const toggleQ = (key: string) =>
+    setOpenQ((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+  // Aus einer Benachrichtigung (#schritt-13) kommend: Fragen dieses Schritts gleich öffnen
+  useEffect(() => {
+    const m = /^#schritt-(\d+)$/.exec(location.hash);
+    const st = m ? steps.find((x) => x.position + 1 === Number(m[1])) : null;
+    if (st && (stepQuestions[st.stableKey] ?? 0) > 0) setOpenQ(new Set([st.stableKey]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const router = useRouter();
   const [done, setDone] = useState<Set<string>>(() => new Set(completedKeys));
   const [completed, setCompleted] = useState(!!completedAt);
@@ -260,12 +281,44 @@ export function TutorialReader({ tutorialId, steps, completedKeys, completedAt, 
                       <span className={cn("grid size-4 place-items-center border rounded-2xl", isDone ? "border-paper" : "border-rule")}>{isDone && <Check size={11} strokeWidth={3} />}</span>
                       {isDone ? "Erledigt" : "Schritt erledigt"}
                     </button>
-                    {signedIn && !isOwner && !preview && (
-                      <button type="button" onClick={() => setReportStep(s.id)} className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-danger">
-                        <Flag size={13} /> Schritt melden
-                      </button>
-                    )}
+                    <span className="flex flex-wrap items-center gap-4">
+                      {!preview && (
+                        <button
+                          type="button"
+                          onClick={() => toggleQ(s.stableKey)}
+                          aria-expanded={openQ.has(s.stableKey)}
+                          aria-controls={`fragen-${s.stableKey}`}
+                          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-2 hover:text-ink"
+                        >
+                          <MessageCircleQuestion size={15} aria-hidden />
+                          {(qCount[s.stableKey] ?? 0) > 0 ? `Fragen zu diesem Schritt (${qCount[s.stableKey]})` : "Frage zu diesem Schritt"}
+                          <ChevronDown size={14} aria-hidden className={cn("transition-transform", openQ.has(s.stableKey) && "rotate-180")} />
+                        </button>
+                      )}
+                      {signedIn && !isOwner && !preview && (
+                        <button type="button" onClick={() => setReportStep(s.id)} className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-danger">
+                          <Flag size={13} /> Schritt melden
+                        </button>
+                      )}
+                    </span>
                   </footer>
+                  {openQ.has(s.stableKey) && !preview && (
+                    <section id={`fragen-${s.stableKey}`} aria-label={`Fragen zu Schritt ${s.position + 1}`} className="mt-4 max-w-[66ch] rounded-2xl border border-line bg-card p-4">
+                      <p className="mb-3 text-[13px] text-muted">
+                        {isOwner ? "Fragen deiner Leser:innen zu diesem Schritt. Antworte direkt darunter." : "Hängst du bei diesem Schritt? Frag hier – die Autorin bzw. der Autor sieht sofort, um welchen Schritt es geht."}
+                      </p>
+                      <Comments
+                        targetType="TUTORIAL"
+                        targetId={tutorialId}
+                        stepKey={s.stableKey}
+                        viewer={viewer}
+                        questionsMode
+                        canModerate={isOwner}
+                        placeholder={`Frage zu Schritt ${s.position + 1} …`}
+                        onCount={(n) => setQCount((c) => (c[s.stableKey] === n ? c : { ...c, [s.stableKey]: n }))}
+                      />
+                    </section>
+                  )}
                 </article>
               </li>
             );

@@ -14,6 +14,9 @@ struct TutorialReaderView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var index = 0
     @State private var reportStep: TutorialPageStep?
+    /// Fragen zu einem Schritt (Sheet) und aktuelle Anzahl je Schritt
+    @State private var questionsStep: TutorialPageStep?
+    @State private var qCounts: [String: Int] = [:]
     @State private var celebrate = 0
     @State private var didSetStart = false
 
@@ -39,9 +42,13 @@ struct TutorialReaderView: View {
         .sheet(item: $reportStep) { s in
             ReportSheet(targetType: "TUTORIAL_STEP", targetId: s.id, title: "Schritt \(s.position + 1): \(s.title)")
         }
+        .sheet(item: $questionsStep) { s in
+            StepQuestionsSheet(tutorialId: page.id, step: s, isOwner: page.isOwner) { n in qCounts[s.stableKey] = n }
+        }
         .onAppear {
             guard !didSetStart else { return }
             didSetStart = true
+            qCounts = page.stepQuestions ?? [:]
             index = min(max(0, startIndex), steps.count)
         }
         .onChange(of: index) { _, _ in Haptics.selection() }
@@ -143,6 +150,15 @@ struct TutorialReaderView: View {
                 }
 
                 HStack {
+                    if page.preview != true {
+                        let n = qCounts[s.stableKey] ?? 0
+                        Button { questionsStep = s } label: {
+                            Label(n > 0 ? "Fragen zu diesem Schritt (\(n))" : "Frage zu diesem Schritt", systemImage: "questionmark.bubble")
+                                .font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                    }
                     Spacer()
                     if !page.isOwner && page.preview != true {
                         Button { reportStep = s } label: {
@@ -296,5 +312,40 @@ struct TutorialReaderView: View {
         .padding(.horizontal, Space.gutter)
         .padding(.top, 8)
         .padding(.bottom, 6)
+    }
+}
+
+
+/// Fragen zu einem einzelnen Schritt: Liste und Eingabe, neue Fragen werden dem Schritt zugeordnet.
+struct StepQuestionsSheet: View {
+    var tutorialId: String
+    var step: TutorialPageStep
+    var isOwner: Bool
+    var onCount: (Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        SpecLabel("Schritt \(step.position + 1)")
+                        Text(step.title).font(.wr(.title3, .semibold)).foregroundStyle(Color.ink)
+                        Text(isOwner ? "Fragen deiner Leser:innen zu diesem Schritt. Antworte direkt darunter." : "Hängst du bei diesem Schritt? Frag hier – die Autorin bzw. der Autor sieht sofort, um welchen Schritt es geht.")
+                            .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                    }
+                    CommentsSection(type: "TUTORIAL", id: tutorialId, title: "Fragen", placeholder: "Frage zu Schritt \(step.position + 1) …", stepKey: step.stableKey, onCount: onCount)
+                }
+                .padding(.horizontal, Space.gutter)
+                .padding(.vertical, 16)
+            }
+            .background(Color.paper)
+            .navigationTitle("Fragen zum Schritt")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { Button("Fertig") { dismiss() } }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

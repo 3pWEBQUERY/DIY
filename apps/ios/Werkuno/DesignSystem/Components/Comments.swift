@@ -8,6 +8,10 @@ struct CommentsSection: View {
     var placeholder: String = "Kommentar schreiben …"
     var allowComments = true
     var initial: [CommentItem]? = nil
+    /// Nur Fragen zu diesem Anleitungsschritt (stableKey); neue Fragen werden ihm zugeordnet
+    var stepKey: String? = nil
+    /// Anzahl geladener Hauptbeiträge (z. B. für „Fragen (n)“ am Schritt)
+    var onCount: ((Int) -> Void)? = nil
 
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
@@ -29,7 +33,8 @@ struct CommentsSection: View {
             if !loaded {
                 YarnSpinner(size: 22).frame(maxWidth: .infinity).padding()
             } else if comments.isEmpty {
-                Text("Noch keine Kommentare. Stell die erste Frage oder teile deine Erfahrung.").font(.wr(.subheadline)).foregroundStyle(Color.muted).padding(.vertical, 8)
+                Text(stepKey == nil ? "Noch keine Kommentare. Stell die erste Frage oder teile deine Erfahrung." : "Noch keine Fragen zu diesem Schritt. Hängst du hier? Frag einfach – die Autorin bzw. der Autor sieht sofort, um welchen Schritt es geht.")
+                    .font(.wr(.subheadline)).foregroundStyle(Color.muted).padding(.vertical, 8)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     // Als Lösung markierte Antworten stehen oben, dann chronologisch – ältere Seiten davor
@@ -43,11 +48,12 @@ struct CommentsSection: View {
             if let initial, !loaded { comments = initial; loaded = true }
             await load()
         }
+        .onChange(of: comments.count) { _, n in if nextCursor == nil { onCount?(n) } }
     }
 
     @ViewBuilder
     private func thread(_ c: CommentItem) -> some View {
-        CommentRow(comment: c, type: type, onReply: { replyTo = c; focused = true }, onDeleted: { removed(c.id) })
+        CommentRow(comment: c, type: type, showStep: stepKey == nil, onReply: { replyTo = c; focused = true }, onDeleted: { removed(c.id) })
         if let replies = c.replies, !replies.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(replies) { r in CommentRow(comment: r, type: type, isReply: true, onReply: { replyTo = c; focused = true }, onDeleted: { removed(r.id) }) }
@@ -106,7 +112,7 @@ struct CommentsSection: View {
     /// Erste Seite (neueste Kommentare + markierte Antworten) mit `paged=1` → `{ items, nextCursor }`.
     private func load() async {
         do {
-            let page: Page<CommentItem> = try await APIClient.shared.get("/comments", query: ["type": type, "id": id, "paged": "1"])
+            let page: Page<CommentItem> = try await APIClient.shared.get("/comments", query: ["type": type, "id": id, "paged": "1", "step": stepKey])
             withAnimation(.snappy) {
                 comments = merged(firstPage: page.items)
                 // Nach dem Nachladen älterer Seiten gilt deren Cursor weiter
@@ -122,7 +128,7 @@ struct CommentsSection: View {
         loadingOlder = true
         defer { loadingOlder = false }
         do {
-            let page: Page<CommentItem> = try await APIClient.shared.get("/comments", query: ["type": type, "id": id, "cursor": cursor])
+            let page: Page<CommentItem> = try await APIClient.shared.get("/comments", query: ["type": type, "id": id, "cursor": cursor, "step": stepKey])
             let known = Set(comments.map(\.id))
             let older = page.items.filter { !known.contains($0.id) && $0.isAnswer != true }
             withAnimation(.snappy) {
@@ -163,7 +169,9 @@ struct CommentsSection: View {
         guard !body.isEmpty else { return }
         let parentId = replyTo?.id
         do {
-            let r: JSONValue = try await APIClient.shared.post("/comments", ["type": JSONValue.string(type), "id": .string(id), "body": .string(body), "parentId": .from(parentId)])
+            var payload: [String: JSONValue] = ["type": .string(type), "id": .string(id), "body": .string(body), "parentId": .from(parentId)]
+            if parentId == nil, let stepKey { payload["stepKey"] = .string(stepKey) }
+            let r: JSONValue = try await APIClient.shared.post("/comments", payload)
             text = ""
             replyTo = nil
             focused = false
@@ -186,6 +194,8 @@ struct CommentRow: View {
     var comment: CommentItem
     var type: String
     var isReply = false
+    /// Hinweis „Schritt n“ zeigen (nicht innerhalb der Fragen eines Schritts)
+    var showStep = true
     var onReply: () -> Void
     var onDeleted: () -> Void
     @Environment(AppState.self) private var app
@@ -202,6 +212,7 @@ struct CommentRow: View {
                     Text(Fmt.relative(comment.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
                     if comment.isQuestion == true { Pill(text: "Frage", tint: .slate) }
                     if comment.isAnswer == true { Pill(text: "Antwort", symbol: "checkmark", tint: .moss) }
+                    if showStep, !isReply, let st = comment.step { Pill(text: "Schritt \(st.n)", tint: .slate).accessibilityLabel("Frage zu Schritt \(st.n): \(st.title)") }
                 }
                 Text(comment.body).font(.wr(.subheadline)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
                 HStack(spacing: 16) {

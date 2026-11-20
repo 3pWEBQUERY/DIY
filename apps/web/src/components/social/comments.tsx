@@ -25,6 +25,8 @@ export function Comments({
   placeholder = "Kommentieren …",
   questionsMode,
   canModerate,
+  stepKey,
+  onCount,
 }: {
   targetType: TargetType;
   targetId: string;
@@ -36,6 +38,10 @@ export function Comments({
   questionsMode?: boolean;
   /** Eigentümer:in des Inhalts darf Kommentare darunter entfernen */
   canModerate?: boolean;
+  /** Nur Fragen zu diesem Anleitungsschritt zeigen und neue Fragen diesem Schritt zuordnen */
+  stepKey?: string;
+  /** Anzahl geladener Hauptbeiträge (z. B. für „Fragen (n)“ am Schritt) */
+  onCount?: (n: number) => void;
 }) {
   const [items, setItems] = useState<CommentView[] | null>(initial ?? null);
   const [cursor, setCursor] = useState<string | null>(initial ? initialCursor : null);
@@ -49,7 +55,7 @@ export function Comments({
   const reload = () =>
     start(async () => {
       // Netz-/Serverfehler: bisherige Kommentare stehen lassen, nur melden
-      let r = await callData(() => listCommentsAction(targetType, targetId));
+      let r = await callData(() => listCommentsAction(targetType, targetId, null, stepKey));
       if (!r.ok) {
         setFailed(true);
         return void toast(r.error, "error");
@@ -58,7 +64,7 @@ export function Comments({
       let next = r.data.nextCursor;
       for (let i = 1; i < pages && next; i++) {
         const c: string = next;
-        r = await callData(() => listCommentsAction(targetType, targetId, c));
+        r = await callData(() => listCommentsAction(targetType, targetId, c, stepKey));
         if (!r.ok) {
           setFailed(true);
           return void toast(r.error, "error");
@@ -73,7 +79,7 @@ export function Comments({
   const loadOlder = () =>
     cursor &&
     startOlder(async () => {
-      const r = await callData(() => listCommentsAction(targetType, targetId, cursor));
+      const r = await callData(() => listCommentsAction(targetType, targetId, cursor, stepKey));
       if (!r.ok) return void toast(r.error, "error");
       setItems((prev) => [...r.data.items, ...(prev ?? [])]);
       setCursor(r.data.nextCursor);
@@ -82,7 +88,11 @@ export function Comments({
   useEffect(() => {
     if (!initial) reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetId]);
+  }, [targetId, stepKey]);
+  useEffect(() => {
+    if (items && !cursor) onCount?.(items.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, cursor]);
   // Als Lösung markierte Kommentare bleiben oben, danach chronologisch (ältere Seiten davor)
   const answers = items?.filter((c) => c.isAnswer) ?? [];
   const rest = items?.filter((c) => !c.isAnswer) ?? [];
@@ -90,7 +100,7 @@ export function Comments({
   return (
     <div>
       {viewer ? (
-        <CommentForm targetType={targetType} targetId={targetId} viewer={viewer} placeholder={placeholder} onDone={reload} />
+        <CommentForm targetType={targetType} targetId={targetId} viewer={viewer} placeholder={placeholder} onDone={reload} stepKey={stepKey} />
       ) : (
         <p className="border border-line bg-sunken px-4 py-3 text-sm text-muted rounded-2xl">
           <Link href={`/anmelden?weiter=${encodeURIComponent(pathname)}`} className="font-semibold text-ink underline underline-offset-2">Melde dich an</Link>, um {questionsMode ? "Fragen zu stellen" : "mitzudiskutieren"}.
@@ -106,9 +116,9 @@ export function Comments({
           ) : (
             <li className="spec">Lade Kommentare …</li>
           ))}
-        {items?.length === 0 && <li className="text-sm text-muted">{questionsMode ? "Noch keine Fragen. Was möchtest du wissen?" : "Noch keine Kommentare. Sag als Erste:r etwas Nettes."}</li>}
+        {items?.length === 0 && <li className="text-sm text-muted">{stepKey ? "Noch keine Fragen zu diesem Schritt." : questionsMode ? "Noch keine Fragen. Was möchtest du wissen?" : "Noch keine Kommentare. Sag als Erste:r etwas Nettes."}</li>}
         {answers.map((c) => (
-          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} />
+          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} hideStep={!!stepKey} />
         ))}
         {cursor && (
           <li>
@@ -118,14 +128,14 @@ export function Comments({
           </li>
         )}
         {rest.map((c) => (
-          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} />
+          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} hideStep={!!stepKey} />
         ))}
       </ul>
     </div>
   );
 }
 
-function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDone, autoFocus, initialBody = "" }: { targetType: TargetType; targetId: string; parentId?: string; viewer: { displayName: string; avatarUrl: string | null }; placeholder: string; onDone: () => void; autoFocus?: boolean; initialBody?: string }) {
+function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDone, autoFocus, initialBody = "", stepKey }: { targetType: TargetType; targetId: string; parentId?: string; viewer: { displayName: string; avatarUrl: string | null }; placeholder: string; onDone: () => void; autoFocus?: boolean; initialBody?: string; stepKey?: string }) {
   const [body, setBody] = useState(initialBody);
   const field = useRef<HTMLTextAreaElement>(null);
   // Bei vorausgefüllter @Erwähnung den Cursor ans Ende setzen
@@ -148,7 +158,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
         sending.current = true;
         start(async () => {
           try {
-            const r = await callAction(() => commentAction(targetType, targetId, { body, parentId }));
+            const r = await callAction(() => commentAction(targetType, targetId, { body, parentId, ...(stepKey && !parentId ? { stepKey } : {}) }));
             if (r.ok) {
               setBody("");
               onDone();
@@ -189,7 +199,7 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
   );
 }
 
-function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canModerate }: { c: CommentView | CommentView["replies"][number]; targetType: TargetType; targetId: string; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; onChange: () => void; isReply?: boolean; canModerate?: boolean }) {
+function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canModerate, hideStep }: { c: CommentView | CommentView["replies"][number]; targetType: TargetType; targetId: string; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; onChange: () => void; isReply?: boolean; canModerate?: boolean; hideStep?: boolean }) {
   const [replying, setReplying] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [, start] = useTransition();
@@ -205,6 +215,11 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
           <RelativeTime date={c.createdAt} className="text-xs text-muted" />
           {c.isQuestion && <span className="spec text-clay">Frage</span>}
           {c.isAnswer && <span className="spec text-moss">Lösung</span>}
+          {!hideStep && !isReply && c.step && (
+            <a href={`#schritt-${c.step.n}`} className="spec rounded-full border border-line-strong px-2 py-0.5 text-ink-2 hover:border-rule-strong hover:text-ink" title={c.step.title}>
+              Schritt {c.step.n}
+            </a>
+          )}
         </div>
         <p className="mt-0.5 whitespace-pre-line break-words text-[15px] leading-relaxed text-ink-2"><WithMentions text={c.body} /></p>
         <div className="mt-1.5 flex items-center gap-4">
