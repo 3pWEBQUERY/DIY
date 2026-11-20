@@ -512,6 +512,8 @@ struct MarketOrderDetail: Decodable, Hashable, Identifiable, Sendable {
     var totalMinor: Int
     var platformFeeMinor: Int?
     var feeBps: Int?
+    /// Anteil des Shops je Zahlungsweg (nur in der Verkaufsansicht)
+    var sellerShare: MarketSellerShare?
     var shippingAddress: MarketAddress?
     var buyerNote: String?
     var reservationExpiresAt: Date?
@@ -538,6 +540,34 @@ struct MarketOrderDetail: Decodable, Hashable, Identifiable, Sendable {
     var isDigitalOnly: Bool { !items.isEmpty && items.allSatisfy(\.isDigital) }
     /// In der iOS-App über Apple bezahlt (In-App-Kauf) – Erstattung nur über Apple
     var isApplePayment: Bool { (payments ?? []).contains { $0.provider == "apple" } }
+}
+
+/// Anteil des Shops: `stripe` (Web-Kauf) oder `apple` (In-App-Kauf, Überweisung durch Werkuno)
+struct MarketSellerShare: Decodable, Hashable, Sendable {
+    var channel: String
+    var feeBps: Int
+    var platformFeeMinor: Int
+    var payoutMinor: Int
+    var appPriceMinor: Int?
+    var appleFeeBps: Int?
+    var appleFeeMinor: Int?
+    var webPriceMinor: Int?
+    /// pending | sent | failed | reversed | test | none
+    var transfer: String?
+    var refunded: Bool?
+
+    var isApple: Bool { channel == "apple" }
+
+    var transferNote: String? {
+        switch transfer {
+        case "pending": "Werkuno überweist dir deinen Anteil in den nächsten Minuten per Stripe."
+        case "sent": "Werkuno hat dir deinen Anteil per Stripe überwiesen."
+        case "failed": "Die Überweisung wird erneut versucht."
+        case "reversed": "Apple hat den Kauf erstattet. Die Überweisung wurde zurückgeholt."
+        case "test": "Testkauf (Apple Sandbox oder TestFlight): Es wird nichts ausgezahlt."
+        default: nil
+        }
+    }
 }
 
 struct MarketBuyerOrderEnvelope: Decodable, Sendable {

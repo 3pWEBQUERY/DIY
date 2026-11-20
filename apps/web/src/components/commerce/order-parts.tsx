@@ -1,6 +1,7 @@
 import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL, formatMoney, type Currency, type OrderStatus, COUNTRY_LABEL } from "@werkraum/shared";
 import { Badge } from "@/components/ui/misc";
 import { cn, formatDate } from "@/lib/utils";
+import type { SellerShare } from "@/server/commerce/rules";
 
 const cur = (c: string) => (c === "EUR" ? "EUR" : "CHF") as Currency;
 
@@ -56,7 +57,8 @@ export function FeeSummary({
   currency?: string;
   /** Rabattzeilen (Sets, Gutschein) – werden vom Warenwert abgezogen */
   discounts?: { label: string; amountMinor: number }[];
-  seller?: { platformFee: number; feeLabel: string };
+  /** Anteil des Shops je Zahlungsweg (Stripe im Web, Apple in der iOS-App) */
+  seller?: SellerShare;
   refunded?: number;
   className?: string;
 }) {
@@ -77,15 +79,58 @@ export function FeeSummary({
         </div>
       ))}
       <Row label="Versand" value={shipping ? formatMoney(shipping, c) : "kostenlos"} />
-      <Row label="Gesamt" value={formatMoney(total, c)} strong />
+      <Row label={seller?.channel === "apple" ? "In der App bezahlt" : "Gesamt"} value={formatMoney(total, c)} strong />
       {!!refunded && <Row label="Davon erstattet" value={`− ${formatMoney(refunded, c)}`} muted />}
-      {seller && (
+      {seller?.channel === "stripe" && (
         <>
-          <Row label={`Plattformgebühr (${seller.feeLabel} auf den Warenwert${discounts?.length ? " nach Rabatt" : ""})`} value={`− ${formatMoney(seller.platformFee, c)}`} muted />
-          <Row label="Auszahlung an dich (vor Stripe-Gebühren)" value={formatMoney(total - seller.platformFee - (refunded ?? 0), c)} strong />
+          <Row label={`Plattformgebühr (${feePercent(seller.feeBps)} auf den Warenwert${discounts?.length ? " nach Rabatt" : ""})`} value={`− ${formatMoney(seller.platformFeeMinor, c)}`} muted />
+          <Row label="Auszahlung an dich (vor Stripe-Gebühren)" value={formatMoney(seller.payoutMinor, c)} strong />
+          <p className="pt-2 text-[12.5px] leading-relaxed text-muted">Bezahlt im Web über Stripe. Stripe zieht seine Zahlungsgebühren bei der Auszahlung ab.</p>
         </>
       )}
+      {seller?.channel === "apple" && <AppleShare share={seller} currency={c} />}
     </dl>
+  );
+}
+
+const feePercent = (bps: number) => `${new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 }).format(bps / 100)} %`;
+
+const APPLE_TRANSFER_LABEL: Record<Extract<SellerShare, { channel: "apple" }>["transfer"], string> = {
+  pending: "Werkuno überweist dir deinen Anteil in den nächsten Minuten per Stripe.",
+  sent: "Werkuno hat dir deinen Anteil per Stripe überwiesen.",
+  failed: "Die Überweisung wird erneut versucht.",
+  reversed: "Apple hat den Kauf erstattet. Die Überweisung wurde zurückgeholt.",
+  test: "Testkauf (Apple Sandbox oder TestFlight): Es wird nichts ausgezahlt.",
+  none: "",
+};
+
+/** Apple-Kauf: Apple behält seine Gebühr vom App-Preis; der Shop erhält den Web-Preis abzüglich Provision. */
+function AppleShare({ share, currency }: { share: Extract<SellerShare, { channel: "apple" }>; currency: Currency }) {
+  const m = (n: number) => formatMoney(n, currency);
+  const line = "flex items-baseline justify-between gap-4 py-1.5";
+  return (
+    <>
+      <div className={cn(line, "text-muted")}>
+        <dt className="text-[14px]">Apple-Gebühr ({feePercent(share.appleFeeBps)} vom App-Preis)</dt>
+        <dd className="num text-[14px]">− {m(share.appleFeeMinor)}</dd>
+      </div>
+      <div className={cn(line, "mt-1 border-t border-rule pt-2.5")}>
+        <dt className="text-[14px]">Dein Preis im Web</dt>
+        <dd className="num text-[14px]">{m(share.webPriceMinor)}</dd>
+      </div>
+      <div className={cn(line, "text-muted")}>
+        <dt className="text-[14px]">Plattformgebühr ({feePercent(share.feeBps)} auf deinen Preis)</dt>
+        <dd className="num text-[14px]">− {m(share.platformFeeMinor)}</dd>
+      </div>
+      <div className={cn(line, "mt-1 border-t border-rule pt-2.5")}>
+        <dt className="text-[14px] font-semibold">Auszahlung an dich</dt>
+        <dd className="num text-[17px] font-semibold">{m(share.payoutMinor)}</dd>
+      </div>
+      <p className="pt-2 text-[12.5px] leading-relaxed text-muted">
+        In der iOS-App über Apple bezahlt. Apple behält {feePercent(share.appleFeeBps)} des App-Preises, dafür ist der Preis in der App höher. Du erhältst
+        deinen Preis abzüglich Plattformgebühr, ohne Stripe-Zahlungsgebühren. {APPLE_TRANSFER_LABEL[share.transfer]}
+      </p>
+    </>
   );
 }
 

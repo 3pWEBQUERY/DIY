@@ -6,7 +6,7 @@ import { COUNTRY_LABEL, PAYMENT_STATUS_LABEL, SELLER_TYPE_LABEL, formatMoney, ty
 import { BRAND } from "@/config/brand";
 import { currentUser } from "@/server/auth/session";
 import { getReceipt } from "@/server/commerce/orders";
-import { formatBps, netPlatformFee } from "@/server/commerce/rules";
+import { formatBps } from "@/server/commerce/rules";
 import { AddressBlock } from "@/components/commerce/order-parts";
 import { PrintButton } from "@/components/commerce/buyer-order-actions";
 import { Wordmark } from "@/components/shell/wordmark";
@@ -26,7 +26,6 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const m = (n: number) => formatMoney(n, currency);
   const v = o.shop.verification;
   const refunded = o.refunds.filter((x) => x.status === "SUCCEEDED").reduce((s, x) => s + x.amountMinor, 0);
-  const fee = netPlatformFee(o.platformFeeMinor, o.totalMinor, refunded);
   const payment = o.payments[0];
   const back = r.role === "seller" ? `/studio/bestellungen/${o.id}` : `/bestellungen/${o.id}`;
 
@@ -146,19 +145,47 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
                 <td className="num py-1 text-right">− {m(refunded)}</td>
               </tr>
             )}
-            {r.role === "seller" && (
+            {r.sellerShare?.channel === "stripe" && (
               <>
                 <tr>
                   <td colSpan={3} className="py-1 text-right text-muted">
-                    Plattformgebühr ({formatBps(o.feeBps)} auf den Warenwert)
+                    Plattformgebühr ({formatBps(r.sellerShare.feeBps)} auf den Warenwert)
                   </td>
-                  <td className="num py-1 text-right">− {m(fee)}</td>
+                  <td className="num py-1 text-right">− {m(r.sellerShare.platformFeeMinor)}</td>
                 </tr>
                 <tr className="font-semibold">
                   <td colSpan={3} className="pt-1 text-right">
-                    Auszahlung (vor Gebühren des Zahlungsanbieters)
+                    Auszahlung (vor Stripe-Gebühren)
                   </td>
-                  <td className="num pt-1 text-right">{m(o.totalMinor - refunded - fee)}</td>
+                  <td className="num pt-1 text-right">{m(r.sellerShare.payoutMinor)}</td>
+                </tr>
+              </>
+            )}
+            {r.sellerShare?.channel === "apple" && (
+              <>
+                <tr>
+                  <td colSpan={3} className="py-1 text-right text-muted">
+                    Apple-Gebühr ({formatBps(r.sellerShare.appleFeeBps)} vom App-Preis)
+                  </td>
+                  <td className="num py-1 text-right">− {m(r.sellerShare.appleFeeMinor)}</td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="border-t border-line pt-2 text-right text-muted">
+                    Dein Preis im Web
+                  </td>
+                  <td className="num border-t border-line pt-2 text-right">{m(r.sellerShare.webPriceMinor)}</td>
+                </tr>
+                <tr>
+                  <td colSpan={3} className="py-1 text-right text-muted">
+                    Plattformgebühr ({formatBps(r.sellerShare.feeBps)} auf deinen Preis)
+                  </td>
+                  <td className="num py-1 text-right">− {m(r.sellerShare.platformFeeMinor)}</td>
+                </tr>
+                <tr className="font-semibold">
+                  <td colSpan={3} className="pt-1 text-right">
+                    Auszahlung (Überweisung durch {BRAND.name})
+                  </td>
+                  <td className="num pt-1 text-right">{m(r.sellerShare.payoutMinor)}</td>
                 </tr>
               </>
             )}
@@ -168,10 +195,10 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
         <footer className="mt-8 space-y-1 border-t border-line pt-4 text-[12px] leading-relaxed text-muted">
           <p>
             Zahlung: {payment ? (PAYMENT_STATUS_LABEL[payment.status as keyof typeof PAYMENT_STATUS_LABEL] ?? payment.status) : "–"}
-            {payment?.provider === "stripe" ? " · über Stripe" : payment?.provider === "simulated" ? " · TESTMODUS (keine echte Zahlung)" : ""}
+            {payment?.provider === "stripe" ? " · über Stripe" : payment?.provider === "apple" ? " · in der iOS-App über Apple" : payment?.provider === "simulated" ? " · TESTMODUS (keine echte Zahlung)" : ""}
           </p>
           <p>
-            Vertragspartner ist der oben genannte Verkäufer. {BRAND.name} vermittelt den Kauf und wickelt die Zahlung über Stripe ab. Dieser Beleg ist keine Rechnung im
+            Vertragspartner ist der oben genannte Verkäufer. {BRAND.name} vermittelt den Kauf und wickelt die Zahlung {payment?.provider === "apple" ? "über Apple (In-App-Kauf)" : "über Stripe"} ab. Dieser Beleg ist keine Rechnung im
             mehrwertsteuerrechtlichen Sinn, sofern der Verkäufer keine MWST-Nummer ausweist.
           </p>
         </footer>
