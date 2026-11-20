@@ -243,19 +243,58 @@ struct MarketOrderTotals: View {
     var body: some View {
         VStack(spacing: 8) {
             MarketFeeSummary(subtotal: order.subtotalMinor, shipping: order.shippingMinor, total: order.totalMinor, currency: order.currency, discounts: order.discounts ?? [])
-            if seller, let fee = order.platformFeeMinor {
-                if order.isApplePayment {
-                    // Apple-Kauf: einbehaltener Betrag deckt Apples Anteil und die Provision
-                    MarketAmountRow(label: "Apple-Anteil und Provision", value: "− " + Fmt.money(fee, currency: order.currency), muted: true)
-                    MarketAmountRow(label: "Dein Anteil", value: Fmt.money(order.totalMinor - fee, currency: order.currency))
-                } else {
-                    MarketAmountRow(label: "Plattformgebühr (\(Fmt.percent(bps: order.feeBps ?? 0)) auf den Warenwert)", value: "− " + Fmt.money(fee, currency: order.currency), muted: true)
-                    MarketAmountRow(label: "Dein Anteil vor Zahlungsgebühren", value: Fmt.money(order.totalMinor - fee, currency: order.currency))
-                }
-            }
             let refunded = (order.refunds ?? []).filter { $0.status == "SUCCEEDED" }.reduce(0) { $0 + $1.amountMinor }
             if refunded > 0 { MarketAmountRow(label: "Erstattet", value: "− " + Fmt.money(refunded, currency: order.currency), muted: true) }
+            if seller, let share = order.sellerShare {
+                MarketSellerShareRows(share: share, currency: order.currency)
+            } else if seller, let fee = order.platformFeeMinor {
+                // Ältere Server ohne Aufschlüsselung
+                MarketAmountRow(label: "Plattformgebühr (\(Fmt.percent(bps: order.feeBps ?? 0)))", value: "− " + Fmt.money(fee, currency: order.currency), muted: true)
+                MarketAmountRow(label: "Dein Anteil", value: Fmt.money(order.totalMinor - fee - refunded, currency: order.currency))
+            }
         }
+    }
+}
+
+/// Auszahlung an den Shop: Stripe (Web) mit Plattformgebühr, Apple (App) mit Apple-Gebühr und Web-Preis
+struct MarketSellerShareRows: View {
+    var share: MarketSellerShare
+    var currency: String?
+
+    private func money(_ v: Int) -> String { Fmt.money(v, currency: currency) }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if share.isApple {
+                MarketAmountRow(label: "Apple-Gebühr (\(Fmt.percent(bps: share.appleFeeBps ?? 3000)) vom App-Preis)", value: "− " + money(share.appleFeeMinor ?? 0), muted: true)
+                Divider().overlay(Color.line)
+                MarketAmountRow(label: "Dein Preis im Web", value: money(share.webPriceMinor ?? 0))
+                MarketAmountRow(label: "Plattformgebühr (\(Fmt.percent(bps: share.feeBps)) auf deinen Preis)", value: "− " + money(share.platformFeeMinor), muted: true)
+                Divider().overlay(Color.line)
+                MarketAmountRow(label: "Auszahlung an dich", value: money(share.payoutMinor), strong: true)
+                note(appleNote)
+            } else {
+                MarketAmountRow(label: "Plattformgebühr (\(Fmt.percent(bps: share.feeBps)) auf den Warenwert)", value: "− " + money(share.platformFeeMinor), muted: true)
+                Divider().overlay(Color.line)
+                MarketAmountRow(label: "Auszahlung an dich (vor Stripe-Gebühren)", value: money(share.payoutMinor), strong: true)
+                note("Bezahlt im Web über Stripe. Stripe zieht seine Zahlungsgebühren bei der Auszahlung ab.")
+            }
+        }
+    }
+
+    private var appleNote: String {
+        let percent = Fmt.percent(bps: share.appleFeeBps ?? 3000)
+        var text = "In der iOS-App über Apple bezahlt. Apple behält \(percent) des App-Preises, dafür ist der Preis in der App höher. Du erhältst deinen Preis abzüglich Plattformgebühr, ohne Stripe-Zahlungsgebühren."
+        if let extra = share.transferNote { text += " " + extra }
+        return text
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.wr(.caption))
+            .foregroundStyle(Color.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

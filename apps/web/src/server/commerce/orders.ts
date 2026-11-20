@@ -11,7 +11,7 @@ import { hasRole } from "@/server/authz";
 import { assertNotOwn } from "@/server/admin/own";
 import { lockOrder } from "./inventory";
 import { orderWith, initiateRefund, grantMissingEntitlementsTx, restockOrderTx, APPLE_REFUND_MESSAGE } from "./payments";
-import { canReview, canSellerCancel, canTransition, refundableAmount, SELLER_ORDER_TABS } from "./rules";
+import { canReview, canSellerCancel, canTransition, refundableAmount, sellerShareFor, SELLER_ORDER_TABS } from "./rules";
 import { requireOwnShop } from "./shops";
 
 /**
@@ -184,7 +184,19 @@ export async function listShopOrders(user: SessionUser, tabKey: string | undefin
 export async function getSellerOrder(user: SessionUser, orderId: string) {
   const o = await db.order.findUnique({ where: { id: orderId }, include: orderDetailInclude });
   if (!o || o.shop.ownerId !== user.id || o.status === "PENDING_PAYMENT") return null;
-  return o;
+  return { ...o, sellerShare: await loadSellerShare(o) };
+}
+
+/** Anteil des Shops je Zahlungsweg: Stripe (Web) oder Apple (iOS-App, Überweisung durch Werkuno). */
+export async function loadSellerShare(o: OrderDetail) {
+  const refunded = o.refunds.filter((r) => r.status === "SUCCEEDED").reduce((s, r) => s + r.amountMinor, 0);
+  const apple = o.payments.some((p) => p.provider === "apple")
+    ? await db.appStorePurchase.findUnique({
+        where: { orderId: o.id },
+        select: { priceMinor: true, webPriceMinor: true, sellerNetMinor: true, status: true, transferStatus: true },
+      })
+    : null;
+  return sellerShareFor(o, refunded, apple);
 }
 
 async function requireSellerOrder(tx: Prisma.TransactionClient, user: SessionUser, orderId: string) {
@@ -350,7 +362,7 @@ export async function getReceipt(user: SessionUser, orderId: string) {
   if (!o) return null;
   const role = o.buyerId === user.id ? "buyer" : o.shop.ownerId === user.id ? "seller" : null;
   if (!role || o.status === "PENDING_PAYMENT" || !o.paidAt) return null;
-  return { order: o, role };
+  return { order: o, role, sellerShare: role === "seller" ? await loadSellerShare(o) : null };
 }
 
 export { canReview };

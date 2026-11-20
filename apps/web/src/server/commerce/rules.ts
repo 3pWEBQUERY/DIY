@@ -307,6 +307,64 @@ export function netPlatformFee(platformFeeMinor: number, totalMinor: number, ref
   return platformFeeMinor - Math.round(platformFeeMinor * ratio);
 }
 
+/**
+ * Apples Provision auf In-App-Käufe (Standardsatz). Der App-Preis enthält dafür einen Aufschlag
+ * (`commerce.iosMarkupBps`), der Shop erhält denselben Anteil wie bei einem Web-Verkauf.
+ */
+export const APPLE_COMMISSION_BPS = 3000;
+
+export type AppleTransferState = "pending" | "sent" | "failed" | "reversed" | "test" | "none";
+
+/** Anteil des Shops an einer Bestellung, getrennt nach Zahlungsweg (Stripe im Web, Apple in der iOS-App). */
+export type SellerShare =
+  | { channel: "stripe"; feeBps: number; platformFeeMinor: number; payoutMinor: number }
+  | {
+      channel: "apple";
+      feeBps: number;
+      /** In der App bezahlter Preis (inkl. Aufschlag für Apple) */
+      appPriceMinor: number;
+      appleFeeBps: number;
+      appleFeeMinor: number;
+      /** Web-Preis des Shops zum Kaufzeitpunkt (Grundlage der Provision) */
+      webPriceMinor: number;
+      platformFeeMinor: number;
+      /** Überweisung von Werkuno an den Shop (per Stripe aus dem Plattformguthaben) */
+      payoutMinor: number;
+      transfer: AppleTransferState;
+      refunded: boolean;
+    };
+
+const TRANSFER_STATE: Record<string, AppleTransferState> = { PENDING: "pending", SENT: "sent", FAILED: "pending", REVERSED: "reversed", SKIPPED: "test", NONE: "none" };
+
+export function sellerShareFor(
+  order: { totalMinor: number; platformFeeMinor: number; feeBps: number; payments: { provider: string; status: string }[] },
+  refundedMinor: number,
+  apple?: { priceMinor: number; webPriceMinor: number; sellerNetMinor: number; status: string; transferStatus: string } | null,
+): SellerShare {
+  const isApple = order.payments.some((p) => p.provider === "apple");
+  if (!isApple) {
+    const fee = netPlatformFee(order.platformFeeMinor, order.totalMinor, refundedMinor);
+    return { channel: "stripe", feeBps: order.feeBps, platformFeeMinor: fee, payoutMinor: order.totalMinor - refundedMinor - fee };
+  }
+  const appPrice = apple?.priceMinor ?? order.totalMinor;
+  const sellerNet = apple?.sellerNetMinor ?? Math.max(0, order.totalMinor - order.platformFeeMinor);
+  // Ohne Kaufdatensatz (Altfälle) den Web-Preis aus Anteil und Provisionssatz zurückrechnen
+  const webPrice = apple?.webPriceMinor ?? (order.feeBps < 10_000 ? Math.round((sellerNet * 10_000) / (10_000 - order.feeBps)) : sellerNet);
+  const refunded = apple?.status === "REFUNDED" || apple?.transferStatus === "REVERSED" || order.payments.some((p) => p.provider === "apple" && p.status === "REFUNDED");
+  return {
+    channel: "apple",
+    feeBps: order.feeBps,
+    appPriceMinor: appPrice,
+    appleFeeBps: APPLE_COMMISSION_BPS,
+    appleFeeMinor: Math.round((appPrice * APPLE_COMMISSION_BPS) / 10_000),
+    webPriceMinor: webPrice,
+    platformFeeMinor: Math.max(0, webPrice - sellerNet),
+    payoutMinor: refunded ? 0 : sellerNet,
+    transfer: refunded ? "reversed" : (TRANSFER_STATE[apple?.transferStatus ?? "NONE"] ?? "none"),
+    refunded,
+  };
+}
+
 /* ───────────────────────── Bestand ───────────────────────── */
 
 export function available(inv: { onHand: number; reserved: number } | null | undefined) {

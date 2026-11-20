@@ -6,7 +6,7 @@ import { MessageSquare } from "lucide-react";
 import { formatMoney, type Currency, type OrderStatus } from "@werkraum/shared";
 import { currentUser, requirePageUser } from "@/server/auth/session";
 import { getSellerOrder } from "@/server/commerce/orders";
-import { canSellerCancel, formatBps, netPlatformFee, refundableAmount } from "@/server/commerce/rules";
+import { canSellerCancel, refundableAmount } from "@/server/commerce/rules";
 import { orderBuyer } from "@/server/account/customer";
 import { orderDiscountRows } from "@/server/commerce/discounts";
 import { AddressBlock, FeeSummary, OrderStatusBadge, OrderTimeline, PaymentStatusBadge } from "@/components/commerce/order-parts";
@@ -28,8 +28,9 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
   const status = o.status as OrderStatus;
   const payment = o.payments[0];
   const refunded = o.refunds.filter((r) => r.status === "SUCCEEDED").reduce((s, r) => s + r.amountMinor, 0);
-  const refundable = payment && ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status) ? refundableAmount(payment.amountMinor, o.refunds) : 0;
-  const netFee = netPlatformFee(o.platformFeeMinor, o.totalMinor, refunded);
+  const viaApple = o.sellerShare.channel === "apple";
+  // Apple-Käufe erstattet nur Apple (reportaproblem.apple.com); die Bestellung passt sich danach selbst an
+  const refundable = payment && !viaApple && ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(payment.status) ? refundableAmount(payment.amountMinor, o.refunds) : 0;
   const digitalOnly = o.items.every((i) => i.isDigital);
   const buyer = o.buyer.profile;
   const party = orderBuyer(o);
@@ -110,7 +111,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
               </tbody>
             </table></div>
             <div className="ml-auto mt-3 max-w-md border-t border-line pt-3">
-              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} seller={{ platformFee: netFee, feeLabel: formatBps(o.feeBps) }} />
+              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} seller={o.sellerShare} />
             </div>
           </section>
 
@@ -178,9 +179,14 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
                 currency={currency}
                 refundableMinor={refundable}
                 canRefund={refundable > 0}
-                canCancel={canSellerCancel(status, o.shipments.length > 0) && payment?.status !== "DISPUTED"}
+                canCancel={!viaApple && canSellerCancel(status, o.shipments.length > 0) && payment?.status !== "DISPUTED"}
                 digitalOnly={digitalOnly}
               />
+            )}
+            {viaApple && status !== "REFUNDED" && (
+              <p className="mt-4 text-[13px] leading-relaxed text-muted">
+                Über Apple bezahlt: Erstatten kann nur Apple. Die Käuferin oder der Käufer beantragt das unter reportaproblem.apple.com, danach passt sich die Bestellung automatisch an.
+              </p>
             )}
           </section>
 
