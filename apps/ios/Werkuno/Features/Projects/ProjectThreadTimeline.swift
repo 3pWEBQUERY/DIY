@@ -120,7 +120,7 @@ private struct ProjectThreadEntryRow: View {
                         Text(a.displayName ?? "").font(.wr(.caption, .medium)).foregroundStyle(Color.ink2)
                     }
                 }
-                Text(entry.body).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(LinkedText.attributed(entry.body)).font(.wr(.body)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true).textSelection(.enabled).contentLinks()
                 if let p = entry.problem?.nilIfEmpty {
                     callout(label: "Problem", text: p, tint: .ochre, symbol: "exclamationmark.triangle.fill")
                     if let s = entry.solution?.nilIfEmpty {

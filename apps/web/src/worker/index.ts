@@ -40,6 +40,7 @@ import { runCompetitionPhases } from "@/server/communities/competitions";
 import { auditCheckpointJob } from "@/server/audit";
 import { notifyTutorialReaders } from "@/server/tutorials/service";
 import { notifyProjectFollowers } from "@/server/projects/service";
+import { reconcileHashtags } from "@/server/hashtags/sync";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -77,6 +78,7 @@ const Q = {
   accountPurge: "account.purge",
   auditCheckpoint: "audit.checkpoint",
   payouts: "payouts.run",
+  hashtags: "hashtags.index",
 } as const;
 
 /** Fan-out an Leser:innen einer Anleitung bzw. Follower:innen eines Projekts (aus der Outbox). */
@@ -425,6 +427,7 @@ async function main() {
     await publishScheduledPosts();
   }));
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
+  await boss.work(Q.hashtags, guarded(Q.hashtags, async () => void (await reconcileHashtags())));
   // Audit-Kette prüfen und Prüfpunkt schreiben (DB + Log-Zeile „audit_checkpoint“ ausserhalb der DB)
   await boss.work(Q.auditCheckpoint, guarded(Q.auditCheckpoint, async () => void (await auditCheckpointJob())));
   // Haltefrist: bisherige Stripe-Pläne übernehmen, versendete Bestellungen automatisch abschliessen,
@@ -465,6 +468,8 @@ async function main() {
   await boss.schedule(Q.stripeSync, "*/10 * * * *");
   await boss.schedule(Q.payouts, "20 * * * *", null, { tz: "Europe/Zurich" });
   await boss.schedule(Q.auditCheckpoint, "45 2 * * *", null, { tz: "Europe/Zurich" });
+  // Hashtag-Index: geänderte Inhalte nachziehen (erster Lauf indexiert alle bestehenden in Portionen)
+  await boss.schedule(Q.hashtags, "*/5 * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => void dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);

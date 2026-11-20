@@ -7,3 +7,4 @@ export * from "./commerce";
 export * from "./stories";
 export * from "./story-layout";
 export * from "./announcements";
+export * from "./hashtags";

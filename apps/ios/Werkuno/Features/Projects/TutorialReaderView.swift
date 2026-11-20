@@ -335,6 +335,7 @@ struct StepQuestionsSheet: View {
                             .font(.wr(.footnote)).foregroundStyle(Color.muted)
                     }
                     CommentsSection(type: "TUTORIAL", id: tutorialId, title: "Fragen", placeholder: "Frage zu Schritt \(step.position + 1) …", stepKey: step.stableKey, onCount: onCount)
+                        .environment(\.contentLinksEnabled, false)
                 }
                 .padding(.horizontal, Space.gutter)
                 .padding(.vertical, 16)

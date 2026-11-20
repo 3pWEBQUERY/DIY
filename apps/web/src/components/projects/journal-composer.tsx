@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { cn, formatDate } from "@/lib/utils";
 import { addProjectUpdateAction, deleteProjectUpdateAction } from "@/app/(app)/projekte/actions";
 import { callAction } from "@/lib/use-action";
+import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
 /**
  * „Fortschritt eintragen“ (PRD §10.5): Text, Meilenstein, Problem → Lösung, Zeit, Bilder,
@@ -20,6 +21,7 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
+  const bodyTags = useHashtagAssist(body, setBody);
   const [milestone, setMilestone] = useState("");
   const [withProblem, setWithProblem] = useState(false);
   const [problem, setProblem] = useState("");
@@ -91,7 +93,7 @@ export function JournalComposer({ projectId, entryNumber, defaultShare = true }:
       </div>
       <div className="space-y-4 p-4">
         <Field label="Was ist passiert?" error={fields.body}>
-          {(a) => <Textarea {...a} value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} rows={4} placeholder="Heute habe ich …" autoFocus />}
+          {(a) => (<div className="relative"><Textarea {...a} value={body} ref={bodyTags.ref} onChange={bodyTags.onChange} onSelect={bodyTags.onSelect} onKeyDown={(e) => void bodyTags.onKeyDown(e)} {...bodyTags.aria} maxLength={5000} rows={4} placeholder="Heute habe ich …" autoFocus />{bodyTags.popup}</div>)}
         </Field>
         <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
           <Field label="Meilenstein" optional hint="Zum Beispiel «Rahmen verleimt» – erscheint hervorgehoben im Projektfaden." error={fields.milestone}>

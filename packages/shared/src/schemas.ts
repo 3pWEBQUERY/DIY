@@ -12,7 +12,7 @@ export const handleSchema = z
 
 export const RESERVED_HANDLES = new Set([
   "admin", "api", "app", "studio", "support", "help", "hilfe", "werkraum", "login", "signup", "settings",
-  "u", "p", "t", "shop", "markt", "blog", "explore", "entdecken", "moderation", "root", "system",
+  "u", "p", "t", "shop", "markt", "blog", "explore", "entdecken", "moderation", "root", "system", "hashtag", "hashtags",
 ]);
 
 export const passwordSchema = z

@@ -13,6 +13,7 @@ import { requireAdult } from "@/server/auth/adult";
 import { readingMinutes, slugify } from "@/lib/utils";
 import { stripInline } from "@/lib/inline-marks";
 import { publicProductWhere } from "@/server/commerce/restock";
+import { indexHashtags } from "@/server/hashtags/sync";
 
 /**
  * Blogs (PRD §14): blockbasierte Artikel mit Entwürfen, Revisionen, geplanter
@@ -324,6 +325,7 @@ export async function saveArticle(user: SessionUser, id: string | null, input: u
     }
     return article;
   });
+  await indexHashtags("ARTICLE", result.id);
   return { id: result.id, slug: result.slug, state: result.state, updatedAt: result.updatedAt.toISOString(), coverUrl: result.coverUrl };
 }
 
@@ -387,6 +389,7 @@ export async function publishArticle(user: SessionUser, id: string, input: unkno
   }
   if (a.state === "SCHEDULED") await takeAnnounceMarker(user.id, id);
   await onFirstPublish(user, a, opts.shareToFeed);
+  await indexHashtags("ARTICLE", id);
   return { state: "PUBLISHED" as ArticleState, publishedAt: now.toISOString() };
 }
 
@@ -521,6 +524,8 @@ export type ArticleFilters = {
   q?: string;
   featured?: boolean;
   excludeIds?: string[];
+  /** Nur diese Artikel (z. B. Treffer eines Hashtags) */
+  ids?: string[];
   viewerId?: string | null;
   take?: number;
 };
@@ -539,7 +544,7 @@ async function searchArticleIds(q: string) {
   return rows.map((r) => r.id);
 }
 
-async function publicArticleWhere(f: ArticleFilters): Promise<Prisma.BlogArticleWhereInput> {
+export async function publicArticleWhere(f: ArticleFilters): Promise<Prisma.BlogArticleWhereInput> {
   const rel = await relationsFor(f.viewerId);
   const ids = f.q ? await searchArticleIds(f.q) : null;
   return {
@@ -552,6 +557,7 @@ async function publicArticleWhere(f: ArticleFilters): Promise<Prisma.BlogArticle
     ...(f.featured ? { isFeatured: true } : {}),
     AND: [
       ...(ids ? [{ id: { in: ids } }] : []),
+      ...(f.ids ? [{ id: { in: f.ids } }] : []),
       ...(f.excludeIds?.length ? [{ id: { notIn: f.excludeIds } }] : []),
     ],
   };

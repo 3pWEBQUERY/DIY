@@ -98,6 +98,7 @@ struct SocialPostEditor: View {
                 .lineLimit(5...16)
                 .focused($focused)
                 .accessibilityLabel("Text des Beitrags")
+            HashtagSuggestionBar(text: $draft.body)
             HStack {
                 Spacer()
                 Text("\(draft.body.count)/\(SocialPostDraft.maxBody)")

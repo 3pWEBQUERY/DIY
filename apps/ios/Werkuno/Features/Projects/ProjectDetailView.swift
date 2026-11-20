@@ -234,7 +234,7 @@ struct ProjectDetailView: View {
     private func ideaSection(_ p: ProjectPage) -> some View {
         ProjectsSection(title: "Idee & Beschreibung", number: number(.idea, in: p)) {
             if let d = p.description?.nilIfEmpty {
-                Text(d).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(LinkedText.attributed(d)).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true).textSelection(.enabled).contentLinks()
             } else {
                 Text(p.isOwner ? "Noch keine Beschreibung. Erzähle, was dich zu diesem Projekt gebracht hat." : "Keine Beschreibung.")
                     .font(.wr(.subheadline)).foregroundStyle(Color.muted)

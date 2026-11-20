@@ -46,7 +46,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/** `modal`: Fenster über der aktuellen Seite (abgefangene Routen, z. B. `/hashtag/…`). */
+export default function RootLayout({ children, modal }: { children: React.ReactNode; modal?: React.ReactNode }) {
   return (
     <html lang="de-CH">
       <body className="min-h-dvh">
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Zum Inhalt springen
         </a>
         {children}
+        {modal}
         <Toaster />
         <ConfirmHost />
         <Suspense fallback={null}>

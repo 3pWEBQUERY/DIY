@@ -137,7 +137,7 @@ struct TutorialDetailView: View {
             SpecLabel("Anleitung · \(app.categoryShort(t.category))", color: CategoryPalette.color(for: t.category))
             Text(t.title).font(.display(32)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
             if let s = t.summary?.nilIfEmpty {
-                Text(s).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+                Text(LinkedText.attributed(s)).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true).contentLinks()
             }
 
             HStack(spacing: 12) {

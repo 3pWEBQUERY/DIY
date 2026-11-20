@@ -18,6 +18,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/field";
 import { PollEditor, emptyPoll, pollReady, type PollDraft } from "./poll-editor";
 import { callAction } from "@/lib/use-action";
+import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
 /**
  * Beitragseditor – so einfach wie in einem modernen sozialen Netzwerk (§5.4, §9.3).
@@ -51,6 +52,7 @@ export function Composer({
   const router = useRouter();
   const [open, setOpen] = useState(!compact);
   const [body, setBody] = useState("");
+  const tags = useHashtagAssist(body, setBody);
   const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [category, setCategory] = useState("");
   const [projectId, setProjectId] = useState(defaultProjectId ?? "");
@@ -120,16 +122,23 @@ export function Composer({
         <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={40} className="ring-1 ring-ink/10" />
         <div className="min-w-0 flex-1 pr-2">
           <label htmlFor="composer-body" className="sr-only">Was entsteht gerade bei dir?</label>
+          <div className="relative">
           <textarea
             id="composer-body"
+            ref={tags.ref}
             value={body}
             onFocus={() => setOpen(true)}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={tags.onChange}
+            onSelect={tags.onSelect}
+            onKeyDown={(e) => void tags.onKeyDown(e)}
+            {...tags.aria}
             maxLength={5000}
             rows={open ? 3 : 1}
             placeholder={poll ? "Stelle deine Frage …" : "Was entsteht gerade auf deiner Werkbank?"}
             className={cn("block w-full resize-none bg-transparent text-[16px] leading-relaxed outline-none placeholder:text-muted field-sizing-content", open && "pt-2")}
           />
+          {tags.popup}
+          </div>
         </div>
       </div>
       {open && (

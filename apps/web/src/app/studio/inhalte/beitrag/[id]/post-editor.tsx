@@ -16,10 +16,12 @@ import { publishDraftAction, removePostAction, savePostAction, scheduleDraftActi
 import { Input } from "@/components/ui/field";
 import { CalendarClock, Send } from "lucide-react";
 import { callAction } from "@/lib/use-action";
+import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
 export function PostEditor({ post, projects, categories = CATEGORIES }: { post: PostEditData; projects: { id: string; title: string }[]; categories?: readonly CategoryOption[] }) {
   const router = useRouter();
   const [body, setBody] = useState(post.body);
+  const bodyTags = useHashtagAssist(body, setBody);
   const [media, setMedia] = useState<UploadedMedia[]>(
     post.media.map((m) => ({ id: m.id, alt: m.alt, preview: m.preview, state: "ready", progress: 1, kind: m.kind === "VIDEO" ? "VIDEO" : "IMAGE" })),
   );
@@ -112,7 +114,7 @@ export function PostEditor({ post, projects, categories = CATEGORIES }: { post: 
       <section aria-labelledby="sec-text">
         <h2 id="sec-text" className="spec mb-3 text-ink">01 — Text</h2>
         <Field label="Beitragstext" hint={`${body.length}/5000 Zeichen · @benutzername erwähnt jemanden`}>
-          {(p) => <Textarea {...p} rows={7} maxLength={5000} value={body} onChange={(e) => setBody(e.target.value)} />}
+          {(p) => (<div className="relative"><Textarea {...p} rows={7} maxLength={5000} value={body} ref={bodyTags.ref} onChange={bodyTags.onChange} onSelect={bodyTags.onSelect} onKeyDown={(e) => void bodyTags.onKeyDown(e)} {...bodyTags.aria} />{bodyTags.popup}</div>)}
         </Field>
       </section>
 

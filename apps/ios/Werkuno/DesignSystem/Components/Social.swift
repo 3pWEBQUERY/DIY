@@ -305,8 +305,9 @@ struct PostCardView: View {
                 Label(label.0, systemImage: label.1).font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
             }
             if !post.body.isEmpty {
-                Text(post.body).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
+                Text(LinkedText.attributed(post.body)).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
+                    .contentLinks()
             }
             if let poll = post.poll, poll.isUsable { SocialPollView(postId: post.id, poll: poll) }
             if !post.media.isEmpty { MediaStrip(media: post.media) }

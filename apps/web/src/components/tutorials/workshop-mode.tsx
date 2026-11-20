@@ -9,6 +9,7 @@ import { completeTutorialAction, toggleTutorialStepAction } from "@/app/(app)/an
 import { callAction } from "@/lib/use-action";
 import { toast } from "@/components/ui/toast";
 import { cn, formatMinutes, pad } from "@/lib/utils";
+import { Linkified } from "@/components/ui/linkify";
 
 type Line = { name: string; quantity: string; note: string };
 
@@ -442,7 +443,7 @@ export function WorkshopMode({ tutorial, steps, completedKeys, completedAt, sign
                 ))}
               </div>
             )}
-            {step.body && <p className={cn("mt-5 max-w-[60ch] whitespace-pre-line leading-relaxed", sz.body)}>{step.body}</p>}
+            {step.body && <p className={cn("mt-5 max-w-[60ch] whitespace-pre-line leading-relaxed", sz.body)}><Linkified text={step.body} /></p>}
             {step.tip && (
               <div className="mt-5 rounded-2xl border-l-[4px] border-moss bg-moss-soft px-5 py-4">
                 <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-moss-ink">Tipp</p>

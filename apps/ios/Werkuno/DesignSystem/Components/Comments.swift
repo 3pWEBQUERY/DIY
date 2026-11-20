@@ -200,6 +200,7 @@ struct CommentRow: View {
     var onDeleted: () -> Void
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
+    @Environment(\.contentLinksEnabled) private var linksEnabled
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -214,7 +215,7 @@ struct CommentRow: View {
                     if comment.isAnswer == true { Pill(text: "Antwort", symbol: "checkmark", tint: .moss) }
                     if showStep, !isReply, let st = comment.step { Pill(text: "Schritt \(st.n)", tint: .slate).accessibilityLabel("Frage zu Schritt \(st.n): \(st.title)") }
                 }
-                Text(comment.body).font(.wr(.subheadline)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                Text(LinkedText.attributed(comment.body, links: linksEnabled)).font(.wr(.subheadline)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true).textSelection(.enabled).contentLinks()
                 HStack(spacing: 16) {
                     LikeButton(type: "COMMENT", id: comment.id, liked: comment.liked ?? false, count: comment.likeCount ?? 0)
                         .font(.wr(.caption))

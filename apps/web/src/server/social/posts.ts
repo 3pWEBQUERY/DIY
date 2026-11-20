@@ -12,6 +12,7 @@ import { requireAdult } from "@/server/auth/adult";
 import { attachMedia, releaseMedia } from "@/server/media/service";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { isPublicProduct } from "@/server/commerce/restock";
+import { indexHashtags } from "@/server/hashtags/sync";
 
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
@@ -329,6 +330,7 @@ export async function createPost(user: SessionUser, input: unknown, extra: { com
   });
   if (!later) await notifyMentions(data.body, user.id, post.id);
   if (data.coauthors?.length) await inviteCoauthors(user, post.id, data.coauthors);
+  await indexHashtags("POST", post.id);
   return post;
 }
 
@@ -366,6 +368,7 @@ export async function updatePost(
       await tx.postMedia.createMany({ data: data.media.map((m, i) => ({ postId, mediaId: m.id, position: i, alt: m.alt })) });
     }
   });
+  await indexHashtags("POST", postId);
 }
 
 /** Beitrag für die Bearbeitung im Studio – nur für die Autorin / den Autor. */
