@@ -91,7 +91,7 @@ final class SupportStore {
     }
 
     /// Beim Server verbuchen, danach abschliessen (sonst liefert StoreKit die Transaktion erneut).
-    private func deliver(_ verification: VerificationResult<Transaction>) async throws {
+    private func deliver(_ verification: VerificationResult<StoreKit.Transaction>) async throws {
         if case .unverified = verification { throw DigitalStoreError.unverified }
         let transaction = verification.unsafePayloadValue
         _ = try await APIClient.shared.post("/support/apple", ["signedTransaction": JSONValue.string(verification.jwsRepresentation)]) as JSONValue
@@ -99,7 +99,7 @@ final class SupportStore {
     }
 
     /// Offene Käufe (Kaufanfrage genehmigt, App beendet, Netzfehler) nachträglich verbuchen
-    func deliverQuietly(_ verification: VerificationResult<Transaction>) async {
+    func deliverQuietly(_ verification: VerificationResult<StoreKit.Transaction>) async {
         let transaction = verification.unsafePayloadValue
         if transaction.revocationDate != nil {
             await transaction.finish()
