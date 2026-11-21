@@ -72,7 +72,7 @@ struct StudioView: View {
                     followers(o.followers)
                 }
 
-                // 03 Veröffentlichungen (3D-Aktivitätslandschaft)
+                // 03 Veröffentlichungen (Aktivitätsraster wie bei GitHub)
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeader("Veröffentlichungen", number: "03", subtitle: "Letzte 12 Wochen")
                     heat(d.heat, meaningful: o.meaningful ?? 0)
@@ -159,17 +159,16 @@ struct StudioView: View {
 
     private func heat(_ h: MeStudioHeat, meaningful: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            ThreeCanvas(scene: .heat(days: h.days.map(\.n)))
-                .frame(height: 280)
-                .frame(maxWidth: .infinity)
-                .background(Color.sunken)
+            ContributionGrid(days: h.days)
+                .padding(.horizontal, 14)
+                .padding(.top, 16)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(h.activeDays ?? 0) Tage aktiv in 12 Wochen").font(.wr(.headline)).foregroundStyle(Color.ink)
                     Spacer()
                     Text(Fmt.plural(h.total ?? 0, "Veröffentlichung", "Veröffentlichungen")).font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 }
-                Text("Jede Säule ist ein Tag – je höher, desto mehr hast du veröffentlicht: Beiträge, Journal-Einträge, Projekte, Anleitungen und Artikel.\(meaningful > 0 ? " \(Fmt.number(meaningful)) Aktionen zählen als bedeutsame kreative Aktivität." : "")")
+                Text("Jedes Feld ist ein Tag – je kräftiger, desto mehr hast du veröffentlicht: Beiträge, Journal-Einträge, Projekte, Anleitungen und Artikel.\(meaningful > 0 ? " \(Fmt.number(meaningful)) Aktionen zählen als bedeutsame kreative Aktivität." : "")")
                     .font(.wr(.caption)).foregroundStyle(Color.muted)
             }
             .padding(14)
@@ -177,7 +176,7 @@ struct StudioView: View {
         .cardSurface()
         .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Aktivitätslandschaft: \(h.activeDays ?? 0) aktive Tage und \(h.total ?? 0) Veröffentlichungen in 12 Wochen")
+        .accessibilityLabel("Aktivität: \(h.activeDays ?? 0) aktive Tage und \(h.total ?? 0) Veröffentlichungen in 12 Wochen")
     }
 
     private func revenue(_ r: MeStudioOverview.Revenue) -> some View {
@@ -876,4 +875,113 @@ struct StudioStatsView: View {
 
 private extension MeStatRow {
     var orderItemCount: Int? { _count?.orderItems }
+}
+
+
+/// Aktivitätsraster wie bei GitHub: Spalten = Wochen (Mo–So von oben nach unten), Farbe = Anzahl
+/// Veröffentlichungen am Tag. Füllt die Breite; Monatsnamen oben, Legende „Weniger … Mehr“ unten.
+struct ContributionGrid: View {
+    var days: [MeStudioHeat.Day]
+
+    private struct Cell: Identifiable {
+        let id: Int
+        let n: Int?
+        let date: Date?
+    }
+
+    private static let parser: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let month: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "de_CH")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "MMM"
+        return f
+    }()
+
+    private static var calendar: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "UTC")!
+        return c
+    }
+
+    /// Wochen-Spalten, beginnend am Montag der ersten Woche (leere Felder davor/danach)
+    private var weeks: [[Cell]] {
+        let parsed: [(Date, Int)] = days.compactMap { d in Self.parser.date(from: d.date).map { ($0, d.n) } }
+        guard let first = parsed.first?.0 else { return [] }
+        let lead = (Self.calendar.component(.weekday, from: first) + 5) % 7
+        var cells: [Cell] = (0..<lead).map { Cell(id: -1 - $0, n: nil, date: nil) }
+        for (i, d) in parsed.enumerated() { cells.append(Cell(id: i, n: d.1, date: d.0)) }
+        while cells.count % 7 != 0 { cells.append(Cell(id: 10_000 + cells.count, n: nil, date: nil)) }
+        return stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<($0 + 7)]) }
+    }
+
+    private func color(_ n: Int?, max m: Int) -> Color {
+        guard let n else { return .clear }
+        guard n > 0 else { return Color.lineStrong.opacity(0.55) }
+        let level = min(4, max(1, Int((Double(n) / Double(max(1, m)) * 4).rounded(.up))))
+        return Color.moss.opacity([0.3, 0.5, 0.75, 1][level - 1])
+    }
+
+    /// Monatsname über der ersten Woche eines Monats
+    private func monthLabel(_ week: [Cell], index: Int) -> String? {
+        let dates = week.compactMap(\.date)
+        guard let d = dates.first else { return nil }
+        if index == 0 { return Self.month.string(from: d) }
+        if let first = dates.first(where: { Self.calendar.component(.day, from: $0) == 1 }) { return Self.month.string(from: first) }
+        return nil
+    }
+
+    var body: some View {
+        let cols = weeks
+        let maxN = days.map(\.n).max() ?? 1
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 3) {
+                // Wochentage (Mo, Mi, Fr) in einer Spalte mit derselben Breite
+                VStack(spacing: 3) {
+                    Color.clear.frame(height: 14)
+                    ForEach(0..<7, id: \.self) { r in
+                        Text(r == 0 ? "Mo" : r == 2 ? "Mi" : r == 4 ? "Fr" : "")
+                            .font(.wr(size: 9, weight: .medium))
+                            .foregroundStyle(Color.muted)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                            .aspectRatio(1, contentMode: .fit)
+                    }
+                }
+                ForEach(Array(cols.enumerated()), id: \.offset) { i, week in
+                    VStack(spacing: 3) {
+                        Text(monthLabel(week, index: i) ?? " ")
+                            .font(.wr(size: 9, weight: .medium))
+                            .foregroundStyle(Color.muted)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(height: 14)
+                        ForEach(week) { c in
+                            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                .fill(color(c.n, max: maxN))
+                                .aspectRatio(1, contentMode: .fit)
+                        }
+                    }
+                }
+            }
+            HStack(spacing: 4) {
+                Spacer()
+                Text("Weniger").font(.wr(size: 10)).foregroundStyle(Color.muted)
+                ForEach([0, 1, 2, 3, 4], id: \.self) { l in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(l == 0 ? Color.lineStrong.opacity(0.55) : Color.moss.opacity([0.3, 0.5, 0.75, 1][l - 1]))
+                        .frame(width: 10, height: 10)
+                }
+                Text("Mehr").font(.wr(size: 10)).foregroundStyle(Color.muted)
+            }
+        }
+    }
 }

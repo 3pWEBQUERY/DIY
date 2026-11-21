@@ -68,10 +68,11 @@ struct StudioShopView: View {
             }
             HStack(spacing: 10) {
                 if s.status == "ACTIVE" || s.status == "PAUSED" {
-                    Button { router.open(.shop(slug: s.slug)) } label: { Label("Öffentlicher Shop", systemImage: "storefront").frame(maxWidth: .infinity) }
+                    Button { router.open(.shop(slug: s.slug)) } label: { Label("Zum Shop", systemImage: "storefront").lineLimit(1).frame(maxWidth: .infinity) }
+                        .accessibilityLabel("Öffentlichen Shop ansehen")
                         .buttonStyle(.glass)
                 }
-                Button { router.present(.shopWizard) } label: { Label(s.status == "DRAFT" ? "Weiter einrichten" : "Einstellungen", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity) }
+                Button { router.present(.shopWizard) } label: { Label(s.status == "DRAFT" ? "Weiter einrichten" : "Einstellungen", systemImage: "slider.horizontal.3").lineLimit(1).frame(maxWidth: .infinity) }
                     .buttonStyle(.glass)
             }
             .controlSize(.large)
