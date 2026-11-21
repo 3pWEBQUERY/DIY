@@ -83,7 +83,8 @@ struct MarketCouponField: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Image(systemName: "tag").foregroundStyle(Color.muted)
-                    Text("Gutschein ").font(.wr(.subheadline)) + Text(c.code).font(.wr(.subheadline, .bold)).monospaced() + Text(" · \(c.valueLabel)").font(.wr(.subheadline))
+                    let code = Text(verbatim: c.code).font(.wr(.subheadline, .bold)).monospaced()
+                    Text("Gutschein \(code) · \(c.valueLabel)").font(.wr(.subheadline))
                     Spacer()
                     Button("Entfernen") { Task { await remove() } }.font(.wr(.footnote, .semibold)).buttonStyle(.plain).foregroundStyle(Color.muted)
                         .accessibilityLabel("Gutschein \(c.code) entfernen")
@@ -185,9 +186,8 @@ struct MarketBundleCard: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(Fmt.money(bundle.priceMinor, currency: bundle.currency)).font(.wr(.title3, .bold)).monospacedDigit()
                     if bundle.discountMinor > 0 {
-                        Text("statt ").font(.wr(.subheadline)).foregroundStyle(Color.muted)
-                            + Text(Fmt.money(bundle.fullMinor, currency: bundle.currency)).font(.wr(.subheadline)).strikethrough().foregroundStyle(Color.muted)
-                            + Text(" · −\(bundle.discountPct) %").font(.wr(.subheadline)).foregroundStyle(Color.muted)
+                        let full = Text(verbatim: Fmt.money(bundle.fullMinor, currency: bundle.currency)).strikethrough()
+                        Text("statt \(full) · −\(bundle.discountPct) %").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     }
                 }
                 Text("zzgl. Versand des Shops").font(.wr(.caption)).foregroundStyle(Color.muted)
