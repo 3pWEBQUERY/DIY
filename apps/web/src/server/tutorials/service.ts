@@ -20,6 +20,8 @@ import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
+import { getPriceContext, localize } from "@/server/commerce/currency";
+import { currencyForCountry } from "@werkraum/shared";
 
 /**
  * Anleitungen (PRD §11).
@@ -597,7 +599,7 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
   const t = await db.tutorial.findUnique({
     where: { slug: (() => { try { return decodeURIComponent(slug); } catch { return slug; } })() },
     include: {
-      author: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, followerCount: true } } } },
+      author: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, followerCount: true, country: true } } } },
       currentVersion: { include: { steps: { orderBy: { position: "asc" }, select: stepSelect } } },
       versions: { where: { version: { gt: DRAFT_VERSION } }, orderBy: { version: "desc" }, take: 30, select: { version: true, changeNote: true, isMajor: true, publishedAt: true } },
       project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, ownerId: true, visibility: true, state: true, owner: { select: { profile: { select: { handle: true, displayName: true } } } } } },
@@ -605,6 +607,7 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     },
   });
   if (!t) return null;
+  const px = await getPriceContext();
   const isOwner = viewerId === t.authorId;
   if (!isOwner && (t.author.status === "BANNED" || t.author.status === "DELETED")) return null;
   if (!(await canViewContent(viewerId, { ownerId: t.authorId, visibility: "PUBLIC", state: t.state }))) return null;
@@ -664,12 +667,15 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     preview,
     version: { number: preview ? 0 : version.version, changeNote: version.changeNote, isMajor: version.isMajor, publishedAt: version.publishedAt.toISOString() },
     versions: t.versions.map((v) => ({ ...v, publishedAt: v.publishedAt.toISOString() })),
-    materials: locked ? [] : asLines(version.materials),
+    // Richtpreise erfasst die Autorin in ihrer Währung → für Leser:innen umgerechnet
+    materials: locked ? [] : asLines(version.materials).map((m) => (typeof m.costMinor === "number" ? { ...m, costMinor: localize(px, m.costMinor, currencyForCountry(t.author.profile?.country)) } : m)),
+    /** Währung der Richtpreise (Leser:in) */
+    costCurrency: px.currency,
     tools: locked ? [] : asLines(version.tools),
     steps,
     author: { id: t.authorId, handle: t.author.profile?.handle ?? "unbekannt", displayName: t.author.profile?.displayName ?? "Unbekannt", avatarUrl: t.author.profile?.avatarUrl ?? null, bio: t.author.profile?.bio ?? "", followerCount: t.author.profile?.followerCount ?? 0 },
     project: project ? { id: project.id, title: project.title, status: project.status, coverUrl: project.coverUrl, category: project.category, href: `/u/${project.owner.profile?.handle}/${project.slug}`, ownerName: project.owner.profile?.displayName ?? "" } : null,
-    products: t.products.map((p) => ({ id: p.id, title: p.title, kind: p.kind, priceMinor: p.priceMinor, currency: p.currency, coverUrl: p.coverUrl, soldOut: p.status === "SOLD_OUT", href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name })),
+    products: t.products.map((p) => ({ id: p.id, title: p.title, kind: p.kind, priceMinor: localize(px, p.priceMinor, p.currency), currency: px.currency, coverUrl: p.coverUrl, soldOut: p.status === "SOLD_OUT", href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name })),
     comments: commentPage.items,
     /** Cursor für ältere Kommentare (null = alle geladen) */
     commentsCursor: commentPage.nextCursor,

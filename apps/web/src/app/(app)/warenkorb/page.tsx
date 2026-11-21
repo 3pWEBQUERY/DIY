@@ -8,6 +8,7 @@ import { payableOrders } from "@/server/commerce/checkout";
 import { formatBps } from "@/server/commerce/rules";
 import { CartLines } from "@/components/commerce/cart-lines";
 import { FeeSummary } from "@/components/commerce/order-parts";
+import { FxNote } from "@/components/commerce/fx-note";
 import { CouponField } from "@/components/commerce/coupon-field";
 import { ResumePaymentButton } from "@/components/commerce/payment-actions";
 import { Empty, Notice, SectionTitle } from "@/components/ui/misc";
@@ -42,7 +43,7 @@ export default async function CartPage() {
             {pending.map((o) => (
               <li key={o.id} className="flex flex-wrap items-center justify-between gap-3">
                 <span>
-                  <span className="font-mono text-[12px]">{o.number}</span> · {o.shop.name} · <span className="num font-semibold">{formatMoney(o.totalMinor)}</span>
+                  <span className="font-mono text-[12px]">{o.number}</span> · {o.shop.name} · <span className="num font-semibold">{formatMoney(o.totalMinor, o.currency)}</span>
                   <span className="text-muted"> – reserviert bis {o.reservationExpiresAt!.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" })} Uhr</span>
                 </span>
                 <ResumePaymentButton orderId={o.id} />
@@ -68,14 +69,15 @@ export default async function CartPage() {
                   }
                   action={<span className="spec">Versand ab {COUNTRY_LABEL[g.shop.country as ShipCountry] ?? g.shop.country}</span>}
                 />
-                <CartLines lines={g.lines} />
+                <CartLines lines={g.lines} currency={cart.currency} />
                 {g.incompleteBundles.length > 0 && (
                   <p role="status" className="mt-3 text-[13px] text-warn">
                     {g.incompleteBundles.map((b) => `Set „${b.title}“`).join(", ")}: Der Set-Rabatt gilt nur, solange alle Teile in der Set-Menge im Warenkorb liegen.
                   </p>
                 )}
                 <div className="ml-auto max-w-sm border-t border-line pt-3">
-                  <FeeSummary subtotal={g.subtotal} discounts={g.discounts} shipping={g.fees.shipping} total={g.fees.total} />
+                  <FeeSummary subtotal={g.subtotal} discounts={g.discounts} shipping={g.fees.shipping} total={g.fees.total} currency={cart.currency} />
+                  {g.converted && <FxNote compact currency={cart.currency} shopCurrency={g.shop.currency} eurChf={cart.fx.eurChf} date={cart.fx.date} className="mt-1" />}
                   <p className="mt-1 text-[12px] text-muted">Kombinierter Versand: es gilt der höchste Versandsatz dieses Shops.</p>
                   <CouponField shopId={g.shop.id} shopName={g.shop.name} coupon={g.coupon} />
                 </div>
@@ -91,7 +93,9 @@ export default async function CartPage() {
                 discounts={cart.totals.discount ? [{ label: "Rabatte", amountMinor: cart.totals.discount }] : undefined}
                 shipping={cart.totals.shipping}
                 total={cart.totals.total}
+                currency={cart.currency}
               />
+              {cart.groups.some((g) => g.converted) && <FxNote currency={cart.currency} eurChf={cart.fx.eurChf} date={cart.fx.date} className="mt-4" />}
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
                 Für dich fallen keine weiteren Gebühren an. Die Shops zahlen eine Plattformprovision von höchstens {formatBps(cart.feeBps)} auf den Warenwert – sie ist im Preis bereits enthalten.
               </p>

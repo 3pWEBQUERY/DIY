@@ -16,6 +16,7 @@ import { createCheckoutSession, expireCheckoutSession, paymentsMode, PAYMENTS_DI
 import { markOrderPaid, markPaymentFailed } from "./payments";
 import { requireFlag } from "@/server/flags";
 import { discountLabel, fitRows, loadCartDiscounts, type DiscountRow } from "./discounts";
+import { localize, priceContextFor, shopFxFor } from "./currency";
 
 /**
  * Checkout (§13.5, §31.4 Nr. 8):
@@ -31,7 +32,7 @@ type CheckoutResponse = { url: string; orderIds: string[]; mode: "stripe" | "sim
 const lineInclude = {
   product: {
     include: {
-      shop: { select: { id: true, name: true, status: true, ownerId: true, stripeAccountId: true, chargesEnabled: true, owner: { select: { status: true } } } },
+      shop: { select: { id: true, name: true, status: true, ownerId: true, stripeAccountId: true, chargesEnabled: true, currency: true, owner: { select: { status: true } } } },
       inventory: { where: { variantId: null }, select: { id: true } },
     },
   },
@@ -99,10 +100,12 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
   }[] = [];
   try {
     await abandonOwnPending(user.id);
-    const [reservationMinutes, digitalEnabledWeb, digitalEnabledIos] = await Promise.all([
+    const [reservationMinutes, digitalEnabledWeb, digitalEnabledIos, ctx] = await Promise.all([
       getSetting("commerce.reservationMinutes"),
       getSetting("commerce.digitalEnabledWeb"),
       getSetting("commerce.digitalEnabledIos"),
+      // Bezahlt wird in der Währung der Käufer:in (Land im Profil) – gleiche Umrechnung wie im Warenkorb
+      priceContextFor(user.id),
     ]);
     const digitalEnabled = digitalEnabledWeb && (opts.channel !== "ios" || digitalEnabledIos);
     // Stripe verlangt mind. 30 Minuten Laufzeit; die Reservierung läuft etwas länger als die Session,
@@ -137,11 +140,12 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
             variantId: it.variantId,
             title: p.title,
             variantName: it.variant?.name ?? null,
-            unitMinor: unitPrice(p.priceMinor, it.variant?.priceDeltaMinor ?? 0),
+            unitMinor: localize(ctx, unitPrice(p.priceMinor, it.variant?.priceDeltaMinor ?? 0), p.currency),
             quantity: isDigital ? 1 : it.quantity,
-            shippingMinor: isDigital ? 0 : p.shippingMinor,
+            shippingMinor: isDigital ? 0 : localize(ctx, p.shippingMinor, p.currency),
             isDigital,
-            currency: p.currency,
+            currency: ctx.currency,
+            shopCurrency: p.currency,
             shop: p.shop,
           };
         });
@@ -167,7 +171,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
         const disc = await loadCartDiscounts(db, { userId: user.id, cartId: cart!.id, includePending: true });
         const details = new Map<string, ReturnType<typeof disc.forShop>>();
         const groups = groupByShop(lines, fee, (shopId, ls, subtotal) => {
-          const d = disc.forShop(shopId, ls, subtotal, ls[0]?.currency);
+          const d = disc.forShop(shopId, ls, subtotal, ctx.currency, (m) => localize(ctx, m, ls[0]?.shopCurrency));
           details.set(shopId, d);
           return d.amountMinor;
         });
@@ -201,6 +205,8 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
         for (const g of groups) {
           const number = await nextOrderNumber(tx);
           const currency = g.lines[0]!.currency;
+          // Shop verkauft in einer anderen Währung: Kurs festhalten (Einnahmen in der Shop-Währung)
+          const shopFx = shopFxFor(currency, g.lines[0]!.shopCurrency, ctx.eurChf);
           const d = details.get(g.shopId)!;
           const rows: DiscountRow[] = fitRows(d.rows, g.discount);
           const couponId = rows.some((r) => r.kind === "coupon") ? d.coupon!.id : null;
@@ -211,6 +217,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
               shopId: g.shopId,
               status: "PENDING_PAYMENT",
               currency,
+              shopFx,
               subtotalMinor: g.subtotal,
               discountMinor: g.discount,
               discounts: rows.length ? rows : undefined,

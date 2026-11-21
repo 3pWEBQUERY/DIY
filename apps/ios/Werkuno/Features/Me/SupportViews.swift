@@ -20,11 +20,14 @@ struct SupportOfferResponse: Decodable, Sendable {
             var active: Bool
             var provider: String
             var priceMinor: Int?
+            var currency: String?
             var currentPeriodEnd: Date?
             var cancelAtPeriodEnd: Bool?
         }
         var enabled: Bool
         var priceMinor: Int
+        /// Stufe in der Währung der Betrachter:in (5 CHF bzw. 5 €)
+        var currency: String?
         var perks: String?
         var exclusiveTutorials: Int?
         var creator: Creator?
@@ -176,7 +179,7 @@ struct SupportCardView: View {
                     .font(.wr(.footnote, .semibold)).buttonStyle(.plain).foregroundStyle(Color.ink2)
             } else if offer.enabled {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(displayPrice ?? Fmt.money(offer.priceMinor)).font(.wr(.title2, .bold)).monospacedDigit()
+                    Text(displayPrice ?? Fmt.money(offer.priceMinor, currency: offer.currency)).font(.wr(.title2, .bold)).monospacedDigit()
                     Text("für einen Monat").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                 }
                 if let perks = offer.perks?.nilIfEmpty {
@@ -251,6 +254,7 @@ struct MeSupportingItem: Decodable, Identifiable, Hashable, Sendable {
     var avatarUrl: String?
     var provider: String
     var priceMinor: Int
+    var currency: String?
     var active: Bool
     var cancelAtPeriodEnd: Bool
     var currentPeriodEnd: Date?
@@ -317,7 +321,7 @@ struct MeSupportingView: View {
     }
 
     private func subtitle(_ r: MeSupportingItem) -> String {
-        var s = "\(Fmt.money(r.priceMinor))/Monat"
+        var s = "\(Fmt.money(r.priceMinor, currency: r.currency))/Monat"
         if r.active, let end = r.currentPeriodEnd {
             s += r.provider == "apple" || r.cancelAtPeriodEnd ? " · endet am \(Fmt.date(end))" : " · nächste Zahlung am \(Fmt.date(end))"
         }
@@ -349,6 +353,7 @@ struct StudioSupportData: Decodable, Sendable {
         var avatarUrl: String?
         var provider: String
         var priceMinor: Int
+        var currency: String?
         var since: Date?
         var currentPeriodEnd: Date?
         var cancelAtPeriodEnd: Bool
@@ -361,6 +366,8 @@ struct StudioSupportData: Decodable, Sendable {
     var exclusiveTutorials: Int
     var stats: Stats
     var supporters: [Row]
+    /// Währung der Creatorin (Stufen, Einnahmen)
+    var currency: String?
 }
 
 struct StudioSupportView: View {
@@ -380,13 +387,13 @@ struct StudioSupportView: View {
                 }
                 Section {
                     LabeledContent("Aktiv", value: "\(d.stats.active)")
-                    LabeledContent("Letzte 30 Tage", value: Fmt.money(d.stats.last30NetMinor))
+                    LabeledContent("Letzte 30 Tage", value: Fmt.money(d.stats.last30NetMinor, currency: d.currency))
                     LabeledContent("Exklusive Anleitungen", value: "\(d.exclusiveTutorials)")
                 }
                 Section {
                     Toggle("Unterstützungen annehmen", isOn: $enabled).tint(.moss).disabled(!d.eligibility.ok && !enabled)
                     Picker("Monatsbetrag", selection: $price) {
-                        ForEach(d.tiers, id: \.self) { Text(Fmt.money($0)).tag($0) }
+                        ForEach(d.tiers, id: \.self) { Text(Fmt.money($0, currency: d.currency)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     VStack(alignment: .leading, spacing: 6) {
@@ -395,7 +402,7 @@ struct StudioSupportView: View {
                     }
                     AsyncButton("Speichern") { await save() }.primaryButton()
                 } header: { Text("Dein Unterstützer-Abo") } footer: {
-                    Text("Du erhältst \(Fmt.money(price - Int((Double(price) * Double(d.feeBps) / 10_000).rounded()))) je Unterstützung und Monat. Werkuno behält \(d.feeBps / 100) % für Zahlung und Betrieb. Exklusive Anleitungen markierst du im Anleitungs-Editor.")
+                    Text("Du erhältst \(Fmt.money(price - Int((Double(price) * Double(d.feeBps) / 10_000).rounded()), currency: d.currency)) je Unterstützung und Monat. Werkuno behält \(d.feeBps / 100) % für Zahlung und Betrieb. Exklusive Anleitungen markierst du im Anleitungs-Editor.")
                 }
                 Section("Wer dich unterstützt") {
                     if d.supporters.isEmpty {
@@ -407,7 +414,7 @@ struct StudioSupportView: View {
                                 AvatarView(url: r.avatarUrl, name: r.displayName, size: 34)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(r.displayName).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
-                                    Text("\(Fmt.money(r.priceMinor))/Monat · \(r.provider == "apple" ? "iOS-App" : r.provider == "stripe" ? "Web" : "Test")").font(.wr(.caption)).foregroundStyle(Color.muted)
+                                    Text("\(Fmt.money(r.priceMinor, currency: r.currency))/Monat · \(r.provider == "apple" ? "iOS-App" : r.provider == "stripe" ? "Web" : "Test")").font(.wr(.caption)).foregroundStyle(Color.muted)
                                 }
                                 Spacer()
                                 Pill(text: r.active ? "Aktiv" : "Beendet", tint: r.active ? .moss : .muted)

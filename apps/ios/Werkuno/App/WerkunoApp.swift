@@ -105,10 +105,15 @@ struct RootView: View {
             case .launching: LaunchView()
             case .signedOut: AuthFlowView().transition(.opacity)
             case .onboarding: OnboardingView().transition(.move(edge: .trailing).combined(with: .opacity))
-            case .ready: MainTabView().transition(.opacity)
+            // Neue Währung (Land geändert): Ansichten neu aufbauen, damit alle Preise neu geladen werden
+            case .ready: MainTabView().id(app.currency).transition(.opacity)
             }
         }
         .animation(.smooth(duration: 0.45), value: app.phase)
+        // Bestehende Konten ohne bestätigtes Land: einmal fragen (Währung der Preise) – auch im Onboarding
+        .sheet(isPresented: countryPromptBinding) {
+            CountryPromptSheet(suggested: app.me?.countryPrompt?.suggested)
+        }
         .toastOverlay()
         .onAppear { AppAppearance.apply() } // gespeicherte Darstellung (Hell/Dunkel/System)
         .task { await app.launch() }
@@ -127,6 +132,11 @@ struct RootView: View {
         }
         // Abmelden, abgelaufene Sitzung oder anderes Konto: Navigation des vorherigen Kontos verwerfen
         .onChange(of: app.me?.id) { old, new in if old != nil, old != new { router.reset() } }
+    }
+
+    /// Nur lesend: Die Abfrage schliesst sich, sobald der Server das Land bestätigt hat (Bootstrap ohne `countryPrompt`)
+    private var countryPromptBinding: Binding<Bool> {
+        Binding(get: { app.needsCountry && (app.phase == .ready || app.phase == .onboarding) }, set: { _ in })
     }
 }
 

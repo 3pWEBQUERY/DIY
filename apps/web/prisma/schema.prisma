@@ -369,6 +369,8 @@ model UserProfile {
   coverUrl     String?
   region       String?
   country      String?  @default("CH")
+  /// Land bewusst gewählt (Registrierung, Profil oder Abfrage) – bestimmt die Währung (CH/LI: CHF, DE/AT: EUR)
+  countryConfirmedAt DateTime?
   website      String?
   links        Json     @default("[]")
   categories   String[] @default([])
@@ -1597,6 +1599,9 @@ model Order {
   shop            Shop        @relation(fields: [shopId], references: [id], onDelete: Restrict)
   status          OrderStatus @default(PENDING_PAYMENT)
   currency        String      @default("CHF")
+  /// Bezahlt in einer anderen Währung als der des Shops: Faktor Bestellwährung → Shop-Währung (EZB-Kurs
+  /// beim Kauf). null = gleiche Währung. Für Einnahmen und Statistiken in der Shop-Währung.
+  shopFx          Float?
   subtotalMinor   Int
   shippingMinor   Int
   totalMinor      Int

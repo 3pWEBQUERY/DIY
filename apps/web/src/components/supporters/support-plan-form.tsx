@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { saveSupportPlanAction } from "@/app/studio/unterstuetzer/actions";
 
 /** Studio: Unterstützer-Abo ein-/ausschalten, Stufe und Beschreibung. */
-export function SupportPlanForm({ plan, tiers, feeBps, eligible }: { plan: { enabled: boolean; priceMinor: number; perks: string }; tiers: readonly number[]; feeBps: number; eligible: boolean }) {
+export function SupportPlanForm({ plan, tiers, feeBps, eligible, currency = "CHF" }: { plan: { enabled: boolean; priceMinor: number; perks: string }; tiers: readonly number[]; feeBps: number; eligible: boolean; currency?: string }) {
   const [enabled, setEnabled] = useState(plan.enabled);
   const [price, setPrice] = useState(plan.priceMinor);
   const [perks, setPerks] = useState(plan.perks);
@@ -42,13 +42,13 @@ export function SupportPlanForm({ plan, tiers, feeBps, eligible }: { plan: { ena
               )}
             >
               <input type="radio" name="tier" value={t} checked={price === t} onChange={() => setPrice(t)} className="sr-only" />
-              <span className="num text-[18px] font-bold">{formatMoney(t)}</span>
+              <span className="num text-[18px] font-bold">{formatMoney(t, currency)}</span>
               <span className="text-[12px] text-muted">pro Monat</span>
             </label>
           ))}
         </div>
         <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
-          Du erhältst <b className="num text-ink-2">{formatMoney(net)}</b> je Unterstützung und Monat – Werkuno behält {(feeBps / 100).toLocaleString("de-CH")} % für Zahlung und Betrieb. In der iOS-App zahlen Unterstützer:innen etwas mehr (Apple-Gebühr), dein Anteil bleibt gleich. Eine neue Stufe gilt für neue Unterstützungen.
+          Du erhältst <b className="num text-ink-2">{formatMoney(net, currency)}</b> je Unterstützung und Monat – Werkuno behält {(feeBps / 100).toLocaleString("de-CH")} % für Zahlung und Betrieb. In der iOS-App zahlen Unterstützer:innen etwas mehr (Apple-Gebühr), dein Anteil bleibt gleich. Mitglieder aus {currency === "EUR" ? "der Schweiz und Liechtenstein zahlen denselben Betrag in Franken" : "Deutschland und Österreich zahlen denselben Betrag in Euro"}. Eine neue Stufe gilt für neue Unterstützungen.
         </p>
       </fieldset>
       <Field label="Was Unterstützer:innen bekommen" optional hint="Zum Beispiel: exklusive Anleitungen, Vorlagen zum Download, früher Zugang zu neuen Projekten." error={save.fields.perks}>

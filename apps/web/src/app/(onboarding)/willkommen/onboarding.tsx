@@ -16,13 +16,16 @@ import { cn, pad } from "@/lib/utils";
 import { checkHandleAction } from "@/app/(auth)/actions";
 import { finishOnboardingAction, skipOnboardingAction, suggestionsAction, joinCommunityQuickAction } from "./actions";
 import { callAction } from "@/lib/use-action";
+import { confirmCountryAction } from "@/app/(app)/country-actions";
+import { CountryPicker } from "@/components/account/country-picker";
+import type { MemberCountry } from "@werkraum/shared";
 
 type Initial = { displayName: string; handle: string; interests: string[]; bio: string; region: string; avatarUrl: string | null };
 type Suggestions = Awaited<ReturnType<typeof suggestionsAction>>;
 
 const STEPS = ["Profil", "Interessen", "Über dich", "Menschen", "Los geht’s"];
 
-export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: boolean }) {
+export function Onboarding({ initial, needsAge, needsCountry = false, suggestedCountry = null }: { initial: Initial; needsAge: boolean; needsCountry?: boolean; suggestedCountry?: MemberCountry | null }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [data, setData] = useState({ ...initial, adult: !needsAge });
@@ -32,6 +35,8 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [country, setCountry] = useState<MemberCountry | null>(suggestedCountry);
+  const [countrySaved, setCountrySaved] = useState(!needsCountry);
 
   useEffect(() => {
     if (data.handle === initial.handle) return setHandleState({ ok: true });
@@ -43,7 +48,19 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
     if (step === 3 && !suggestions) suggestionsAction(data.interests).then(setSuggestions).catch(() => setSuggestions({ creators: [], communities: [] }));
   }, [step, suggestions, data.interests]);
 
-  const canNext = step === 0 ? !!data.displayName.trim() && handleState?.ok !== false && data.adult : true;
+  const canNext = step === 0 ? !!data.displayName.trim() && handleState?.ok !== false && data.adult && (countrySaved || !!country) : true;
+
+  /** Land (Währung) gleich speichern – auch wer später überspringt, hat es dann gesetzt */
+  async function saveCountry() {
+    if (countrySaved || !country) return true;
+    const r = await callAction(() => confirmCountryAction({ country }));
+    if (!r.ok) {
+      setError(r.error);
+      return false;
+    }
+    setCountrySaved(true);
+    return true;
+  }
 
   function save(next: () => void) {
     setError(null);
@@ -124,6 +141,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                   </div>
                 )}
               </Field>
+              {needsCountry && <CountryPicker value={country} onChange={setCountry} />}
               {needsAge && <Checkbox checked={data.adult} onChange={(e) => setData({ ...data, adult: e.target.checked })} label="Ich bin mindestens 18 Jahre alt." />}
             </div>
           )}
@@ -269,6 +287,7 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                   className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
                   onClick={() =>
                     start(async () => {
+                      if (step === 0 && !(await saveCountry())) return;
                       const r = step === 0 ? await callAction(() => skipOnboardingAction()) : await callAction(() => finishOnboardingAction(data));
                       if (r.ok) router.push("/feed");
                       else setError(r.error);
@@ -279,7 +298,16 @@ export function Onboarding({ initial, needsAge }: { initial: Initial; needsAge: 
                 </button>
               )}
               {step < 2 && (
-                <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext}>
+                <Button
+                  onClick={() =>
+                    step === 0
+                      ? start(async () => {
+                          if (await saveCountry()) setStep(1);
+                        })
+                      : setStep((s) => s + 1)
+                  }
+                  disabled={!canNext || pending}
+                >
                   Weiter <ArrowRight size={16} />
                 </Button>
               )}

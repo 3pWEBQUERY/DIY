@@ -27,6 +27,9 @@ export function assertDestructiveSetupAllowed(url = process.env.DATABASE_URL ?? 
 export default async function globalSetup() {
   assertDestructiveSetupAllowed();
   await sql(`DELETE FROM "RateLimitBucket"`);
+  // Land bestätigt (sonst fragt der einmalige Dialog auf jeder Seite); Elias kauft in Franken
+  await sql(`UPDATE "UserProfile" SET "countryConfirmedAt" = COALESCE("countryConfirmedAt", now()) WHERE handle IN ('lena.haekelt', 'mattia.holz', 'mira.strickt', 'elias.garten', 'werkraum')`);
+  await sql(`UPDATE "UserProfile" SET country = 'CH' WHERE handle IN ('lena.haekelt', 'mattia.holz', 'elias.garten')`);
   await sql(`DELETE FROM "PostCoauthor"`);
   await sql(`DELETE FROM "ShoppingList" WHERE "ownerId" = $1 AND title LIKE 'Für: %'`, [await userId("mattia")]);
   await sql(`DELETE FROM "CommunityChallenge" WHERE title LIKE 'E2E%'`);

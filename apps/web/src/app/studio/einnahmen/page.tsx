@@ -110,7 +110,10 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
                         <span className="spec ml-2">{o.paidAt ? formatDate(o.paidAt, { day: "numeric", month: "short" }) : ""}</span>
                       </td>
                       <td className="py-2.5 pr-3 text-muted">{ORDER_STATUS_LABEL[o.status as OrderStatus]}</td>
-                      <td className="num py-2.5 text-right">{m(o.totalMinor)}</td>
+                      <td className="num py-2.5 text-right">
+                        {m(o.totalMinor)}
+                        {o.paidIn && <span className="block text-[11.5px] text-muted">bezahlt {formatMoney(o.paidIn.totalMinor, o.paidIn.currency)}</span>}
+                      </td>
                       <td className="num py-2.5 text-right text-muted">{o.refunded ? `− ${m(o.refunded)}` : "–"}</td>
                       <td className="num py-2.5 text-right text-muted">− {m(o.fee)}</td>
                       <td className="num py-2.5 text-right font-semibold">{m(o.net)}</td>

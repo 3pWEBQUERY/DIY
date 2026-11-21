@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
-import { CATEGORIES, PROFILE_COUNTRIES, PROFILE_COUNTRY_LABEL, listCategories } from "@werkraum/shared";
+import { CATEGORIES, currencyForCountry, isMemberCountry, listCategories } from "@werkraum/shared";
+import { CountryPicker } from "@/components/account/country-picker";
 import { useAction, callAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { uploadFile } from "@/components/media/uploader";
 import { Avatar } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea } from "@/components/ui/field";
 import { Glyph } from "@/components/ui/glyphs";
 import { toast } from "@/components/ui/toast";
 import { SettingsSection } from "./section";
@@ -55,6 +56,8 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const avatarInput = useRef<HTMLInputElement>(null);
   const coverInput = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState(profile.displayName);
+  const savedCountry = isMemberCountry(profile.country) ? profile.country : null;
+  const [country, setCountry] = useState(savedCountry);
   const [handle, setHandle] = useState(profile.handle);
   const [handleState, setHandleState] = useState<{ status: "idle" | "checking" | "ok" | "error"; reason?: string }>({ status: "idle" });
   const [bio, setBio] = useState(profile.bio);
@@ -94,7 +97,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           bio,
           pronouns: String(fd.get("pronouns") ?? ""),
           region: String(fd.get("region") ?? ""),
-          country: String(fd.get("country") ?? "CH"),
+          country: String(fd.get("country") ?? ""),
           website: String(fd.get("website") ?? ""),
           links: links.filter((l) => l.label.trim() || l.url.trim()),
           categories: cats,
@@ -179,22 +182,19 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           <Field label="Bio" optional hint={`${bio.length}/500 · Was machst du, womit arbeitest du am liebsten?`} error={fields.bio}>
             {(p) => <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} maxLength={500} {...p} />}
           </Field>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Region" optional hint="z. B. Basel, Zürcher Oberland" error={fields.region}>
-              {(p) => <Input name="region" defaultValue={profile.region ?? ""} maxLength={80} autoComplete="address-level2" {...p} />}
-            </Field>
-            <Field label="Land" error={fields.country}>
-              {(p) => (
-                <Select name="country" defaultValue={profile.country ?? "CH"} {...p}>
-                  {PROFILE_COUNTRIES.map((c) => (
-                    <option key={c} value={c}>
-                      {PROFILE_COUNTRY_LABEL[c]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </div>
+          <Field label="Region" optional hint="z. B. Basel, Zürcher Oberland" error={fields.region}>
+            {(p) => <Input name="region" defaultValue={profile.region ?? ""} maxLength={80} autoComplete="address-level2" {...p} />}
+          </Field>
+          <CountryPicker
+            value={country}
+            onChange={setCountry}
+            error={fields.country}
+            hint={
+              country && savedCountry && currencyForCountry(country) !== currencyForCountry(savedCountry)
+                ? `Nach dem Speichern siehst und bezahlst du Preise in ${currencyForCountry(country) === "EUR" ? "Euro" : "Franken"}. Laufende Bestellungen und Abos bleiben in ihrer Währung.`
+                : "Bestimmt, in welcher Währung du Preise siehst und bezahlst."
+            }
+          />
           <Field label="Website" optional error={fields.website}>
             {(p) => <Input name="website" type="text" inputMode="url" defaultValue={profile.website ?? ""} placeholder="https://" maxLength={300} {...p} />}
           </Field>

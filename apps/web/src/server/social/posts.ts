@@ -13,6 +13,7 @@ import { attachMedia, releaseMedia } from "@/server/media/service";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { isPublicProduct } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
+import { getPriceContext, localizePrice, type PriceContext } from "@/server/commerce/currency";
 
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
@@ -43,7 +44,7 @@ type PostRow = Prisma.PostGetPayload<{ include: typeof postInclude }>;
 export type PostView = ReturnType<typeof toView>;
 
 /** blocked: wechselseitig blockierte Profile (Original eines Reposts ausblenden) */
-type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null; blocked?: Set<string> };
+type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null; blocked?: Set<string>; price?: PriceContext };
 
 /**
  * Umfrage für die Anzeige. Stimmenzahlen erst nach eigener Abstimmung, nach Ende oder für die
@@ -88,7 +89,7 @@ function toView(p: PostRow, viewer: ViewerState) {
     // Deaktivieren eines Angebots darf der Beitrag Titel, Bild und Preis nicht weiter verbreiten)
     project: p.project && p.project.state === "PUBLISHED" && p.project.visibility === "PUBLIC" ? { ...p.project, ownerHandle: p.project.owner.profile?.handle ?? "" } : null,
     tutorial: p.tutorial && p.tutorial.state === "PUBLISHED" ? p.tutorial : null,
-    product: p.product && isPublicProduct(p.product) && p.product.shop.status === "ACTIVE" ? p.product : null,
+    product: p.product && isPublicProduct(p.product) && p.product.shop.status === "ACTIVE" ? (viewer.price ? localizePrice(viewer.price, p.product) : p.product) : null,
     article: p.article && p.article.state === "PUBLISHED" ? { ...p.article, authorHandle: p.article.author.profile?.handle ?? "" } : null,
     community: p.community,
     repostOf:
@@ -119,7 +120,9 @@ function toView(p: PostRow, viewer: ViewerState) {
 }
 
 async function viewerState(viewerId: string | null | undefined, ids: string[]): Promise<ViewerState> {
-  if (!viewerId || !ids.length) return { liked: new Set<string>(), saved: new Set<string>(), votes: new Map(), id: viewerId };
+  // Verkaufte Produkte in Beiträgen im Preis der Betrachter:in
+  const price = await getPriceContext();
+  if (!viewerId || !ids.length) return { liked: new Set<string>(), saved: new Set<string>(), votes: new Map(), id: viewerId, price };
   const [likes, saves, votes, rel] = await Promise.all([
     db.reaction.findMany({ where: { userId: viewerId, targetType: "POST", targetId: { in: ids } }, select: { targetId: true } }),
     db.bookmark.findMany({ where: { userId: viewerId, targetType: "POST", targetId: { in: ids } }, select: { targetId: true } }),
@@ -128,7 +131,7 @@ async function viewerState(viewerId: string | null | undefined, ids: string[]): 
   ]);
   const byPoll = new Map<string, string[]>();
   for (const v of votes) byPoll.set(v.pollId, [...(byPoll.get(v.pollId) ?? []), v.optionId]);
-  return { liked: new Set(likes.map((l) => l.targetId)), saved: new Set(saves.map((s) => s.targetId)), votes: byPoll, id: viewerId, blocked: new Set(rel.blocked) };
+  return { liked: new Set(likes.map((l) => l.targetId)), saved: new Set(saves.map((s) => s.targetId)), votes: byPoll, id: viewerId, blocked: new Set(rel.blocked), price };
 }
 
 /** Lädt Beiträge in gegebener Reihenfolge inkl. Betrachterstatus. */

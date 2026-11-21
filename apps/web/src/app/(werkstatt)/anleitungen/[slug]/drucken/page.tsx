@@ -44,7 +44,7 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
     { label: "Schwierigkeit", value: DIFFICULTY_LABEL[t.difficulty] },
     { label: "Dauer", value: formatMinutes(t.minutes ?? (stepsMinutes || null)) },
     { label: "Schritte", value: String(t.steps.length) },
-    ...(cost ? [{ label: "Material ca.", value: `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor)}` }] : []),
+    ...(cost ? [{ label: "Material ca.", value: `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor, t.costCurrency)}` }] : []),
     { label: "Version", value: t.preview ? "Entwurf" : `v${t.version.number} · ${formatDate(t.version.publishedAt, { day: "numeric", month: "short", year: "numeric" })}` },
   ];
 
@@ -121,7 +121,7 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
                       </span>
                       <span className="shrink-0 text-right tabular-nums text-ink-2">
                         {m.quantity}
-                        {m.costMinor != null && <span className="ml-2 text-muted">{formatMoney(m.costMinor)}</span>}
+                        {m.costMinor != null && <span className="ml-2 text-muted">{formatMoney(m.costMinor, t.costCurrency)}</span>}
                       </span>
                     </li>
                   ))}

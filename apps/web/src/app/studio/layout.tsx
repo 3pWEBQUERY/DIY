@@ -9,6 +9,8 @@ import { PageTransition } from "@/components/shell/page-transition";
 import { isPro } from "@/server/pro/service";
 import { ProMark } from "@/components/pro/pro-mark";
 import { BRAND } from "@/config/brand";
+import { countryPromptFor } from "@/server/account/country";
+import { CountryPrompt } from "@/components/account/country-prompt";
 
 export const metadata = { title: { default: `${BRAND.name} Studio`, template: `%s · ${BRAND.name} Studio` }, robots: { index: false } };
 
@@ -16,7 +18,7 @@ export const metadata = { title: { default: `${BRAND.name} Studio`, template: `%
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/studio");
-  const pro = await isPro(user.id);
+  const [pro, countryPrompt] = await Promise.all([isPro(user.id), user.profile.countryConfirmedAt ? null : countryPromptFor(user.id)]);
   return (
     <div className="min-h-dvh bg-paper">
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-rule bg-paper px-4 sm:px-6">
@@ -39,6 +41,7 @@ export default async function StudioLayout({ children }: { children: React.React
           <PageTransition>{children}</PageTransition>
         </main>
       </div>
+      {countryPrompt && <CountryPrompt suggested={countryPrompt.suggested} />}
     </div>
   );
 }

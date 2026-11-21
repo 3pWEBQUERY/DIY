@@ -9,14 +9,17 @@ import UserNotifications
 struct Bootstrap: Decodable, Sendable {
     struct Payments: Decodable, Sendable { var mode: String; var feeBps: Int }
     struct Features: Decodable, Sendable { var apple: Bool?; var appleNative: Bool? }
+    /// Währung der Preise (Mitglieder: Land im Profil; Gäste: Sprache des Geräts) und EZB-Tageskurs
+    struct Price: Decodable, Sendable { var currency: String; var eurChf: Double?; var fxDate: String? }
     var categories: [Category]
     /// Feature-Flags (Admin → System), z. B. `marketplace: false` → Marktplatz ausblenden
     var flags: [String: Bool]?
     var payments: Payments
     var features: Features?
+    var price: Price?
     var me: Me?
 
-    private enum CodingKeys: String, CodingKey { case categories, flags, payments, features, me }
+    private enum CodingKeys: String, CodingKey { case categories, flags, payments, features, price, me }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -25,6 +28,8 @@ struct Bootstrap: Decodable, Sendable {
         flags = (try? c.decodeIfPresent([String: Bool].self, forKey: .flags)) ?? nil
         payments = try c.decode(Payments.self, forKey: .payments)
         features = (try? c.decodeIfPresent(Features.self, forKey: .features)) ?? nil
+        // Älterer Server ohne Währung: Franken
+        price = (try? c.decodeIfPresent(Price.self, forKey: .price)) ?? nil
         me = try c.decodeIfPresent(Me.self, forKey: .me)
     }
 }
@@ -37,7 +42,11 @@ struct Me: Decodable, Sendable, Equatable {
         var bio: String?
         var categories: [String]?
         var isCreatorPro: Bool?
+        var country: String?
+        var countryConfirmedAt: Date?
     }
+    /// Land noch nicht bestätigt (bestehende Konten): einmal fragen, `suggested` vorauswählen
+    struct CountryPrompt: Decodable, Sendable, Equatable { var suggested: String? }
     struct ShopMini: Decodable, Sendable, Equatable { var id: String; var slug: String; var status: String; var name: String }
     struct CountsBox: Decodable, Sendable, Equatable {
         var notifications: Int
@@ -58,6 +67,9 @@ struct Me: Decodable, Sendable, Equatable {
     var isModerator: Bool
     var isAdmin: Bool
     var counts: CountsBox
+    /// Währung der Preise für dieses Konto („CHF“ oder „EUR“)
+    var currency: String?
+    var countryPrompt: CountryPrompt?
 }
 
 // MARK: - App-Zustand
@@ -76,6 +88,10 @@ final class AppState {
     var paymentsMode: String = "disabled"
     var feeBps: Int = 600
     var appleNative = false
+    /// Währung und Kurs aus dem letzten Bootstrap (Gäste: Sprache des Geräts)
+    var priceCurrency: String = "CHF"
+    var eurChf: Double?
+    var fxDate: String?
     var lastError: String?
     /// Feature-Flags aus dem letzten Bootstrap (fehlende Schlüssel gelten als eingeschaltet)
     var flags: [String: Bool] = [:]
@@ -133,6 +149,10 @@ final class AppState {
     var pendingRequests: Int { liveCounts?.requests ?? me?.counts.messages.requests ?? 0 }
     var cartCount: Int { liveCounts?.cart ?? me?.counts.cart ?? 0 }
     var hasActiveShop: Bool { me?.shop?.status == "ACTIVE" || me?.shop?.status == "PAUSED" }
+    /// Währung, in der die angemeldete Person (bzw. der Gast) Preise sieht und bezahlt
+    var currency: String { me?.currency ?? (me?.profile?.country).map { Currency.forCountry($0) } ?? priceCurrency }
+    /// Einmalige Abfrage des Landes nötig (bestehende Konten ohne bestätigtes Land)
+    var needsCountry: Bool { me?.countryPrompt != nil && me?.status != "SUSPENDED" }
 
     func category(_ slug: String?) -> Category? { categories.first { $0.slug == slug } }
     func categoryName(_ slug: String?) -> String { category(slug)?.name ?? slug ?? "" }
@@ -192,6 +212,9 @@ final class AppState {
         feeBps = b.payments.feeBps
         appleNative = b.features?.appleNative ?? false
         flags = b.flags ?? [:]
+        priceCurrency = b.price?.currency ?? "CHF"
+        eurChf = b.price?.eurChf
+        fxDate = b.price?.fxDate
         // Vor dem Überschreiben merken, ob vorher ein Konto angemeldet war (für den Online-Status unten)
         let wasSignedIn = me != nil
         let previousToken = api.token
@@ -326,8 +349,8 @@ final class AppState {
 
     struct SignUpResult: Decodable { var userId: String; var token: String? }
 
-    func signUp(email: String, password: String, displayName: String, handle: String) async throws {
-        let body: [String: JSONValue] = ["email": .string(email), "password": .string(password), "displayName": .string(displayName), "handle": .string(handle), "adult": true, "terms": true]
+    func signUp(email: String, password: String, displayName: String, handle: String, country: String) async throws {
+        let body: [String: JSONValue] = ["email": .string(email), "password": .string(password), "displayName": .string(displayName), "handle": .string(handle), "country": .string(country), "adult": true, "terms": true]
         let r: SignUpResult = try await api.post("/auth/signup", body)
         if let t = r.token { api.token = t } else { try await signIn(email: email, password: password); return }
         isGuest = false

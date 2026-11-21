@@ -19,6 +19,7 @@ import { slugSuffix, withSlugRetry } from "@/lib/unique-retry";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
+import { getPriceContext, localize } from "@/server/commerce/currency";
 
 /**
  * Projekte – der Produktkern (PRD §10). Ein Projekt bündelt Journal, Anleitung,
@@ -703,9 +704,11 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
     .filter((t) => t.state === "PUBLISHED" || isOwner)
     .map((t) => ({ id: t.id, slug: t.slug, title: t.title, summary: t.summary, state: t.state, difficulty: t.difficulty, minutes: t.minutes, coverUrl: t.coverUrl, category: t.category, version: t.currentVersion?.version ?? null, steps: t.currentVersion?._count.steps ?? 0, publishedAt: t.publishedAt?.toISOString() ?? null }));
 
+  // Verkaufte Produkte im Preis der Betrachter:in
+  const px = await getPriceContext();
   const products = p.products
     .filter((pr) => pr.shop.status === "ACTIVE")
-    .map((pr) => ({ id: pr.id, title: pr.title, kind: pr.kind, priceMinor: pr.priceMinor, currency: pr.currency, coverUrl: pr.coverUrl, soldOut: pr.status === "SOLD_OUT", href: `/markt/${pr.shop.slug}/${pr.slug}`, shopName: pr.shop.name, at: (pr.publishedAt ?? pr.createdAt).toISOString() }));
+    .map((pr) => ({ id: pr.id, title: pr.title, kind: pr.kind, priceMinor: localize(px, pr.priceMinor, pr.currency), currency: px.currency, coverUrl: pr.coverUrl, soldOut: pr.status === "SOLD_OUT", href: `/markt/${pr.shop.slug}/${pr.slug}`, shopName: pr.shop.name, at: (pr.publishedAt ?? pr.createdAt).toISOString() }));
 
   const articles = p.articles
     .filter((a) => a.article.state === "PUBLISHED")
@@ -747,8 +750,9 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
     estimatedMinutes: p.estimatedMinutes,
     actualMinutes: p.actualMinutes,
     journalMinutes,
-    budgetMinor: p.budgetMinor,
-    currency: (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR",
+    // Budget in der Währung der Betrachter:in (die eigene Ansicht bleibt in der Projektwährung)
+    budgetMinor: p.budgetMinor != null && !isOwner ? localize(px, p.budgetMinor, p.currency) : p.budgetMinor,
+    currency: (isOwner ? (p.currency === "EUR" ? "EUR" : "CHF") : px.currency) as "CHF" | "EUR",
     status: p.status,
     visibility: p.visibility,
     state: p.state,

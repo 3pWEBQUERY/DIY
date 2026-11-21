@@ -14,6 +14,7 @@ import { readingMinutes, slugify } from "@/lib/utils";
 import { stripInline } from "@/lib/inline-marks";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
+import { getPriceContext, localizePrice } from "@/server/commerce/currency";
 
 /**
  * Blogs (PRD §14): blockbasierte Artikel mit Entwürfen, Revisionen, geplanter
@@ -109,7 +110,7 @@ async function loadActor(userId: string): Promise<SessionUser | null> {
       onboardedAt: true,
       adultConfirmedAt: true,
       createdAt: true,
-      profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true } },
+      profile: { select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true, country: true, countryConfirmedAt: true } },
       shop: { select: { id: true, slug: true, status: true, name: true } },
     },
   });
@@ -703,6 +704,7 @@ export async function linkedProjects(projectIds: string[], viewerId?: string | n
 
 /** Daten für eingebettete Karten und frische Medienvarianten eines Artikels. */
 export async function resolveEmbeds(blocks: ArticleBlock[], viewerId: string | null) {
+  const px = await getPriceContext();
   const ids = { project: [] as string[], tutorial: [] as string[], product: [] as string[], media: [] as string[] };
   for (const b of blocks) {
     if (b.type === "projectCard") ids.project.push(b.projectId);
@@ -737,7 +739,7 @@ export async function resolveEmbeds(blocks: ArticleBlock[], viewerId: string | n
   return {
     projects: new Map(projects.map((p) => [p.id, { ...p, href: `/u/${p.owner.profile?.handle}/${p.slug}` }])),
     tutorials: new Map(tutorials.map((t) => [t.id, { ...t, href: `/anleitungen/${t.slug}` }])),
-    products: new Map(products.map((p) => [p.id, { ...p, href: `/markt/${p.shop.slug}/${p.slug}` }])),
+    products: new Map(products.map((p) => [p.id, { ...localizePrice(px, p), href: `/markt/${p.shop.slug}/${p.slug}` }])),
     media: new Map(media.map((m) => [m.id, { ...m, variants: (m.variants ?? {}) as Record<string, string> }])),
   };
 }

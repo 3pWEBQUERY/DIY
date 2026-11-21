@@ -1,7 +1,7 @@
 import "server-only";
 import { recordView, viewRequest, type ViewRequest } from "@/server/analytics/service";
 import { z } from "zod";
-import { productUpsertSchema, SHIP_COUNTRIES, PRODUCT_KIND, CATEGORY_SLUGS, type ProductKind } from "@werkraum/shared";
+import { convertMinor, productUpsertSchema, SHIP_COUNTRIES, PRODUCT_KIND, CATEGORY_SLUGS, type ProductKind } from "@werkraum/shared";
 import { db, type Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { attachMedia, releaseMedia } from "@/server/media/service";
@@ -17,6 +17,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { requireFlag } from "@/server/flags";
 import { publicProductWhere, publicProductSql, isPublicProduct, restockSummary, notifyBackInStock, pendingRestockCounts } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
+import { getPriceContext, isConverted, localize, type PriceContext } from "./currency";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -54,16 +55,22 @@ export type ProductCardData = {
   ratingAvg: number;
   ratingCount: number;
   href: string;
+  /** Preis im Shop, wenn für die Betrachter:in umgerechnet wurde */
+  original?: { priceMinor: number; currency: "CHF" | "EUR" } | null;
 };
 
-export function toProductCard(p: ProductCardRow): ProductCardData {
+/** Produktkarte; mit `ctx` im Preis der Betrachter:in (Käuferansicht), ohne im Shop-Preis (Studio). */
+export function toProductCard(p: ProductCardRow, ctx?: PriceContext): ProductCardData {
   const m = p.media[0];
+  const shopCurrency = (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR";
+  const converted = !!ctx && isConverted(ctx, shopCurrency);
   return {
     id: p.id,
     slug: p.slug,
     title: p.title,
-    priceMinor: p.priceMinor,
-    currency: (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR",
+    priceMinor: ctx ? localize(ctx, p.priceMinor, shopCurrency) : p.priceMinor,
+    currency: ctx ? ctx.currency : shopCurrency,
+    original: converted ? { priceMinor: p.priceMinor, currency: shopCurrency } : null,
     kind: p.kind,
     category: p.category,
     status: p.status,
@@ -156,7 +163,13 @@ export async function productListWhere(filters: ProductFilters, viewerId?: strin
   if (filters.uniqueOnly) and.push({ kind: "UNIQUE" });
   else if (filters.kind) and.push({ kind: filters.kind });
   if (filters.minPriceMinor != null || filters.maxPriceMinor != null) {
-    and.push({ priceMinor: { ...(filters.minPriceMinor != null ? { gte: filters.minPriceMinor } : {}), ...(filters.maxPriceMinor != null ? { lte: filters.maxPriceMinor } : {}) } });
+    // Preisspanne in der Währung der Betrachter:in; Shops der anderen Währung mit umgerechneter Spanne
+    const ctx = await getPriceContext();
+    const range = (cur: "CHF" | "EUR") => {
+      const conv = (m: number) => (cur === ctx.currency ? m : convertMinor(m, ctx.currency, cur, ctx.eurChf));
+      return { ...(filters.minPriceMinor != null ? { gte: conv(filters.minPriceMinor) } : {}), ...(filters.maxPriceMinor != null ? { lte: conv(filters.maxPriceMinor) } : {}) };
+    };
+    and.push({ OR: [{ currency: "EUR", priceMinor: range("EUR") }, { currency: { not: "EUR" }, priceMinor: range("CHF") }] });
   }
   return {
     // Ausverkaufte nur dort, wo gewünscht (Shopseite) – und nur, wenn der Shop sie nicht ausblendet
@@ -206,7 +219,8 @@ export async function listProducts(
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const page = rows.slice(0, take);
-  return { items: page.map(toProductCard), nextCursor: rows.length > take ? page[page.length - 1]!.id : null };
+  const ctx = await getPriceContext();
+  return { items: page.map((p) => toProductCard(p, ctx)), nextCursor: rows.length > take ? page[page.length - 1]!.id : null };
 }
 
 /* ───────────────────────── Studio: Lesen ───────────────────────── */
@@ -561,14 +575,28 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
   const project = p.project && p.project.state === "PUBLISHED" && p.project.visibility === "PUBLIC" ? { ...p.project, ownerHandle: p.project.owner.profile?.handle ?? "" } : null;
   const tutorial = p.tutorial && p.tutorial.state === "PUBLISHED" ? p.tutorial : null;
 
+  // Käufer:innen sehen Preise in ihrer Währung (Varianten: umgerechneter Gesamtpreis minus Grundpreis,
+  // damit Produktseite und Warenkorb dieselben Beträge zeigen); der Shop sieht seine eigenen Preise
+  const ctx = isOwner ? null : await getPriceContext();
+  const price = (minor: number) => (ctx ? localize(ctx, minor, p.currency) : minor);
+  const basePrice = price(p.priceMinor);
+  const localDelta = (delta: number) => (ctx ? price(p.priceMinor + delta) - basePrice : delta);
+
   return {
     ...p,
+    priceMinor: basePrice,
+    currency: ctx ? ctx.currency : p.currency,
+    shippingMinor: price(p.shippingMinor),
+    variants: p.variants.map((v) => ({ ...v, priceDeltaMinor: localDelta(v.priceDeltaMinor) })),
+    /** Preis im Shop, wenn umgerechnet wurde (Hinweis „umgerechnet von …“) */
+    priceOriginal: ctx && isConverted(ctx, p.currency) ? { priceMinor: p.priceMinor, currency: p.currency, fxDate: ctx.fxDate } : null,
+    shippingOriginalMinor: p.shippingMinor,
     project,
     tutorial,
     isOwner,
     purchasable: p.status === "ACTIVE" && p.shop.status === "ACTIVE" && p.shop.owner.status === "ACTIVE" && (baseAvailable === null || baseAvailable > 0),
     available: baseAvailable,
-    variantStock: stock,
+    variantStock: stock.map((v) => ({ ...v, priceDeltaMinor: localDelta(v.priceDeltaMinor) })),
     viewer: { saved: !!saved, entitlementId: entitled && !entitled.revokedAt ? entitled.id : null, restockRequested: restock.requested },
     // Offene Anfragen zur Nachproduktion – nur für den Shop selbst
     restockPendingCount: isOwner ? restock.pendingCount : null,
@@ -598,5 +626,6 @@ export async function moreFromShop(shopId: string, exceptId: string, take = 4) {
     take,
     select: productCardSelect,
   });
-  return rows.map(toProductCard);
+  const ctx = await getPriceContext();
+  return rows.map((p) => toProductCard(p, ctx));
 }

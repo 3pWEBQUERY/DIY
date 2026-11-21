@@ -471,9 +471,9 @@ struct DiscoverSearchFilterSheet: View {
                 if type == nil || type == .product || type == .tutorial {
                     Section {
                         HStack {
-                            TextField("Ab CHF", text: $draft.priceMin).keyboardType(.decimalPad)
+                            TextField("Ab \(Currency.symbol(app.currency))", text: $draft.priceMin).keyboardType(.decimalPad)
                             Text("–").foregroundStyle(Color.muted)
-                            TextField("Bis CHF", text: $draft.priceMax).keyboardType(.decimalPad)
+                            TextField("Bis \(Currency.symbol(app.currency))", text: $draft.priceMax).keyboardType(.decimalPad)
                         }
                         Toggle("Nur kostenlose Anleitungen", isOn: $draft.free)
                         Picker("Versand aus", selection: $draft.country) {

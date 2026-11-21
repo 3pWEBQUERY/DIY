@@ -22,6 +22,9 @@ import { apnsConfigured } from "@/server/push/apns";
 import { DELETE, GET, PATCH, POST, PUT, me, meAllowSuspended, need, session, viewer, zStr, type RouteDef } from "../router";
 import { z } from "zod";
 import { flagsFor } from "@/server/flags";
+import { currencyForCountry } from "@werkraum/shared";
+import { getPriceContext } from "@/server/commerce/currency";
+import { confirmCountry, countryPromptFor } from "@/server/account/country";
 
 /** Identität, Onboarding, Bootstrap, Konto & Einstellungen (PRD §8, §23, §7). */
 export const identityRoutes: RouteDef[] = [
@@ -36,13 +39,16 @@ export const identityRoutes: RouteDef[] = [
       payments: { mode: paymentsMode(), feeBps },
       features: { apple: features.apple(), appleNative: !!process.env.APPLE_IOS_CLIENT_ID, push: apnsConfigured() },
       serverTime: new Date().toISOString(),
+      // Währung der Preise (Mitglieder: Land im Profil; Gäste: Sprache des Geräts) und Tageskurs
+      price: await getPriceContext().then((p) => ({ currency: p.currency, eurChf: p.eurChf, fxDate: p.fxDate })),
     };
     if (!u) return { ...base, me: null };
-    const [notifications, inbox, cart, adultConfirmed] = await Promise.all([
+    const [notifications, inbox, cart, adultConfirmed, countryPrompt] = await Promise.all([
       unreadCount(u.id),
       inboxCounts(u.id),
       cartCount(u.id),
       db.user.findUnique({ where: { id: u.id }, select: { adultConfirmedAt: true } }).then((r) => !!r?.adultConfirmedAt),
+      u.profile && !u.profile.countryConfirmedAt ? countryPromptFor(u.id) : null,
     ]);
     return {
       ...base,
@@ -61,6 +67,9 @@ export const identityRoutes: RouteDef[] = [
         isModerator: hasRole(u, "PLATFORM_MODERATOR"),
         isAdmin: hasRole(u, "ADMIN"),
         counts: { notifications, messages: inbox, cart },
+        currency: currencyForCountry(u.profile?.country),
+        /** Land noch nicht bestätigt: einmal fragen, `suggested` vorauswählen */
+        countryPrompt,
       },
     };
   }),
@@ -99,6 +108,11 @@ export const identityRoutes: RouteDef[] = [
     const { requestEmailChange } = await import("@/server/account/email-change");
     const r = await requestEmailChange((await meAllowSuspended()).id, { email: b.email ?? "", password: b.password ?? "" });
     return { ...r, message: `Wir haben einen Bestätigungslink an ${r.email} geschickt. Erst nach dem Klick wird die Adresse umgestellt.` };
+  }),
+  // Land bestätigen bzw. ändern (einmalige Abfrage) – bestimmt die Währung der Preise
+  POST("/me/country", async (c) => {
+    const r = await confirmCountry((await meAllowSuspended()).id, await c.json());
+    return { ...r, currency: currencyForCountry(r.country) };
   }),
   POST("/auth/resend-verification", async () => {
     await account.resendVerification(await meAllowSuspended());

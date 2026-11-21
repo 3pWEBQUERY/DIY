@@ -104,8 +104,14 @@ export async function withAppPricing<T>(data: T): Promise<T> {
     const out: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(o)) out[k] = walk(val, depth + 1);
     if (o.kind === "DIGITAL" && typeof o.priceMinor === "number") {
-      const p = appPriceFor(o.priceMinor, s.markupBps);
-      out.priceMinor = p?.priceMinor ?? o.priceMinor;
+      // Preisstufe aus dem Shop-Preis (nicht aus dem für Betrachter:innen umgerechneten Preis);
+      // den Endpreis je Land legt der App Store fest
+      const original = o.original && typeof o.original === "object" ? (o.original as { priceMinor?: unknown; currency?: unknown }) : null;
+      const web = typeof original?.priceMinor === "number" ? original.priceMinor : o.priceMinor;
+      const p = appPriceFor(web, s.markupBps);
+      out.priceMinor = p?.priceMinor ?? web;
+      if (typeof original?.currency === "string") out.currency = original.currency;
+      out.original = null;
       out.appStoreProductId = s.enabled && p ? p.appleProductId : null;
     }
     return out;

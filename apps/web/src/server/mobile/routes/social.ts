@@ -19,6 +19,7 @@ import { DELETE, GET, PATCH, POST, me, need, str, takeParam, viewer, viewerId, z
 import { publicProductWhere } from "@/server/commerce/restock";
 import * as stories from "@/server/stories/service";
 import { listHighlights } from "@/server/stories/highlights";
+import { getPriceContext, localizePrice } from "@/server/commerce/currency";
 
 /**
  * Kommentarliste für die App. Ohne `paged=1`/`cursor` wie bisher nur die erste Seite als Liste
@@ -251,7 +252,11 @@ export const socialRoutes: RouteDef[] = [
       tutorials: tutorials?.items ?? [],
       posts: postList?.items ?? [],
       postsCursor: postList?.nextCursor ?? null,
-      products: (products as { slug: string }[]).map((x) => ({ ...x, shopSlug: p.user.shop?.slug ?? null })),
+      // Preise im Profil in der Währung der Betrachter:in (eigenes Profil: Shop-Preise)
+      products: await (async () => {
+        const px = await getPriceContext();
+        return (products as { slug: string; priceMinor: number; currency: string }[]).map((x) => ({ ...(isSelf ? x : localizePrice(px, x)), shopSlug: p.user.shop?.slug ?? null }));
+      })(),
       collections: (collections as { id: string; title: string; description: string; visibility: string; _count: { items: number } }[]).map((x) => ({
         id: x.id,
         title: x.title,

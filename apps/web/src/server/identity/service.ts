@@ -73,7 +73,7 @@ export async function signUp(input: unknown) {
         signupMethod: "EMAIL",
         adultConfirmedAt: now,
         termsAcceptedAt: now,
-        profile: { create: { handle: avail.handle, displayName: data.displayName } },
+        profile: { create: { handle: avail.handle, displayName: data.displayName, country: data.country, countryConfirmedAt: now } },
         preference: { create: {} },
       },
       select: { id: true, email: true },

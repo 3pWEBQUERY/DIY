@@ -108,7 +108,7 @@ const userSelect = {
   adultConfirmedAt: true,
   createdAt: true,
   profile: {
-    select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true },
+    select: { handle: true, displayName: true, avatarUrl: true, bio: true, categories: true, isCreatorPro: true, country: true, countryConfirmedAt: true },
   },
   shop: { select: { id: true, slug: true, status: true, name: true } },
 } as const;

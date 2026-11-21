@@ -115,7 +115,7 @@ async function admin() {
       adultConfirmedAt: new Date(),
       termsAcceptedAt: new Date(),
       onboardedAt: new Date(),
-      profile: { create: { handle: "werkraum", displayName: "Werkuno Redaktion", bio: "Die Redaktion hinter Werkuno. Wir kuratieren, moderieren und hören zu.", categories: ["haekeln-stricken", "naehen-textil", "holz"], region: "Zürich" } },
+      profile: { create: { handle: "werkraum", displayName: "Werkuno Redaktion", bio: "Die Redaktion hinter Werkuno. Wir kuratieren, moderieren und hören zu.", categories: ["haekeln-stricken", "naehen-textil", "holz"], region: "Zürich", country: "CH", countryConfirmedAt: new Date() } },
       preference: { create: { interests: ["haekeln-stricken", "naehen-textil", "holz"] } },
     },
   });
@@ -611,7 +611,7 @@ async function demo(adminId: string) {
         onboardedAt: new Date(),
         lastSeenAt: hours(i * 3),
         createdAt: days(90 - i * 4),
-        profile: { create: { handle: c.handle, displayName: c.name, bio: c.bio, region: c.region, country: c.country ?? "CH", categories: c.cats, dmPolicy: "EVERYONE" } },
+        profile: { create: { handle: c.handle, displayName: c.name, bio: c.bio, region: c.region, country: c.country ?? "CH", countryConfirmedAt: new Date(), categories: c.cats, dmPolicy: "EVERYONE" } },
         preference: { create: { interests: c.cats } },
       },
     });

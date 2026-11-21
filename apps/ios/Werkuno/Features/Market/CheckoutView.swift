@@ -211,13 +211,13 @@ struct CheckoutView: View {
                                     HStack(alignment: .firstTextBaseline) {
                                         Text("\(l.quantity) × \(l.title)\(l.variantName.map { " (\($0))" } ?? "")").font(.wr(.footnote)).foregroundStyle(Color.ink2)
                                         Spacer(minLength: 8)
-                                        Text(Fmt.money(l.lineMinor)).font(.wr(.footnote)).monospacedDigit()
+                                        Text(Fmt.money(l.lineMinor, currency: c.currency)).font(.wr(.footnote)).monospacedDigit()
                                     }
                                 }
                                 HStack {
                                     Text("Versand").font(.wr(.caption)).foregroundStyle(Color.muted)
                                     Spacer()
-                                    Text(g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
+                                    Text(g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping, currency: c.currency)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
                                 }
                                 if let d = g.shop.processingDays, !g.lines.allSatisfy(\.isDigital) {
                                     Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.wr(.caption2)).foregroundStyle(Color.muted)
@@ -227,8 +227,11 @@ struct CheckoutView: View {
                             .hairline()
                         }
                         VStack(alignment: .leading, spacing: 8) {
-                            MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total)
-                            Text("Endpreis. Keine Zusatzgebühren für Käufer:innen.").font(.wr(.caption)).foregroundStyle(Color.muted)
+                            MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total, currency: c.currency)
+                            Text("Endpreis in \(Currency.name(c.currency)). Keine Zusatzgebühren für Käufer:innen.").font(.wr(.caption)).foregroundStyle(Color.muted)
+                            if let fx = c.fx, c.groups.contains(where: { $0.converted == true }) {
+                                MarketFxNote(currency: c.currency ?? "CHF", shopCurrency: c.groups.first(where: { $0.converted == true })?.shop.currency, eurChf: fx.eurChf, date: fx.date)
+                            }
                         }
                         .padding(16)
                     }
@@ -309,7 +312,7 @@ struct CheckoutView: View {
             Button { Task { await submit(c) } } label: {
                 HStack(spacing: 8) {
                     if submitting { ProgressView().tint(.white) } else { Image(systemName: "lock.fill") }
-                    Text(submitting ? "Einen Moment …" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total))")
+                    Text(submitting ? "Einen Moment …" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total, currency: c.currency))")
                         .monospacedDigit()
                 }
                 .font(.wr(.body, .semibold))

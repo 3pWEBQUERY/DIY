@@ -43,7 +43,7 @@ export default async function StudioSupportersPage() {
         </div>
         <div>
           <dt className="spec">Letzte 30 Tage</dt>
-          <dd className="num mt-1 font-mono text-xl">{formatMoney(s.stats.last30NetMinor)}</dd>
+          <dd className="num mt-1 font-mono text-xl">{formatMoney(s.stats.last30NetMinor, s.currency)}</dd>
         </div>
         <div>
           <dt className="spec">Exklusive Anleitungen</dt>
@@ -54,7 +54,7 @@ export default async function StudioSupportersPage() {
       <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section aria-labelledby="abo">
           <SectionTitle n="01" title={<span id="abo">Dein Unterstützer-Abo</span>} className="mb-5" />
-          <SupportPlanForm plan={s.plan} tiers={s.tiers} feeBps={s.feeBps} eligible={s.eligibility.ok} />
+          <SupportPlanForm plan={s.plan} tiers={s.tiers} feeBps={s.feeBps} eligible={s.eligibility.ok} currency={s.currency} />
         </section>
 
         <section aria-labelledby="liste">
@@ -71,7 +71,7 @@ export default async function StudioSupportersPage() {
                       {r.displayName}
                     </Link>
                     <p className="text-[12.5px] text-muted">
-                      seit {day(r.since)} · {formatMoney(r.priceMinor)}/Monat · {r.provider === "apple" ? "iOS-App" : r.provider === "stripe" ? "Web" : "Test"}
+                      seit {day(r.since)} · {formatMoney(r.priceMinor, r.currency)}/Monat · {r.provider === "apple" ? "iOS-App" : r.provider === "stripe" ? "Web" : "Test"}
                       {r.active && r.cancelAtPeriodEnd && r.currentPeriodEnd ? ` · bis ${day(r.currentPeriodEnd)}` : ""}
                     </p>
                   </div>

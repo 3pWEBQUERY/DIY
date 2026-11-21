@@ -26,6 +26,8 @@ export const signUpSchema = z.object({
   password: passwordSchema,
   displayName: z.string().trim().min(1, "Bitte gib einen Namen an").max(60),
   handle: handleSchema,
+  /** Land bestimmt die Währung (CHF oder EUR) */
+  country: z.enum(["CH", "LI", "DE", "AT"], { error: "Bitte wähle dein Land" }),
   adult: z.literal(true, { error: "Die Teilnahme ist ab 18 Jahren möglich" }),
   terms: z.literal(true, { error: "Bitte akzeptiere die Nutzungsbedingungen" }),
 });

@@ -49,6 +49,8 @@ export function FeeSummary({
   seller,
   refunded,
   discounts,
+  shopCurrency,
+  shopFx,
   className,
 }: {
   subtotal: number;
@@ -60,6 +62,9 @@ export function FeeSummary({
   /** Anteil des Shops je Zahlungsweg (Stripe im Web, Apple in der iOS-App) */
   seller?: SellerShare;
   refunded?: number;
+  /** Verkäufer:innen: Shop-Währung und Kurs vom Kauf, wenn in der anderen Währung bezahlt wurde */
+  shopCurrency?: string;
+  shopFx?: number | null;
   className?: string;
 }) {
   const c = cur(currency);
@@ -85,7 +90,11 @@ export function FeeSummary({
         <>
           <Row label={`Plattformgebühr (${feePercent(seller.feeBps)} auf den Warenwert${discounts?.length ? " nach Rabatt" : ""})`} value={`− ${formatMoney(seller.platformFeeMinor, c)}`} muted />
           <Row label="Auszahlung an dich (vor Stripe-Gebühren)" value={formatMoney(seller.payoutMinor, c)} strong />
-          <p className="pt-2 text-[12.5px] leading-relaxed text-muted">Bezahlt im Web über Stripe. Stripe zieht seine Zahlungsgebühren bei der Auszahlung ab.</p>
+          {shopFx && shopCurrency && shopCurrency !== c && <Row label={`Etwa in ${shopCurrency} (Kurs vom Kauf)`} value={`≈ ${formatMoney(Math.round(seller.payoutMinor * shopFx), shopCurrency)}`} muted />}
+          <p className="pt-2 text-[12.5px] leading-relaxed text-muted">
+            Bezahlt im Web über Stripe{shopFx && shopCurrency && shopCurrency !== c ? ` in ${c === "EUR" ? "Euro" : "Franken"}` : ""}. Stripe zieht seine Zahlungsgebühren bei der Auszahlung ab
+            {shopFx && shopCurrency && shopCurrency !== c ? ` und rechnet zum Tageskurs in ${shopCurrency} um – der genaue Betrag steht in deiner Stripe-Auszahlung` : ""}.
+          </p>
         </>
       )}
       {seller?.channel === "apple" && <AppleShare share={seller} currency={c} />}

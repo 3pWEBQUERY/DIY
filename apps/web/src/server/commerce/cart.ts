@@ -12,6 +12,7 @@ import { available, groupByShop, grandTotal, unitPrice } from "./rules";
 import { paymentsMode } from "./stripe";
 import { requireFlag } from "@/server/flags";
 import { fitRows, loadCartDiscounts } from "./discounts";
+import { isConverted, localize, priceContextFor, type PriceContext } from "./currency";
 
 /**
  * Warenkorb (§13.5): ein Warenkorb je Konto, Positionen je Produkt/Variante.
@@ -35,7 +36,7 @@ const cartItemInclude = {
       coverUrl: true,
       media: { orderBy: { position: "asc" }, take: 1, select: { alt: true, media: { select: { variants: true } } } },
       inventory: { where: { variantId: null }, select: { onHand: true, reserved: true } },
-      shop: { select: { id: true, slug: true, name: true, status: true, ownerId: true, chargesEnabled: true, stripeAccountId: true, processingDays: true, country: true } },
+      shop: { select: { id: true, slug: true, name: true, status: true, ownerId: true, chargesEnabled: true, stripeAccountId: true, processingDays: true, country: true, currency: true } },
     },
   },
   variant: { select: { id: true, name: true, priceDeltaMinor: true, inventory: { select: { onHand: true, reserved: true } } } },
@@ -53,10 +54,14 @@ export type CartLineView = {
   kind: string;
   category: string;
   cover: { url: string | null; variants: Variants | null; alt: string };
+  /** In der Währung der Käufer:in (`currency`) */
   unitMinor: number;
   quantity: number;
   lineMinor: number;
   shippingMinor: number;
+  currency: string;
+  /** Preis im Shop, wenn umgerechnet wurde (sonst null) */
+  original: { unitMinor: number; currency: string } | null;
   isDigital: boolean;
   available: number | null;
   problem: string | null;
@@ -69,12 +74,14 @@ function shopAcceptsPayments(shop: CartRow["product"]["shop"]) {
   return mode === "simulated";
 }
 
-function toLine(r: CartRow, opts: { digitalEnabled: boolean }): CartLineView {
+function toLine(r: CartRow, opts: { digitalEnabled: boolean; ctx: PriceContext }): CartLineView {
   const p = r.product;
   const isDigital = p.kind === "DIGITAL";
   const inv = r.variant ? r.variant.inventory : p.inventory[0];
   const avail = isDigital ? null : available(inv);
-  const unit = unitPrice(p.priceMinor, r.variant?.priceDeltaMinor ?? 0);
+  const shopUnit = unitPrice(p.priceMinor, r.variant?.priceDeltaMinor ?? 0);
+  // Preise in der Währung der Käufer:in (Tageskurs, auf 10 Rappen/Cent gerundet)
+  const unit = localize(opts.ctx, shopUnit, p.currency);
   let problem: string | null = null;
   if (p.status !== "ACTIVE" && p.status !== "SOLD_OUT") problem = "Nicht mehr im Angebot";
   else if (isDigital && !opts.digitalEnabled) problem = "Digitale Produkte sind derzeit nicht verfügbar";
@@ -97,7 +104,9 @@ function toLine(r: CartRow, opts: { digitalEnabled: boolean }): CartLineView {
     unitMinor: unit,
     quantity: r.quantity,
     lineMinor: unit * r.quantity,
-    shippingMinor: isDigital ? 0 : p.shippingMinor,
+    shippingMinor: isDigital ? 0 : localize(opts.ctx, p.shippingMinor, p.currency),
+    currency: opts.ctx.currency,
+    original: isConverted(opts.ctx, p.currency) ? { unitMinor: shopUnit, currency: p.currency } : null,
     isDigital,
     available: avail,
     problem,
@@ -106,23 +115,30 @@ function toLine(r: CartRow, opts: { digitalEnabled: boolean }): CartLineView {
 
 /** Warenkorb gruppiert nach Shop – mit vollständiger Kostenaufstellung (§5.7). */
 export async function getCartView(userId: string) {
-  const [digitalEnabled, cart] = await Promise.all([getSetting("commerce.digitalEnabledWeb"), db.cart.findUnique({ where: { userId }, include: { items: { include: cartItemInclude, orderBy: { createdAt: "asc" } } } })]);
+  const [digitalEnabled, cart, ctx] = await Promise.all([
+    getSetting("commerce.digitalEnabledWeb"),
+    db.cart.findUnique({ where: { userId }, include: { items: { include: cartItemInclude, orderBy: { createdAt: "asc" } } } }),
+    priceContextFor(userId),
+  ]);
   const rows = cart?.items ?? [];
   const fee = await feeResolver(rows.map((r) => r.product.shop.id));
   const feeBps = fee.base;
-  const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled }) }));
+  const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled, ctx }) }));
   const priced = lines.map((l) => ({ ...l.view, shopId: l.row.product.shop.id }));
   const disc = await loadCartDiscounts(db, { userId, cartId: cart?.id, includePending: false });
   const details = new Map<string, ReturnType<typeof disc.forShop>>();
+  const shopCurrency = (shopId: string) => rows.find((r) => r.product.shop.id === shopId)?.product.shop.currency ?? "CHF";
   const groups = groupByShop(priced, fee, (shopId, ls, subtotal) => {
-    const d = disc.forShop(shopId, ls, subtotal);
+    const d = disc.forShop(shopId, ls, subtotal, ctx.currency, (m) => localize(ctx, m, shopCurrency(shopId)));
     details.set(shopId, d);
     return d.amountMinor;
   }).map((g) => {
     const shop = rows.find((r) => r.product.shop.id === g.shopId)!.product.shop;
     const d = details.get(g.shopId)!;
     return {
-      shop: { id: shop.id, slug: shop.slug, name: shop.name, processingDays: shop.processingDays, country: shop.country },
+      shop: { id: shop.id, slug: shop.slug, name: shop.name, processingDays: shop.processingDays, country: shop.country, currency: shop.currency },
+      /** Shop verkauft in einer anderen Währung – Preise umgerechnet */
+      converted: isConverted(ctx, shop.currency),
       lines: g.lines,
       subtotal: g.subtotal,
       discount: g.discount,
@@ -136,6 +152,9 @@ export async function getCartView(userId: string) {
   });
   return {
     groups,
+    /** Währung aller Beträge (Käufer:in) und Kurs für den Hinweis */
+    currency: ctx.currency,
+    fx: { eurChf: ctx.eurChf, date: ctx.fxDate },
     totals: grandTotal(groups),
     feeBps,
     count: rows.reduce((s, r) => s + r.quantity, 0),

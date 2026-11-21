@@ -15,6 +15,7 @@ import { AppStoreVerificationError, verifyAppStoreJws, type AppStoreTransaction 
 import { appUrl, createSellerTransfer, isStripeError, paymentsMode, reverseSellerTransfer, stripe } from "@/server/commerce/stripe";
 import type { SessionUser } from "@/server/auth/session";
 import { BRAND } from "@/config/brand";
+import { getPriceContext, localize, priceContextFor } from "@/server/commerce/currency";
 
 /**
  * Unterstützer-Abo: Fans unterstützen eine Person (Creator) monatlich und erhalten Zugang zu deren
@@ -89,8 +90,11 @@ export async function getMySupportStudio(userId: string) {
     db.supporter.findMany({ where: { creatorId: userId, status: { not: "incomplete" } }, orderBy: { createdAt: "desc" }, take: 500, include: { supporter: supporterUser } }),
     db.tutorial.count({ where: { authorId: userId, supportersOnly: true, state: { not: "REMOVED" } } }),
     supportFeeBps(),
-    db.supportPayment.aggregate({ where: { creatorId: userId, refundedAt: null, createdAt: { gte: new Date(now.getTime() - 30 * 86_400_000) } }, _sum: { creatorNetMinor: true, amountMinor: true } }),
+    db.supportPayment.groupBy({ by: ["currency"], where: { creatorId: userId, refundedAt: null, createdAt: { gte: new Date(now.getTime() - 30 * 86_400_000) } }, _sum: { creatorNetMinor: true, amountMinor: true } }),
   ]);
+  // Zahlungen in EUR und CHF: in der Währung der Creatorin zusammenzählen
+  const ctx = await priceContextFor(userId);
+  const sum = (k: "creatorNetMinor" | "amountMinor") => last30.reduce((acc, g) => acc + localize(ctx, g._sum[k] ?? 0, g.currency), 0);
   const active = rows.filter((r) => isSupportActive(r, now));
   return {
     plan: { enabled: plan?.enabled ?? false, priceMinor: (plan?.priceMinor ?? 500) as number, perks: plan?.perks ?? "" },
@@ -98,7 +102,8 @@ export async function getMySupportStudio(userId: string) {
     feeBps,
     tiers: SUPPORT_TIERS_MINOR,
     exclusiveTutorials: exclusive,
-    stats: { active: active.length, last30NetMinor: last30._sum.creatorNetMinor ?? 0, last30GrossMinor: last30._sum.amountMinor ?? 0 },
+    currency: ctx.currency,
+    stats: { active: active.length, last30NetMinor: sum("creatorNetMinor"), last30GrossMinor: sum("amountMinor"), mixed: last30.some((g) => g.currency !== ctx.currency) },
     supporters: rows.map((r) => ({
       id: r.id,
       handle: r.supporter.profile?.handle ?? "",
@@ -106,6 +111,7 @@ export async function getMySupportStudio(userId: string) {
       avatarUrl: r.supporter.profile?.avatarUrl ?? null,
       provider: r.provider,
       priceMinor: r.priceMinor,
+      currency: r.currency,
       since: r.createdAt.toISOString(),
       currentPeriodEnd: r.currentPeriodEnd?.toISOString() ?? null,
       cancelAtPeriodEnd: r.cancelAtPeriodEnd,
@@ -158,14 +164,17 @@ export async function supportOffer(creatorId: string, viewerId: string | null) {
   const plan = await db.supportPlan.findUnique({ where: { userId: creatorId }, include: { user: { select: { status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } });
   const mine = viewerId && viewerId !== creatorId ? await db.supporter.findUnique({ where: { creatorId_supporterId: { creatorId, supporterId: viewerId } } }) : null;
   const mineView = mine && mine.status !== "incomplete"
-    ? { active: isSupportActive(mine), provider: mine.provider, priceMinor: mine.priceMinor, currentPeriodEnd: mine.currentPeriodEnd?.toISOString() ?? null, cancelAtPeriodEnd: mine.cancelAtPeriodEnd, since: mine.createdAt.toISOString() }
+    ? { active: isSupportActive(mine), provider: mine.provider, priceMinor: mine.priceMinor, currency: mine.currency, currentPeriodEnd: mine.currentPeriodEnd?.toISOString() ?? null, cancelAtPeriodEnd: mine.cancelAtPeriodEnd, since: mine.createdAt.toISOString() }
     : null;
-  if (!plan || plan.user.status !== "ACTIVE" || !plan.user.profile) return mineView ? { enabled: false, me: mineView, creator: null, priceMinor: mine!.priceMinor, perks: "", exclusiveTutorials: 0, appleProductId: null } : null;
+  // Die Stufe gilt in der Währung der Betrachter:in (5 CHF bzw. 5 €), nicht umgerechnet
+  const currency = viewerId ? (await priceContextFor(viewerId)).currency : (await getPriceContext()).currency;
+  if (!plan || plan.user.status !== "ACTIVE" || !plan.user.profile) return mineView ? { enabled: false, me: mineView, creator: null, priceMinor: mine!.priceMinor, currency: mine!.currency, perks: "", exclusiveTutorials: 0, appleProductId: null } : null;
   if (!plan.enabled && !mineView) return null;
   const exclusiveTutorials = await db.tutorial.count({ where: { authorId: creatorId, supportersOnly: true, state: "PUBLISHED" } });
   return {
     enabled: plan.enabled,
     priceMinor: plan.priceMinor,
+    currency,
     perks: plan.perks,
     exclusiveTutorials,
     creator: { id: creatorId, handle: plan.user.profile.handle, displayName: plan.user.profile.displayName, avatarUrl: plan.user.profile.avatarUrl },
@@ -202,13 +211,14 @@ export async function startSupportCheckout(user: Pick<SessionUser, "id" | "email
 
   if (mode === "simulated") {
     const feeBps = await supportFeeBps();
+    const { currency } = await priceContextFor(user.id);
     const end = addMonth(new Date());
     const row = await db.supporter.upsert({
       where: { creatorId_supporterId: { creatorId, supporterId: user.id } },
-      create: { creatorId, supporterId: user.id, provider: "simulated", status: "active", priceMinor: plan.priceMinor, currentPeriodEnd: end },
-      update: { provider: "simulated", status: "active", priceMinor: plan.priceMinor, currentPeriodEnd: end, cancelAtPeriodEnd: false, stripeSubscriptionId: null },
+      create: { creatorId, supporterId: user.id, provider: "simulated", status: "active", priceMinor: plan.priceMinor, currency, currentPeriodEnd: end },
+      update: { provider: "simulated", status: "active", priceMinor: plan.priceMinor, currency, currentPeriodEnd: end, cancelAtPeriodEnd: false, stripeSubscriptionId: null },
     });
-    await db.supportPayment.create({ data: { supporterRowId: row.id, creatorId, provider: "simulated", amountMinor: plan.priceMinor, ...splitAmount(plan.priceMinor, feeBps), periodStart: new Date(), periodEnd: end } });
+    await db.supportPayment.create({ data: { supporterRowId: row.id, creatorId, provider: "simulated", amountMinor: plan.priceMinor, currency, ...splitAmount(plan.priceMinor, feeBps), periodStart: new Date(), periodEnd: end } });
     await welcome(row.id);
     return `${back}?unterstuetzt=1`;
   }
@@ -245,6 +255,7 @@ async function createSupportCheckoutSession(user: Pick<SessionUser, "id" | "emai
   const shop = await payoutShop(creatorId);
   if (!shop?.stripeAccountId) throw fail.unavailable("Diese Person kann gerade keine Unterstützungen annehmen.");
   const customer = await supporterCustomer(user);
+  const { currency } = await priceContextFor(user.id);
   // Läuft bei Stripe schon ein Abo für diese Person (Webhook unterwegs)? Übernehmen statt doppelt abschliessen
   const subs = await stripe().subscriptions.list({ customer, status: "all", limit: 20 });
   const running = subs.data.find((s) => s.metadata?.kind === "support" && s.metadata?.creatorId === creatorId && ["active", "trialing", "past_due", "incomplete"].includes(s.status));
@@ -259,7 +270,7 @@ async function createSupportCheckoutSession(user: Pick<SessionUser, "id" | "emai
   for (const o of open.data) if (o.metadata?.kind === "support" && o.metadata?.creatorId === creatorId) await stripe().checkout.sessions.expire(o.id).catch(() => {});
   await db.supporter.upsert({
     where: { creatorId_supporterId: { creatorId, supporterId: user.id } },
-    create: { creatorId, supporterId: user.id, provider: "stripe", status: "incomplete", priceMinor, stripeCustomerId: customer },
+    create: { creatorId, supporterId: user.id, provider: "stripe", status: "incomplete", priceMinor, currency, stripeCustomerId: customer },
     update: { stripeCustomerId: customer },
   });
   const feeBps = await supportFeeBps();
@@ -268,7 +279,7 @@ async function createSupportCheckoutSession(user: Pick<SessionUser, "id" | "emai
     mode: "subscription",
     customer,
     client_reference_id: user.id,
-    line_items: [{ quantity: 1, price_data: { currency: "chf", unit_amount: priceMinor, recurring: { interval: "month" }, product_data: { name: `Unterstützung für ${profile.displayName}`, metadata } } }],
+    line_items: [{ quantity: 1, price_data: { currency: currency.toLowerCase(), unit_amount: priceMinor, recurring: { interval: "month" }, product_data: { name: `Unterstützung für ${profile.displayName}`, metadata } } }],
     subscription_data: { metadata, application_fee_percent: feeBps / 100, transfer_data: { destination: shop.stripeAccountId } },
     metadata,
     locale: "de",
@@ -634,7 +645,7 @@ async function welcome(rowId: string) {
   if (!r) return;
   const creatorName = r.creator.profile?.displayName ?? "die Person";
   await tell(r.supporterId, `Danke! Du unterstützt jetzt ${creatorName}. Exklusive Anleitungen sind für dich freigeschaltet.`, `/u/${r.creator.profile?.handle ?? ""}`);
-  await tell(r.creatorId, `${r.supporter.profile?.displayName ?? "Jemand"} unterstützt dich jetzt mit ${formatMoney(r.priceMinor)} im Monat.`, "/studio/unterstuetzer");
+  await tell(r.creatorId, `${r.supporter.profile?.displayName ?? "Jemand"} unterstützt dich jetzt mit ${formatMoney(r.priceMinor, r.currency)} im Monat.`, "/studio/unterstuetzer");
 }
 
 async function ended(rowId: string) {
