@@ -2,7 +2,8 @@ import Link from "next/link";
 import { AnnouncementSlot } from "@/components/announcements/announcement-slot";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowRight, Bookmark, Plus, Sparkles, Users } from "lucide-react";
+import { CreatorIcon } from "@/components/ui/creator-icon";
+import { ArrowRight, Bookmark, Plus, Users } from "lucide-react";
 import { PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import { currentUser, getPendingMfaSession } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -91,7 +92,7 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
 
       {creators.length > 0 && (
         <section>
-          <SectionTitle icon={<span className="grid size-7 place-items-center rounded-full bg-moss-soft text-moss"><Sparkles size={14} strokeWidth={2} aria-hidden /></span>} title="Creator für dich" />
+          <SectionTitle icon={<span className="grid size-7 place-items-center rounded-full bg-moss-soft"><CreatorIcon size={16} /></span>} title="Creator für dich" />
           <ul className="divide-y divide-line">
             {creators.map((c) => (
               <li key={c.userId} className="flex items-center gap-3 py-3">
