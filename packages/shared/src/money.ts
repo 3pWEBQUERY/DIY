@@ -1,8 +1,11 @@
 /** Geldbeträge werden immer als Integer in Rappen/Cent gespeichert. */
 export type Currency = "CHF" | "EUR";
 
-export function formatMoney(minor: number, currency: Currency = "CHF", locale = "de-CH") {
-  return new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: 2 }).format(minor / 100);
+/** Betrag formatieren; Währung als Code aus der Datenbank (`CHF`, `EUR`), leer = CHF */
+export function formatMoney(minor: number, currency: Currency | (string & {}) | null = "CHF", locale = "de-CH") {
+  const out = new Intl.NumberFormat(locale, { style: "currency", currency: currency || "CHF", minimumFractionDigits: 2 }).format(minor / 100);
+  // Euro mit Zeichen („€ 90.40“), Franken wie gewohnt mit Code („CHF 85.00“)
+  return currency === "EUR" ? out.replace("EUR", "€") : out;
 }
 
 export interface FeeBreakdown {

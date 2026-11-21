@@ -106,7 +106,8 @@ private struct MeProfileSettings: View {
     @State private var handle = ""
     @State private var bio = ""
     @State private var region = ""
-    @State private var country = "CH"
+    /// Land bestimmt die Währung der Preise (CH/LI: Franken, DE/AT: Euro)
+    @State private var country: MemberCountry?
     @State private var website = ""
     @State private var pronouns = ""
     @State private var links: [MeEditableLink] = []
@@ -125,7 +126,7 @@ private struct MeProfileSettings: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     AsyncButton("Sichern") { await save() }
-                        .disabled(loaded == nil || displayName.trimmed.isEmpty || bio.count > 500 || handleStatus?.ok == false)
+                        .disabled(loaded == nil || country == nil || displayName.trimmed.isEmpty || bio.count > 500 || handleStatus?.ok == false)
                 }
             }
             .task { if loaded == nil { await load() } }
@@ -193,10 +194,9 @@ private struct MeProfileSettings: View {
 
             Section {
                 TextField("Region, z. B. Zürich", text: $region)
-                Picker("Land", selection: $country) {
-                    ForEach(L.profileCountries, id: \.key) { Text($0.label).tag($0.key) }
-                }
-            } header: { Group { Text("Ort") }.font(.wr(.footnote, .semibold)) }
+                CountryPicker(selection: $country, title: nil, hint: countryHint, error: fields["country"])
+                    .padding(.vertical, 6)
+            } header: { Group { Text("Ort & Währung") }.font(.wr(.footnote, .semibold)) }
 
             Section {
                 TextField("Website", text: $website)
@@ -231,10 +231,19 @@ private struct MeProfileSettings: View {
 
     private func fieldError(_ e: String) -> some View { Text(e).font(.wr(.caption)).foregroundStyle(Color.danger) }
 
+    /// Hinweis zur Währung – mit Vorschau, wenn die Wahl die Währung ändert
+    private var countryHint: String {
+        let saved = MemberCountry(code: loaded?.country)
+        if let country, let saved, country.currency != saved.currency {
+            return "Nach dem Speichern siehst und bezahlst du Preise in \(Currency.name(country.currency)). Laufende Bestellungen und Abos bleiben in ihrer Währung."
+        }
+        return "Bestimmt, in welcher Währung du Preise siehst und bezahlst."
+    }
+
     private func load() async {
         do {
             let p: MeSettingsProfile = try await APIClient.shared.get("/settings/profile")
-            displayName = p.displayName; handle = p.handle; bio = p.bio ?? ""; region = p.region ?? ""; country = p.country ?? "CH"
+            displayName = p.displayName; handle = p.handle; bio = p.bio ?? ""; region = p.region ?? ""; country = MemberCountry(code: p.country)
             website = p.website ?? ""; pronouns = p.pronouns ?? ""; categories = p.categories ?? []
             links = (p.links ?? []).map { MeEditableLink(label: $0.label ?? "", url: $0.url ?? "") }
             avatarURL = p.avatarUrl; coverURL = p.coverUrl; avatarId = nil; coverId = nil; removeAvatar = false; removeCover = false
@@ -259,7 +268,7 @@ private struct MeProfileSettings: View {
         let cleanLinks = links.filter { !$0.url.trimmed.isEmpty || !$0.label.trimmed.isEmpty }
         var body: [String: JSONValue] = [
             "displayName": .string(displayName.trimmed), "handle": .string(handle.trimmed.lowercased()), "bio": .string(bio.trimmed),
-            "region": .string(region.trimmed), "country": .string(country), "website": .string(website.trimmed), "pronouns": .string(pronouns.trimmed),
+            "region": .string(region.trimmed), "country": .from(country?.rawValue), "website": .string(website.trimmed), "pronouns": .string(pronouns.trimmed),
             "links": .array(cleanLinks.map { ["label": .string($0.label.trimmed), "url": .string($0.url.trimmed)] }),
             "categories": .from(categories),
         ]

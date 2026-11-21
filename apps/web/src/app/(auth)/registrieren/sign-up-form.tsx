@@ -10,6 +10,7 @@ import { slugify } from "@/lib/utils";
 import { signUpAction, checkHandleAction } from "../actions";
 import { AppleButton } from "../apple-button";
 import { PinterestButton } from "../pinterest-button";
+import { CountryPicker } from "@/components/account/country-picker";
 
 export function SignUpForm({ apple, pinterest = false }: { apple: boolean; pinterest?: boolean }) {
   const { run, pending, fields } = useAction(signUpAction, { redirect: (d) => d.next });
@@ -87,6 +88,7 @@ export function SignUpForm({ apple, pinterest = false }: { apple: boolean; pinte
         <Field label="E-Mail" error={fields.email}>
           {(p) => <Input {...p} name="email" type="email" autoComplete="email" inputMode="email" required />}
         </Field>
+        <CountryPicker error={fields.country} hint="Bestimmt, in welcher Währung du Preise siehst und bezahlst. Später in den Einstellungen änderbar." />
         <Field label="Passwort" error={fields.password} hint="Mindestens 10 Zeichen, mit Ziffer oder Sonderzeichen.">
           {(p) => (
             <>

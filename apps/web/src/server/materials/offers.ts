@@ -5,6 +5,7 @@ import { fail } from "@/server/errors";
 import { audit } from "@/server/audit";
 import { rateLimit } from "@/server/ratelimit";
 import type { SessionUser } from "@/server/auth/session";
+import { getPriceContext, isConverted, localize } from "@/server/commerce/currency";
 
 /**
  * Preisvergleich für Materialien (PRD §17.4) mit optionalen Partnerlinks (§22.4/22.5).
@@ -50,22 +51,28 @@ export async function listOffers(materialId: string, unit: string) {
     where: { materialId, active: true },
     select: { id: true, retailer: true, title: true, priceMinor: true, currency: true, packAmount: true, packLabel: true, isAffiliate: true, checkedAt: true },
   });
+  // Angebote in der Währung der Betrachter:in zuerst; Händler in der anderen Währung umgerechnet („ca.“)
+  const ctx = await getPriceContext();
   const offers = rows.map((o) => ({
     id: o.id,
     retailer: o.retailer,
     title: o.title,
-    priceMinor: o.priceMinor,
-    currency: o.currency,
+    priceMinor: localize(ctx, o.priceMinor, o.currency),
+    currency: ctx.currency,
+    /** Händler verkauft in einer anderen Währung: Preis ist umgerechnet */
+    approx: isConverted(ctx, o.currency),
+    original: isConverted(ctx, o.currency) ? { priceMinor: o.priceMinor, currency: o.currency } : null,
     packLabel: o.packLabel,
     isAffiliate: o.isAffiliate,
     checkedAt: o.checkedAt.toISOString(),
     stale: daysSince(o.checkedAt) > OFFER_STALE_DAYS,
-    perUnit: unitPrice(o.priceMinor, o.packAmount, unit),
+    perUnit: unitPrice(localize(ctx, o.priceMinor, o.currency), o.packAmount, unit),
     href: `/go/${o.id}`,
   }));
   // Vergleichbar nur in gleicher Währung und mit Packungsgrösse; der Rest folgt nach Gesamtpreis
   return offers.sort((a, b) => {
-    if (a.perUnit && b.perUnit && a.currency === b.currency) return a.perUnit.minor - b.perUnit.minor;
+    if (a.approx !== b.approx) return a.approx ? 1 : -1;
+    if (a.perUnit && b.perUnit) return a.perUnit.minor - b.perUnit.minor;
     if (a.perUnit && !b.perUnit) return -1;
     if (!a.perUnit && b.perUnit) return 1;
     return a.priceMinor - b.priceMinor;
@@ -73,7 +80,7 @@ export async function listOffers(materialId: string, unit: string) {
 }
 export type MaterialOfferView = Awaited<ReturnType<typeof listOffers>>[number];
 
-export type CheapestOffer = { priceMinor: number; currency: string; retailer: string; perUnit: { minor: number; label: string } | null };
+export type CheapestOffer = { priceMinor: number; currency: string; retailer: string; perUnit: { minor: number; label: string } | null; approx?: boolean };
 
 /**
  * Günstigstes Angebot je Material (für Listenansichten) – nach derselben Regel wie die
@@ -84,14 +91,17 @@ export async function cheapestOffers(materialIds: string[]) {
   const map = new Map<string, CheapestOffer>();
   if (!materialIds.length) return map;
   const rows = await db.materialOffer.findMany({ where: { materialId: { in: materialIds }, active: true }, select: { materialId: true, priceMinor: true, currency: true, retailer: true, packAmount: true, material: { select: { unit: true } } } });
+  // Händler in der eigenen Währung bevorzugt; sonst umgerechnet („ca.“)
+  const ctx = await getPriceContext();
   const better = (a: CheapestOffer, b: CheapestOffer) => {
-    if (a.currency !== b.currency) return a.currency === "CHF";
+    if (!!a.approx !== !!b.approx) return !a.approx;
     if (a.perUnit && b.perUnit) return a.perUnit.minor < b.perUnit.minor;
     if (a.perUnit || b.perUnit) return !!a.perUnit;
     return a.priceMinor < b.priceMinor;
   };
   for (const r of rows) {
-    const o: CheapestOffer = { priceMinor: r.priceMinor, currency: r.currency, retailer: r.retailer, perUnit: unitPrice(r.priceMinor, r.packAmount, r.material.unit) };
+    const local = localize(ctx, r.priceMinor, r.currency);
+    const o: CheapestOffer = { priceMinor: local, currency: ctx.currency, retailer: r.retailer, perUnit: unitPrice(local, r.packAmount, r.material.unit), approx: isConverted(ctx, r.currency) };
     const cur = map.get(r.materialId);
     if (!cur || better(o, cur)) map.set(r.materialId, o);
   }

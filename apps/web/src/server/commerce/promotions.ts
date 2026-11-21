@@ -12,6 +12,7 @@ import { buyerCouponUses } from "./discounts";
 import { available, bundlePrice, couponProblem } from "./rules";
 import { requireOwnShop } from "./shops";
 import { publicProductWhere } from "./restock";
+import { getPriceContext, localize, type PriceContext } from "./currency";
 
 /**
  * Gutscheine und Sets (Bundles).
@@ -96,6 +97,7 @@ export async function applyCoupon(user: SessionUser, input: unknown) {
   const uses = (await buyerCouponUses(db, user.id, [coupon.id], { includePending: false })).get(coupon.id) ?? { used: 0, pending: 0 };
   // Mindestwert wird im Warenkorb angezeigt (kann noch erreicht werden), alles andere lehnt sofort ab
   const problem = couponProblem({ ...coupon, usedCount: Math.max(0, coupon.usedCount - uses.pending) }, { now: new Date(), subtotal: Number.MAX_SAFE_INTEGER, buyerUses: uses.used, fmt: (m) => formatMoney(m, coupon.shop.currency as Currency) });
+  // (Mindestwert erscheint im Warenkorb bereits in der Währung der Käufer:in)
   if (problem) throw fail.invalid(problem, { code: problem });
   await db.cartCoupon.upsert({ where: { cartId_shopId: { cartId: cart.id, shopId: data.shopId } }, create: { cartId: cart.id, shopId: data.shopId, couponId: coupon.id }, update: { couponId: coupon.id } });
   return { code: coupon.code };
@@ -214,7 +216,8 @@ const publicBundleInclude = {
 
 type BundleRowFull = Prisma.ProductBundleGetPayload<{ include: typeof publicBundleInclude }>;
 
-function bundleView(b: BundleRowFull) {
+/** Set für Käufer:innen; mit `ctx` in deren Währung (gleiche Umrechnung je Stück wie im Warenkorb) */
+function bundleView(b: BundleRowFull, ctx?: PriceContext) {
   const items = b.items.map((i) => {
     const p = i.product;
     const avail = p.kind === "DIGITAL" ? null : available(p.inventory[0]);
@@ -224,8 +227,8 @@ function bundleView(b: BundleRowFull) {
       href: `/markt/${b.shop.slug}/${p.slug}`,
       coverUrl: p.coverUrl,
       kind: p.kind,
-      unitMinor: p.priceMinor,
-      currency: p.currency,
+      unitMinor: ctx ? localize(ctx, p.priceMinor, p.currency) : p.priceMinor,
+      currency: ctx ? ctx.currency : p.currency,
       quantity: i.quantity,
       inStock: p.status === "ACTIVE" && p._count.variants === 0 && (avail === null || avail >= i.quantity),
     };
@@ -254,10 +257,11 @@ async function publicBundles(where: Prisma.ProductBundleWhereInput, viewerId: st
     include: publicBundleInclude,
   });
   const out: BundleView[] = [];
+  const ctx = await getPriceContext();
   for (const b of rows) {
     if (b.items.length < 2) continue;
     if (viewerId && (await isBlockedBetween(viewerId, b.shop.ownerId))) continue;
-    out.push(bundleView(b));
+    out.push(bundleView(b, ctx));
   }
   return out;
 }
@@ -307,7 +311,9 @@ export async function publicCoupon(id: string) {
   });
   if (!c || c.shop.status !== "ACTIVE" || c.shop.owner.status !== "ACTIVE") return null;
   const now = new Date();
-  const fmt = (m: number) => formatMoney(m, c.shop.currency as Currency);
+  // Feste Beträge im Preis der Betrachter:in (wie im Warenkorb umgerechnet)
+  const ctx = await getPriceContext();
+  const fmt = (m: number) => formatMoney(localize(ctx, m, c.shop.currency), ctx.currency);
   const problem = couponProblem(c, { now, subtotal: Number.MAX_SAFE_INTEGER, buyerUses: 0, fmt });
   const startsLater = !!c.startsAt && c.startsAt > now;
   const valid = !problem || startsLater;
@@ -319,7 +325,8 @@ export async function publicCoupon(id: string) {
     startsAt: c.startsAt,
     endsAt: c.endsAt,
     onePerBuyer: c.onePerBuyer,
-    minSubtotalMinor: c.minSubtotalMinor,
+    minSubtotalMinor: localize(ctx, c.minSubtotalMinor, c.shop.currency),
+    currency: ctx.currency,
     valueLabel: c.kind === "PERCENT" ? `${c.value} %` : fmt(c.value),
     headline: c.kind === "PERCENT" ? `${c.value} % Rabatt` : `${fmt(c.value)} Rabatt`,
     minLabel: c.minSubtotalMinor ? `ab ${fmt(c.minSubtotalMinor)} Warenwert` : null,

@@ -181,7 +181,7 @@ struct MarketView: View {
         if filters.uniqueOnly { c.append(Chip(label: "Nur Einzelstücke") { filters.uniqueOnly = false }) }
         else if !filters.kind.isEmpty { c.append(Chip(label: L.productKind(filters.kind)) { filters.kind = "" }) }
         if !filters.min.isEmpty || !filters.max.isEmpty {
-            c.append(Chip(label: "CHF \(filters.min.nilIfEmpty ?? "0")–\(filters.max.nilIfEmpty ?? "∞")") { filters.min = ""; filters.max = "" })
+            c.append(Chip(label: "\(Currency.symbol(app.currency)) \(filters.min.nilIfEmpty ?? "0")–\(filters.max.nilIfEmpty ?? "∞")") { filters.min = ""; filters.max = "" })
         }
         if !filters.shipsFrom.isEmpty {
             c.append(Chip(label: "Versand ab \(L.shipCountries.first { $0.key == filters.shipsFrom }?.label ?? filters.shipsFrom)") { filters.shipsFrom = "" })
@@ -311,7 +311,7 @@ struct MarketFilterSheet: View {
                         Text("–").foregroundStyle(Color.muted)
                         TextField("Bis", text: $draft.max).keyboardType(.decimalPad)
                     }
-                } header: { Group { Text("Preisbereich (CHF)") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Leer lassen für keine Grenze.") }.font(.wr(.footnote)) }
+                } header: { Group { Text("Preisbereich (\(Currency.symbol(app.currency)))") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Leer lassen für keine Grenze.") }.font(.wr(.footnote)) }
                 Section {
                     Picker("Land", selection: $draft.shipsFrom) {
                         Text("Alle Länder").tag("")

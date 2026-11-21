@@ -8,7 +8,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import { useAction } from "@/lib/use-action";
 import { setSupportCancelAction } from "@/app/(app)/supporter-actions";
 
-type Row = { creatorId: string; handle: string; displayName: string; avatarUrl: string | null; provider: string; priceMinor: number; active: boolean; cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null; since: string };
+type Row = { creatorId: string; handle: string; displayName: string; avatarUrl: string | null; provider: string; priceMinor: number; currency?: string; active: boolean; cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null; since: string };
 const day = (iso: string) => new Date(iso).toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Zurich" });
 
 /** Eigene Unterstützungen: Stand, Kündigen bzw. Kündigung zurücknehmen (Web), Hinweis bei App-Käufen. */
@@ -25,7 +25,7 @@ export function SupportingList({ rows }: { rows: Row[] }) {
               {r.displayName}
             </Link>
             <p className="text-[13px] text-muted">
-              {formatMoney(r.priceMinor)}/Monat · {r.provider === "apple" ? "über die iOS-App" : r.provider === "stripe" ? "über die Website" : "Testmodus"}
+              {formatMoney(r.priceMinor, r.currency)}/Monat · {r.provider === "apple" ? "über die iOS-App" : r.provider === "stripe" ? "über die Website" : "Testmodus"}
               {r.active && r.currentPeriodEnd
                 ? r.provider === "apple" || r.cancelAtPeriodEnd
                   ? ` · endet am ${day(r.currentPeriodEnd)}`

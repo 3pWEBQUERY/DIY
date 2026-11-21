@@ -20,15 +20,13 @@ export const profileLinkSchema = z.object({
   url: optionalUrl.refine((v) => v.length > 0, "Adresse fehlt"),
 });
 
-export const PROFILE_COUNTRIES = ["CH", "DE", "AT", "LI", "FR", "IT", "OTHER"] as const;
+/** Länder für das Profil – gleich wie die Mitglieds-Länder (bestimmen die Währung) */
+export const PROFILE_COUNTRIES = ["CH", "LI", "DE", "AT"] as const;
 export const PROFILE_COUNTRY_LABEL: Record<(typeof PROFILE_COUNTRIES)[number], string> = {
   CH: "Schweiz",
   DE: "Deutschland",
   AT: "Österreich",
   LI: "Liechtenstein",
-  FR: "Frankreich",
-  IT: "Italien",
-  OTHER: "Anderes Land",
 };
 
 export const profileUpdateSchema = z.object({
@@ -36,7 +34,7 @@ export const profileUpdateSchema = z.object({
   handle: handleSchema,
   bio: z.string().trim().max(500, "Höchstens 500 Zeichen").default(""),
   region: z.string().trim().max(80).default(""),
-  country: z.enum(PROFILE_COUNTRIES).default("CH"),
+  country: z.enum(PROFILE_COUNTRIES, { error: "Bitte wähle dein Land" }),
   website: optionalUrl.default(""),
   pronouns: z.string().trim().max(30).default(""),
   links: z.array(profileLinkSchema).max(6, "Höchstens 6 Links").default([]),

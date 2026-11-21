@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import { ArrowRight, Search, SlidersHorizontal } from "lucide-react";
 import { PRODUCT_KIND_LABEL, COUNTRY_LABEL, type ShipCountry } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
+import { getPriceContext } from "@/server/commerce/currency";
+import { CurrencySwitch } from "@/components/commerce/currency-switch";
 import { listProducts, parseProductFilters } from "@/server/commerce/products";
 import { listShops } from "@/server/commerce/shops";
 import { paymentsMode } from "@/server/commerce/stripe";
@@ -51,13 +53,14 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
   ]);
   const [activeCat, cats] = await Promise.all([effectiveCategory(filters.category), browseCategories(filters.category)]);
   const mode = paymentsMode();
+  const px = await getPriceContext();
 
   const chips: { label: string; href: string }[] = [];
   if (filters.q) chips.push({ label: `„${filters.q}“`, href: hrefWith(raw, { q: null }) });
   if (activeCat) chips.push({ label: activeCat.name, href: hrefWith(raw, { kategorie: null }) });
   if (filters.kind) chips.push({ label: PRODUCT_KIND_LABEL[filters.kind], href: hrefWith(raw, { art: null }) });
   if (filters.uniqueOnly) chips.push({ label: "Nur Einzelstücke", href: hrefWith(raw, { unikat: null }) });
-  if (raw.min || raw.max) chips.push({ label: `CHF ${raw.min ?? "0"}–${raw.max ?? "∞"}`, href: hrefWith(raw, { min: null, max: null }) });
+  if (raw.min || raw.max) chips.push({ label: `${px.currency === "EUR" ? "€" : "CHF"} ${raw.min ?? "0"}–${raw.max ?? "∞"}`, href: hrefWith(raw, { min: null, max: null }) });
   if (filters.shipsFrom) chips.push({ label: `Versand ab ${COUNTRY_LABEL[filters.shipsFrom as ShipCountry]}`, href: hrefWith(raw, { versand: null }) });
 
   return (
@@ -76,6 +79,7 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
           <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted text-pretty">
             Einzelstücke, Kleinserien, DIY-Materialsets und Anleitungen – direkt aus der Community. Viele Arbeiten zeigen ihr Projekt: Du siehst, wie sie entstanden sind.
           </p>
+          <CurrencySwitch currency={px.currency} signedIn={!!user} className="mt-4" />
         </div>
         <Form action="/markt" role="search" className="md:justify-self-end md:w-full md:max-w-md">
           {Object.entries(raw)
@@ -143,11 +147,11 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
               <SlidersHorizontal size={15} /> Filter {chips.length > 0 && <span className="spec">({chips.length})</span>}
             </summary>
             <div className="mt-5">
-              <MarketFilters raw={raw} idPrefix="fm" categories={cats} />
+              <MarketFilters raw={raw} idPrefix="fm" categories={cats} currency={px.currency} />
             </div>
           </details>
           <div className="sticky top-6 hidden lg:block">
-            <MarketFilters raw={raw} idPrefix="fd" categories={cats} />
+            <MarketFilters raw={raw} idPrefix="fd" categories={cats} currency={px.currency} />
           </div>
         </aside>
 

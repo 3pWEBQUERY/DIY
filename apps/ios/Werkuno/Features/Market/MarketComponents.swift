@@ -218,6 +218,28 @@ struct MarketAmountRow: View {
     }
 }
 
+/// Hinweis, wenn Preise eines Shops in die Währung der Käufer:in umgerechnet sind (wie im Web):
+/// was umgerechnet wurde, mit welchem Kurs, und in welcher Währung bezahlt wird.
+struct MarketFxNote: View {
+    var currency: String
+    var shopCurrency: String?
+    var eurChf: Double
+    var date: String?
+
+    private var text: String {
+        let from = shopCurrency ?? (currency == "EUR" ? "CHF" : "EUR")
+        let day = Currency.fxDay(date).map { " vom \($0)" } ?? ""
+        return "Preise aus \(from) umgerechnet zum Referenzkurs der EZB\(day) (\(Currency.rateLine(eurChf))), gerundet auf 10 \(Currency.minorName(currency)). Du bezahlst in \(Currency.name(currency)); der Betrag bleibt bis zur Zahlung fest."
+    }
+
+    var body: some View {
+        Label { Text(text) } icon: { Image(systemName: "arrow.left.arrow.right") }
+            .font(.wr(.footnote))
+            .foregroundStyle(Color.muted)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 /// Kostenaufstellung für Käufer:innen (§5.7)
 struct MarketFeeSummary: View {
     var subtotal: Int
@@ -486,7 +508,7 @@ struct MarketSimulatedPaymentSheet: View {
                     NoticeView(tone: .warn, title: "Keine echte Zahlung", message: "Dieser Bildschirm erscheint nur, solange Werkuno ohne Zahlungsanbieter läuft.")
                     VStack(spacing: 10) {
                         SpecRow(label: "Bestellungen", value: "\(orderIds.count)", symbol: "shippingbox")
-                        if let totalMinor { SpecRow(label: "Betrag", value: Fmt.money(totalMinor), symbol: "creditcard") }
+                        if let totalMinor { SpecRow(label: "Betrag", value: Fmt.money(totalMinor, currency: app.currency), symbol: "creditcard") }
                     }
                     VStack(spacing: 10) {
                         AsyncButton { await run("success") } label: {

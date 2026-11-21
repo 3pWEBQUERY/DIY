@@ -111,6 +111,7 @@ export async function updateProfile(user: U, input: unknown) {
         bio: d.bio,
         region: d.region || null,
         country: d.country,
+        countryConfirmedAt: new Date(),
         website: d.website || null,
         pronouns: d.pronouns || null,
         links: d.links as Prisma.InputJsonValue,

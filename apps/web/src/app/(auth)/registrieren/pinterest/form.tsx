@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/field";
 import { formToObject, useAction } from "@/lib/use-action";
 import { pinterestSignUpAction } from "../../actions";
+import { CountryPicker } from "@/components/account/country-picker";
 
 export function PinterestSignUpForm({ suggestedName }: { suggestedName: string }) {
   const { run, pending, fields, error } = useAction(pinterestSignUpAction, { redirect: (d) => d.next });
@@ -24,6 +25,7 @@ export function PinterestSignUpForm({ suggestedName }: { suggestedName: string }
       <Field label="E-Mail" error={fields.email} hint="Wir schicken dir einen Link zur Bestätigung.">
         {(p) => <Input {...p} name="email" type="email" autoComplete="email" inputMode="email" required />}
       </Field>
+      <CountryPicker error={fields.country} hint="Bestimmt, in welcher Währung du Preise siehst und bezahlst. Später in den Einstellungen änderbar." />
       <div className="space-y-3 border-t border-line pt-5">
         <Checkbox name="adult" label="Ich bin mindestens 18 Jahre alt." />
         {fields.adult && <p className="text-[13px] text-danger">{fields.adult}</p>}

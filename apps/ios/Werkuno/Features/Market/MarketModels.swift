@@ -174,6 +174,9 @@ struct MarketProductPage: Decodable, Sendable {
     var category: String?
     var priceMinor: Int
     var currency: String?
+    /// Preis im Shop, wenn für diese Person umgerechnet wurde (Hinweis „Shop-Preis … umgerechnet“)
+    struct PriceOriginal: Decodable, Hashable, Sendable { var priceMinor: Int; var currency: String; var fxDate: String? }
+    var priceOriginal: PriceOriginal?
     var status: String
     var materials: String?
     var dimensions: String?
@@ -281,11 +284,15 @@ struct MarketCartLine: Decodable, Hashable, Identifiable, Sendable {
     var isDigital: Bool
     var available: Int?
     var problem: String?
+    /// Währung der Beträge (Käufer:in); fehlt bei älteren Servern → CHF
+    var currency: String?
 }
 
 struct MarketCartGroup: Decodable, Hashable, Identifiable, Sendable {
-    struct Shop: Decodable, Hashable, Sendable { var id: String; var slug: String; var name: String; var processingDays: Int?; var country: String? }
+    struct Shop: Decodable, Hashable, Sendable { var id: String; var slug: String; var name: String; var processingDays: Int?; var country: String?; var currency: String? }
     var shop: Shop
+    /// Shop verkauft in der anderen Währung – Preise wurden umgerechnet
+    var converted: Bool?
     var lines: [MarketCartLine]
     var fees: MarketFees
     var purchasable: Bool
@@ -311,7 +318,12 @@ struct MarketPendingOrder: Decodable, Hashable, Identifiable, Sendable {
 }
 
 struct MarketCart: Decodable, Sendable {
+    /// EZB-Kurs (CHF je 1 EUR) und Datum für den Umrechnungshinweis
+    struct Fx: Decodable, Sendable { var eurChf: Double; var date: String? }
     var groups: [MarketCartGroup]
+    /// Währung aller Beträge (Käufer:in)
+    var currency: String?
+    var fx: Fx?
     var totals: MarketFees
     var feeBps: Int
     var count: Int

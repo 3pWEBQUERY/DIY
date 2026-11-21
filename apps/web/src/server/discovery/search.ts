@@ -4,6 +4,7 @@ import { relationsFor } from "@/server/visibility";
 import { rateLimit } from "@/server/ratelimit";
 import { clientIpHash } from "@/server/auth/session";
 import { publicProductSql } from "@/server/commerce/restock";
+import { getPriceContext, localize } from "@/server/commerce/currency";
 
 /**
  * Globale Suche (PRD §18) auf Postgres: Volltext (deutsch, unaccent) + Trigramm-Ähnlichkeit
@@ -47,6 +48,8 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
   const like = `%${q.replace(/[%_]/g, "")}%`;
   const since = f.sinceDays ? new Date(Date.now() - f.sinceDays * 86400_000) : new Date(0);
   const tasks: Promise<void>[] = [];
+  // Produktpreise in der Währung der Betrachter:in
+  const px = await getPriceContext();
 
   if (types.includes("project")) {
     tasks.push(
@@ -101,7 +104,7 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
           ${f.country ? Prisma.sql`AND pr."shipsFrom" = ${f.country}` : Prisma.empty}
         ORDER BY score DESC LIMIT ${limit}`
         .then((rows) => {
-          empty.product = rows.map((r) => ({ type: "product", id: r.id, title: r.title, subtitle: r.shopName, href: `/markt/${r.shopSlug}/${r.slug}`, cover: r.coverUrl, category: r.category, score: r.score, meta: { priceMinor: r.priceMinor, currency: r.currency } }));
+          empty.product = rows.map((r) => ({ type: "product", id: r.id, title: r.title, subtitle: r.shopName, href: `/markt/${r.shopSlug}/${r.slug}`, cover: r.coverUrl, category: r.category, score: r.score, meta: { priceMinor: localize(px, r.priceMinor, r.currency), currency: px.currency } }));
         }),
     );
   }

@@ -1,5 +1,6 @@
 import "server-only";
 import { REAL_ORDER, REAL_ORDER_SQL } from "@/server/commerce/real-orders";
+import { sumOrdersInShopCurrency } from "@/server/commerce/order-sums";
 import { db, Prisma } from "@/server/db";
 
 /**
@@ -37,7 +38,8 @@ export async function weeklySeries(table: Table, column: Column, opts: { where?:
   const keys = weekKeys(weeks);
   const t = Prisma.raw(`"${table}"`);
   const c = Prisma.raw(`"${column}"`);
-  const agg = opts.sum ? Prisma.raw(`coalesce(sum("${opts.sum}"),0)::bigint`) : opts.distinct ? Prisma.raw(`count(distinct "${opts.distinct}")::bigint`) : Prisma.raw("count(*)::bigint");
+  // Bestellungen in der anderen Währung: zum Kurs vom Kauf in die Shop-Währung
+  const agg = opts.sum ? Prisma.raw(table === "Order" ? `coalesce(sum(round("${opts.sum}" * coalesce("shopFx",1))),0)::bigint` : `coalesce(sum("${opts.sum}"),0)::bigint`) : opts.distinct ? Prisma.raw(`count(distinct "${opts.distinct}")::bigint`) : Prisma.raw("count(*)::bigint");
   const rows = await db.$queryRaw<{ wk: string; n: bigint }[]>`
     SELECT to_char(date_trunc('week', ${c}), 'YYYY-MM-DD') AS wk, ${agg} AS n
     FROM ${t}
@@ -124,12 +126,12 @@ export async function dashboardKpis(opts: { includeMoney: boolean }) {
   if (opts.includeMoney) {
     const valid = { status: { notIn: ["CANCELLED", "REFUNDED", "PENDING_PAYMENT"] as ("CANCELLED" | "REFUNDED" | "PENDING_PAYMENT")[] }, ...REAL_ORDER };
     const [cur, prev, seriesGmv] = await Promise.all([
-      db.order.aggregate({ where: { paidAt: { gte: d30 }, ...valid }, _sum: { totalMinor: true, platformFeeMinor: true }, _count: { _all: true } }),
-      db.order.aggregate({ where: { paidAt: { gte: d60, lt: d30 }, ...valid }, _sum: { totalMinor: true } }),
+      sumOrdersInShopCurrency({ paidAt: { gte: d30 }, ...valid }),
+      sumOrdersInShopCurrency({ paidAt: { gte: d60, lt: d30 }, ...valid }),
       weeklySeries("Order", "paidAt", { sum: "totalMinor", where: Prisma.sql`AND "status" NOT IN ('CANCELLED','REFUNDED','PENDING_PAYMENT') ${REAL_ORDER_SQL}` }),
     ]);
-    const gmv30 = cur._sum.totalMinor ?? 0;
-    money = { gmv30, gmvPrev30: prev._sum.totalMinor ?? 0, commission30: cur._sum.platformFeeMinor ?? 0, seriesGmv, aov: cur._count._all ? Math.round(gmv30 / cur._count._all) : null };
+    const gmv30 = cur.totalMinor;
+    money = { gmv30, gmvPrev30: prev.totalMinor, commission30: cur.platformFeeMinor, seriesGmv, aov: cur.count ? Math.round(gmv30 / cur.count) : null };
   }
 
   return {

@@ -1,5 +1,6 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
+import { MEMBER_COUNTRIES } from "@werkraum/shared";
 import { z } from "zod";
 import { env } from "@/server/env";
 import { db } from "@/server/db";
@@ -182,6 +183,7 @@ export async function unlinkPinterest(userId: string) {
 export const pinterestSignUpSchema = z.object({
   email: z.email("Ungültige E-Mail-Adresse").trim().toLowerCase().max(254),
   displayName: z.string().trim().min(1, "Bitte gib einen Namen an").max(60),
+  country: z.enum(MEMBER_COUNTRIES, { error: "Bitte wähle dein Land" }),
   adult: z.literal(true, { error: "Die Teilnahme ist ab 18 Jahren möglich" }),
   terms: z.literal(true, { error: "Bitte akzeptiere die Nutzungsbedingungen" }),
 });
@@ -218,7 +220,7 @@ export async function completePinterestSignUp(pending: PinterestPending, input: 
         signupMethod: "PINTEREST",
         adultConfirmedAt: now,
         termsAcceptedAt: now,
-        profile: { create: { handle, displayName: data.displayName } },
+        profile: { create: { handle, displayName: data.displayName, country: data.country, countryConfirmedAt: now } },
         preference: { create: {} },
         authAccounts: { create: { provider: PINTEREST_PROVIDER, providerAccountId: pending.sub } },
       },

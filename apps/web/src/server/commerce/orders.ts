@@ -38,6 +38,7 @@ export const orderDetailInclude = {
       slug: true,
       name: true,
       ownerId: true,
+      currency: true,
       sellerType: true,
       returnPolicy: true,
       shippingPolicy: true,

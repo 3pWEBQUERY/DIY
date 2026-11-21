@@ -23,6 +23,7 @@ async function otherPresence(viewerId: string, me: { isRequest: boolean }, other
   return (await presenceFor(viewerId, [other.user])).get(other.user.id) ?? null;
 }
 import { storyRefSelect, toStoryRef, type StoryRefRow } from "@/server/stories/ref";
+import { getPriceContext, localizePrice } from "@/server/commerce/currency";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -288,7 +289,8 @@ async function orderContext(conv: { orderId: string | null; productId: string | 
   if (conv.productId) {
     const p = await db.product.findUnique({ where: { id: conv.productId }, select: { title: true, slug: true, coverUrl: true, priceMinor: true, currency: true, status: true, kind: true, shop: { select: { name: true, slug: true } } } });
     if (!p) return null;
-    return { type: "product" as const, title: p.title, coverUrl: p.coverUrl, priceMinor: p.priceMinor, currency: p.currency, status: p.status, kind: p.kind, shop: p.shop, href: `/markt/${p.shop.slug}/${p.slug}` };
+    const lp = localizePrice(await getPriceContext(), p);
+    return { type: "product" as const, title: p.title, coverUrl: p.coverUrl, priceMinor: lp.priceMinor, currency: lp.currency, original: lp.original, status: p.status, kind: p.kind, shop: p.shop, href: `/markt/${p.shop.slug}/${p.slug}` };
   }
   return null;
 }

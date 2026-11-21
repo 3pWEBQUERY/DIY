@@ -171,7 +171,7 @@ export default async function TutorialPage({ params }: Params) {
           { label: "Schritte", value: t.stepCount },
           t.isPaid && t.priceMinor
             ? { label: "Preis", value: formatMoney(t.priceMinor) }
-            : { label: "Material ca.", value: cost ? `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor)}` : "–" },
+            : { label: "Material ca.", value: cost ? `${cost.complete ? "" : "ab "}${formatMoney(cost.totalMinor, t.costCurrency)}` : "–" },
           { label: "Nachgebaut", value: `${t.counts.completions}×` },
           { label: "Aktualisiert", value: formatDate(t.version.publishedAt, { day: "numeric", month: "short", year: "numeric" }) },
         ].map((r) => (
@@ -242,7 +242,7 @@ export default async function TutorialPage({ params }: Params) {
                       </span>
                       <span className="num text-right text-ink-2">
                         {m.quantity || "–"}
-                        {m.costMinor != null && <span className="block text-[12px] text-muted">ca. {formatMoney(m.costMinor)}</span>}
+                        {m.costMinor != null && <span className="block text-[12px] text-muted">ca. {formatMoney(m.costMinor, t.costCurrency)}</span>}
                       </span>
                     </li>
                   ))}
@@ -250,7 +250,7 @@ export default async function TutorialPage({ params }: Params) {
                 {cost && (
                   <p className="mt-2 flex items-baseline justify-between gap-3 text-[13px]">
                     <span className="text-muted">Richtpreise der Autorin bzw. des Autors{cost.complete ? "" : ` (${cost.priced} von ${t.materials.length} Positionen)`} – Händlerpreise können abweichen.</span>
-                    <b className="num shrink-0">{cost.complete ? "ca." : "ab"} {formatMoney(cost.totalMinor)}</b>
+                    <b className="num shrink-0">{cost.complete ? "ca." : "ab"} {formatMoney(cost.totalMinor, t.costCurrency)}</b>
                   </p>
                 )}
               </div>

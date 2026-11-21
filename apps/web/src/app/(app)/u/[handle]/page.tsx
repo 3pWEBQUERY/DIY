@@ -40,6 +40,7 @@ import { ProfileHighlights, StoryAvatarLink } from "@/components/stories/profile
 import { flatSearchParams } from "@/lib/search-params";
 import { JsonLd } from "@/components/projects/json-ld";
 import { absoluteUrl, OG_BASE } from "@/config/seo";
+import { getPriceContext, localize } from "@/server/commerce/currency";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string | string[]; art?: string | string[]; unterstuetzt?: string | string[]; session_id?: string | string[] }> };
 
@@ -83,6 +84,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   const viewerId = viewer?.id ?? null;
   const userId = profile.userId;
   const isSelf = viewerId === userId;
+  const px = await getPriceContext();
   // Blockierung in eine der beiden Richtungen; nur wer selbst blockiert hat, kann sie hier aufheben
   const blocks = viewerId && !isSelf
     ? await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId, blockedId: userId }, { blockerId: userId, blockedId: viewerId }] }, select: { blockerId: true } })
@@ -291,7 +293,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                         <Link key={p.id} href={`/markt/${profile.user.shop!.slug}/${p.slug}`} className="group">
                           <Cover url={p.coverUrl} alt="" kind="product" ratio="1/1" fit="contain" />
                           <p className="mt-2 text-sm font-semibold group-hover:underline">{p.title}</p>
-                          <p className="font-mono text-xs text-muted">{p.status === "SOLD_OUT" ? "Ausverkauft" : formatMoney(p.priceMinor, p.currency as Currency)}</p>
+                          <p className="font-mono text-xs text-muted">{p.status === "SOLD_OUT" ? "Ausverkauft" : isSelf ? formatMoney(p.priceMinor, p.currency as Currency) : formatMoney(localize(px, p.priceMinor, p.currency), px.currency)}</p>
                         </Link>
                       ))}
                     </div>
@@ -371,7 +373,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
               )}
               {isSelf && supportOfferView?.enabled && (
                 <p className="rounded-2xl border border-line px-4 py-3 text-[13.5px] text-ink-2">
-                  Dein Unterstützer-Abo ist aktiv ({formatMoney(supportOfferView.priceMinor)}/Monat).{" "}
+                  Dein Unterstützer-Abo ist aktiv ({formatMoney(supportOfferView.priceMinor, supportOfferView.me?.currency ?? supportOfferView.currency)}/Monat).{" "}
                   <Link href="/studio/unterstuetzer" className="font-semibold underline-offset-2 hover:underline">Im Studio verwalten</Link>
                 </p>
               )}

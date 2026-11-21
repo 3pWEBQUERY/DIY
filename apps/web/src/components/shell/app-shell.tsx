@@ -15,6 +15,8 @@ import { shellCounts } from "@/server/shell/counts";
 import { flagsFor } from "@/server/flags";
 import { VerifyEmailBanner } from "./verify-email-banner";
 import { InstallBanner } from "./pwa";
+import { countryPromptFor } from "@/server/account/country";
+import { CountryPrompt } from "@/components/account/country-prompt";
 
 /** Hauptlayout: linke Navigation, zentraler Inhalt, optionale rechte Kontextspalte (§28.5). */
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -33,6 +35,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const reduceMotion = user ? ((await db.userPreference.findUnique({ where: { userId: user.id }, select: { reduceMotion: true } }))?.reduceMotion ?? false) : false;
 
   const navCollapsed = (await cookies()).get("wr_nav")?.value === "collapsed";
+  // Bestehende Mitglieder ohne bestätigtes Land: einmal fragen (Währung)
+  const countryPrompt = user?.profile && !user.profile.countryConfirmedAt && user.status === "ACTIVE" ? await countryPromptFor(user.id) : null;
   // Abgeschaltete Bereiche (Feature-Flags) aus der Navigation nehmen
   const flags = await flagsFor(user?.id);
   const hide = flags.marketplace ? [] : ["/markt", "/warenkorb"];
@@ -68,6 +72,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <BottomNav user={shellUser} hide={hide} />
       <CommandPalette />
       <ShortcutsHelp />
+      {countryPrompt && <CountryPrompt suggested={countryPrompt.suggested} />}
     </div>
     </LiveCountsProvider>
   );

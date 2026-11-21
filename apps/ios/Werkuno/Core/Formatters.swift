@@ -13,7 +13,9 @@ enum Fmt {
         f.currencyCode = currency ?? "CHF"
         f.minimumFractionDigits = 2
         f.maximumFractionDigits = 2
-        return f.string(from: NSNumber(value: Double(minor) / 100)) ?? "\(currency ?? "CHF") \(Double(minor) / 100)"
+        let out = f.string(from: NSNumber(value: Double(minor) / 100)) ?? "\(currency ?? "CHF") \(Double(minor) / 100)"
+        // Euro mit Zeichen („€ 90.40“, wie im Web), Franken wie gewohnt mit Code („CHF 85.00“)
+        return currency == "EUR" ? out.replacingOccurrences(of: "EUR", with: "€") : out
     }
 
     /// Grösster akzeptierter Betrag in Rappen (CHF 1 Mio.) – schützt vor Überlauf bei `Int(...)`
@@ -22,7 +24,7 @@ enum Fmt {
     /// Eingabe „12.50“ / „12,50“ → Rappen. `nil` bei ungültigen, nicht endlichen („inf“, „nan“)
     /// oder zu grossen Werten (sonst stürzt `Int(Double)` ab).
     static func parseMoney(_ s: String) -> Int? {
-        let t = s.replacingOccurrences(of: "CHF", with: "").replacingOccurrences(of: "’", with: "").replacingOccurrences(of: "'", with: "").replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+        let t = s.replacingOccurrences(of: "CHF", with: "").replacingOccurrences(of: "EUR", with: "").replacingOccurrences(of: "€", with: "").replacingOccurrences(of: "’", with: "").replacingOccurrences(of: "'", with: "").replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
         // Nur Ziffern und ein Dezimalpunkt – `Double` akzeptiert sonst auch „inf“, „nan“, „1e300“ oder Hex
         guard !t.isEmpty, t.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }), t.filter({ $0 == "." }).count <= 1 else { return nil }
         guard let d = Double(t), d.isFinite, d >= 0 else { return nil }

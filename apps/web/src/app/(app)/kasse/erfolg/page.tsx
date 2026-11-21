@@ -66,7 +66,7 @@ export default async function CheckoutSuccessPage({ searchParams }: { searchPara
             {others.map((o) => (
               <li key={o.id} className="flex flex-wrap items-center justify-between gap-3">
                 <span>
-                  {o.shop.name} · <span className="num font-semibold">{formatMoney(o.totalMinor)}</span>
+                  {o.shop.name} · <span className="num font-semibold">{formatMoney(o.totalMinor, o.currency)}</span>
                 </span>
                 <ResumePaymentButton orderId={o.id} />
               </li>

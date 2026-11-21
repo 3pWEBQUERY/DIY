@@ -85,7 +85,17 @@ export async function loadCartDiscounts(client: Client, opts: { userId: string; 
     bundlesByShop.set(b.shopId, list);
   }
 
-  function forShop(shopId: string, lines: { productId: string; variantId?: string | null; unitMinor: number; quantity: number }[], subtotal: number, currency: string = "CHF"): ShopDiscount {
+  /**
+   * `currency` = Währung der Zeilen (Käufer:in). `convert` rechnet feste Beträge des Gutscheins
+   * (Wert, Mindestbestellwert) aus der Shop-Währung um, wenn in einer anderen Währung bezahlt wird.
+   */
+  function forShop(
+    shopId: string,
+    lines: { productId: string; variantId?: string | null; unitMinor: number; quantity: number }[],
+    subtotal: number,
+    currency: string = "CHF",
+    convert: (minor: number) => number = (m) => m,
+  ): ShopDiscount {
     const fmt = (m: number) => formatMoney(m, currency as Currency);
     const rows: DiscountRow[] = [];
     const inCart = new Set(lines.map((l) => l.productId));
@@ -93,7 +103,8 @@ export async function loadCartDiscounts(client: Client, opts: { userId: string; 
     for (const a of applied) if (a.amountMinor > 0) rows.push({ kind: "bundle", label: `Set „${a.title}“`, amountMinor: a.amountMinor });
     const bundleTotal = rows.reduce((s, r) => s + r.amountMinor, 0);
     let coupon: ShopDiscount["coupon"] = null;
-    const c = coupons.get(shopId);
+    const raw = coupons.get(shopId);
+    const c = raw && { ...raw, value: raw.kind === "FIXED" ? convert(raw.value) : raw.value, minSubtotalMinor: raw.minSubtotalMinor ? convert(raw.minSubtotalMinor) : raw.minSubtotalMinor };
     if (c) {
       const u = uses.get(c.id) ?? { used: 0, pending: 0 };
       // Eigene offene Bestellungen halten in der Anzeige keinen Platz besetzt

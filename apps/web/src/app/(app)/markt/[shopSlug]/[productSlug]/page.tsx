@@ -59,6 +59,8 @@ export default async function ProductPage({ params }: Params) {
 
   const [reviews, more, bundles] = await Promise.all([listProductReviews(p.id, user?.id, 20), moreFromShop(p.shopId, p.id, 4), bundlesForProduct(p.id, user?.id ?? null)]);
   const currency = (p.currency === "EUR" ? "EUR" : "CHF") as Currency;
+  // Suchmaschinen erhalten den Preis des Shops, nicht die Umrechnung für diese Besucher:in
+  const seo = p.priceOriginal ? { priceMinor: p.priceOriginal.priceMinor, currency: p.priceOriginal.currency, shippingMinor: p.shippingOriginalMinor ?? p.shippingMinor } : { priceMinor: p.priceMinor, currency, shippingMinor: p.shippingMinor };
   const isDigital = p.kind === "DIGITAL";
   const dims = formatDimensions(p);
   const owner = p.shop.owner.profile!;
@@ -82,12 +84,12 @@ export default async function ProductPage({ params }: Params) {
     url: absolute(href),
     offers: {
       "@type": "Offer",
-      price: (p.priceMinor / 100).toFixed(2),
-      priceCurrency: currency,
+      price: (seo.priceMinor / 100).toFixed(2),
+      priceCurrency: seo.currency,
       availability: p.purchasable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
       seller: { "@type": "Organization", name: p.shop.name },
-      ...(isDigital ? {} : { shippingDetails: { "@type": "OfferShippingDetails", shippingRate: { "@type": "MonetaryAmount", value: (p.shippingMinor / 100).toFixed(2), currency } } }),
+      ...(isDigital ? {} : { shippingDetails: { "@type": "OfferShippingDetails", shippingRate: { "@type": "MonetaryAmount", value: (seo.shippingMinor / 100).toFixed(2), currency: seo.currency } } }),
     },
     ...(p.ratingCount ? { aggregateRating: { "@type": "AggregateRating", ratingValue: p.ratingAvg.toFixed(1), reviewCount: p.ratingCount } } : {}),
   };
@@ -156,6 +158,11 @@ export default async function ProductPage({ params }: Params) {
               entitlementId={p.viewer.entitlementId}
               paymentsLive={mode !== "disabled"}
             />
+            {p.priceOriginal && (
+              <p className="mt-2 text-[12.5px] text-muted">
+                Shop-Preis {formatMoney(p.priceOriginal.priceMinor, p.priceOriginal.currency)} · umgerechnet zum EZB-Kurs{p.priceOriginal.fxDate ? ` vom ${new Date(`${p.priceOriginal.fxDate}T12:00:00Z`).toLocaleDateString("de-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" })}` : ""}. Du bezahlst in {currency === "EUR" ? "Euro" : "Franken"}.
+              </p>
+            )}
             {p.status === "SOLD_OUT" && !p.isOwner && (
               <div className="mt-4">
                 <RestockRequest productId={p.id} shopName={p.shop.name} signedIn={!!user} requested={p.viewer.restockRequested} />

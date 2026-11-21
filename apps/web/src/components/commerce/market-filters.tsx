@@ -18,7 +18,7 @@ export const MARKET_SORT_LABEL = SORT_LABEL;
  * Filter als einfaches GET-Formular – funktioniert ohne JavaScript, Zustand steckt in der URL
  * (teilbar, zurück-Taste funktioniert). Kein Infinite-Scroll-Sog.
  */
-export function MarketFilters({ raw, action = "/markt", idPrefix = "f", categories = CATEGORIES }: { raw: Record<string, string>; action?: string; idPrefix?: string; categories?: readonly CategoryOption[] }) {
+export function MarketFilters({ raw, action = "/markt", idPrefix = "f", categories = CATEGORIES, currency = "CHF" }: { raw: Record<string, string>; action?: string; idPrefix?: string; categories?: readonly CategoryOption[]; currency?: string }) {
   const id = (k: string) => `${idPrefix}-${k}`;
   return (
     <Form action={action} className="space-y-6" aria-label="Produkte filtern">
@@ -36,7 +36,7 @@ export function MarketFilters({ raw, action = "/markt", idPrefix = "f", categori
       </div>
 
       <fieldset>
-        <legend className="mb-1.5 text-[13px] font-semibold">Preis in CHF</legend>
+        <legend className="mb-1.5 text-[13px] font-semibold">Preis in {currency === "EUR" ? "€" : "CHF"}</legend>
         <div className="grid grid-cols-2 gap-2">
           <Input name="min" inputMode="numeric" placeholder="von" aria-label="Preis von" defaultValue={raw.min ?? ""} className="num h-10" />
           <Input name="max" inputMode="numeric" placeholder="bis" aria-label="Preis bis" defaultValue={raw.max ?? ""} className="num h-10" />

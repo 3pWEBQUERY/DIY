@@ -424,6 +424,8 @@ struct SignUpSheet: View {
     @State private var password = ""
     @State private var adult = false
     @State private var terms = false
+    /// Land bestimmt die Währung (CH/LI: Franken, DE/AT: Euro) – Pflicht, bewusst ohne Vorauswahl
+    @State private var country: MemberCountry?
     @State private var error: APIError?
     @State private var handleState: (ok: Bool, text: String)?
     @State private var handleTouched = false
@@ -464,6 +466,7 @@ struct SignUpSheet: View {
                             PasswordStrength(password: password)
                         }
                     }
+                    CountryPicker(selection: $country, hint: "Bestimmt, in welcher Währung du Preise siehst und bezahlst. Später in den Einstellungen änderbar.", error: error?.fields?["country"])
                     VStack(alignment: .leading, spacing: 12) {
                         Toggle(isOn: $adult) { Text("Ich bin mindestens 18 Jahre alt.").font(.wr(.subheadline)) }
                         Toggle(isOn: $terms) {
@@ -483,7 +486,7 @@ struct SignUpSheet: View {
                     if let error, error.fields == nil || (error.fields?["adult"] != nil || error.fields?["terms"] != nil) { NoticeView(tone: .danger, message: error.message) }
                     AsyncButton { await submit() } label: { Text("Konto erstellen").frame(maxWidth: .infinity) }
                         .primaryButton()
-                        .disabled(!adult || !terms || email.trimmed.isEmpty || password.count < 10 || displayName.trimmed.isEmpty || handle.count < 3)
+                        .disabled(country == nil || !adult || !terms || email.trimmed.isEmpty || password.count < 10 || displayName.trimmed.isEmpty || handle.count < 3)
                     Button("Schon dabei? Anmelden", action: onSignIn).font(.wr(.footnote, .semibold)).foregroundStyle(Color.moss).frame(maxWidth: .infinity)
                 }
                 .padding(Space.gutter)
@@ -512,8 +515,9 @@ struct SignUpSheet: View {
 
     private func submit() async {
         error = nil
+        guard let country else { return }
         do {
-            try await app.signUp(email: email.trimmed, password: password, displayName: displayName.trimmed, handle: handle.trimmed)
+            try await app.signUp(email: email.trimmed, password: password, displayName: displayName.trimmed, handle: handle.trimmed, country: country.rawValue)
             Haptics.success()
             dismiss()
         } catch let e as APIError { withAnimation { error = e }; Haptics.warning() }

@@ -154,6 +154,14 @@ struct ProductDetailView: View {
 
     // MARK: Titel & Preis
 
+    private func originalPriceNote(_ o: MarketProductPage.PriceOriginal, currency: String?) -> some View {
+        let day = Currency.fxDay(o.fxDate).map { " vom \($0)" } ?? ""
+        return Text("Shop-Preis \(Fmt.money(o.priceMinor, currency: o.currency)) · umgerechnet zum EZB-Kurs\(day). Du bezahlst in \(Currency.name(currency)).")
+            .font(.wr(.caption))
+            .foregroundStyle(Color.muted)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     private func titleBlock(_ p: MarketProductPage) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -174,6 +182,8 @@ struct ProductDetailView: View {
                         .font(.wr(.footnote)).foregroundStyle(Color.muted)
                 }
             }
+            // Umgerechnet aus der Währung des Shops (digitale Produkte: Preis von Apple, daher ohne Hinweis)
+            if !p.isDigital, let o = p.priceOriginal { originalPriceNote(o, currency: p.currency) }
             HStack(spacing: 12) {
                 if let n = p.ratingCount, n > 0, let r = p.ratingAvg {
                     HStack(spacing: 5) {

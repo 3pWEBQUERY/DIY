@@ -2,6 +2,7 @@ import "server-only";
 import { REAL_ORDER } from "@/server/commerce/real-orders";
 import { z } from "zod";
 import { PRODUCT_KIND, categorySchema } from "@werkraum/shared";
+import { sumOrdersInShopCurrency } from "@/server/commerce/order-sums";
 import { db, type Prisma, type ProductStatus } from "@/server/db";
 import { fail } from "@/server/errors";
 import { assertNotOwn } from "@/server/admin/own";
@@ -237,12 +238,12 @@ export async function getShopAdminDetail(actor: Actor, shopId: string) {
     // Umsätze und Streitfälle: nur Administration (§24.3)
     isAdmin
       ? Promise.all([
-          db.order.aggregate({ where: { shopId, paidAt: { not: null }, status: GMV_EXCLUDED, ...REAL_ORDER }, _sum: { totalMinor: true, platformFeeMinor: true } }),
+          sumOrdersInShopCurrency({ shopId, paidAt: { not: null }, status: GMV_EXCLUDED, ...REAL_ORDER }),
           db.payment.count({ where: { status: "DISPUTED", order: { shopId } } }),
           db.refund.count({ where: { status: "PENDING", order: { shopId } } }),
         ]).then(([agg, disputed, refundsPending]) => ({
-          gmvMinor: agg._sum.totalMinor ?? 0,
-          feeMinor: agg._sum.platformFeeMinor ?? 0,
+          gmvMinor: agg.totalMinor,
+          feeMinor: agg.platformFeeMinor,
           disputed,
           refundsPending,
         }))

@@ -140,11 +140,11 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
                             <Link href={`/materialien/${m.slug}#h-kaufen`} className="hover:underline" title={`günstigstes Angebot: ${o.retailer}`}>
                               {o.perUnit ? (
                                 <>
-                                  {formatMoney(o.perUnit.minor, o.currency as Currency)}
+                                  {o.approx ? "ca. " : ""}{formatMoney(o.perUnit.minor, o.currency as Currency)}
                                   <span className="block text-[11px] text-muted">je {o.perUnit.label}</span>
                                 </>
                               ) : (
-                                formatMoney(o.priceMinor, o.currency as Currency)
+                                `${o.approx ? "ca. " : ""}${formatMoney(o.priceMinor, o.currency as Currency)}`
                               )}
                             </Link>
                           );

@@ -45,6 +45,7 @@ enum L {
     static let shopStatus: [String: String] = ["DRAFT": "Entwurf", "PENDING_VERIFICATION": "Verifizierung läuft", "ACTIVE": "Aktiv", "PAUSED": "Pausiert", "SUSPENDED": "Gesperrt"]
     static let sellerType: [(key: String, label: String)] = [("PRIVATE", "Privatperson"), ("BUSINESS", "Gewerblich")]
     static let shipCountries: [(key: String, label: String)] = [("CH", "Schweiz"), ("DE", "Deutschland"), ("AT", "Österreich"), ("LI", "Liechtenstein")]
+    /// Bezeichnungen für die Anzeige (auch ältere Profilangaben); gewählt werden nur CH/LI/DE/AT – siehe `MemberCountry`
     static let profileCountries: [(key: String, label: String)] = [("CH", "Schweiz"), ("DE", "Deutschland"), ("AT", "Österreich"), ("LI", "Liechtenstein"), ("FR", "Frankreich"), ("IT", "Italien"), ("OTHER", "Anderes Land")]
     static func country(_ k: String?) -> String { profileCountries.first { $0.key == k }?.label ?? (k ?? "") }
 

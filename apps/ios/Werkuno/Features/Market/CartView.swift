@@ -36,6 +36,9 @@ struct CartView: View {
         }
     }
 
+    /// Währung aller Beträge im Warenkorb (Käufer:in): vom Server, sonst aus dem Konto
+    private var cur: String { cart?.currency ?? app.currency }
+
     private func load() async {
         do {
             let c: MarketCart = try await APIClient.shared.get("/cart")
@@ -156,10 +159,10 @@ struct CartView: View {
             VStack(spacing: 6) {
                 // Beträge ohne digitale Positionen (deren Preis gilt nur über Apple auf der Produktseite)
                 let digital = digitalMinor(g.lines)
-                MarketAmountRow(label: "Warenwert", value: Fmt.money(max(0, (g.subtotal ?? g.fees.subtotal) - digital)))
-                MarketDiscountRows(rows: g.discounts ?? [])
-                MarketAmountRow(label: "Versand (kombiniert)", value: g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping))
-                MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(max(0, g.fees.total - digital)), strong: false)
+                MarketAmountRow(label: "Warenwert", value: Fmt.money(max(0, (g.subtotal ?? g.fees.subtotal) - digital), currency: cur))
+                MarketDiscountRows(rows: g.discounts ?? [], currency: cur)
+                MarketAmountRow(label: "Versand (kombiniert)", value: g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping, currency: cur))
+                MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(max(0, g.fees.total - digital), currency: cur), strong: false)
                 if let inc = g.incompleteBundles, !inc.isEmpty {
                     Text("\(inc.map { "Set „\($0.title)“" }.joined(separator: ", ")): Der Set-Rabatt gilt nur, solange alle Teile im Warenkorb liegen.")
                         .font(.wr(.caption)).foregroundStyle(Color.warn).frame(maxWidth: .infinity, alignment: .leading)
@@ -192,12 +195,12 @@ struct CartView: View {
                     if let v = l.variantName?.nilIfEmpty { Text(v).font(.wr(.caption)).foregroundStyle(Color.muted) }
                     // Digital: kein Preis hier – der Kauf läuft über Apple auf der Produktseite
                     if !l.isDigital {
-                        Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor))" : Fmt.money(l.unitMinor)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
+                        Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor, currency: l.currency ?? cur))" : Fmt.money(l.unitMinor, currency: l.currency ?? cur)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
                     }
                     if l.isDigital { Label("Kauf auf der Produktseite", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
                 }
                 Spacer(minLength: 6)
-                if !l.isDigital { Text(Fmt.money(l.lineMinor)).font(.wr(.subheadline, .semibold)).monospacedDigit() }
+                if !l.isDigital { Text(Fmt.money(l.lineMinor, currency: l.currency ?? cur)).font(.wr(.subheadline, .semibold)).monospacedDigit() }
             }
             if let p = l.problem {
                 Label(p, systemImage: "exclamationmark.triangle.fill").font(.wr(.caption, .medium)).foregroundStyle(Color.danger)
@@ -248,8 +251,11 @@ struct CartView: View {
     private func summary(_ c: MarketCart) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             let digital = c.groups.reduce(0) { $0 + digitalMinor($1.lines) }
-            MarketFeeSummary(subtotal: max(0, c.totals.subtotal - digital), shipping: c.totals.shipping, total: max(0, c.totals.total - digital),
+            MarketFeeSummary(subtotal: max(0, c.totals.subtotal - digital), shipping: c.totals.shipping, total: max(0, c.totals.total - digital), currency: cur,
                              discounts: (c.totals.discount ?? 0) > 0 ? [MarketDiscountRow(kind: "total", label: "Rabatte", amountMinor: c.totals.discount ?? 0)] : [])
+            if let fx = c.fx, c.groups.contains(where: { $0.converted == true }) {
+                MarketFxNote(currency: cur, shopCurrency: c.groups.first(where: { $0.converted == true })?.shop.currency, eurChf: fx.eurChf, date: fx.date)
+            }
             if c.groups.count > 1 {
                 Label("\(c.groups.count) Shops – du erhältst \(c.groups.count) getrennte Bestellungen, jede mit eigener Zahlung.", systemImage: "square.stack")
                     .font(.wr(.footnote)).foregroundStyle(Color.ink2)
@@ -274,7 +280,7 @@ struct CartView: View {
         let blocked = c.hasProblems || c.mode == "disabled" || hasDigital(c)
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(Fmt.money(max(0, c.totals.total - c.groups.reduce(0) { $0 + digitalMinor($1.lines) }))).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
+                Text(Fmt.money(max(0, c.totals.total - c.groups.reduce(0) { $0 + digitalMinor($1.lines) }), currency: cur)).font(.wr(.headline)).monospacedDigit().contentTransition(.numericText())
                 Text("\(Fmt.plural(c.count, "Artikel", "Artikel")) · inkl. Versand").font(.wr(.caption2)).foregroundStyle(Color.muted)
             }
             Spacer()

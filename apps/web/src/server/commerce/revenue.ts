@@ -19,12 +19,14 @@ export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
   const since = range === "alle" ? null : new Date(Date.now() - Number(range) * 86400_000);
   // Summen in der Datenbank statt alle Bestellungen zu laden („alle“ wächst unbegrenzt). Provision wie
   // netPlatformFee je Bestellung (anteilig nach Erstattung, gerundet), dann summiert.
+  // Bestellungen in der anderen Währung (Mitglieder aus DE/AT bzw. CH/LI) mit dem Kurs vom Kauf (`shopFx`)
+  // in die Shop-Währung umgerechnet.
   const [agg] = await db.$queryRaw<{ n: bigint; gross: bigint | null; refunds: bigint | null; fees: bigint | null }[]>`
     SELECT COUNT(*) AS n,
-           SUM("Order"."totalMinor")::bigint AS gross,
-           SUM(COALESCE(r.refunded, 0))::bigint AS refunds,
+           SUM(ROUND("Order"."totalMinor" * COALESCE("Order"."shopFx", 1)))::bigint AS gross,
+           SUM(ROUND(COALESCE(r.refunded, 0) * COALESCE("Order"."shopFx", 1)))::bigint AS refunds,
            SUM(CASE WHEN "Order"."totalMinor" <= 0 THEN 0
-                    ELSE "Order"."platformFeeMinor" - ROUND("Order"."platformFeeMinor" * LEAST(1, GREATEST(0, COALESCE(r.refunded, 0)::numeric / "Order"."totalMinor"))) END)::bigint AS fees
+                    ELSE ROUND(("Order"."platformFeeMinor" - ROUND("Order"."platformFeeMinor" * LEAST(1, GREATEST(0, COALESCE(r.refunded, 0)::numeric / "Order"."totalMinor")))) * COALESCE("Order"."shopFx", 1)) END)::bigint AS fees
     FROM "Order"
     LEFT JOIN (SELECT "orderId", SUM("amountMinor") AS refunded FROM "Refund" WHERE "status" = 'SUCCEEDED' GROUP BY "orderId") r ON r."orderId" = "Order"."id"
     WHERE "Order"."shopId" = ${shopId} AND "Order"."paidAt" IS NOT NULL ${since ? Prisma.sql`AND "Order"."paidAt" >= ${since}` : Prisma.empty} ${REAL_ORDER_SQL}`;
@@ -44,6 +46,7 @@ export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
       totalMinor: true,
       platformFeeMinor: true,
       feeBps: true,
+      shopFx: true,
       refunds: { where: { status: "SUCCEEDED" }, select: { amountMinor: true } },
     },
     orderBy: [{ paidAt: "desc" }, { id: "desc" }],
@@ -52,7 +55,17 @@ export async function shopRevenue(shopId: string, range: RevenueRange = "30") {
   const rows = orders.map((o) => {
     const refunded = o.refunds.reduce((s, r) => s + r.amountMinor, 0);
     const fee = netPlatformFee(o.platformFeeMinor, o.totalMinor, refunded);
-    return { ...o, refunded, fee, net: o.totalMinor - refunded - fee };
+    // In Shop-Währung; `paidIn` zeigt den bezahlten Betrag, wenn in der anderen Währung bezahlt wurde
+    const fx = o.shopFx ?? 1;
+    const toShop = (v: number) => Math.round(v * fx);
+    return {
+      ...o,
+      totalMinor: toShop(o.totalMinor),
+      refunded: toShop(refunded),
+      fee: toShop(fee),
+      net: toShop(o.totalMinor) - toShop(refunded) - toShop(fee),
+      paidIn: o.shopFx ? { currency: o.currency, totalMinor: o.totalMinor } : null,
+    };
   });
   const [pendingRefunds, payouts, shop] = await Promise.all([
     db.refund.aggregate({ where: { order: { shopId }, status: "PENDING" }, _sum: { amountMinor: true } }),

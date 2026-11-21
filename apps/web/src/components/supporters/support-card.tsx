@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 export type SupportCardOffer = {
   enabled: boolean;
   priceMinor: number;
+  currency?: string;
   perks: string;
   exclusiveTutorials: number;
   creator: { id: string; handle: string; displayName: string } | null;
@@ -72,7 +73,7 @@ export function SupportCard({ offer, signedIn, variant = "profile", returnTo, cl
       ) : offer.enabled && offer.creator ? (
         <>
           <p className="mt-1 text-[14px]">
-            <b className="num text-[20px]">{formatMoney(offer.priceMinor)}</b> <span className="text-muted">im Monat · jederzeit kündbar</span>
+            <b className="num text-[20px]">{formatMoney(offer.priceMinor, offer.currency)}</b> <span className="text-muted">im Monat · jederzeit kündbar</span>
           </p>
           {offer.perks && <p className="mt-2 whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2">{offer.perks}</p>}
           {offer.exclusiveTutorials > 0 && (
@@ -82,7 +83,7 @@ export function SupportCard({ offer, signedIn, variant = "profile", returnTo, cl
           )}
           {signedIn ? (
             <Button className="mt-4 w-full" onClick={() => void start()} disabled={pending}>
-              <Heart size={15} aria-hidden /> {pending ? "Einen Moment …" : `Unterstützen · ${formatMoney(offer.priceMinor)}/Monat`}
+              <Heart size={15} aria-hidden /> {pending ? "Einen Moment …" : `Unterstützen · ${formatMoney(offer.priceMinor, offer.currency)}/Monat`}
             </Button>
           ) : (
             <LinkButton href={`/anmelden?weiter=${encodeURIComponent(returnTo)}`} className="mt-4 w-full">
