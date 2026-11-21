@@ -185,7 +185,10 @@ struct HashtagView: View {
         VStack(alignment: .leading, spacing: 28) {
             ForEach(HashtagKind.allCases.filter { p.counts.value($0) > 0 }) { k in
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(k.label, subtitle: Fmt.number(p.counts.value(k))) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(k.label).font(.titleSerif).foregroundStyle(Color.ink)
+                        Text(Fmt.number(p.counts.value(k))).font(.wr(.subheadline)).monospacedDigit().foregroundStyle(Color.muted)
+                        Spacer(minLength: 8)
                         if p.counts.value(k) > previewCount(k, p) {
                             Button("Alle anzeigen") {
                                 Haptics.selection()

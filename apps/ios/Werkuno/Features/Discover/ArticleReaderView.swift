@@ -13,7 +13,7 @@ struct ArticleReaderView: View {
     @State private var target: (handle: String, slug: String)?
     @State private var data: BlogReadPayload?
     @State private var error: String?
-    @State private var showTOC = false
+    @State private var showTOC = true
 
     private var h: String { target?.handle ?? handle }
     private var s: String { target?.slug ?? slug }

@@ -103,7 +103,7 @@ struct DifficultyMeter: View {
         HStack(spacing: 6) {
             HStack(spacing: 2.5) {
                 ForEach(1...5, id: \.self) { i in
-                    Capsule().fill(i <= level ? Color.ink : Color.lineStrong).frame(width: 9, height: 3.5)
+                    Capsule().fill(i <= level ? Color.moss : Color.lineStrong).frame(width: 9, height: 3.5)
                 }
             }
             if showLabel { Text(L.difficulty[level] ?? "").font(.wr(.caption)).foregroundStyle(Color.muted) }
