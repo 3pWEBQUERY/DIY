@@ -206,17 +206,14 @@ struct MeView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 4) {
-            Wordmark(size: 18)
-            Text("\(appVersion) · \(AppConfig.environment.label)").font(.wr(.caption2)).foregroundStyle(Color.muted)
-        }
+        Text("Werkuno Version \(appVersion)")
+            .font(.wr(.caption2))
+            .foregroundStyle(Color.muted)
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
     }
 
     private var appVersion: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "Version \(v) (\(b))"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 }

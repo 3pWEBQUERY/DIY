@@ -426,7 +426,7 @@ private struct FeedCreatorCarousel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.m) {
             SectionHeader("Creator für dich", subtitle: "Aus deinen Interessen") {
-                Image(systemName: "sparkles").font(.wr(.footnote)).foregroundStyle(Color.moss)
+                CreatorIcon(size: 18)
             }
             .padding(.horizontal, Space.gutter)
             ScrollView(.horizontal, showsIndicators: false) {
