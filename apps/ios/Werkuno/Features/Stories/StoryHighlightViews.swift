@@ -437,22 +437,19 @@ struct StoryThumbView: View {
         GeometryReader { geo in
             ZStack {
                 if story.isText {
-                    let bg = StoryBackground.from(story.background)
-                    bg.background
-                    Text(story.text)
-                        .font(.wr(size: max(8, geo.size.width * StoryFmt.textScale(story.text)), weight: .bold))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(bg.foreground)
-                        .minimumScaleFactor(0.5)
-                        .padding(.horizontal, geo.size.width * 0.09)
+                    StoryTextStage(text: story.text, bg: StoryBackground.from(story.background), look: story.layout?.textLook ?? StoryTextLook(), width: geo.size.width)
                 } else if let t = story.thumbURL {
                     RemoteImage(path: t) { Color.sunken }
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
+                        .storyFilter(story.layout)
                 } else {
                     Color.sunken
                     Text(story.media?.state == "FAILED" ? "Fehlgeschlagen" : "Wird verarbeitet …")
                         .font(.wr(.caption2)).foregroundStyle(Color.muted)
+                }
+                if let l = story.layout, !l.elements.isEmpty {
+                    StoryOverlayView(layout: l, size: geo.size)
                 }
                 if story.isVideo {
                     Image(systemName: "play.fill")

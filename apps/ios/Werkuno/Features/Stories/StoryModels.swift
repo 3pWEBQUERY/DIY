@@ -165,6 +165,8 @@ struct StoryItem: Decodable, Hashable, Identifiable, Sendable {
     var stats: Stats?
     /// Nur im Archiv
     var highlightIds: [String]?
+    /// Gestaltung (Story-Editor): Ebenen, Filter, Textstil
+    var layout: StoryLayoutData?
 
     var isText: Bool { kind == "TEXT" }
     var isVideo: Bool { media?.isVideo == true }
@@ -271,24 +273,41 @@ enum StoryAPI {
     static func group(handle: String) async throws -> StoryGroup { try await APIClient.shared.get("/stories/u/\(handle.lowercased())") }
     static func highlight(_ id: String) async throws -> StoryGroup { try await APIClient.shared.get("/highlights/\(id)") }
 
-    static func createMedia(mediaId: String, alt: String, caption: String, audience: StoryAudience, projectId: String?) async throws -> Created {
-        try await APIClient.shared.post("/stories", [
-            "kind": JSONValue.string("MEDIA"),
+    static func createMedia(mediaId: String, alt: String, caption: String, audience: StoryAudience, projectId: String?, layout: StoryLayoutData? = nil) async throws -> Created {
+        var body: [String: JSONValue] = [
+            "kind": .string("MEDIA"),
             "media": .object(["id": .string(mediaId), "alt": .string(alt)]),
             "text": .string(caption),
             "visibility": .string(audience.rawValue),
             "projectId": .from(projectId),
-        ].filter { $0.value != .null })
+        ]
+        if let layout, !layout.isEmpty(text: false) { body["layout"] = layout.json(text: false) }
+        return try await APIClient.shared.post("/stories", body.filter { $0.value != .null })
     }
 
-    static func createText(_ text: String, background: StoryBackground, audience: StoryAudience, projectId: String?) async throws -> Created {
-        try await APIClient.shared.post("/stories", [
-            "kind": JSONValue.string("TEXT"),
+    static func createText(_ text: String, background: StoryBackground, audience: StoryAudience, projectId: String?, layout: StoryLayoutData? = nil) async throws -> Created {
+        var body: [String: JSONValue] = [
+            "kind": .string("TEXT"),
             "text": .string(text),
             "background": .string(background.rawValue),
             "visibility": .string(audience.rawValue),
             "projectId": .from(projectId),
-        ].filter { $0.value != .null })
+        ]
+        if let layout, !layout.isEmpty(text: true) { body["layout"] = layout.json(text: true) }
+        return try await APIClient.shared.post("/stories", body.filter { $0.value != .null })
+    }
+
+    struct MentionSuggestion: Decodable, Hashable, Identifiable, Sendable {
+        var handle: String
+        var displayName: String
+        var avatarUrl: String?
+        var id: String { handle }
+    }
+    struct MentionSuggestions: Decodable { var items: [MentionSuggestion] }
+    /// Story-Editor: Personen für den @Erwähnung-Sticker
+    static func mentionSuggestions(_ q: String) async throws -> [MentionSuggestion] {
+        let r: MentionSuggestions = try await APIClient.shared.get("/stories/mention-suggest", query: ["q": q])
+        return r.items
     }
 
     static func seen(_ id: String) async { _ = try? await APIClient.shared.action("POST", "/stories/\(id)/seen") }

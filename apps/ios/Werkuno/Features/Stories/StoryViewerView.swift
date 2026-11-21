@@ -125,6 +125,21 @@ struct StoryViewerView: View {
 
     private struct TickKey: Hashable { var item: String?; var paused: Bool; var ready: Bool }
 
+    /// Grösste 9:16-Bühne in der verfügbaren Fläche (Positionen der Ebenen beziehen sich auf sie)
+    static func stageSize(_ area: CGSize) -> CGSize {
+        let w = min(area.width, area.height * 9 / 16)
+        return CGSize(width: w, height: w * 16 / 9)
+    }
+
+    /// Erwähnung oder Projekt-Sticker: Betrachter schliessen und das Ziel im aktuellen Tab öffnen
+    private func openOverlayLink(_ href: String) {
+        dismiss()
+        Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            router.open(href: href)
+        }
+    }
+
     // MARK: Aufbau
 
     @ViewBuilder private func content(_ g: StoryGroup, _ s: StoryItem) -> some View {
@@ -137,6 +152,10 @@ struct StoryViewerView: View {
                         .contentShape(.rect)
                         .gesture(touch(width: geo.size.width))
                         .accessibilityHidden(true)
+                    // Gestaltete Ebenen (Text, Sticker, Zeichnung) auf der 9:16-Bühne; Erwähnungen und Projekte antippbar
+                    if let l = s.layout, !l.elements.isEmpty {
+                        StoryOverlayView(layout: l, size: Self.stageSize(geo.size)) { href in openOverlayLink(href) }
+                    }
                     VStack(spacing: 0) {
                         header(g, s)
                         Spacer(minLength: 0)
@@ -159,19 +178,7 @@ struct StoryViewerView: View {
     /// Inhalt der Story: Text auf Farbfläche, Foto oder Video
     @ViewBuilder private func stage(_ s: StoryItem, width: CGFloat) -> some View {
         if s.isText {
-            let bg = StoryBackground.from(s.background)
-            ZStack {
-                bg.background
-                Text(s.text)
-                    .font(.wr(size: max(15, width * StoryFmt.textScale(s.text)), weight: .bold))
-                    .tracking(-0.3)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(bg.foreground)
-                    .minimumScaleFactor(0.6)
-                    .padding(.horizontal, width * 0.09)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(s.text)
+            StoryTextStage(text: s.text, bg: StoryBackground.from(s.background), look: s.layout?.textLook ?? StoryTextLook(), width: width)
         } else if let m = s.media, m.isReady {
             ZStack {
                 (Color(hexString: m.dominant) ?? Color(hex: 0x151312))
@@ -186,10 +193,12 @@ struct StoryViewerView: View {
                     }
                 } else if m.isVideo, let player {
                     StoryPlayerLayer(player: player, fill: m.fills)
+                        .storyFilter(s.layout)
                 } else if let image {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: m.fills ? .fill : .fit)
+                        .storyFilter(s.layout)
                 } else {
                     RemoteImage(path: m.poster) { Color.clear }
                     ProgressView().tint(.white)

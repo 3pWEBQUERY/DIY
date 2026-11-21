@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import * as stories from "@/server/stories/service";
 import * as highlights from "@/server/stories/highlights";
+import { mentionSuggestions } from "@/server/stories/layout";
 import { DELETE, GET, PATCH, POST, me, need, str, viewer, viewerId, zId, type RouteDef } from "../router";
 
 /**
@@ -11,6 +12,8 @@ import { DELETE, GET, PATCH, POST, me, need, str, viewer, viewerId, zId, type Ro
 export const storyRoutes: RouteDef[] = [
   GET("/stories/tray", async () => stories.storyTray(await viewer())),
   GET("/stories/archive", async (c) => stories.storyArchive(await me(), str(c.q, "cursor") ?? null)),
+  /** Story-Editor: Personen für den @Erwähnung-Sticker */
+  GET("/stories/mention-suggest", async (c) => ({ items: await mentionSuggestions(await me(), str(c.q, "q") ?? "") })),
   /** Betrachter öffnen: Reihenfolge der Personen ab `handle` und die erste Gruppe. */
   GET("/stories/viewer/:handle", async (c) => {
     const u = await viewer();

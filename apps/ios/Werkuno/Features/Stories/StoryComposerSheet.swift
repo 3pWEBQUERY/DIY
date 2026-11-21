@@ -28,7 +28,27 @@ struct StoryComposerSheet: View {
     @State private var projectId: String = ""
     @State private var projects: [IdTitle] = []
     @State private var posting = false
+    /// Gestaltung aus dem Story-Editor (Ebenen, Filter, Textstil)
+    @State private var layout = StoryLayoutData()
+    @State private var editing = false
     @FocusState private var textFocused: Bool
+
+    /// Story-Editor (Flag „stories.editor“, fehlend = an)
+    private var editorEnabled: Bool { app.flags["stories.editor"] ?? true }
+
+    /// Grundlage für den Editor: fertig hochgeladenes Foto/Video oder Text
+    private var editorBase: StoryEditorView.Base? {
+        switch mode {
+        case .text:
+            return text.trimmed.isEmpty ? nil : .text(text, background)
+        case .media:
+            if case .ready(_, let img, let video, _) = upload {
+                if video { return .video(poster: img) }
+                if let img { return .image(img) }
+            }
+            return nil
+        }
+    }
 
     private var ready: Bool {
         switch mode {
@@ -50,6 +70,16 @@ struct StoryComposerSheet: View {
                     preview
                         .frame(width: 230)
                         .frame(maxWidth: .infinity)
+
+                    if editorEnabled {
+                        Button { editing = true } label: {
+                            Label(layout.isEmpty(text: mode == .text) ? "Gestalten" : "Gestaltung bearbeiten", systemImage: "paintbrush.pointed")
+                                .font(.wr(.subheadline, .semibold))
+                                .foregroundStyle(editorBase == nil ? Color.muted : Color.moss)
+                        }
+                        .disabled(editorBase == nil)
+                        .accessibilityHint("Text, Sticker, Zeichnungen und Filter hinzufügen")
+                    }
 
                     if mode == .media { mediaFields } else { textFields }
                     commonFields
@@ -77,6 +107,13 @@ struct StoryComposerSheet: View {
             }
             .onChange(of: mode) { _, m in textFocused = m == .text }
             .task { await loadProjects() }
+            .fullScreenCover(isPresented: $editing) {
+                if let base = editorBase {
+                    StoryEditorView(base: base, layout: $layout, projects: projects) { cropped in
+                        Task { await recrop(cropped) }
+                    }
+                }
+            }
         }
         .interactiveDismissDisabled(posting || isUploading)
     }
@@ -92,8 +129,9 @@ struct StoryComposerSheet: View {
                     background.background
                     TextField("", text: $text, prompt: Text("Dein Text").foregroundStyle(background.foreground.opacity(0.55)), axis: .vertical)
                         .focused($textFocused)
-                        .font(.wr(size: max(14, geo.size.width * StoryFmt.textScale(text.isEmpty ? "Dein Text" : text)), weight: .bold))
-                        .multilineTextAlignment(.center)
+                        .font(storyFont(max(14, geo.size.width * StoryFmt.textScale(text.isEmpty ? "Dein Text" : text) * layout.textLook.scale), layout.textLook.style.weight))
+                        .textCase(layout.textLook.style == .caps ? .uppercase : nil)
+                        .multilineTextAlignment(layout.textLook.align.textAlignment)
                         .foregroundStyle(background.foreground)
                         .tint(background.foreground)
                         .padding(.horizontal, geo.size.width * 0.09)
@@ -127,6 +165,7 @@ struct StoryComposerSheet: View {
                             Image(uiImage: img).resizable().aspectRatio(contentMode: .fill)
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .clipped()
+                                .storyFilter(layout)
                         }
                         if let c = caption.nilIfEmpty {
                             VStack {
@@ -145,6 +184,10 @@ struct StoryComposerSheet: View {
                             ProgressView().tint(.white).controlSize(.large)
                         }
                     }
+                }
+                if !layout.elements.isEmpty {
+                    StoryOverlayView(layout: layout, size: geo.size)
+                        .allowsHitTesting(false)
                 }
             }
             .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
@@ -298,6 +341,17 @@ struct StoryComposerSheet: View {
         }
     }
 
+    /// Zugeschnittenes Foto neu hochladen (nur der Ausschnitt verlässt das Gerät)
+    private func recrop(_ img: UIImage) async {
+        upload = .uploading(image: img, video: false)
+        do {
+            let (id, r) = try await MediaUpload.upload(img)
+            upload = .ready(id: id, image: img, video: false, processing: r.state != "READY")
+        } catch {
+            upload = .failed((error as? APIError)?.message ?? "Der Upload ist fehlgeschlagen. Bitte versuche es erneut.")
+        }
+    }
+
     private static func thumbnail(_ asset: AVURLAsset) async -> UIImage? {
         let gen = AVAssetImageGenerator(asset: asset)
         gen.appliesPreferredTrackTransform = true
@@ -318,9 +372,9 @@ struct StoryComposerSheet: View {
                 guard case .ready(let id, _, let v, let p) = upload else { return }
                 processing = p
                 isVideo = v
-                _ = try await StoryAPI.createMedia(mediaId: id, alt: alt.trimmed, caption: caption.trimmed, audience: audience, projectId: project)
+                _ = try await StoryAPI.createMedia(mediaId: id, alt: alt.trimmed, caption: caption.trimmed, audience: audience, projectId: project, layout: editorEnabled ? layout : nil)
             case .text:
-                _ = try await StoryAPI.createText(text.trimmed, background: background, audience: audience, projectId: project)
+                _ = try await StoryAPI.createText(text.trimmed, background: background, audience: audience, projectId: project, layout: editorEnabled ? layout : nil)
             }
             Haptics.success()
             app.show(processing ? "Deine Story erscheint, sobald \(isVideo ? "das Video" : "das Foto") verarbeitet ist." : "Deine Story ist online – 24 Stunden lang.")
