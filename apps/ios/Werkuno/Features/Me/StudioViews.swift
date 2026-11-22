@@ -112,7 +112,7 @@ struct StudioView: View {
         }
     }
 
-    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .shop, .revenue].contains(s) }
+    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .shop, .revenue].contains(s) }
 
     private func subtitle(_ s: StudioSection) -> String? {
         switch s {
@@ -122,6 +122,7 @@ struct StudioView: View {
         case .articles: "Entwürfe, geplante und veröffentlichte Artikel"
         case .products: app.me?.shop == nil ? "Mit eigenem Shop" : "Angebote, Bestand, Preise"
         case .orders: "Eingegangene Bestellungen"
+        case .coupons: app.me?.shop == nil ? "Mit eigenem Shop" : "Rabattcodes für Aktionen"
         case .shop: app.me?.shop?.name ?? "Shop eröffnen"
         case .media: "Bilder, Videos, Alt-Texte"
         case .stats: "Kennzahlen je Inhalt"
@@ -381,7 +382,7 @@ struct StudioProjectsView: View {
                 MeCountLabel(symbol: "eye", value: p.viewCount, label: "Aufrufe")
                 MeCountLabel(symbol: "heart", value: p.likeCount, label: "Gefällt-mir")
                 MeCountLabel(symbol: "bookmark", value: p.saveCount, label: "gemerkt")
-                MeCountLabel(symbol: "point.3.connected.trianglepath.dotted", value: p._count?.updates, label: "Journal-Einträge")
+                MeCountLabel(symbol: BrandGlyph.symbol, value: p._count?.updates, label: "Journal-Einträge")
                 MeCountLabel(symbol: "bell", value: p._count?.followers, label: "folgen dem Projekt")
                 Spacer(minLength: 0)
             }

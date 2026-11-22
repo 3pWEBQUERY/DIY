@@ -321,4 +321,24 @@ export const commerceRoutes: RouteDef[] = [
     const r = await orders.cancelBySeller(await meAllowSuspended(), c.p.id!, reason ?? "");
     return { ...r, message: r.refundDeferred ? "Bestellung storniert. Der Zahlungsanbieter ist gerade nicht erreichbar – die Erstattung wird automatisch erneut ausgelöst." : "Bestellung storniert. Der Betrag wird erstattet." };
   }),
+
+  // ── Studio: Gutscheine (wie /studio/rabatte im Web; Eigentum am Shop prüft der Dienst) ──
+  GET("/studio/coupons", async () => promo.listMyCoupons(await meAllowSuspended())),
+  POST("/studio/coupons", async (c) => {
+    const r = await promo.saveCoupon(await me(), null, await c.json());
+    return { ...r, message: "Gutschein angelegt." };
+  }),
+  PUT("/studio/coupons/:id", async (c) => {
+    const r = await promo.saveCoupon(await me(), c.p.id!, await c.json());
+    return { ...r, message: "Gutschein gespeichert." };
+  }),
+  POST("/studio/coupons/:id/active", async (c) => {
+    const { active } = await c.body({ active: zBool });
+    await promo.setCouponActive(await me(), c.p.id!, active !== false);
+    return { active: active !== false, message: active !== false ? "Gutschein aktiviert." : "Gutschein deaktiviert." };
+  }),
+  DELETE("/studio/coupons/:id", async (c) => {
+    await promo.deleteCoupon(await me(), c.p.id!);
+    return { ok: true, message: "Gutschein gelöscht." };
+  }),
 ];
