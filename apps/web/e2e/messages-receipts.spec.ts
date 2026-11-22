@@ -112,7 +112,7 @@ test("Chat löschen: Verlauf nur für mich weg, mit neuer Nachricht wieder da", 
     expect(sent.status(), await sent.text()).toBe(200);
 
     await page.goto(`/nachrichten/${id}`);
-    await expect(page.getByText(`E2E vor dem Löschen ${tag}`)).toBeVisible();
+    await expect(page.getByText(`E2E vor dem Löschen ${tag}`).first()).toBeVisible();
     await page.getByRole("button", { name: "Optionen der Unterhaltung" }).click();
     await page.getByRole("menuitem", { name: "Chat löschen" }).click();
     await page.getByRole("button", { name: "Löschen", exact: true }).click();
