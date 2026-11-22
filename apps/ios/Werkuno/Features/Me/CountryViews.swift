@@ -33,7 +33,7 @@ struct CountryPicker: View {
             selection = c
         } label: {
             HStack(spacing: 10) {
-                Text(c.flag).font(.system(size: 22))
+                CountryFlagView(country: c, size: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(c.label).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).lineLimit(1).minimumScaleFactor(0.8)
                     Text(c.currency == "EUR" ? "PREISE IN € EURO" : "PREISE IN CHF FRANKEN")
@@ -108,5 +108,70 @@ struct CountryPromptSheet: View {
         } catch {
             app.show(error: error)
         }
+    }
+}
+
+/// Quadratische Landesflagge mit abgerundeten Ecken (statt Emoji). Gezeichnet im 32er-Raster wie im Web
+/// (`components/account/country-flag.tsx`).
+struct CountryFlagView: View {
+    let country: MemberCountry
+    var size: CGFloat = 30
+
+    var body: some View {
+        Canvas { ctx, canvasSize in
+            CountryFlagView.draw(country, in: &ctx, scale: canvasSize.width / 32)
+        }
+        .frame(width: size, height: size)
+        .clipShape(.rect(cornerRadius: size * 0.22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 0.5)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private static func rgb(_ r: Double, _ g: Double, _ b: Double) -> Color {
+        Color(red: r / 255, green: g / 255, blue: b / 255)
+    }
+
+    private static func fill(_ ctx: inout GraphicsContext, _ s: CGFloat, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ color: Color) {
+        ctx.fill(Path(CGRect(x: x * s, y: y * s, width: w * s, height: h * s)), with: .color(color))
+    }
+
+    private static func draw(_ country: MemberCountry, in ctx: inout GraphicsContext, scale s: CGFloat) {
+        switch country {
+        case .CH:
+            fill(&ctx, s, 0, 0, 32, 32, rgb(218, 41, 28))
+            fill(&ctx, s, 13, 6, 6, 20, .white)
+            fill(&ctx, s, 6, 13, 20, 6, .white)
+        case .LI:
+            fill(&ctx, s, 0, 0, 32, 16, rgb(0, 43, 127))
+            fill(&ctx, s, 0, 16, 32, 16, rgb(206, 17, 38))
+            drawCrown(&ctx, s)
+        case .DE:
+            fill(&ctx, s, 0, 0, 32, 10.7, .black)
+            fill(&ctx, s, 0, 10.66, 32, 10.7, rgb(221, 0, 0))
+            fill(&ctx, s, 0, 21.33, 32, 10.67, rgb(255, 206, 0))
+        case .AT:
+            fill(&ctx, s, 0, 0, 32, 32, rgb(200, 16, 46))
+            fill(&ctx, s, 0, 10.66, 32, 10.68, .white)
+        }
+    }
+
+    /// Vereinfachte Fürstenkrone (Liechtenstein)
+    private static func drawCrown(_ ctx: inout GraphicsContext, _ s: CGFloat) {
+        let gold = rgb(255, 216, 61)
+        let points: [CGPoint] = [
+            CGPoint(x: 6.6, y: 11.4), CGPoint(x: 5.9, y: 6.7), CGPoint(x: 8.3, y: 8.6), CGPoint(x: 10.5, y: 5.3),
+            CGPoint(x: 12.7, y: 8.6), CGPoint(x: 15.1, y: 6.7), CGPoint(x: 14.4, y: 11.4),
+        ]
+        var crown = Path()
+        crown.addLines(points.map { CGPoint(x: $0.x * s, y: $0.y * s) })
+        crown.closeSubpath()
+        ctx.fill(crown, with: .color(gold))
+        let band = CGRect(x: 6.6 * s, y: 11.8 * s, width: 8.2 * s, height: 1.3 * s)
+        ctx.fill(Path(roundedRect: band, cornerRadius: 0.4 * s), with: .color(gold))
+        let orb = CGRect(x: 9.6 * s, y: 3.4 * s, width: 1.8 * s, height: 1.8 * s)
+        ctx.fill(Path(ellipseIn: orb), with: .color(gold))
     }
 }

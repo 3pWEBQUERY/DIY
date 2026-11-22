@@ -1,8 +1,9 @@
 "use client";
 
 import { useId } from "react";
-import { MEMBER_COUNTRIES, MEMBER_COUNTRY_FLAG, MEMBER_COUNTRY_LABEL, currencyForCountry, type MemberCountry } from "@werkraum/shared";
+import { MEMBER_COUNTRIES, MEMBER_COUNTRY_LABEL, currencyForCountry, type MemberCountry } from "@werkraum/shared";
 import { cn } from "@/lib/utils";
+import { CountryFlag } from "./country-flag";
 
 /**
  * Wahl des Landes (CH, LI, DE, AT) als vier Kacheln mit Währung. Echte Radio-Buttons im Formular
@@ -52,9 +53,7 @@ export function CountryPicker({
               )}
             >
               <input type="radio" name={name} value={c} className="sr-only" required {...controlled} />
-              <span className="text-[20px] leading-none" aria-hidden>
-                {MEMBER_COUNTRY_FLAG[c]}
-              </span>
+              <CountryFlag country={c} size={30} />
               <span className="min-w-0">
                 <span className="block text-[14.5px] font-semibold leading-tight">{MEMBER_COUNTRY_LABEL[c]}</span>
                 <span className="block font-mono text-[11.5px] uppercase tracking-[0.06em] text-muted">Preise in {cur === "EUR" ? "€ Euro" : "CHF Franken"}</span>
