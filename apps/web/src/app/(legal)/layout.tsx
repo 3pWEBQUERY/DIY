@@ -16,7 +16,7 @@ const LINKS = {
     { href: "/richtlinien/urheberrecht", label: "Urheberrecht" },
   ],
   Hilfe: [
-    { href: "/hilfe", label: "Häufige Fragen" },
+    { href: "/hilfe", label: "Hilfe-Center" },
     // Öffentliche Kontaktseite: das Support-Formular verlangt eine Anmeldung
     { href: "/kontakt", label: "Support kontaktieren" },
   ],

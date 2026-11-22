@@ -114,7 +114,7 @@ struct JournalEntrySheet: View {
             .safeAreaInset(edge: .bottom) {
                 ProjectsEditorBar {
                     AsyncButton { await save() } label: {
-                        Label(media.isUploading ? "Lädt hoch …" : "Eintragen", systemImage: "point.3.connected.trianglepath.dotted")
+                        Label { Text(media.isUploading ? "Lädt hoch …" : "Eintragen") } icon: { BrandMark(size: 18) }
                     }
                     .primaryButton()
                     .disabled(!canSave)

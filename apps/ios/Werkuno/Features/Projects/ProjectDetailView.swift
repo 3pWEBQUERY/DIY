@@ -260,7 +260,7 @@ struct ProjectDetailView: View {
                 }
                 SpecRow(label: "Geschätzte Zeit", value: Fmt.minutes(p.estimatedMinutes), symbol: "hourglass")
                 SpecRow(label: "Tatsächliche Zeit", value: Fmt.minutes(p.actualMinutes), symbol: "stopwatch")
-                SpecRow(label: "Laut Journal", value: Fmt.minutes(p.journalMinutes), symbol: "point.3.connected.trianglepath.dotted")
+                SpecRow(label: "Laut Journal", value: Fmt.minutes(p.journalMinutes), symbol: BrandGlyph.symbol)
                 SpecRow(label: "Budget", value: p.budgetMinor.map { Fmt.money($0, currency: p.currency) } ?? "–", symbol: "banknote")
                 SpecRow(label: "Kategorie", value: app.categoryName(p.category), symbol: CategoryPalette.symbol(for: app.category(p.category)?.glyph))
                 SpecRow(label: "Status", value: L.projectStatus(p.status), symbol: ProjectsStatusStyle.symbol(p.status))

@@ -4,7 +4,7 @@ import Observation
 // MARK: - Navigationsziele
 
 enum StudioSection: String, Hashable, CaseIterable, Identifiable {
-    case content, projects, tutorials, articles, products, orders, shop, media, stats, revenue, supporters
+    case content, projects, tutorials, articles, products, orders, coupons, shop, media, stats, revenue, supporters
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -14,6 +14,7 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .articles: "Blog"
         case .products: "Produkte"
         case .orders: "Bestellungen"
+        case .coupons: "Gutscheine"
         case .shop: "Shop"
         case .media: "Medienbibliothek"
         case .stats: "Statistiken"
@@ -29,6 +30,7 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .articles: "text.book.closed"
         case .products: "tag"
         case .orders: "shippingbox"
+        case .coupons: "ticket"
         case .shop: "storefront"
         case .media: "photo.on.rectangle"
         case .stats: "chart.bar.xaxis"
@@ -199,7 +201,7 @@ enum Route: Hashable {
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
             case ("studio", 2) where s[1] == "pro": return .creatorPro
             case ("studio", _):
-                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "produkte": .products, "bestellungen": .orders, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
+                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
                 return map[s[1]].map { .studioSection($0) } ?? .studio
             case ("einstellungen", _):
                 let map: [String: SettingsSection] = ["profil": .profile, "konto": .account, "sicherheit": .security, "benachrichtigungen": .notifications, "feed": .feed, "privatsphaere": .privacy, "hilfe-support": .support, "unterstuetzungen": .supporting]

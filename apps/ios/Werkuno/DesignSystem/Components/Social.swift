@@ -302,7 +302,7 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             if let label = kindLabel {
-                Label(label.0, systemImage: label.1).font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
+                Label { Text(label.0) } icon: { SymbolImage(name: label.1, size: 14) }.font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
             }
             if !post.body.isEmpty {
                 Text(LinkedText.attributed(post.body)).font(.wr(.body)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
@@ -369,7 +369,7 @@ struct PostCardView: View {
 
     private var kindLabel: (String, String)? {
         switch post.kind {
-        case "PROJECT_UPDATE": ("Projektfortschritt", "point.3.connected.trianglepath.dotted")
+        case "PROJECT_UPDATE": ("Projektfortschritt", BrandGlyph.symbol)
         case "PROJECT_SHOWCASE": ("Projektvorstellung", "sparkles")
         case "TUTORIAL_RELEASE": ("Neue Anleitung", "list.number")
         case "ARTICLE_PREVIEW": ("Neuer Artikel", "text.book.closed")

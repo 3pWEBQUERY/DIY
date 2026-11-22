@@ -207,7 +207,7 @@ extension Route {
     var needsMarketplace: Bool {
         switch self {
         case .product, .shop, .cart, .checkout: true
-        case .studioSection(let s): s == .products || s == .shop
+        case .studioSection(let s): s == .products || s == .shop || s == .coupons
         default: false
         }
     }
@@ -242,6 +242,7 @@ struct StudioSectionView: View {
         case .articles: StudioArticlesView()
         case .products: StudioProductsView()
         case .orders: StudioOrdersView()
+        case .coupons: StudioCouponsView()
         case .shop: StudioShopView()
         case .media: StudioMediaView()
         case .stats: StudioStatsView()

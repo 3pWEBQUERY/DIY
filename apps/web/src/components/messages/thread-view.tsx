@@ -4,7 +4,7 @@ import { confirmDialog } from "@/components/ui/confirm";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Flag, Info, LogOut, ShieldAlert } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowLeft, Ban, Flag, Info, LogOut, ShieldAlert, Trash2 } from "lucide-react";
 import { messageStatus, type MessageStatus, type Receipt } from "@/lib/message-status";
 import { ReceiptTicks } from "./receipt-ticks";
 import { presenceLabel, type Presence } from "@/lib/presence";
@@ -16,7 +16,7 @@ import { toast } from "@/components/ui/toast";
 import { MoreMenu, ReportDialog, type MenuItem } from "@/components/social/actions";
 import { RichText } from "@/components/social/post-card";
 import { blockAction } from "@/app/(app)/social-actions";
-import { archiveConversationAction, loadOlderMessagesAction, markReadAction, respondToRequestAction, sendMessageAction } from "@/app/(app)/nachrichten/actions";
+import { archiveConversationAction, deleteConversationAction, loadOlderMessagesAction, markReadAction, respondToRequestAction, sendMessageAction } from "@/app/(app)/nachrichten/actions";
 import { cn, formatDate, smoothScroll } from "@/lib/utils";
 import { TZ, zurichDayKey } from "@/lib/tz";
 import { MessageComposer, type ComposerHandle } from "./composer";
@@ -320,6 +320,20 @@ export function ThreadView({ thread, box }: { thread: ThreadData; box: string })
                   toast(r.message ?? "");
                   router.refresh();
                 } else toast(r.error, "error");
+              }),
+          },
+          {
+            label: "Chat löschen",
+            icon: <Trash2 size={15} />,
+            danger: true,
+            onSelect: async () =>
+              (await confirmDialog({ title: "Chat löschen?", body: "Der Verlauf verschwindet nur bei dir – dein Gegenüber behält ihn. Kommt eine neue Nachricht, erscheint der Chat wieder.", confirmLabel: "Löschen", tone: "danger" })) &&
+              start(async () => {
+                const r = await callAction(() => deleteConversationAction(thread.id));
+                if (!r.ok) return toast(r.error, "error");
+                toast(r.message ?? "");
+                router.push("/nachrichten");
+                router.refresh();
               }),
           },
         ]

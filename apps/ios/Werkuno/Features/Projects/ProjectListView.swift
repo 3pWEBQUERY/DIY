@@ -88,7 +88,7 @@ struct ProjectListView: View {
             ErrorStateView(message: error) { await reload() }
         } else if items.isEmpty {
             EmptyStateView(
-                symbol: "point.3.connected.trianglepath.dotted",
+                symbol: BrandGlyph.symbol,
                 title: query.isEmpty ? "Noch keine Projekte" : "Keine Treffer",
                 message: query.isEmpty && activeFilterCount == 0 ? "Hier ist noch alles leer. Fang deinen eigenen Faden an." : "Versuche andere Filter oder einen anderen Suchbegriff.",
                 actionTitle: activeFilterCount > 0 || !query.isEmpty ? "Filter zurücksetzen" : (app.isSignedIn ? "Projekt anlegen" : nil),

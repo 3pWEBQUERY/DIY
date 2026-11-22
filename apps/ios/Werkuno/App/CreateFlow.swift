@@ -43,7 +43,7 @@ struct WorkbenchAccessory: View {
                 .buttonStyle(.plain)
                 Spacer(minLength: 0)
                 Button { router.present(.journalEntry(projectId: p.id, projectTitle: p.title)) } label: {
-                    Image(systemName: "point.3.connected.trianglepath.dotted").font(.wr(.subheadline, .semibold))
+                    BrandMark(size: 22)
                         .frame(width: 44, height: 44).contentShape(.rect)
                 }
                 .buttonStyle(.plain)

@@ -268,7 +268,7 @@ struct StoryComposerSheet: View {
             if !projects.isEmpty {
                 Divider().padding(.leading, 14)
                 HStack {
-                    Label("Projektfaden", systemImage: "point.3.connected.trianglepath.dotted").font(.wr(.subheadline))
+                    Label { Text("Projektfaden") } icon: { BrandMark(size: 18) }.font(.wr(.subheadline))
                     Spacer()
                     Picker("Projektfaden", selection: $projectId) {
                         Text("Kein Projekt").tag("")

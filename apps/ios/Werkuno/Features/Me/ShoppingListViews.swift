@@ -87,7 +87,7 @@ struct ShoppingListsView: View {
                     .accessibilityLabel("\(done) von \(total) erledigt")
                 HStack(spacing: 6) {
                     if let s = l.sources, !s.isEmpty {
-                        Image(systemName: "point.3.connected.trianglepath.dotted").font(.wr(.caption2))
+                        BrandMark(size: 12)
                         Text(s.joined(separator: " · ")).a11yLineLimit(1)
                     } else {
                         Text(Fmt.plural(total, "Position", "Positionen"))
@@ -237,7 +237,7 @@ struct ShoppingListView: View {
                     ProgressView(value: Double(done.count), total: Double(max(l.items.count, 1))).tint(.moss)
                     if !sources.isEmpty {
                         HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: "point.3.connected.trianglepath.dotted").foregroundStyle(Color.moss)
+                            BrandMark(size: 14)
                             Text("Aus: \(sources.joined(separator: ", "))").fixedSize(horizontal: false, vertical: true)
                         }
                         .font(.wr(.caption)).foregroundStyle(Color.ink2)

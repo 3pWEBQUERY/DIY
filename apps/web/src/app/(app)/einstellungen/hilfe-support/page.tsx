@@ -11,7 +11,10 @@ import { formatDate } from "@/lib/utils";
 export const metadata: Metadata = { title: "Hilfe & Support" };
 
 const QUICK = [
-  { href: "/hilfe", label: "Häufige Fragen", note: "Konto, Projekte, Shop, Sicherheit" },
+  { href: "/hilfe", label: "Hilfe-Center", note: "Antworten zu allen Bereichen, mit Suche" },
+  { href: "/hilfe/kaufen", label: "Hilfe zum Kaufen", note: "Zahlung, Bestellungen, Rückgaben, Gutscheine" },
+  { href: "/hilfe/verkaufen", label: "Hilfe zum Verkaufen", note: "Shop, Produkte, Gebühren, Auszahlungen" },
+  { href: "/hilfe/konto", label: "Konto & Sicherheit", note: "Anmeldung, Zwei-Faktor, Land und Währung" },
   { href: "/richtlinien/community", label: "Community-Richtlinien", note: "Was erlaubt ist – und was nicht" },
   { href: "/richtlinien/marktplatz", label: "Marktplatz-Richtlinien", note: "Verkaufen, Gebühren, Rückgaben" },
   { href: "/richtlinien/sicherheit", label: "Sicherheit beim Selbermachen", note: "Strom, Hitze, Chemie, Werkzeuge" },

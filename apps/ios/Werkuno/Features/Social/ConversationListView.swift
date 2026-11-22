@@ -10,6 +10,7 @@ struct ConversationListView: View {
     @State private var counts = InboxCounts(requests: 0, unread: 0)
     @State private var loaded = false
     @State private var error: String?
+    @State private var deleteCandidate: ConversationItem?
     @State private var showNewGroup = false
 
     init(initialBox: SocialInboxBox = .inbox) {
@@ -60,6 +61,10 @@ struct ConversationListView: View {
                                         Label(box == .inbox ? "Archivieren" : "Zurückholen", systemImage: box == .inbox ? "archivebox" : "tray.and.arrow.up")
                                     }
                                     .tint(box == .inbox ? .slate : .moss)
+                                    Button { deleteCandidate = c } label: {
+                                        Label("Löschen", systemImage: "trash")
+                                    }
+                                    .tint(.danger)
                                 }
                             }
                     }
@@ -67,6 +72,11 @@ struct ConversationListView: View {
             }
         }
         .listStyle(.plain)
+        .confirmationDialog("Chat löschen?", isPresented: Binding(get: { deleteCandidate != nil }, set: { if !$0 { deleteCandidate = nil } }), titleVisibility: .visible, presenting: deleteCandidate) { c in
+            Button("Löschen", role: .destructive) { Task { await delete(c) } }
+        } message: { _ in
+            Text("Der Verlauf verschwindet nur bei dir – dein Gegenüber behält ihn. Kommt eine neue Nachricht, erscheint der Chat wieder.")
+        }
         .scrollContentBackground(.hidden)
         .background(Color.paper)
         .navigationTitle("Nachrichten")
@@ -146,6 +156,16 @@ struct ConversationListView: View {
             self.error = (error as? APIError)?.message ?? error.localizedDescription
             loaded = true
         }
+    }
+
+    private func delete(_ c: ConversationItem) async {
+        Haptics.soft()
+        withAnimation(.snappy) { items.removeAll { $0.id == c.id } }
+        let ok = await app.run("Chat gelöscht.") {
+            _ = try await APIClient.shared.delete("/conversations/\(c.id)") as JSONValue
+        }
+        if !ok { await load() }
+        await app.refreshCounts()
     }
 
     private func archive(_ c: ConversationItem, _ archived: Bool) async {
