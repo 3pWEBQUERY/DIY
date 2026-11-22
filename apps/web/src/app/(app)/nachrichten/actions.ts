@@ -32,6 +32,14 @@ export async function archiveConversationAction(conversationId: string, archived
   }, archived ? "Unterhaltung archiviert." : "Zurück im Posteingang.");
 }
 
+export async function deleteConversationAction(conversationId: string) {
+  return act(async () => {
+    const r = await msg.deleteConversationForMe(await requireUser(), conversationId);
+    revalidatePath("/nachrichten");
+    return r;
+  }, "Chat gelöscht.");
+}
+
 export async function respondToRequestAction(conversationId: string, accept: boolean) {
   return act(async () => {
     const r = await msg.respondToRequest(await requireUser(), conversationId, accept);

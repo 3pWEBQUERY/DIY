@@ -171,7 +171,8 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
       },
     },
     orderBy: { conversation: { lastMessageAt: "desc" } },
-    take,
+    // Gelöschte Chats (ohne neue Nachricht seit dem Löschen) werden unten aussortiert – etwas mehr laden
+    take: take * 2,
     include: {
       conversation: {
         include: {
@@ -179,7 +180,7 @@ export async function listConversations(userId: string, box: InboxBox = "inbox",
         },
       },
     },
-  });
+  }).then((all) => all.filter((r) => !r.clearedAt || r.conversation.lastMessageAt > r.clearedAt).slice(0, take));
   // Letzte Nachricht je Gespräch in EINER Abfrage (Prisma würde sonst alle Nachrichten laden und erst
   // im Speicher auf eine kürzen – bei aktiven Chats zehntausende Zeilen pro Posteingang)
   const lastByConv = await lastMessages(rows.map((r) => r.conversationId));
@@ -240,6 +241,7 @@ export async function inboxCounts(userId: string) {
       JOIN "Conversation" c ON c.id = cm."conversationId"
       WHERE cm."userId" = ${userId} AND cm."archivedAt" IS NULL AND cm."isRequest" = false
         AND (cm."lastReadAt" IS NULL OR cm."lastReadAt" < c."lastMessageAt")
+        AND (cm."clearedAt" IS NULL OR cm."clearedAt" < c."lastMessageAt")
         AND EXISTS (SELECT 1 FROM "Message" m WHERE m."conversationId" = c.id AND m."senderId" <> ${userId})
         ${
           // Wie im Posteingang: Einzelgespräche mit blockierten Personen zählen nicht (Gruppen schon)
@@ -310,7 +312,8 @@ export async function getThread(user: SessionUser, conversationId: string, opts:
   const validBefore = before && !Number.isNaN(before.getTime()) ? before : null;
   // Gruppen: Verlauf erst ab dem Beitritt (bzw. der Einladung) – frühere Nachrichten bleiben den
   // bisherigen Mitgliedern vorbehalten
-  const joined = isGroup ? { gte: me.joinedAt } : {};
+  // Gelöschter Verlauf („Chat löschen“) bleibt für dieses Mitglied ausgeblendet
+  const joined = { ...(isGroup ? { gte: me.joinedAt } : {}), ...(me.clearedAt ? { gt: me.clearedAt } : {}) };
   const rows = await db.message.findMany({
     where: {
       conversationId,
@@ -386,7 +389,7 @@ export async function messagesSince(user: SessionUser, conversationId: string, a
   const me = await membershipOrThrow(user.id, conversationId);
   const since = after ? new Date(after) : null;
   const kind = (await db.conversation.findUnique({ where: { id: conversationId }, select: { kind: true } }))?.kind;
-  const joined = kind === "GROUP" ? { gte: me.joinedAt } : {};
+  const joined = { ...(kind === "GROUP" ? { gte: me.joinedAt } : {}), ...(me.clearedAt ? { gt: me.clearedAt } : {}) };
   const [rows, others] = await Promise.all([
     db.message.findMany({
       where: { conversationId, createdAt: { ...joined, ...(since && !Number.isNaN(since.getTime()) ? { gt: since } : {}) } },
@@ -674,6 +677,18 @@ export async function setArchived(user: SessionUser, conversationId: string, arc
   if (m.isRequest) throw fail.invalid("Nimm die Anfrage zuerst an oder lehne sie ab.");
   await db.conversationMember.update({ where: { conversationId_userId: { conversationId, userId: user.id } }, data: { archivedAt: archived ? new Date() : null } });
   return { archived };
+}
+
+/**
+ * „Chat löschen“: Verlauf nur für mich ausblenden (das Gegenüber behält ihn). Die Unterhaltung
+ * verschwindet aus Posteingang und Archiv und erscheint wieder, sobald eine neue Nachricht kommt.
+ */
+export async function deleteConversationForMe(user: SessionUser, conversationId: string) {
+  const m = await membershipOrThrow(user.id, conversationId);
+  if (m.isRequest) throw fail.invalid("Lehne die Anfrage ab, statt sie zu löschen.");
+  const now = new Date();
+  await db.conversationMember.update({ where: { conversationId_userId: { conversationId, userId: user.id } }, data: { clearedAt: now, archivedAt: null, lastReadAt: now } });
+  return { deleted: true };
 }
 
 export async function respondToRequest(user: SessionUser, conversationId: string, accept: boolean) {

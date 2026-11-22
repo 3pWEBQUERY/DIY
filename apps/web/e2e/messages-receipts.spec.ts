@@ -17,7 +17,7 @@ async function directConversation() {
     await sql(`INSERT INTO "Conversation" (id, kind, "lastMessageAt", "createdAt") VALUES ($1, 'DIRECT', now(), now())`, [id]);
     await sql(`INSERT INTO "ConversationMember" ("conversationId", "userId", "joinedAt") VALUES ($1, $2, now() - interval '1 day'), ($1, $3, now() - interval '1 day')`, [id, lena, mattia]);
   }
-  await sql(`UPDATE "ConversationMember" SET "isRequest" = false, "archivedAt" = NULL WHERE "conversationId" = $1`, [id]);
+  await sql(`UPDATE "ConversationMember" SET "isRequest" = false, "archivedAt" = NULL, "clearedAt" = NULL WHERE "conversationId" = $1`, [id]);
   await sql(`UPDATE "UserPreference" SET "readReceipts" = true, "showOnline" = true WHERE "userId" IN ($1, $2)`, [lena, mattia]);
   return { id, lena, mattia };
 }
@@ -99,5 +99,41 @@ test("Online-Status: im Chat „Online“, im Admin-Dashboard gelistet, ausgesch
     await expect(header.getByText(/^(Online|Zuletzt online)/)).toHaveCount(0);
   } finally {
     await sql(`UPDATE "UserPreference" SET "showOnline" = true WHERE "userId" = $1`, [mattia]);
+  }
+});
+
+test("Chat löschen: Verlauf nur für mich weg, mit neuer Nachricht wieder da", async ({ browser }) => {
+  const { id, lena } = await directConversation();
+  const page = await loginAs(browser, "lena");
+  const mPage = await loginAs(browser, "mattia");
+  const tag = Date.now().toString(36);
+  try {
+    const sent = await mPage.request.post(`/api/v1/app/conversations/${id}/messages`, { data: { body: `E2E vor dem Löschen ${tag}` } });
+    expect(sent.status(), await sent.text()).toBe(200);
+
+    await page.goto(`/nachrichten/${id}`);
+    await expect(page.getByText(`E2E vor dem Löschen ${tag}`)).toBeVisible();
+    await page.getByRole("button", { name: "Optionen der Unterhaltung" }).click();
+    await page.getByRole("menuitem", { name: "Chat löschen" }).click();
+    await page.getByRole("button", { name: "Löschen", exact: true }).click();
+    await expect(page).toHaveURL(/\/nachrichten$/);
+
+    const ids = async () => {
+      const j = await (await page.request.get("/api/v1/app/conversations")).json();
+      return ((j.data ?? j).items as { id: string }[]).map((c) => c.id);
+    };
+    expect(await ids()).not.toContain(id);
+    // Das Gegenüber behält den Verlauf
+    const theirs = await (await mPage.request.get(`/api/v1/app/conversations/${id}`)).json();
+    expect(JSON.stringify(theirs)).toContain(`E2E vor dem Löschen ${tag}`);
+
+    // Neue Nachricht → Chat wieder da, aber ohne den gelöschten Verlauf
+    await mPage.request.post(`/api/v1/app/conversations/${id}/messages`, { data: { body: `E2E nach dem Löschen ${tag}` } });
+    expect(await ids()).toContain(id);
+    const mine = JSON.stringify(await (await page.request.get(`/api/v1/app/conversations/${id}`)).json());
+    expect(mine).toContain(`E2E nach dem Löschen ${tag}`);
+    expect(mine).not.toContain(`E2E vor dem Löschen ${tag}`);
+  } finally {
+    await sql(`UPDATE "ConversationMember" SET "clearedAt" = NULL WHERE "conversationId" = $1 AND "userId" = $2`, [id, lena]);
   }
 });

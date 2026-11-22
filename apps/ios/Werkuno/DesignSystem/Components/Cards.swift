@@ -99,7 +99,7 @@ struct ProjectCardView: View {
     private var countsRow: some View {
         HStack(spacing: 10) {
             Label(Fmt.number(project.counts?.likes), systemImage: "heart")
-            Label(Fmt.number(project.counts?.updates), systemImage: "point.3.connected.trianglepath.dotted")
+            Label { Text(Fmt.number(project.counts?.updates)) } icon: { BrandMark(size: 12) }
             if (project.counts?.remixes ?? 0) > 0 { Label(Fmt.number(project.counts?.remixes), systemImage: "arrow.triangle.branch") }
         }
         .font(.wr(.caption2)).foregroundStyle(Color.muted).labelStyle(.compact)

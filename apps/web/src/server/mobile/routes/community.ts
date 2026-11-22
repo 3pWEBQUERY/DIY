@@ -274,6 +274,8 @@ export const communityRoutes: RouteDef[] = [
     const { archived } = await c.body({ archived: zBool });
     return msg.setArchived(await me(), c.p.id!, archived !== false);
   }),
+  // „Chat löschen“: Verlauf nur für mich ausblenden
+  DELETE("/conversations/:id", async (c) => msg.deleteConversationForMe(await me(), c.p.id!)),
   POST("/conversations/:id/respond", async (c) => {
     const { accept } = await c.body({ accept: zBool });
     return msg.respondToRequest(await me(), c.p.id!, !!accept);

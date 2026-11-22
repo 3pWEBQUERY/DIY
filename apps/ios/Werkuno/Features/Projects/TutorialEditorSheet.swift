@@ -204,7 +204,7 @@ struct TutorialEditorSheet: View {
                     }
                 } label: {
                     HStack {
-                        Image(systemName: "point.3.connected.trianglepath.dotted").foregroundStyle(Color.moss)
+                        BrandMark(size: 18)
                         Text(projectOptions.first { $0.id == projectId }?.title ?? "Kein Projekt").foregroundStyle(Color.ink).a11yLineLimit(1)
                         Spacer()
                         Image(systemName: "chevron.up.chevron.down").font(.wr(.caption)).foregroundStyle(Color.muted)

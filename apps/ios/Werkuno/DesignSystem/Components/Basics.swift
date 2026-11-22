@@ -84,7 +84,7 @@ struct SpecRow: View {
     var symbol: String? = nil
     var body: some View {
         HStack(spacing: 10) {
-            if let symbol { Image(systemName: symbol).font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 18) }
+            if let symbol { SymbolImage(name: symbol, size: 15).font(.wr(.footnote)).foregroundStyle(Color.muted).frame(width: 18) }
             Text(label).font(.wr(.subheadline)).foregroundStyle(Color.muted)
             Spacer(minLength: 12)
             Text(value).font(.wr(.subheadline, .medium)).foregroundStyle(Color.ink).multilineTextAlignment(.trailing)
@@ -296,7 +296,7 @@ struct EmptyStateView: View {
         VStack(spacing: 12) {
             ZStack {
                 Circle().fill(Color.mossSoft).frame(width: 64, height: 64)
-                Image(systemName: symbol).font(.wr(.title2)).foregroundStyle(Color.moss)
+                SymbolImage(name: symbol, size: 30).font(.wr(.title2)).foregroundStyle(Color.moss)
             }
             Text(title).font(.titleSerif).foregroundStyle(Color.ink).multilineTextAlignment(.center)
             if let message { Text(message).font(.wr(.subheadline)).foregroundStyle(Color.muted).multilineTextAlignment(.center) }
@@ -524,5 +524,26 @@ struct DockPrimaryButton: View {
         .glassEffect(.regular.interactive(), in: Capsule())
         // Der Text wird nicht gekürzt: der Abstand zur Glas-Kapsel gibt zuerst nach
         .layoutPriority(1)
+    }
+}
+
+// MARK: - Bildmarke statt Faden-Symbol
+
+/// Werkuno-Bildmarke als Symbol (ersetzt das frühere Faden-Symbol für Projekte, Journal und Projektfaden).
+/// Komponenten, die einen SF-Symbol-Namen erwarten, erkennen `BrandGlyph.symbol` und zeigen dann die Bildmarke.
+enum BrandGlyph {
+    static let symbol = "werkuno.mark"
+}
+
+/// SF-Symbol oder – bei `BrandGlyph.symbol` – die Werkuno-Bildmarke in passender Grösse
+struct SymbolImage: View {
+    let name: String
+    var size: CGFloat = 16
+    var body: some View {
+        if name == BrandGlyph.symbol {
+            BrandMark(size: size)
+        } else {
+            Image(systemName: name)
+        }
     }
 }

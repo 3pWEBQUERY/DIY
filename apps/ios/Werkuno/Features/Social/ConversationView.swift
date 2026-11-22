@@ -35,6 +35,7 @@ struct ConversationView: View {
     @State private var scrollTarget: String?
     @State private var showGroupInfo = false
     @State private var confirmLeaveGroup = false
+    @State private var confirmDelete = false
     @FocusState private var focused: Bool
 
     private static let maxImages = 6
@@ -113,6 +114,9 @@ struct ConversationView: View {
                 })
             }
         }
+        .confirmationDialog("Chat löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Löschen", role: .destructive) { Task { await deleteChat() } }
+        } message: { Text("Der Verlauf verschwindet nur bei dir – dein Gegenüber behält ihn. Kommt eine neue Nachricht, erscheint der Chat wieder.") }
         .confirmationDialog("Gruppe verlassen?", isPresented: $confirmLeaveGroup, titleVisibility: .visible) {
             Button("Verlassen", role: .destructive) { Task { await leaveGroup() } }
         } message: { Text("Du erhältst danach keine Nachrichten mehr aus dieser Gruppe.") }
@@ -259,6 +263,7 @@ struct ConversationView: View {
                 Button(archived ? "Zurück in den Posteingang" : "Archivieren", systemImage: archived ? "tray.and.arrow.up" : "archivebox") {
                     Task { await setArchived(!archived) }
                 }
+                Button("Chat löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
                 Divider()
                 Button("Gruppe verlassen", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmLeaveGroup = true }
             }
@@ -463,6 +468,7 @@ struct ConversationView: View {
                 Button(archived ? "Zurück in den Posteingang" : "Archivieren", systemImage: archived ? "tray.and.arrow.up" : "archivebox") {
                     Task { await setArchived(!archived) }
                 }
+                Button("Chat löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
             }
             Divider()
             Button("\(other.displayName) melden", systemImage: "flag") {
@@ -633,6 +639,16 @@ struct ConversationView: View {
             _ = try await APIClient.shared.post("/conversations/\(id)/archive", ["archived": JSONValue.bool(value)]) as JSONValue
         }
         if ok { archived = value }
+    }
+
+    /// „Chat löschen“: Verlauf nur für mich ausblenden, zurück zur Liste
+    private func deleteChat() async {
+        let ok = await app.run("Chat gelöscht.") {
+            _ = try await APIClient.shared.delete("/conversations/\(id)") as JSONValue
+        }
+        guard ok else { return }
+        await app.refreshCounts()
+        dismiss()
     }
 
     private func leaveGroup() async {

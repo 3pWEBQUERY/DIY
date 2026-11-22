@@ -1350,6 +1350,9 @@ model ConversationMember {
   /// Zuletzt auf einem Gerät angekommen (Posteingang/Zähler abgerufen) – für „zugestellt“ (✓✓ grau)
   lastDeliveredAt DateTime?
   archivedAt     DateTime?
+  /// „Chat löschen“: Verlauf bis zu diesem Zeitpunkt nur für dieses Mitglied ausgeblendet; die
+  /// Unterhaltung erscheint wieder, sobald eine neue Nachricht kommt
+  clearedAt      DateTime?
   isRequest      Boolean      @default(false)
   /// Gruppen: ADMIN darf Mitglieder verwalten und umbenennen
   role           String       @default("MEMBER")

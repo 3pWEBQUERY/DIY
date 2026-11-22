@@ -213,7 +213,7 @@ struct MeCountLabel: View {
     var value: Int?
     var label: String
     var body: some View {
-        Label(Fmt.number(value), systemImage: symbol)
+        Label { Text(Fmt.number(value)) } icon: { SymbolImage(name: symbol, size: 13) }
             .labelStyle(.compact)
             .font(.wr(.caption)).monospacedDigit()
             .foregroundStyle(Color.muted)
