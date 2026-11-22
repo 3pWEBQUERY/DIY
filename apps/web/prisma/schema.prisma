@@ -255,6 +255,10 @@ enum ArticleState {
 
 model User {
   id              String        @id @default(cuid())
+  newsletters        CreatorNewsletter[]
+  newsletterDeliveries NewsletterDelivery[]
+  newsletterOptOuts  NewsletterOptOut[] @relation("optOutUser")
+  newsletterOptOutsAsCreator NewsletterOptOut[] @relation("optOutCreator")
   email           String        @unique
   emailVerifiedAt DateTime?
   passwordHash    String?
@@ -361,6 +365,12 @@ model UserProfile {
   userId       String   @id
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   handle       String   @unique
+  /// Creator Pro: Profil-Design { accent, coverLayout, sections[] }
+  profileTheme       Json?
+  /// Creator Pro: Wörter, die Kommentare auf eigenen Inhalten automatisch ausblenden
+  commentFilterWords String[] @default([])
+  /// Creator Pro: Branding der Anleitungs-PDFs { logoUrl, name, link }
+  pdfBrand           Json?
   /// Eigene Adresse {subdomain}.werkuno.ch – vom DB-Trigger aus dem Handle abgeleitet (Punkt/Unterstrich → Bindestrich)
   subdomain    String?  @unique
   displayName  String
@@ -573,6 +583,8 @@ model Post {
   editedAt      DateTime?
   /// Geplante Veröffentlichung (state = DRAFT bis dahin; der Worker veröffentlicht)
   scheduledAt   DateTime?
+  /// Kommentare geschlossen (Creator Pro)
+  commentsLockedAt DateTime?
   publishedAt   DateTime     @default(now())
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -628,6 +640,10 @@ model Comment {
   state      ContentState @default(PUBLISHED)
   likeCount  Int          @default(0)
   editedAt   DateTime?
+  /// Von der Creatorin oben angeheftet (Creator Pro)
+  pinnedAt   DateTime?
+  /// Vom Wortfilter der Creatorin ausgeblendet – sichtbar nur für Autor:in und Creatorin
+  filteredAt DateTime?
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 
@@ -813,6 +829,10 @@ model Project {
   slug             String
   title            String
   description      String        @default("")
+  /// Geplante Veröffentlichung (Creator Pro): bleibt bis dahin Entwurf, der Worker veröffentlicht
+  scheduledAt      DateTime?
+  /// Kommentare geschlossen (Creator Pro)
+  commentsLockedAt DateTime?
   category         String
   subcategories    String[]      @default([])
   tags             String[]      @default([])
@@ -963,6 +983,10 @@ model Tutorial {
   slug            String       @unique
   title           String
   summary         String       @default("")
+  /// Geplante Veröffentlichung (Creator Pro): bleibt bis dahin Entwurf, der Worker veröffentlicht
+  scheduledAt     DateTime?
+  /// Kommentare geschlossen (Creator Pro)
+  commentsLockedAt DateTime?
   category        String
   difficulty      Int          @default(2)
   minutes         Int?
@@ -1389,6 +1413,7 @@ model Shop {
   id               String            @id @default(cuid())
   ownerId          String            @unique
   owner            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sales            ShopSale[]
   slug             String            @unique
   name             String
   tagline          String            @default("")
@@ -2707,4 +2732,72 @@ model SupportPayment {
 
   @@index([creatorId, createdAt])
   @@index([transferStatus, updatedAt])
+}
+
+// ───────────────────────────── Creator Pro: Newsletter & Aktionen ─────────────────────────────
+
+/// Newsletter einer Pro-Creatorin an ihre Follower:innen (E-Mail)
+model CreatorNewsletter {
+  id             String    @id @default(cuid())
+  authorId       String
+  author         User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  subject        String
+  body           String
+  /// DRAFT | SCHEDULED | SENDING | SENT
+  status         String    @default("DRAFT")
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  recipientCount Int       @default(0)
+  openCount      Int       @default(0)
+  clickCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deliveries     NewsletterDelivery[]
+
+  @@index([authorId, createdAt])
+  @@index([status, scheduledAt])
+}
+
+model NewsletterDelivery {
+  id           String            @id @default(cuid())
+  newsletterId String
+  newsletter   CreatorNewsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentAt       DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+
+  @@unique([newsletterId, userId])
+  @@index([userId])
+}
+
+/// Abmeldung vom Newsletter einer bestimmten Creatorin
+model NewsletterOptOut {
+  userId    String
+  user      User     @relation("optOutUser", fields: [userId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   User     @relation("optOutCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, creatorId])
+  @@index([creatorId])
+}
+
+/// Zeitlich begrenzte Shop-Aktion mit Countdown (Creator Pro): Prozent auf alle oder ausgewählte Produkte
+model ShopSale {
+  id         String   @id @default(cuid())
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  title      String
+  percent    Int
+  startsAt   DateTime
+  endsAt     DateTime
+  /// leer = alle Produkte des Shops
+  productIds String[] @default([])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([shopId, endsAt])
 }
