@@ -19,6 +19,16 @@ export async function saveTutorialAction(id: string | null, input: unknown, publ
   }, publish ? "Neue Version veröffentlicht." : "Entwurf gespeichert.");
 }
 
+/** Geplante Erstveröffentlichung verschieben (ISO) oder aufheben (null → bleibt Entwurf) – Creator Pro */
+export async function scheduleTutorialAction(id: string, at: string | null) {
+  return act(async () => {
+    const r = await tutorials.scheduleTutorial(await requireUser(), id, at ? new Date(at) : null);
+    revalidatePath("/studio/anleitungen");
+    revalidatePath("/studio/kalender");
+    return r;
+  }, at ? "Termin geändert." : "Planung aufgehoben – die Anleitung bleibt ein Entwurf.");
+}
+
 export async function setTutorialPublishedAction(id: string, published: boolean) {
   return act(async () => {
     const r = await tutorials.setTutorialPublished(await requireUser(), id, published);

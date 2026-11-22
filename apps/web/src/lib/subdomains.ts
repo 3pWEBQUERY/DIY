@@ -38,7 +38,7 @@ export const APP_ROUTES = new Set([
   "abbestellen", "admin", "anleitungen", "anmelden", "beitrag", "beleg", "benachrichtigungen", "bestellungen",
   "beta", "blogs", "c", "communities", "e-mail-bestaetigen", "einkaufslisten", "einspruch", "einstellungen",
   "entdecken", "erstellen", "events", "feed", "gespeichert", "go", "gutschein", "hashtag", "highlights", "hilfe", "kasse", "kontakt", "liste", "markt",
-  "materialien", "nachrichten", "passwort-vergessen", "passwort-zuruecksetzen", "profil", "projekte",
+  "materialien", "nachrichten", "newsletter-abbestellen", "passwort-vergessen", "passwort-zuruecksetzen", "profil", "projekte",
   "rechtliches", "registrieren", "richtlinien", "sammlungen", "sitemap_index.xml", "stories", "studio", "suche", "verifizieren", "warenkorb",
   "werkzeuge", "wettbewerbe", "willkommen",
 ]);

@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { addToCartAction } from "@/app/(app)/markt/actions";
 import { callAction } from "@/lib/use-action";
+import { SaleCountdown } from "./sale-countdown";
 
 type Variant = { id: string; name: string; priceDeltaMinor: number; available: number };
 
@@ -29,6 +30,7 @@ export function BuyBox({
   signedIn,
   entitlementId,
   paymentsLive,
+  sale,
 }: {
   productId: string;
   priceMinor: number;
@@ -42,6 +44,8 @@ export function BuyBox({
   signedIn: boolean;
   entitlementId: string | null;
   paymentsLive: boolean;
+  /** Laufende Shop-Aktion: `priceMinor` ist bereits der Aktionspreis; regulär = regularMinor + regularDeltas[Variante] */
+  sale?: { title: string; percent: number; endsAt: string; regularMinor: number; regularDeltas: Record<string, number> } | null;
 }) {
   const router = useRouter();
   const firstAvailable = variants.find((v) => v.available > 0)?.id ?? variants[0]?.id ?? null;
@@ -52,6 +56,7 @@ export function BuyBox({
 
   const variant = variants.find((v) => v.id === variantId) ?? null;
   const unit = Math.max(0, priceMinor + (variant?.priceDeltaMinor ?? 0));
+  const regularUnit = sale ? Math.max(0, sale.regularMinor + (variant ? (sale.regularDeltas[variant.id] ?? 0) : 0)) : null;
   const stock = isDigital ? null : variants.length ? (variant?.available ?? 0) : (available ?? 0);
   const maxQty = isDigital ? 1 : Math.max(0, Math.min(stock ?? 0, 99));
   const canBuy = purchasable && !isOwner && paymentsLive && (isDigital || (stock ?? 0) > 0) && !entitlementId;
@@ -84,8 +89,21 @@ export function BuyBox({
 
   return (
     <div className="space-y-5">
+      {sale && (
+        <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13.5px]">
+          <span className="num rounded-lg bg-clay px-2 py-1 text-[12px] font-bold leading-none text-paper">−{sale.percent} %</span>
+          <span className="font-semibold text-clay-ink">{sale.title}</span>
+          <SaleCountdown endsAt={sale.endsAt} className="text-[12.5px] text-muted" />
+        </p>
+      )}
       <p className="num text-[1.75rem] font-semibold tracking-tight" aria-live="polite">
-        {formatMoney(unit, currency)}
+        <span className={cn(sale && "text-clay-ink")}>{formatMoney(unit, currency)}</span>
+        {regularUnit != null && regularUnit > unit && (
+          <span className="ml-2.5 text-[1rem] font-normal text-muted">
+            <span className="sr-only">statt </span>
+            <span className="line-through decoration-1">{formatMoney(regularUnit, currency)}</span>
+          </span>
+        )}
         {qty > 1 && <span className="ml-2 text-[14px] font-normal text-muted">× {qty} = {formatMoney(unit * qty, currency)}</span>}
       </p>
 

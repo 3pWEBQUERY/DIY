@@ -8,6 +8,8 @@ import { currentUser } from "@/server/auth/session";
 import { getPublicShop } from "@/server/commerce/shops";
 import { listProducts } from "@/server/commerce/products";
 import { listShopReviews } from "@/server/commerce/reviews";
+import { shopSaleBanner } from "@/server/commerce/sales";
+import { SaleBanner } from "@/components/commerce/sale-banner";
 import { ProductGrid } from "@/components/commerce/product-card";
 import { Avatar, Empty, Notice, SectionTitle, Stat } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
@@ -35,11 +37,12 @@ export default async function ShopPage({ params, searchParams }: Params) {
   const shop = await getPublicShop(shopSlug, user?.id);
   if (!shop) notFound();
   const profile = shop.owner.profile!;
-  const [products, reviews] = await Promise.all([
+  const [products, reviews, sale] = await Promise.all([
     listProducts(
       { shopId: shop.id, includeSoldOut: true, shopStatuses: shop.isOwner ? ["ACTIVE", "PAUSED", "PENDING_VERIFICATION", "DRAFT"] : ["ACTIVE", "PAUSED"] },
       sp.cursor ?? null, { take: 24, viewerId: user?.id }),
     listShopReviews(shop.id, user?.id, 6),
+    shopSaleBanner(shop.id),
   ]);
   const v = shop.verification;
   const country = COUNTRY_LABEL[shop.country as ShipCountry] ?? shop.country;
@@ -99,6 +102,8 @@ export default async function ShopPage({ params, searchParams }: Params) {
           />
         </dl>
       </header>
+
+      {sale && <SaleBanner sale={sale} className="mt-8" />}
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_300px]">
         <section aria-labelledby="arbeiten">

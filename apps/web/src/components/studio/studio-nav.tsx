@@ -12,10 +12,15 @@ export const STUDIO_NAV = [
   { href: "/studio/projekte", label: "Meine Projekte" },
   { href: "/studio/anleitungen", label: "Anleitungen" },
   { href: "/studio/blog", label: "Blog" },
+  { href: "/studio/kalender", label: "Inhaltskalender", proFeature: true },
   { href: "/studio/produkte", label: "Produkte", shop: true },
   { href: "/studio/bestellungen", label: "Bestellungen", shop: true },
   { href: "/studio/rabatte", label: "Gutscheine & Sets", shop: true },
+  { href: "/studio/aktionen", label: "Aktionen", shop: true, proFeature: true },
   { href: "/studio/unterstuetzer", label: "Unterstützer:innen" },
+  { href: "/studio/newsletter", label: "Newsletter", proFeature: true },
+  { href: "/studio/kommentare", label: "Kommentare", proFeature: true },
+  { href: "/studio/profil-design", label: "Profil-Design", proFeature: true },
   { href: "/studio/shop", label: "Shopverwaltung" },
   { href: "/studio/medien", label: "Medienbibliothek" },
   { href: "/studio/statistiken", label: "Statistiken" },
@@ -53,6 +58,7 @@ export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?
                 <span className="truncate">{item.label}</span>
                 {disabled && <span className="ml-auto spec">Shop</span>}
                 {"pro" in item && item.pro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label={isPro ? "Aktiv" : "Pro"} />}
+                {"proFeature" in item && item.proFeature && !isPro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label="Pro" />}
               </Link>
             </li>
           );

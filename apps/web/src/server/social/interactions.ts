@@ -12,6 +12,7 @@ import { requireAdult } from "@/server/auth/adult";
 import { bumpCounter, targetMeta } from "./targets";
 import { openOrAttachCase } from "@/server/moderation/cases";
 import { indexHashtags } from "@/server/hashtags/sync";
+import { commentsLocked, shouldFilterComment } from "@/server/pro/comment-tools";
 
 /**
  * Erlaubte Ziele je Interaktion – zentral, damit Web (Server Actions) und API (iOS) gleich prüfen.
@@ -122,6 +123,8 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
   if (type === "ARTICLE") {
     const a = await db.blogArticle.findUnique({ where: { id }, select: { commentsEnabled: true, commentsLockedAt: true } });
     if (!a?.commentsEnabled || a.commentsLockedAt) throw fail.forbidden("Kommentare sind für diesen Artikel deaktiviert.");
+  } else if (await commentsLocked(type, id)) {
+    throw fail.forbidden("Die Kommentare sind geschlossen.");
   }
   if (type === "POST") {
     const post = await db.post.findUnique({ where: { id }, select: { communityId: true } });
@@ -141,12 +144,20 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
   }
   let parentAuthor: string | null = null;
   let parentStepKey: string | null = null;
+  // Antwort in einem ausgeblendeten Faden: zählt nicht (wie unter ausgeblendeten Kommentaren)
+  let hiddenThread = false;
+  // Wortfilter der Inhaber:in (Creator Pro): ausblenden statt veröffentlichen
+  const filtered = await shouldFilterComment(meta.ownerId, user.id, data.body);
   if (data.parentId) {
-    const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true, state: true, stepKey: true } });
+    const parent = await db.comment.findUnique({ where: { id: data.parentId }, select: { targetId: true, targetType: true, authorId: true, parentId: true, state: true, stepKey: true, filteredAt: true } });
     if (!parent || parent.targetId !== id || parent.targetType !== type) throw fail.invalid("Antwort passt nicht zum Inhalt.");
     // Antworten unter ausgeblendeten/gelöschten Kommentaren wären unsichtbar, würden aber gezählt und benachrichtigen
-    const top = parent.parentId ? await db.comment.findUnique({ where: { id: parent.parentId }, select: { state: true } }) : null;
+    const top = parent.parentId ? await db.comment.findUnique({ where: { id: parent.parentId }, select: { state: true, filteredAt: true, authorId: true } }) : null;
     if (parent.state !== "PUBLISHED" || (top && top.state !== "PUBLISHED")) throw fail.invalid("Auf diesen Kommentar kann nicht mehr geantwortet werden.");
+    // Vom Wortfilter ausgeblendet: nur Autor:in und Inhaber:in sehen den Faden – und nur sie antworten
+    const threadFilteredBy = top ? (top.filteredAt ? top.authorId : null) : parent.filteredAt ? parent.authorId : null;
+    if (threadFilteredBy && user.id !== threadFilteredBy && user.id !== meta.ownerId) throw fail.invalid("Auf diesen Kommentar kann nicht mehr geantwortet werden.");
+    hiddenThread = !!threadFilteredBy;
     if (parent.parentId) data.parentId = parent.parentId; // nur eine Antwortebene
     parentAuthor = parent.authorId;
     parentStepKey = parent.stepKey; // Antworten gehören zum selben Schritt
@@ -163,13 +174,16 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
         stepKey: step?.key ?? parentStepKey,
         // Beitrag zu einem Schritt ist eine Frage – auch ohne Fragezeichen
         isQuestion: (!!step || /\?\s*$/.test(data.body)) && type !== "POST",
+        filteredAt: filtered ? new Date() : null,
       },
     });
-    await bumpCounter(tx, type, id, "comment", 1);
+    if (!filtered && !hiddenThread) await bumpCounter(tx, type, id, "comment", 1);
     await emit({ type: "CommentCreated", commentId: c.id, authorId: user.id }, tx);
     return c;
   });
   const href = meta.href;
+  // Ausgeblendet: keine Benachrichtigungen, nicht auf Hashtag-Seiten
+  if (filtered) return comment;
   if (parentAuthor && parentAuthor !== user.id) {
     await notify({ recipientId: parentAuthor, type: "REPLY", actorId: user.id, targetType: "COMMENT", targetId: comment.id, data: { title: meta.title, href, excerpt: data.body.slice(0, 120) }, bundle: false });
   }
@@ -190,7 +204,7 @@ export async function createComment(user: SessionUser, type: TargetType, id: str
 }
 
 export async function deleteComment(user: SessionUser, commentId: string) {
-  const c = await db.comment.findUnique({ where: { id: commentId }, select: { authorId: true, targetType: true, targetId: true, state: true, parentId: true } });
+  const c = await db.comment.findUnique({ where: { id: commentId }, select: { authorId: true, targetType: true, targetId: true, state: true, parentId: true, filteredAt: true } });
   if (!c || c.state === "REMOVED") throw fail.notFound();
   const meta = await targetMeta(c.targetType, c.targetId);
   // Autor, Inhaltseigentümer oder Moderation dürfen entfernen
@@ -207,12 +221,14 @@ export async function deleteComment(user: SessionUser, commentId: string) {
     // sichtbar ist (wie in der Moderation): Verschwindet er, gehen seine sichtbaren Antworten mit aus dem Zähler;
     // eine Antwort unter einem bereits entfernten/ausgeblendeten Hauptkommentar wurde schon abgezogen.
     if (!visible.count) return;
+    // Vom Wortfilter ausgeblendete Kommentare (und Antworten darunter) wurden nie gezählt
+    if (c.filteredAt) return;
     let by = 1;
     if (c.parentId) {
-      const parent = await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true } });
-      if (parent?.state !== "PUBLISHED") by = 0;
+      const parent = await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true, filteredAt: true } });
+      if (parent?.state !== "PUBLISHED" || parent.filteredAt) by = 0;
     } else {
-      by += await tx.comment.count({ where: { parentId: commentId, state: "PUBLISHED" } });
+      by += await tx.comment.count({ where: { parentId: commentId, state: "PUBLISHED", filteredAt: null } });
     }
     if (by) await bumpCounter(tx, c.targetType, c.targetId, "comment", -by);
   });
@@ -255,6 +271,10 @@ export type CommentView = {
   replies: Omit<CommentView, "replies" | "replyCount">[];
   /** Alle sichtbaren Antworten (kann grösser sein als `replies`, siehe REPLY_LIMIT). Zusätzlich, optional für Clients. */
   replyCount?: number;
+  /** Von der Inhaber:in angeheftet (Creator Pro) – steht oben */
+  pinned?: boolean;
+  /** Vom Wortfilter ausgeblendet – nur für die Inhaber:in markiert (Autor:innen sehen ihn normal) */
+  filtered?: boolean;
 };
 export type CommentPage = { items: CommentView[]; nextCursor: string | null };
 
@@ -279,7 +299,10 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
     ? (await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] }, select: { blockerId: true, blockedId: true } })).flatMap((b) => [b.blockerId, b.blockedId]).filter((x) => x !== viewerId)
     : [];
   // Wie Feed, Suche und Profil: keine Kommentare gesperrter (BANNED) oder gelöschter Konten
-  const visibleAuthor = { author: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(blocked.length ? { authorId: { notIn: blocked } } : {}) } satisfies Prisma.CommentWhereInput;
+  // Vom Wortfilter Ausgeblendetes sehen nur die Inhaber:in und die Person, die es geschrieben hat
+  const isOwner = !!viewerId && meta.ownerId === viewerId;
+  const unfiltered: Prisma.CommentWhereInput = isOwner ? {} : { OR: [{ filteredAt: null }, ...(viewerId ? [{ authorId: viewerId }] : [])] };
+  const visibleAuthor = { author: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(blocked.length ? { authorId: { notIn: blocked } } : {}), AND: [unfiltered] } satisfies Prisma.CommentWhereInput;
   const include = {
     author: commentAuthor,
     // Neueste zuerst laden (begrenzt), unten wieder aufsteigend sortiert
@@ -287,12 +310,16 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
     _count: { select: { replies: { where: { state: "PUBLISHED", ...visibleAuthor } } } },
   } satisfies Prisma.CommentInclude;
   const base = { targetType: type, targetId: id, parentId: null, state: "PUBLISHED", ...visibleAuthor, ...(stepKey ? { stepKey } : {}) } satisfies Prisma.CommentWhereInput;
-  const [answers, latest] = await Promise.all([
-    after ? Promise.resolve([]) : db.comment.findMany({ where: { ...base, isAnswer: true }, orderBy: { createdAt: "asc" }, take: 50, include }),
+  // Angehefteter Kommentar (höchstens einer) steht auf der ersten Seite ganz oben – nicht bei Schrittfragen
+  const [pinnedRows, answers, latest] = await Promise.all([
+    after || stepKey ? Promise.resolve([]) : db.comment.findMany({ where: { ...base, pinnedAt: { not: null } }, orderBy: { pinnedAt: "desc" }, take: 1, include }),
+    after ? Promise.resolve([]) : db.comment.findMany({ where: { ...base, isAnswer: true, pinnedAt: null }, orderBy: { createdAt: "asc" }, take: 50, include }),
     db.comment.findMany({
       where: {
         ...base,
         isAnswer: false,
+        // Angeheftete nur oben, nicht nochmals in der Zeitleiste (ohne Schrittfilter)
+        ...(stepKey ? {} : { pinnedAt: null }),
         ...(after ? { OR: [{ createdAt: { lt: after.createdAt } }, { createdAt: after.createdAt, id: { lt: after.id } }] } : {}),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -303,7 +330,7 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
   const hasMore = latest.length > COMMENT_PAGE;
   const page = latest.slice(0, COMMENT_PAGE);
   const nextCursor = hasMore ? encodeCommentCursor(page[page.length - 1]!) : null;
-  const rows = [...answers, ...page.reverse()];
+  const rows = [...pinnedRows, ...answers, ...page.reverse()];
   const ids = rows.flatMap((r) => [r.id, ...r.replies.map((x) => x.id)]);
   const liked = viewerId && ids.length ? new Set((await db.reaction.findMany({ where: { userId: viewerId, targetType: "COMMENT", targetId: { in: ids } }, select: { targetId: true } })).map((r) => r.targetId)) : new Set<string>();
   // Schrittnummer und -titel der aktuellen Fassung (Schritte können sich zwischen Versionen verschieben)
@@ -324,6 +351,8 @@ export async function listCommentPage(type: TargetType, id: string, viewerId: st
     stepKey: c.stepKey,
     step: c.stepKey ? (steps.get(c.stepKey) ?? null) : null,
     author: { id: c.author.id, handle: c.author.profile?.handle ?? "", displayName: c.author.profile?.displayName ?? "", avatarUrl: c.author.profile?.avatarUrl ?? null },
+    pinned: !!c.pinnedAt && !c.parentId,
+    filtered: isOwner && !!c.filteredAt,
   });
   return { items: rows.map((r) => ({ ...map(r), replies: [...r.replies].reverse().map(map), replyCount: r._count?.replies ?? r.replies.length })), nextCursor };
 }
@@ -343,6 +372,8 @@ export async function stepQuestionCounts(tutorialId: string, viewerId: string | 
       stepKey: { not: null },
       author: { status: { in: ["ACTIVE", "SUSPENDED"] } },
       ...(blocked.length ? { authorId: { notIn: blocked } } : {}),
+      // Vom Wortfilter Ausgeblendetes zählt nicht (eigene ausgeblendete Fragen sieht man trotzdem in der Liste)
+      filteredAt: null,
     },
     _count: { _all: true },
   });

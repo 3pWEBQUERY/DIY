@@ -20,6 +20,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, localize } from "@/server/commerce/currency";
+import { requireProScheduling } from "@/server/pro/scheduling";
 
 /**
  * Projekte – der Produktkern (PRD §10). Ein Projekt bündelt Journal, Anleitung,
@@ -172,6 +173,9 @@ export async function createProject(user: SessionUser, input: unknown) {
   const data = projectUpsertSchema.parse(input);
   await assertCategoryAllowed(data.category);
   await requireAdult(user);
+  // Creator Pro: erst später veröffentlichen (bleibt bis dahin Entwurf, der Worker veröffentlicht)
+  const publishAt = data.publishAt ?? null;
+  if (publishAt) await requireProScheduling(user.id);
   await limit("post", user.id);
 
   let original: { id: string; ownerId: string; title: string } | null = null;
@@ -212,6 +216,7 @@ export async function createProject(user: SessionUser, input: unknown) {
         coverMediaId: coverId,
         coverUrl,
         remixNote: original ? (data.remixNote ?? null) : null,
+        ...(publishAt ? { state: "DRAFT" as const, scheduledAt: publishAt } : {}),
         // publishedAt setzt markProjectPublished (genau einmal, mit Ereignis ProjectPublished)
         completedAt: completedAtFor(data.status, null),
         qualityScore: 0.4 + (galleryIds.length ? 0.2 : 0) + (data.materials.length ? 0.1 : 0) + Math.min(0.2, data.description.length / 3000),
@@ -224,14 +229,15 @@ export async function createProject(user: SessionUser, input: unknown) {
       await emit({ type: "ProjectRemixed", projectId: p.id, originalId: original.id, ownerId: user.id }, tx);
     }
     await emit({ type: "ProjectUpdated", projectId: p.id, ownerId: user.id }, tx);
-    await markProjectPublished(tx, p.id, user.id, now);
+    if (!publishAt) await markProjectPublished(tx, p.id, user.id, now);
     await syncProjectCount(tx, user.id);
     return p;
   }));
   if (coverId && !coverUrl) await patchFrozenMediaRefsLater([coverId]);
 
   const href = ownerHref(user.profile?.handle, project.slug);
-  if (original) {
+  // Geplant: Hinweis an das Original erst mit der Veröffentlichung (publishProjectDraft)
+  if (original && !publishAt) {
     await notify({
       recipientId: original.ownerId,
       type: "REMIX",
@@ -242,13 +248,13 @@ export async function createProject(user: SessionUser, input: unknown) {
     });
   }
   await indexHashtags("PROJECT", project.id);
-  return { id: project.id, slug: project.slug, href };
+  return { id: project.id, slug: project.slug, href, scheduledAt: publishAt?.toISOString() ?? null };
 }
 
 async function ownedProject(user: SessionUser, projectId: string) {
   const p = await db.project.findUnique({
     where: { id: projectId },
-    select: { id: true, ownerId: true, slug: true, title: true, status: true, completedAt: true, visibility: true, state: true },
+    select: { id: true, ownerId: true, slug: true, title: true, status: true, completedAt: true, visibility: true, state: true, publishedAt: true, scheduledAt: true },
   });
   if (!p || p.state === "REMOVED") throw fail.notFound();
   if (p.ownerId !== user.id) throw fail.forbidden("Nur die Projektinhaberin bzw. der Projektinhaber kann das Projekt bearbeiten.");
@@ -298,7 +304,95 @@ export async function updateProject(user: SessionUser, projectId: string, input:
   });
   if (coverId && !coverUrl) await patchFrozenMediaRefsLater([coverId]);
   await indexHashtags("PROJECT", projectId);
-  return { id: projectId, slug: prev.slug, href: ownerHref(user.profile?.handle, prev.slug) };
+  // Noch nicht veröffentlichtes, geplantes Projekt: neuer Termin bzw. ohne Termin sofort veröffentlichen
+  let scheduledAt = prev.scheduledAt;
+  if (prev.state === "DRAFT" && !prev.publishedAt && data.publishAt !== undefined) {
+    if (data.publishAt) {
+      await requireProScheduling(user.id);
+      await db.project.update({ where: { id: projectId }, data: { scheduledAt: data.publishAt } });
+      scheduledAt = data.publishAt;
+    } else {
+      await publishProjectDraft(projectId);
+      scheduledAt = null;
+    }
+  }
+  return { id: projectId, slug: prev.slug, href: ownerHref(user.profile?.handle, prev.slug), scheduledAt: scheduledAt?.toISOString() ?? null };
+}
+
+/**
+ * Geplantes (noch nie veröffentlichtes) Projekt jetzt veröffentlichen – derselbe Weg wie beim direkten
+ * Anlegen: Erstveröffentlichung genau einmal (ProjectPublished), Projektzähler, Hashtags, Hinweis ans Original.
+ * Idempotent: nur der Übergang DRAFT → PUBLISHED zählt.
+ */
+export async function publishProjectDraft(projectId: string, at = new Date()) {
+  const p = await db.project.findUnique({ where: { id: projectId }, select: { id: true, ownerId: true, slug: true, title: true, state: true, publishedAt: true } });
+  if (!p || p.state !== "DRAFT" || p.publishedAt) return null;
+  const done = await db.$transaction(async (tx) => {
+    const claimed = await tx.project.updateMany({ where: { id: projectId, state: "DRAFT", publishedAt: null }, data: { state: "PUBLISHED", scheduledAt: null } });
+    if (!claimed.count) return false;
+    await markProjectPublished(tx, projectId, p.ownerId, at);
+    await emit({ type: "ProjectUpdated", projectId, ownerId: p.ownerId }, tx);
+    await syncProjectCount(tx, p.ownerId);
+    return true;
+  });
+  if (!done) return null;
+  await indexHashtags("PROJECT", projectId);
+  const owner = await db.userProfile.findUnique({ where: { userId: p.ownerId }, select: { handle: true } });
+  const href = ownerHref(owner?.handle, p.slug);
+  const rel = await db.projectRelation.findFirst({ where: { fromId: projectId, kind: "REMIX" }, select: { to: { select: { id: true, ownerId: true, title: true } } } });
+  if (rel?.to && rel.to.ownerId !== p.ownerId) {
+    await notify({ recipientId: rel.to.ownerId, type: "REMIX", actorId: p.ownerId, targetType: "PROJECT", targetId: rel.to.id, data: { title: rel.to.title, remixTitle: p.title, href } }).catch(() => {});
+  }
+  return { id: projectId, ownerId: p.ownerId, title: p.title, href };
+}
+
+/** Termin eines geplanten Projekts ändern (Datum) oder aufheben (null → bleibt Entwurf). */
+export async function scheduleProject(user: SessionUser, projectId: string, at: Date | null) {
+  const p = await ownedProject(user, projectId);
+  if (p.state !== "DRAFT" || p.publishedAt) throw fail.conflict("Dieses Projekt ist bereits veröffentlicht.");
+  if (at) {
+    await requireProScheduling(user.id);
+    const { isValidSchedule } = await import("@werkraum/shared");
+    if (!isValidSchedule(at)) throw fail.invalid("Wähle einen Zeitpunkt zwischen 5 Minuten und einem Jahr ab jetzt.", { publishAt: "Ungültiger Zeitpunkt" });
+  }
+  await db.project.update({ where: { id: projectId }, data: { scheduledAt: at } });
+  return { id: projectId, scheduledAt: at?.toISOString() ?? null };
+}
+
+/** Geplantes Projekt sofort veröffentlichen (Besitzer:in). */
+export async function publishProjectNow(user: SessionUser, projectId: string) {
+  const p = await ownedProject(user, projectId);
+  if (p.state !== "DRAFT" || p.publishedAt) throw fail.conflict("Dieses Projekt ist bereits veröffentlicht.");
+  await requireAdult(user);
+  await limit("post", user.id);
+  const r = await publishProjectDraft(projectId);
+  return { id: projectId, href: r?.href ?? ownerHref(user.profile?.handle, p.slug) };
+}
+
+/** Worker (minütlich): fällige geplante Projekte veröffentlichen und die Besitzer:in informieren. */
+export async function publishScheduledProjects(now = new Date()) {
+  const due = await db.project.findMany({
+    // Gesperrte/gebannte Konten veröffentlichen nichts – nach Ablauf der Sperre geht das Projekt online
+    where: { state: "DRAFT", publishedAt: null, scheduledAt: { lte: now }, owner: { status: "ACTIVE" } },
+    orderBy: { scheduledAt: "asc" },
+    take: 50,
+    select: { id: true },
+  });
+  let n = 0;
+  for (const d of due) {
+    const r = await publishProjectDraft(d.id, now);
+    if (!r) continue;
+    n++;
+    await notify({
+      recipientId: r.ownerId,
+      type: "PROJECT_ACTIVITY",
+      targetType: "PROJECT",
+      targetId: r.id,
+      bundle: false,
+      data: { kind: "SCHEDULED_PUBLISHED", message: `Dein geplantes Projekt „${r.title}“ ist jetzt online.`, href: r.href },
+    }).catch(() => {});
+  }
+  return n;
 }
 
 export async function setProjectStatus(user: SessionUser, projectId: string, input: unknown) {
@@ -835,6 +929,9 @@ export async function getProjectForEdit(user: SessionUser, handle: string, slug:
       remixNote: p.remixNote ?? "",
     },
     remixOf: remix ? { id: remix.to.id, title: remix.to.title, href: ownerHref(remix.to.owner.profile?.handle, remix.to.slug), ownerName: remix.to.owner.profile?.displayName ?? "" } : null,
+    /** Noch nie veröffentlicht (Entwurf, ggf. geplant): Termin im Editor änderbar */
+    unpublished: p.state === "DRAFT" && !p.publishedAt,
+    scheduledAt: p.scheduledAt?.toISOString() ?? null,
   };
 }
 

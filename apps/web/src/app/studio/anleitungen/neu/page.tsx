@@ -6,6 +6,7 @@ import { getTutorialSeedFromProject } from "@/server/tutorials/service";
 import { categoryOptions } from "@/server/categories/settings";
 import { PageHeader } from "@/components/shell/page";
 import { TutorialEditor } from "@/components/tutorials/tutorial-editor";
+import { isPro } from "@/server/pro/service";
 
 export const metadata = { title: "Neue Anleitung" };
 
@@ -23,7 +24,7 @@ export default async function NewTutorialPage({ searchParams }: { searchParams: 
         title={seed ? "Anleitung zum Projekt" : "Neue Anleitung"}
         description="Schreibe in Ruhe – veröffentlicht wird erst, wenn du so weit bist. Bis dahin bleibt alles ein Entwurf."
       />
-      <TutorialEditor supportPlanEnabled={!!(await db.supportPlan.findUnique({ where: { userId: user.id }, select: { enabled: true } }))?.enabled} tutorialId={null} currentVersion={null} projects={projects} defaultProjectId={seed?.projectId ?? undefined} initial={seed ?? undefined} categories={await categoryOptions(seed?.category)} />
+      <TutorialEditor supportPlanEnabled={!!(await db.supportPlan.findUnique({ where: { userId: user.id }, select: { enabled: true } }))?.enabled} tutorialId={null} currentVersion={null} pro={await isPro(user.id)} projects={projects} defaultProjectId={seed?.projectId ?? undefined} initial={seed ?? undefined} categories={await categoryOptions(seed?.category)} />
     </div>
   );
 }

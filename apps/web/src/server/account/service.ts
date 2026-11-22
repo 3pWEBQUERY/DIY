@@ -206,16 +206,21 @@ export async function getNotificationSettings(userId: string) {
     matrix: NOTIFICATION_TYPES.map((t) => ({ type: t, ...prefFor(prefs, t), locked: (LOCKED_IN_APP_NOTIFICATIONS as readonly string[]).includes(t) })),
     emailDigest: p.emailDigest,
     weeklyDigest: p.weeklyDigest,
+    /** Newsletter von Creator:innen (im JSON gespeichert, Standard: an) */
+    creatorNewsletters: (p.notificationPrefs as { creatorNewsletters?: unknown } | null)?.creatorNewsletters !== false,
   };
 }
 
 export async function updateNotificationSettings(user: U, input: unknown) {
   const d = notificationPrefsSchema.parse(input);
-  const prefs: Record<string, { inApp: boolean; email: boolean }> = {};
+  const prefs: Record<string, { inApp: boolean; email: boolean } | boolean> = {};
   for (const t of NOTIFICATION_TYPES) {
     const v = d.prefs[t] ?? prefFor(null, t);
     prefs[t] = { inApp: (LOCKED_IN_APP_NOTIFICATIONS as readonly string[]).includes(t) ? true : v.inApp, email: v.email };
   }
+  // Newsletter von Creator:innen: ohne Angabe (ältere App) den bisherigen Wert behalten
+  const before = (await db.userPreference.findUnique({ where: { userId: user.id }, select: { notificationPrefs: true } }))?.notificationPrefs as { creatorNewsletters?: unknown } | null | undefined;
+  prefs.creatorNewsletters = d.creatorNewsletters ?? before?.creatorNewsletters !== false;
   await db.userPreference.upsert({
     where: { userId: user.id },
     create: { userId: user.id, notificationPrefs: prefs, emailDigest: d.emailDigest, ...(d.weeklyDigest !== undefined ? { weeklyDigest: d.weeklyDigest } : {}) },

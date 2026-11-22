@@ -17,7 +17,8 @@ import { toast } from "@/components/ui/toast";
 import { LineEditor, formatCostInput, newLine, parseCost, type Line } from "@/components/materials/line-editor";
 import { DurationInput } from "@/components/projects/project-editor";
 import { cn, formatMinutes, pad } from "@/lib/utils";
-import { saveTutorialAction } from "@/app/(app)/anleitungen/actions";
+import { saveTutorialAction, scheduleTutorialAction } from "@/app/(app)/anleitungen/actions";
+import { PublishSchedule, fromLocalInput, toLocalInput } from "@/components/pro/publish-schedule";
 import { callAction } from "@/lib/use-action";
 import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
 
@@ -75,7 +76,12 @@ export function TutorialEditor({
   slug,
   categories = CATEGORIES,
   supportPlanEnabled = false,
+  pro = false,
+  scheduledAt = null,
 }: {
+  /** Creator Pro: Erstveröffentlichung planen */
+  pro?: boolean;
+  scheduledAt?: string | null;
   tutorialId: string | null;
   initial?: Values;
   currentVersion: number | null;
@@ -110,6 +116,9 @@ export function TutorialEditor({
   const [isMajor, setIsMajor] = useState(false);
   const [notifyReaders, setNotifyReaders] = useState(true);
   const [shareToFeed, setShareToFeed] = useState(currentVersion == null);
+  const [later, setLater] = useState(!!scheduledAt);
+  const [publishAt, setPublishAt] = useState(toLocalInput(scheduledAt));
+  const scheduling = pro && currentVersion == null && later;
 
   // Ungespeicherte Änderungen: Vergleich mit dem zuletzt gespeicherten Stand
   const serialized = JSON.stringify({
@@ -171,6 +180,7 @@ export function TutorialEditor({
     isMajor,
     notifyReaders: isMajor && notifyReaders,
     shareToFeed,
+    ...(scheduling ? { publishAt: fromLocalInput(publishAt) ?? "" } : {}),
   });
 
   const save = (publish: boolean) =>
@@ -180,13 +190,16 @@ export function TutorialEditor({
         setFields({});
         setSavedState(serialized);
         setPublishOpen(false);
-        toast(publish ? `Version ${r.data.version} veröffentlicht.` : "Entwurf gespeichert.");
-        if (publish) router.push(r.data.href);
+        const planned = publish && !r.data.version && r.data.scheduledAt;
+        toast(planned ? `Geplant für ${new Date(r.data.scheduledAt as string).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}.` : publish ? `Version ${r.data.version} veröffentlicht.` : "Entwurf gespeichert.");
+        if (planned) router.replace(`/studio/anleitungen/${r.data.id}`);
+        else if (publish) router.push(r.data.href);
         else if (!tutorialId) router.replace(`/studio/anleitungen/${r.data.id}`);
         else router.refresh();
       } else {
         setFields(r.fields ?? {});
-        setPublishOpen(false);
+        // Fehler beim Termin im Dialog zeigen, sonst schliessen
+        if (!r.fields?.publishAt) setPublishOpen(false);
         const stepErr = Object.keys(r.fields ?? {}).find((k) => k.startsWith("steps."));
         if (stepErr) {
           const idx = Number(stepErr.split(".")[1]);
@@ -336,7 +349,27 @@ export function TutorialEditor({
         <div className="border border-rule bg-card rounded-2xl">
           <div className="border-b border-line px-4 py-3">
             <p className="spec text-ink">Stand</p>
-            <p className="mt-1 text-[15px] font-semibold">{currentVersion ? `Veröffentlicht · v${currentVersion}` : "Noch nicht veröffentlicht"}</p>
+            <p className="mt-1 text-[15px] font-semibold">
+              {currentVersion ? `Veröffentlicht · v${currentVersion}` : scheduledAt ? `Geplant · ${new Date(scheduledAt).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}` : "Noch nicht veröffentlicht"}
+            </p>
+            {!currentVersion && scheduledAt && tutorialId && (
+              <button
+                type="button"
+                className="mt-1 text-[12.5px] font-semibold text-ink-2 underline-offset-2 hover:underline"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    const r = await callAction(() => scheduleTutorialAction(tutorialId, null));
+                    if (!r.ok) return void toast(r.error, "error");
+                    toast(r.message ?? "Planung aufgehoben.");
+                    setLater(false);
+                    router.refresh();
+                  })
+                }
+              >
+                Planung aufheben
+              </button>
+            )}
             <p className="mt-0.5 text-[12px] text-muted">{dirty ? "Ungespeicherte Änderungen" : "Alles gespeichert"}</p>
           </div>
           <dl className="grid grid-cols-2 border-b border-line text-[13px]">
@@ -355,7 +388,7 @@ export function TutorialEditor({
           </div>
           <div className="space-y-2 p-4">
             <Button className="w-full" onClick={() => setPublishOpen(true)} disabled={pending || uploading}>
-              {currentVersion ? `Version ${currentVersion + 1} veröffentlichen` : "Veröffentlichen"}
+              {currentVersion ? `Version ${currentVersion + 1} veröffentlichen` : scheduledAt ? "Termin ändern oder jetzt veröffentlichen" : "Veröffentlichen"}
             </Button>
             <Button className="w-full" variant="outline" onClick={() => save(false)} disabled={pending || uploading}>
               {uploading ? "Lädt hoch …" : pending ? "Speichert …" : "Entwurf speichern"}
@@ -384,8 +417,18 @@ export function TutorialEditor({
             </>
           )}
           <Checkbox label="Im Feed ankündigen" checked={shareToFeed} onChange={(e) => setShareToFeed(e.target.checked)} />
-          <Button className="w-full" onClick={() => save(true)} disabled={pending || uploading}>
-            {pending ? "Wird veröffentlicht …" : "Jetzt veröffentlichen"}
+          {currentVersion == null && (
+            <PublishSchedule pro={pro} enabled={later} onEnabled={setLater} value={publishAt} onChange={setPublishAt} error={fields.publishAt} noun="die Anleitung" />
+          )}
+          <Button
+            className="w-full"
+            onClick={() => {
+              if (scheduling && !publishAt) return setFields({ ...fields, publishAt: "Bitte wähle Datum und Uhrzeit" });
+              save(true);
+            }}
+            disabled={pending || uploading}
+          >
+            {pending ? (scheduling ? "Wird geplant …" : "Wird veröffentlicht …") : scheduling ? "Veröffentlichung planen" : "Jetzt veröffentlichen"}
           </Button>
         </div>
       </Dialog>

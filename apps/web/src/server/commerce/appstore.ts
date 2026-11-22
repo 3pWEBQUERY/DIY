@@ -107,7 +107,11 @@ export async function withAppPricing<T>(data: T): Promise<T> {
       // Preisstufe aus dem Shop-Preis (nicht aus dem für Betrachter:innen umgerechneten Preis);
       // den Endpreis je Land legt der App Store fest
       const original = o.original && typeof o.original === "object" ? (o.original as { priceMinor?: unknown; currency?: unknown }) : null;
-      const web = typeof original?.priceMinor === "number" ? original.priceMinor : o.priceMinor;
+      // Shop-Aktionen gelten nicht für In-App-Käufe (Apple-Preisstufen lassen sich nicht kurzfristig ändern):
+      // Stufe aus dem regulären Shop-Preis
+      const sale = o.sale && typeof o.sale === "object" ? (o.sale as { shopRegularMinor?: unknown }) : null;
+      const web = typeof sale?.shopRegularMinor === "number" ? sale.shopRegularMinor : typeof original?.priceMinor === "number" ? original.priceMinor : o.priceMinor;
+      out.sale = null;
       const p = appPriceFor(web, s.markupBps);
       out.priceMinor = p?.priceMinor ?? web;
       if (typeof original?.currency === "string") out.currency = original.currency;

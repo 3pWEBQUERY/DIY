@@ -91,7 +91,7 @@ export async function loadCartDiscounts(client: Client, opts: { userId: string; 
    */
   function forShop(
     shopId: string,
-    lines: { productId: string; variantId?: string | null; unitMinor: number; quantity: number }[],
+    lines: { productId: string; variantId?: string | null; unitMinor: number; quantity: number; onSale?: boolean }[],
     subtotal: number,
     currency: string = "CHF",
     convert: (minor: number) => number = (m) => m,
@@ -99,7 +99,11 @@ export async function loadCartDiscounts(client: Client, opts: { userId: string; 
     const fmt = (m: number) => formatMoney(m, currency as Currency);
     const rows: DiscountRow[] = [];
     const inCart = new Set(lines.map((l) => l.productId));
-    const { applied, incomplete } = applyBundles(lines, bundlesByShop.get(shopId) ?? []);
+    // Aktionsartikel (Shop-Aktion mit Countdown) sind von Sets und Gutscheinen ausgenommen
+    const onSale = new Set(lines.filter((l) => l.onSale).map((l) => l.productId));
+    const eligible = onSale.size ? lines.filter((l) => !l.onSale) : lines;
+    const base = onSale.size ? eligible.reduce((s, l) => s + l.unitMinor * l.quantity, 0) : subtotal;
+    const { applied, incomplete } = applyBundles(eligible, bundlesByShop.get(shopId) ?? []);
     for (const a of applied) if (a.amountMinor > 0) rows.push({ kind: "bundle", label: `Set „${a.title}“`, amountMinor: a.amountMinor });
     const bundleTotal = rows.reduce((s, r) => s + r.amountMinor, 0);
     let coupon: ShopDiscount["coupon"] = null;
@@ -109,10 +113,10 @@ export async function loadCartDiscounts(client: Client, opts: { userId: string; 
       const u = uses.get(c.id) ?? { used: 0, pending: 0 };
       // Eigene offene Bestellungen halten in der Anzeige keinen Platz besetzt
       const rule: CouponRule = { ...c, usedCount: opts.includePending ? c.usedCount : Math.max(0, c.usedCount - u.pending) };
-      const problem = couponProblem(rule, { now, subtotal, buyerUses: u.used, fmt });
+      const problem = onSale.size && !eligible.length ? "Gilt nicht für Artikel in einer Aktion." : couponProblem(rule, { now, subtotal: base, buyerUses: u.used, fmt });
       coupon = { id: c.id, code: c.code, valueLabel: couponValueLabel(c, fmt), problem };
       if (!problem) {
-        const amount = couponAmount(c, subtotal - bundleTotal);
+        const amount = couponAmount(c, base - bundleTotal);
         if (amount > 0) rows.push({ kind: "coupon", label: `Gutschein ${c.code}`, amountMinor: amount });
       }
     }
@@ -121,7 +125,11 @@ export async function loadCartDiscounts(client: Client, opts: { userId: string; 
       amountMinor: rows.reduce((s, r) => s + r.amountMinor, 0),
       coupon,
       // Nur Sets nennen, von denen noch etwas im Warenkorb liegt
-      incompleteBundles: incomplete.filter((b) => (bundlesByShop.get(shopId) ?? []).find((x) => x.id === b.id)?.items.some((i) => inCart.has(i.productId))).map((b) => ({ id: b.id, title: b.title })),
+      // Sets mit Aktionsartikeln gelten als „in der Aktion“, nicht als unvollständig
+      incompleteBundles: incomplete
+        .filter((b) => !b.missing.some((id) => onSale.has(id)))
+        .filter((b) => (bundlesByShop.get(shopId) ?? []).find((x) => x.id === b.id)?.items.some((i) => inCart.has(i.productId)))
+        .map((b) => ({ id: b.id, title: b.title })),
     };
   }
 

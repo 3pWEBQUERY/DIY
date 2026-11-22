@@ -112,7 +112,7 @@ struct StudioView: View {
         }
     }
 
-    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .shop, .revenue].contains(s) }
+    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .sales, .shop, .revenue].contains(s) }
 
     private func subtitle(_ s: StudioSection) -> String? {
         switch s {

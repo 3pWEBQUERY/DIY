@@ -12,7 +12,7 @@ export default async function NotificationSettingsPage() {
   return (
     <div className="space-y-8">
       <WebPushCard />
-      <NotificationMatrix rows={s.matrix} digest={s.emailDigest} weekly={s.weeklyDigest} />
+      <NotificationMatrix rows={s.matrix} digest={s.emailDigest} weekly={s.weeklyDigest} newsletters={s.creatorNewsletters} />
     </div>
   );
 }

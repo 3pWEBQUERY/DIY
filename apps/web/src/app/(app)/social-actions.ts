@@ -67,6 +67,37 @@ export async function listCommentsAction(type: TargetType, id: string, cursor?: 
   return ix.listCommentPage(type, id, u?.id ?? null, cursor ?? null, typeof stepKey === "string" && stepKey.length <= 64 ? stepKey : null);
 }
 
+/** Kommentar-Einstellungen eines Inhalts (geschlossen, Inhaber:in, Creator Pro) */
+export async function commentMetaAction(type: TargetType, id: string) {
+  const { currentUser } = await import("@/server/auth/session");
+  const { commentMeta } = await import("@/server/pro/comment-tools");
+  const u = await currentUser();
+  return commentMeta(type, id, u?.id ?? null);
+}
+
+export async function pinCommentAction(id: string, pinned: boolean) {
+  return act(async () => {
+    const { setCommentPinned } = await import("@/server/pro/comment-tools");
+    return setCommentPinned(await requireUser(), id, pinned);
+  }, pinned ? "Kommentar angeheftet." : "Kommentar gelöst.");
+}
+
+export async function unfilterCommentAction(id: string) {
+  return act(async () => {
+    const { unfilterComment } = await import("@/server/pro/comment-tools");
+    const r = await unfilterComment(await requireUser(), id);
+    revalidatePath("/studio/kommentare");
+    return r;
+  }, "Kommentar eingeblendet.");
+}
+
+export async function lockCommentsAction(type: TargetType, id: string, locked: boolean) {
+  return act(async () => {
+    const { setCommentsLocked } = await import("@/server/pro/comment-tools");
+    return setCommentsLocked(await requireUser(), type, id, locked);
+  }, locked ? "Kommentare geschlossen." : "Kommentare wieder offen.");
+}
+
 export async function followAction(userId: string, follow: boolean) {
   return act(async () => ix.setFollow(await requireUser(), userId, follow));
 }

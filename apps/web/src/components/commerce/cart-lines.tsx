@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { removeCartItemAction, updateCartItemAction } from "@/app/(app)/markt/actions";
 import { callAction } from "@/lib/use-action";
+import { SaleCountdown } from "./sale-countdown";
 
 export type CartLine = {
   id: string;
@@ -26,6 +27,8 @@ export type CartLine = {
   isDigital: boolean;
   available: number | null;
   problem: string | null;
+  /** Laufende Shop-Aktion: regulärer Stückpreis zum Durchstreichen */
+  sale?: { title: string; percent: number; endsAt: string; regularUnitMinor: number } | null;
 };
 
 function Line({ line, currency }: { line: CartLine; currency: Currency }) {
@@ -53,7 +56,21 @@ function Line({ line, currency }: { line: CartLine; currency: Currency }) {
           {line.title}
         </Link>
         {line.variantName && <p className="mt-0.5 text-[13px] text-muted">Variante: {line.variantName}</p>}
-        <p className="num mt-1 text-[13px] text-muted">{formatMoney(line.unitMinor, currency)} pro Stück</p>
+        <p className="num mt-1 text-[13px] text-muted">
+          {formatMoney(line.unitMinor, currency)} pro Stück
+          {line.sale && (
+            <>
+              {" "}
+              <span className="sr-only">statt </span>
+              <span className="line-through decoration-1">{formatMoney(line.sale.regularUnitMinor, currency)}</span>
+            </>
+          )}
+        </p>
+        {line.sale && (
+          <p className="mt-1 text-[12.5px] text-clay-ink">
+            <span className="num font-bold">−{line.sale.percent} %</span> · {line.sale.title} · <SaleCountdown endsAt={line.sale.endsAt} />
+          </p>
+        )}
         {line.problem && (
           <p role="alert" className="mt-2 text-[13px] font-semibold text-danger">
             {line.problem}

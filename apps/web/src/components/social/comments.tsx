@@ -12,7 +12,9 @@ import { toast } from "@/components/ui/toast";
 import { Linkified } from "@/components/ui/linkify";
 import { cn } from "@/lib/utils";
 import { RelativeTime } from "@/components/ui/relative-time";
-import { commentAction, deleteCommentAction, listCommentsAction } from "@/app/(app)/social-actions";
+import { commentAction, commentMetaAction, deleteCommentAction, listCommentsAction, lockCommentsAction, pinCommentAction, unfilterCommentAction } from "@/app/(app)/social-actions";
+import type { CommentMeta } from "@/server/pro/comment-tools";
+import { EyeOff, Lock, Pin } from "lucide-react";
 import { LikeButton, ReportDialog } from "./actions";
 import { callAction, callData } from "@/lib/use-action";
 import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
@@ -53,6 +55,26 @@ export function Comments({
   const [loadingOlder, startOlder] = useTransition();
   const [failed, setFailed] = useState(false);
   const pathname = usePathname();
+  // Geschlossen? Inhaber:in? Creator Pro? (Anheften, Wortfilter, Schliessen)
+  const [meta, setMeta] = useState<CommentMeta | null>(null);
+  const [locking, startLock] = useTransition();
+  useEffect(() => {
+    let alive = true;
+    callData(() => commentMetaAction(targetType, targetId)).then((r) => alive && r.ok && setMeta(r.data));
+    return () => {
+      alive = false;
+    };
+  }, [targetType, targetId]);
+  const owner = meta?.isOwner ? { pro: meta.ownerPro, name: meta.ownerName } : null;
+  const mod = canModerate || !!meta?.isOwner;
+  const toggleLock = () =>
+    meta &&
+    startLock(async () => {
+      const r = await callAction(() => lockCommentsAction(targetType, targetId, !meta.locked));
+      if (!r.ok) return void toast(r.error, "error");
+      toast(r.message ?? "");
+      setMeta({ ...meta, locked: !meta.locked });
+    });
 
   const reload = () =>
     start(async () => {
@@ -95,13 +117,38 @@ export function Comments({
     if (items && !cursor) onCount?.(items.length);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, cursor]);
-  // Als Lösung markierte Kommentare bleiben oben, danach chronologisch (ältere Seiten davor)
-  const answers = items?.filter((c) => c.isAnswer) ?? [];
-  const rest = items?.filter((c) => !c.isAnswer) ?? [];
+  // Angehefteter Kommentar ganz oben, dann als Lösung markierte, danach chronologisch (ältere Seiten davor)
+  const pinned = items?.filter((c) => c.pinned) ?? [];
+  const answers = items?.filter((c) => c.isAnswer && !c.pinned) ?? [];
+  const rest = items?.filter((c) => !c.isAnswer && !c.pinned) ?? [];
+  const itemProps = { targetType, targetId, viewer, onChange: reload, canModerate: mod, hideStep: !!stepKey, owner, ownerName: meta?.ownerName ?? "" };
 
   return (
     <div>
-      {viewer ? (
+      {meta?.isOwner && meta.lockable && !stepKey && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3 text-[13px] text-muted">
+          <span className="inline-flex items-center gap-1.5">
+            {meta.locked ? <Lock size={13} aria-hidden /> : null}
+            {meta.locked ? "Kommentare sind geschlossen – niemand kann mehr kommentieren." : "Du kannst Kommentare anheften und die Kommentare schliessen."}
+          </span>
+          {meta.locked || meta.ownerPro ? (
+            <Button variant="ghost" size="sm" onClick={toggleLock} disabled={locking}>
+              {meta.locked ? "Kommentare öffnen" : "Kommentare schliessen"}
+            </Button>
+          ) : (
+            <Link href="/studio/pro" className="text-[12.5px] font-semibold text-ink-2 underline-offset-2 hover:underline">
+              Mit Creator Pro
+            </Link>
+          )}
+        </div>
+      )}
+      {meta?.locked ? (
+        !meta.isOwner || stepKey ? (
+          <p className="flex items-center gap-2 border border-line bg-sunken px-4 py-3 text-sm text-muted rounded-2xl">
+            <Lock size={14} aria-hidden /> Die Kommentare sind geschlossen.
+          </p>
+        ) : null
+      ) : viewer ? (
         <CommentForm targetType={targetType} targetId={targetId} viewer={viewer} placeholder={placeholder} onDone={reload} stepKey={stepKey} />
       ) : (
         <p className="border border-line bg-sunken px-4 py-3 text-sm text-muted rounded-2xl">
@@ -119,8 +166,11 @@ export function Comments({
             <li className="spec">Lade Kommentare …</li>
           ))}
         {items?.length === 0 && <li className="text-sm text-muted">{stepKey ? "Noch keine Fragen zu diesem Schritt." : questionsMode ? "Noch keine Fragen. Was möchtest du wissen?" : "Noch keine Kommentare. Sag als Erste:r etwas Nettes."}</li>}
+        {pinned.map((c) => (
+          <CommentItem key={c.id} c={c} {...itemProps} />
+        ))}
         {answers.map((c) => (
-          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} hideStep={!!stepKey} />
+          <CommentItem key={c.id} c={c} {...itemProps} />
         ))}
         {cursor && (
           <li>
@@ -130,7 +180,7 @@ export function Comments({
           </li>
         )}
         {rest.map((c) => (
-          <CommentItem key={c.id} c={c} targetType={targetType} targetId={targetId} viewer={viewer} onChange={reload} canModerate={canModerate} hideStep={!!stepKey} />
+          <CommentItem key={c.id} c={c} {...itemProps} />
         ))}
       </ul>
     </div>
@@ -209,17 +259,34 @@ function CommentForm({ targetType, targetId, parentId, viewer, placeholder, onDo
   );
 }
 
-function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canModerate, hideStep }: { c: CommentView | CommentView["replies"][number]; targetType: TargetType; targetId: string; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; onChange: () => void; isReply?: boolean; canModerate?: boolean; hideStep?: boolean }) {
+function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canModerate, hideStep, owner, ownerName = "" }: { c: CommentView | CommentView["replies"][number]; targetType: TargetType; targetId: string; viewer: { id: string; displayName: string; avatarUrl: string | null } | null; onChange: () => void; isReply?: boolean; canModerate?: boolean; hideStep?: boolean; owner?: { pro: boolean; name: string } | null; ownerName?: string }) {
   const [replying, setReplying] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [, start] = useTransition();
   const replies = "replies" in c ? c.replies : [];
+  const run = (fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
+    start(async () => {
+      const r = await fn();
+      if (!r.ok) return void toast(r.error ?? "Das hat nicht geklappt.", "error");
+      if (r.message) toast(r.message);
+      onChange();
+    });
   return (
-    <li className={cn("flex gap-3", isReply && "mt-4")}>
+    <li className={cn("flex gap-3", isReply && "mt-4", c.filtered && "opacity-70")}>
       <Link aria-label={`Profil von ${c.author.displayName}`} href={`/u/${c.author.handle}`} className="shrink-0">
         <Avatar src={c.author.avatarUrl} name={c.author.displayName} size={isReply ? 26 : 32} />
       </Link>
       <div className="min-w-0 flex-1">
+        {c.pinned && !isReply && (
+          <p className="mb-1 inline-flex items-center gap-1 text-[12px] font-semibold text-moss-ink">
+            <Pin size={12} aria-hidden /> Angeheftet{ownerName ? ` von ${ownerName}` : ""}
+          </p>
+        )}
+        {c.filtered && (
+          <p className="mb-1 inline-flex items-center gap-1 text-[12px] font-semibold text-muted">
+            <EyeOff size={12} aria-hidden /> Ausgeblendet durch deinen Wortfilter – nur du und die Person sehen ihn
+          </p>
+        )}
         <div className="flex flex-wrap items-baseline gap-x-2">
           <Link href={`/u/${c.author.handle}`} className="text-sm font-semibold hover:underline">{c.author.displayName}</Link>
           <RelativeTime date={c.createdAt} className="text-xs text-muted" />
@@ -242,6 +309,21 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
           {viewer && viewer.id !== c.author.id && (
             <button type="button" onClick={() => setReporting(true)} className="text-xs text-muted hover:text-ink">Melden</button>
           )}
+          {owner && c.filtered && (
+            <button type="button" onClick={() => run(() => callAction(() => unfilterCommentAction(c.id)))} className="text-xs font-semibold text-moss-ink hover:underline">
+              Einblenden
+            </button>
+          )}
+          {owner && !isReply && !c.filtered && (targetType === "POST" || targetType === "PROJECT" || targetType === "TUTORIAL" || targetType === "ARTICLE") &&
+            (c.pinned || owner.pro ? (
+              <button type="button" onClick={() => run(() => callAction(() => pinCommentAction(c.id, !c.pinned)))} className="text-xs text-muted hover:text-ink">
+                {c.pinned ? "Lösen" : "Anheften"}
+              </button>
+            ) : (
+              <Link href="/studio/pro" className="text-xs text-muted hover:text-ink" title="Kommentare anheften gehört zu Creator Pro">
+                Anheften · Pro
+              </Link>
+            ))}
           {viewer && (viewer.id === c.author.id || canModerate) && (
             <button
               type="button"
@@ -274,7 +356,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
         {replies.length > 0 && (
           <ul className="border-l border-line pl-4">
             {replies.map((r) => (
-              <CommentItem key={r.id} c={r} targetType={targetType} targetId={targetId} viewer={viewer} onChange={onChange} isReply canModerate={canModerate} />
+              <CommentItem key={r.id} c={r} targetType={targetType} targetId={targetId} viewer={viewer} onChange={onChange} isReply canModerate={canModerate} owner={owner} ownerName={ownerName} />
             ))}
           </ul>
         )}

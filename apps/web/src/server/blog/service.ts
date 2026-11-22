@@ -95,7 +95,8 @@ function hasContent(blocks: ArticleBlock[]) {
 // ───────────────────────── Sitzungslose Akteure (Worker) ─────────────────────────
 
 /** Lädt einen Nutzer in derselben Form wie die Session – für geplante Jobs ohne Request. */
-async function loadActor(userId: string): Promise<SessionUser | null> {
+/** Konto als Handelnde:r ohne Sitzung (Worker): geplante Inhalte im Namen der Autor:in veröffentlichen */
+export async function loadActor(userId: string): Promise<SessionUser | null> {
   const u = await db.user.findUnique({
     where: { id: userId },
     select: {

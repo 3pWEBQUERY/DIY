@@ -13,6 +13,7 @@ import { paymentsMode } from "./stripe";
 import { requireFlag } from "@/server/flags";
 import { fitRows, loadCartDiscounts } from "./discounts";
 import { isConverted, localize, priceContextFor, type PriceContext } from "./currency";
+import { runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sales";
 
 /**
  * Warenkorb (§13.5): ein Warenkorb je Konto, Positionen je Produkt/Variante.
@@ -62,6 +63,10 @@ export type CartLineView = {
   currency: string;
   /** Preis im Shop, wenn umgerechnet wurde (sonst null) */
   original: { unitMinor: number; currency: string } | null;
+  /** Laufende Shop-Aktion: regulärer Stückpreis (Währung der Käufer:in) zum Durchstreichen */
+  sale: { id: string; title: string; percent: number; endsAt: string; regularUnitMinor: number } | null;
+  /** Aktionsartikel sind von Set-Rabatten und Gutscheinen ausgenommen */
+  onSale: boolean;
   isDigital: boolean;
   available: number | null;
   problem: string | null;
@@ -74,12 +79,15 @@ function shopAcceptsPayments(shop: CartRow["product"]["shop"]) {
   return mode === "simulated";
 }
 
-function toLine(r: CartRow, opts: { digitalEnabled: boolean; ctx: PriceContext }): CartLineView {
+function toLine(r: CartRow, opts: { digitalEnabled: boolean; ctx: PriceContext; sales: Map<string, ActiveSale[]> }): CartLineView {
   const p = r.product;
   const isDigital = p.kind === "DIGITAL";
   const inv = r.variant ? r.variant.inventory : p.inventory[0];
   const avail = isDigital ? null : available(inv);
-  const shopUnit = unitPrice(p.priceMinor, r.variant?.priceDeltaMinor ?? 0);
+  const regularShopUnit = unitPrice(p.priceMinor, r.variant?.priceDeltaMinor ?? 0);
+  // Laufende Shop-Aktion senkt den Stückpreis (in der Shop-Währung), danach wird umgerechnet
+  const sale = saleFor(opts.sales, p.shop.id, p.id);
+  const shopUnit = saleUnit(regularShopUnit, sale);
   // Preise in der Währung der Käufer:in (Tageskurs, auf 10 Rappen/Cent gerundet)
   const unit = localize(opts.ctx, shopUnit, p.currency);
   let problem: string | null = null;
@@ -107,6 +115,8 @@ function toLine(r: CartRow, opts: { digitalEnabled: boolean; ctx: PriceContext }
     shippingMinor: isDigital ? 0 : localize(opts.ctx, p.shippingMinor, p.currency),
     currency: opts.ctx.currency,
     original: isConverted(opts.ctx, p.currency) ? { unitMinor: shopUnit, currency: p.currency } : null,
+    sale: sale ? { id: sale.id, title: sale.title, percent: sale.percent, endsAt: sale.endsAt.toISOString(), regularUnitMinor: localize(opts.ctx, regularShopUnit, p.currency) } : null,
+    onSale: !!sale,
     isDigital,
     available: avail,
     problem,
@@ -123,7 +133,8 @@ export async function getCartView(userId: string) {
   const rows = cart?.items ?? [];
   const fee = await feeResolver(rows.map((r) => r.product.shop.id));
   const feeBps = fee.base;
-  const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled, ctx }) }));
+  const sales = await runningSalesByShop(rows.map((r) => r.product.shop.id));
+  const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled, ctx, sales }) }));
   const priced = lines.map((l) => ({ ...l.view, shopId: l.row.product.shop.id }));
   const disc = await loadCartDiscounts(db, { userId, cartId: cart?.id, includePending: false });
   const details = new Map<string, ReturnType<typeof disc.forShop>>();

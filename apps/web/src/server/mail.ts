@@ -137,6 +137,10 @@ export type MailOptions = {
   unsubscribeLabel?: string;
   /** Abschnitte mit Inhaltskarten (Bild, Titel, Zusatz), z. B. im Wochenrückblick */
   sections?: MailSection[];
+  /** Ersetzt „Du erhältst diese E-Mail, weil du ein Konto … hast“ (z. B. Newsletter einer Creatorin) */
+  footerNote?: string;
+  /** Unsichtbares Bild zum Zählen von Öffnungen (Creator-Newsletter) */
+  trackingPixelUrl?: string;
 };
 export type MailCard = { title: string; meta?: string; url: string; imageUrl?: string | null };
 export type MailSection = { title: string; intro?: string; cards: MailCard[] };
@@ -229,10 +233,10 @@ ${paragraphs(text)}${opts.items?.length ? itemCards(opts.items) : ""}${opts.sect
 <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.muted}">
 <p style="margin:0 0 10px;font-weight:700;color:${C.ink2}">${esc(BRAND.claim)}</p>
 <p style="margin:0 0 10px">${footerLinks}</p>
-<p style="margin:0 0 10px">Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast. Fragen? <a href="mailto:${BRAND.supportEmail}" style="color:${C.muted}">${BRAND.supportEmail}</a></p>
+<p style="margin:0 0 10px">${opts.footerNote ? esc(opts.footerNote) : `Du erhältst diese E-Mail, weil du ein Konto bei ${BRAND.name} hast.`} Fragen? <a href="mailto:${BRAND.supportEmail}" style="color:${C.muted}">${BRAND.supportEmail}</a></p>
 <p style="margin:0">${esc(BRAND.name)} · ${esc(LEGAL.company)} · ${esc(LEGAL_ADDRESS)} · <a href="${app}/rechtliches/impressum" style="color:${C.muted};text-decoration:underline">Impressum</a></p>
 </td></tr>
 </table>
-</td></tr></table>
+</td></tr></table>${opts.trackingPixelUrl ? `<img src="${esc(opts.trackingPixelUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">` : ""}
 </body></html>`;
 }

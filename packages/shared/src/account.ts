@@ -63,6 +63,8 @@ export const notificationPrefsSchema = z.object({
   emailDigest: z.enum(EMAIL_DIGEST),
   /** Wochenrückblick per E-Mail; fehlt bei älteren App-Versionen → unverändert */
   weeklyDigest: z.boolean().optional(),
+  /** Newsletter von Creator:innen, denen man folgt; fehlt bei älteren App-Versionen → unverändert */
+  creatorNewsletters: z.boolean().optional(),
 });
 
 export const FEED_DEFAULTS = ["FOR_YOU", "FOLLOWING", "NEW"] as const;

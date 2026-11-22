@@ -133,6 +133,7 @@ struct StudioShopView: View {
             MarketStudioLink(title: "Produkte", subtitle: "Angebote anlegen und pflegen", symbol: "tag") { router.open(.studioSection(.products)) }
             MarketStudioLink(title: "Bestellungen", subtitle: "Bearbeiten, versenden, erstatten", symbol: "shippingbox") { router.open(.studioSection(.orders)) }
             MarketStudioLink(title: "Gutscheine", subtitle: "Rabattcodes anlegen, pausieren, teilen", symbol: "ticket") { router.open(.studioSection(.coupons)) }
+            MarketStudioLink(title: "Aktionen", subtitle: "Rabatt mit Countdown – Creator Pro", symbol: "timer") { router.open(.studioSection(.sales)) }
             MarketStudioLink(title: "Einnahmen", subtitle: "Umsatz, Gebühren, Auszahlungen", symbol: "banknote") { router.open(.studioSection(.revenue)) }
         }
     }
