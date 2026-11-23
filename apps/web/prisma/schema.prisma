@@ -255,6 +255,7 @@ enum ArticleState {
 
 model User {
   id              String        @id @default(cuid())
+  priceAlerts     PriceAlertSent[]
   newsletters        CreatorNewsletter[]
   newsletterDeliveries NewsletterDelivery[]
   newsletterOptOuts  NewsletterOptOut[] @relation("optOutUser")
@@ -1596,6 +1597,8 @@ model Cart {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  /// Erinnerung an den liegengebliebenen Warenkorb verschickt (einmal je Füllung; neue Artikel setzen zurück)
+  remindedAt DateTime?
 
   items     CartItem[]
   coupons   CartCoupon[]
@@ -2800,4 +2803,19 @@ model ShopSale {
   updatedAt  DateTime @updatedAt
 
   @@index([shopId, endsAt])
+}
+
+/// Preisalarm für gemerkte Produkte: je Person, Produkt und Anlass höchstens eine Nachricht
+/// (kind: SALE | PRICE_DROP | RESTOCK; ref = Aktion, neuer Preis bzw. Wiederverfügbarkeit)
+model PriceAlertSent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  kind      String
+  ref       String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId, kind, ref])
+  @@index([productId])
 }
