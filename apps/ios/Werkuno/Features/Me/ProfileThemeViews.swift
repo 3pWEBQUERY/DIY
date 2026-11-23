@@ -79,9 +79,6 @@ struct ProfileThemeEditorSheet: View {
     @State private var custom = false
     @State private var pro = false
     @State private var loaded = false
-    /// Gespeicherte Wortliste (rückwirkend wirkt nur, was gespeichert ist)
-    @State private var savedCount = 0
-    @State private var retro: RetroFilterResult?
 
     var body: some View {
         NavigationStack {
@@ -223,6 +220,9 @@ struct CommentFilterSheet: View {
     @State private var text = ""
     @State private var pro = false
     @State private var loaded = false
+    /// Gespeicherte Wortliste (rückwirkend wirkt nur, was gespeichert ist)
+    @State private var savedCount = 0
+    @State private var retro: RetroFilterResult?
 
     var body: some View {
         NavigationStack {
