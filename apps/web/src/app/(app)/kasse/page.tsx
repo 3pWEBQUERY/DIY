@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { formatMoney } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { getCartView } from "@/server/commerce/cart";
+import { getSetting } from "@/server/settings";
 import { getCustomerDetails } from "@/server/account/customer";
 import { CheckoutForm } from "@/components/commerce/checkout-form";
 import { FeeSummary } from "@/components/commerce/order-parts";
@@ -17,7 +18,9 @@ export const metadata: Metadata = { title: "Kasse", robots: { index: false } };
 export default async function CheckoutPage() {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/kasse");
-  const cart = await getCartView(user.id);
+  const [cart, twint, klarna] = await Promise.all([getCartView(user.id), getSetting("payments.twint"), getSetting("payments.klarna")]);
+  // Anzeige der Zahlungsmittel; welche Stripe tatsächlich anbietet, hängt vom Dashboard und der Bestellung ab
+  const paymentMethods = ["Karte", "Apple Pay", "Google Pay", ...(twint && cart.currency === "CHF" ? ["TWINT"] : []), ...(klarna ? ["Rechnung oder Raten (Klarna)"] : [])];
   if (!cart.groups.length) redirect("/warenkorb");
 
   if (cart.mode === "disabled" || cart.hasProblems) {
@@ -51,7 +54,7 @@ export default async function CheckoutPage() {
       </header>
 
       <div className="grid gap-12 lg:grid-cols-[1fr_380px]">
-        <CheckoutForm saved={saved} totalMinor={cart.totals.total} currency={cart.currency} orderCount={cart.groups.length} mode={cart.mode === "stripe" ? "stripe" : "simulated"} digitalOnly={digitalOnly} />
+        <CheckoutForm saved={saved} totalMinor={cart.totals.total} currency={cart.currency} paymentMethods={paymentMethods} orderCount={cart.groups.length} mode={cart.mode === "stripe" ? "stripe" : "simulated"} digitalOnly={digitalOnly} />
 
         <aside className="lg:sticky lg:top-6 lg:h-fit">
           <div className="border border-rule bg-card rounded-2xl">

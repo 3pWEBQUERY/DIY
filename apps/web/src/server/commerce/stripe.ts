@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { env, features } from "@/server/env";
 import { fail } from "@/server/errors";
 import { BRAND } from "@/config/brand";
+import { getSetting } from "@/server/settings";
 
 /**
  * Stripe-Adapter (PRD §13.6, §25.7) – Stripe Connect Express, Destination Charges.
@@ -272,6 +273,16 @@ export function isStripeError(e: unknown): e is { type: string; message: string;
 
 export type CheckoutLine = { name: string; description?: string; unitMinor: number; quantity: number };
 
+/**
+ * Zahlungsmittel der Kasse: Stripe bietet an, was im Dashboard aktiviert und für die Bestellung
+ * möglich ist (Karte inkl. Apple Pay und Google Pay, TWINT nur in Franken, Klarna für Rechnung oder
+ * Raten). Die Admin-Schalter blenden TWINT bzw. Klarna aus, ohne das Stripe-Dashboard anzufassen.
+ */
+export async function excludedPaymentMethods(): Promise<("twint" | "klarna")[]> {
+  const [twint, klarna] = await Promise.all([getSetting("payments.twint"), getSetting("payments.klarna")]);
+  return [...(twint ? [] : (["twint"] as const)), ...(klarna ? [] : (["klarna"] as const))];
+}
+
 export async function createCheckoutSession(input: {
   orderId: string;
   orderNumber: string;
@@ -308,10 +319,12 @@ export async function createCheckoutSession(input: {
           { idempotencyKey: `${input.idempotencyKey}:coupon` },
         )
       : null;
+  const excluded = await excludedPaymentMethods();
   return stripe().checkout.sessions.create(
     {
       mode: "payment",
       line_items,
+      ...(excluded.length ? { excluded_payment_method_types: excluded } : {}),
       ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
       customer_email: input.buyerEmail,
       client_reference_id: input.orderId,

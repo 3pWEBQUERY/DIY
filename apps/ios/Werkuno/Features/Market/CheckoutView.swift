@@ -245,6 +245,9 @@ struct CheckoutView: View {
                     if c.groups.count > 1 {
                         NoticeView(tone: .info, title: "\(c.groups.count) getrennte Bestellungen", message: "Jeder Shop erhält eine eigene Bestellung mit eigener Zahlung, eigenem Versand und eigenem Beleg.")
                     }
+                    if c.mode == "stripe", let methods = p.paymentMethods, !methods.isEmpty {
+                        CheckoutPaymentMethods(methods: methods)
+                    }
                     NoticeView(tone: .info, title: "Provision & Zahlungsanbieter", message: "Die Shops zahlen eine Plattformprovision von \(Fmt.percent(bps: c.feeBps)) auf den Warenwert – sie ist im Preis enthalten. \(c.mode == "stripe" ? "Du bezahlst sicher über Stripe; Kartendaten werden nicht bei Werkuno gespeichert." : "Im Testmodus wird nichts belastet.")")
                     if let submitError { NoticeView(tone: .danger, message: submitError) }
                 }
@@ -482,5 +485,40 @@ struct MarketPrimaryIf: ViewModifier {
     var primary: Bool
     func body(content: Content) -> some View {
         if primary { content.primaryButton() } else { content.buttonStyle(.glass).controlSize(.large) }
+    }
+}
+
+
+/// Angebotene Zahlungsmittel als ruhige Chips („Bezahlen mit“)
+private struct CheckoutPaymentMethods: View {
+    var methods: [String]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("BEZAHLEN MIT").font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(Color.muted)
+            FlowChips(items: methods)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Bezahlen mit: \(methods.joined(separator: ", "))")
+    }
+}
+
+/// Einfacher Umbruch für kurze Texte (ohne Abhängigkeit von Layout-Hilfen)
+private struct FlowChips: View {
+    var items: [String]
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { chips }
+            VStack(alignment: .leading, spacing: 6) { chips }
+        }
+    }
+    @ViewBuilder private var chips: some View {
+        ForEach(items, id: \.self) { m in
+            Text(m)
+                .font(.wr(.caption))
+                .foregroundStyle(Color.ink2)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .overlay(Capsule().strokeBorder(Color.line, lineWidth: 1))
+        }
     }
 }
