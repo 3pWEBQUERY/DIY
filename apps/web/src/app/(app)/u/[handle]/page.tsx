@@ -43,6 +43,8 @@ import { flatSearchParams } from "@/lib/search-params";
 import { JsonLd } from "@/components/projects/json-ld";
 import { absoluteUrl, OG_BASE } from "@/config/seo";
 import { getPriceContext, localize } from "@/server/commerce/currency";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
+import { EmbedPrice } from "@/components/commerce/embed-price";
 import { effectiveProfileTheme, themeStyle } from "@/server/pro/profile-theme";
 import type { ProfileSection } from "@werkraum/shared";
 
@@ -137,13 +139,15 @@ export default async function ProfilePage({ params, searchParams }: Params) {
         listTutorials({ authorId: userId }, viewerId, { take: 12 }),
         byAuthorsWhere([userId]).then((or) => listPosts({ ...base, communityId: null, OR: or }, viewerId, { take: 12 })),
         profile.user.shop?.status === "ACTIVE"
-          ? db.product.findMany({ where: { shop: { ownerId: userId }, ...publicProductWhere }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
+          ? db.product.findMany({ where: { shop: { ownerId: userId }, ...publicProductWhere }, orderBy: { publishedAt: "desc" }, take: 12, select: { id: true, shopId: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true } })
           : Promise.resolve([]),
         listPublicCollections(userId, viewerId),
         // Wie die Blog-Liste (/u/[handle]/blog): nur veröffentlichte, bereits erschienene Artikel
         db.blogArticle.count({ where: { authorId: userId, state: "PUBLISHED", publishedAt: { lte: new Date() }, author: { status: { in: ["ACTIVE", "SUSPENDED"] } } } }),
         viewerId && !isSelf ? db.follow.findUnique({ where: { followerId_followeeId: { followerId: userId, followeeId: viewerId } } }).then(Boolean) : Promise.resolve(false),
       ]);
+  // Laufende Shop-Aktionen der gezeigten Produkte (eine Abfrage)
+  const productSales = isSelf ? new Map<string, null>() : await salesForProducts(products);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "beitraege" as Tab, label: "Beiträge", count: profile.postCount },
@@ -324,7 +328,18 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                         <Link key={p.id} href={`/markt/${profile.user.shop!.slug}/${p.slug}`} className="group">
                           <Cover url={p.coverUrl} alt="" kind="product" ratio="1/1" fit="contain" />
                           <p className="mt-2 text-sm font-semibold group-hover:underline">{p.title}</p>
-                          <p className="font-mono text-xs text-muted">{p.status === "SOLD_OUT" ? "Ausverkauft" : isSelf ? formatMoney(p.priceMinor, p.currency as Currency) : formatMoney(localize(px, p.priceMinor, p.currency), px.currency)}</p>
+                          <p className="text-xs">
+                            {p.status === "SOLD_OUT" ? (
+                              <span className="font-mono text-muted">Ausverkauft</span>
+                            ) : isSelf ? (
+                              <span className="font-mono text-muted">{formatMoney(p.priceMinor, p.currency as Currency)}</span>
+                            ) : (
+                              (() => {
+                                const lp = localizeWithSale(px, p, productSales.get(p.id));
+                                return <EmbedPrice minor={lp.priceMinor} currency={lp.currency} sale={lp.sale} />;
+                              })()
+                            )}
+                          </p>
                         </Link>
                       ))}
                     </div>

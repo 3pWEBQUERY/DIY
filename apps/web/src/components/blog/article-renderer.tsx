@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { ArrowUpRight, Info, Lightbulb, TriangleAlert } from "lucide-react";
-import { DIFFICULTY_LABEL, PROJECT_STATUS_LABEL, PRODUCT_KIND_LABEL, categoryBySlug, formatMoney, type ArticleBlock, type Currency } from "@werkraum/shared";
+import { DIFFICULTY_LABEL, PROJECT_STATUS_LABEL, PRODUCT_KIND_LABEL, categoryBySlug, type ArticleBlock } from "@werkraum/shared";
 import { resolveEmbeds, type ResolvedEmbeds } from "@/server/blog/service";
 import { MediaImage, Placeholder, type PlaceholderKind } from "@/components/ui/media";
 import { Difficulty } from "@/components/ui/misc";
 import { cn, formatMinutes, slugify } from "@/lib/utils";
 import { InlineText } from "./inline";
+import { EmbedPrice } from "@/components/commerce/embed-price";
 
 /** Gliederung (h2/h3) mit stabilen Anker-IDs – für Inhaltsverzeichnis und Sprungmarken. */
 export function articleOutline(blocks: ArticleBlock[]) {
@@ -222,7 +223,7 @@ function Block({ b, e, anchor, priority }: { b: ArticleBlock; e: ResolvedEmbeds;
           cover={coverOf(p.coverUrl, "product")}
           meta={
             <>
-              <span className="font-mono font-semibold text-ink">{formatMoney(p.priceMinor, p.currency as Currency)}</span>
+              <EmbedPrice minor={p.priceMinor} currency={p.currency} sale={p.sale} soldOut={p.status === "SOLD_OUT"} />
               <span>{PRODUCT_KIND_LABEL[p.kind]}</span>
               {p.status === "SOLD_OUT" && <span className="text-clay-ink">Ausverkauft</span>}
             </>

@@ -4,6 +4,7 @@ import { ORDER_STATUS_LABEL, formatMoney, type Currency, type OrderStatus } from
 import type { OrderContext } from "@/server/messaging/service";
 import { formatDate } from "@/lib/utils";
 import { BRAND } from "@/config/brand";
+import { EmbedPrice } from "@/components/commerce/embed-price";
 
 /** Bestell- bzw. Produktkontext einer Käufer↔Verkäufer-Unterhaltung. */
 export function ContextCard({ ctx }: { ctx: OrderContext }) {
@@ -22,7 +23,7 @@ export function ContextCard({ ctx }: { ctx: OrderContext }) {
           <span className="spec text-clay-ink">Anfrage zu Produkt · {ctx.shop.name}</span>
           <span className="block truncate text-sm font-semibold">{ctx.title}</span>
         </span>
-        <span className="font-mono text-sm font-semibold">{formatMoney(ctx.priceMinor, ctx.currency as Currency)}</span>
+        <EmbedPrice minor={ctx.priceMinor} currency={ctx.currency} sale={ctx.sale} className="shrink-0 text-sm" />
         <ArrowUpRight size={15} className="shrink-0 text-clay-ink" aria-hidden />
       </Link>
     );

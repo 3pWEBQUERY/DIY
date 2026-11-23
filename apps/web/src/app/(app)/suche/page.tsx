@@ -1,10 +1,11 @@
 import Form from "next/form";
 import Link from "next/link";
+import { EmbedPrice, type EmbedSale } from "@/components/commerce/embed-price";
 import { hashtagHref } from "@werkraum/shared";
 import { suggestHashtags } from "@/server/hashtags/service";
 import type { Metadata } from "next";
 import { Search } from "lucide-react";
-import { DIFFICULTY_LABEL, formatMoney, type Currency } from "@werkraum/shared";
+import { DIFFICULTY_LABEL, type Currency } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { browseCategories } from "@/server/categories/settings";
 import { search, SEARCH_TYPES, type SearchType } from "@/server/discovery/search";
@@ -187,7 +188,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                 <Link key={p.id} href={p.href} className="group">
                   <Cover url={p.cover} alt="" kind="product" ratio="4/5" />
                   <p className="mt-2 text-sm font-semibold group-hover:underline">{p.title}</p>
-                  <p className="text-xs text-muted">{p.subtitle} · <span className="font-mono">{formatMoney(Number(p.meta?.priceMinor), (p.meta?.currency as Currency) ?? "CHF")}</span></p>
+                  <p className="text-xs text-muted">{p.subtitle} · <EmbedPrice minor={Number(p.meta?.priceMinor)} currency={(p.meta?.currency as Currency) ?? "CHF"} sale={p.meta?.sale as EmbedSale} /></p>
                 </Link>
               ))}
             </div>

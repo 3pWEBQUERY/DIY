@@ -19,7 +19,8 @@ import { DELETE, GET, PATCH, POST, PUT, me, need, str, takeParam, viewer, viewer
 import { publicProductWhere } from "@/server/commerce/restock";
 import * as stories from "@/server/stories/service";
 import { listHighlights } from "@/server/stories/highlights";
-import { getPriceContext, localizePrice } from "@/server/commerce/currency";
+import { getPriceContext } from "@/server/commerce/currency";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
 import * as commentTools from "@/server/pro/comment-tools";
 import { effectiveProfileTheme, profileThemeSettings, saveProfileTheme } from "@/server/pro/profile-theme";
 
@@ -231,7 +232,7 @@ export const socialRoutes: RouteDef[] = [
                 orderBy: { publishedAt: "desc" },
                 take: 12,
                 // kind: digitale Produkte bekommen in der App den App-Store-Preis (withAppPricing)
-                select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true, kind: true },
+                select: { id: true, shopId: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, category: true, status: true, kind: true },
               })
             : Promise.resolve([]),
           db.collection.findMany({ where: { ownerId: userId, ...(isSelf ? {} : { visibility: "PUBLIC" }) }, orderBy: { updatedAt: "desc" }, include: { _count: { select: { items: true } } } }),
@@ -286,8 +287,10 @@ export const socialRoutes: RouteDef[] = [
       postsCursor: postList?.nextCursor ?? null,
       // Preise im Profil in der Währung der Betrachter:in (eigenes Profil: Shop-Preise)
       products: await (async () => {
-        const px = await getPriceContext();
-        return (products as { slug: string; priceMinor: number; currency: string }[]).map((x) => ({ ...(isSelf ? x : localizePrice(px, x)), shopSlug: p.user.shop?.slug ?? null }));
+        const list = products as { id: string; shopId: string; slug: string; priceMinor: number; currency: string }[];
+        // Fremde Profile: Aktionspreis in der Währung der Betrachter:in; das eigene Profil zeigt Shop-Preise
+        const [px, sales] = await Promise.all([getPriceContext(), isSelf ? new Map() : salesForProducts(list)]);
+        return list.map((x) => ({ ...(isSelf ? x : localizeWithSale(px, x, sales.get(x.id))), shopSlug: p.user.shop?.slug ?? null }));
       })(),
       collections: (collections as { id: string; title: string; description: string; visibility: string; _count: { items: number } }[]).map((x) => ({
         id: x.id,

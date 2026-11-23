@@ -31,7 +31,15 @@ export function BundleCard({ bundle: b, signedIn, owner, label = "Set", classNam
               </Link>
               {!i.inStock && <span className="ml-2 text-[12px] text-warn">nicht verfügbar</span>}
             </span>
-            <span className="num shrink-0 text-ink-2">{fmt(i.unitMinor * i.quantity)}</span>
+            <span className="shrink-0 text-right">
+              <span className={cn("num", i.sale ? "font-semibold text-clay-ink" : "text-ink-2")}>{fmt(i.unitMinor * i.quantity)}</span>
+              {i.sale && (
+                <span className="ml-1.5 text-[12px] text-muted">
+                  <span className="sr-only">statt </span>
+                  <s className="num">{fmt(i.sale.regularUnitMinor * i.quantity)}</s> · −{i.sale.percent} %
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -42,6 +50,9 @@ export function BundleCard({ bundle: b, signedIn, owner, label = "Set", classNam
             <span className="text-muted">
               statt <s className="num">{fmt(b.fullMinor)}</s> · −{b.discountPct} %
             </span>
+          )}
+          {b.saleBlocksSet && b.discountPct > 0 && (
+            <span className="block text-[12px] text-clay-ink">Teile sind gerade in einer Aktion – du zahlst die Aktionspreise, der Set-Rabatt von {b.discountPct} % gilt währenddessen nicht.</span>
           )}
           <span className="block text-[12px] text-muted">zzgl. Versand des Shops</span>
         </p>

@@ -13,6 +13,7 @@ import { available, bundlePrice, couponProblem } from "./rules";
 import { requireOwnShop } from "./shops";
 import { publicProductWhere } from "./restock";
 import { getPriceContext, localize, type PriceContext } from "./currency";
+import { saleUnit, salesForProducts, type ActiveSale } from "./sales";
 
 /**
  * Gutscheine und Sets (Bundles).
@@ -216,31 +217,42 @@ const publicBundleInclude = {
 
 type BundleRowFull = Prisma.ProductBundleGetPayload<{ include: typeof publicBundleInclude }>;
 
-/** Set für Käufer:innen; mit `ctx` in deren Währung (gleiche Umrechnung je Stück wie im Warenkorb) */
-function bundleView(b: BundleRowFull, ctx?: PriceContext) {
+/**
+ * Set für Käufer:innen; mit `ctx` in deren Währung (gleiche Umrechnung je Stück wie im Warenkorb).
+ * Laufende Shop-Aktionen (`sales`): Teile kosten den Aktionspreis, und – wie im Warenkorb – gilt der
+ * Set-Rabatt dann nicht (Aktionsartikel sind von Sets ausgenommen, keine doppelten Rabatte).
+ */
+function bundleView(b: BundleRowFull, ctx?: PriceContext, sales?: Map<string, ActiveSale | null>) {
   const items = b.items.map((i) => {
     const p = i.product;
     const avail = p.kind === "DIGITAL" ? null : available(p.inventory[0]);
+    const sale = ctx ? (sales?.get(p.id) ?? null) : null;
+    const shopUnit = saleUnit(p.priceMinor, sale);
     return {
+      /** Laufende Aktion: Prozent und regulärer Stückpreis (Währung der Betrachter:in) */
+      sale: sale && ctx ? { percent: sale.percent, regularUnitMinor: localize(ctx, p.priceMinor, p.currency) } : null,
       productId: p.id,
       title: p.title,
       href: `/markt/${b.shop.slug}/${p.slug}`,
       coverUrl: p.coverUrl,
       kind: p.kind,
-      unitMinor: ctx ? localize(ctx, p.priceMinor, p.currency) : p.priceMinor,
+      unitMinor: ctx ? localize(ctx, shopUnit, p.currency) : p.priceMinor,
       currency: ctx ? ctx.currency : p.currency,
       quantity: i.quantity,
       inStock: p.status === "ACTIVE" && p._count.variants === 0 && (avail === null || avail >= i.quantity),
     };
   });
+  const saleBlocksSet = items.some((i) => i.sale);
   return {
     id: b.id,
     title: b.title,
     description: b.description,
     discountPct: b.discountPct,
+    /** Mindestens ein Teil ist in einer Aktion: Aktionspreise statt Set-Rabatt (wie im Warenkorb) */
+    saleBlocksSet,
     shop: { slug: b.shop.slug, name: b.shop.name },
     items,
-    ...bundlePrice(items, b.discountPct),
+    ...bundlePrice(items, saleBlocksSet ? 0 : b.discountPct),
     currency: items[0]?.currency ?? "CHF",
     purchasable: items.length >= 2 && items.every((i) => i.inStock),
   };
@@ -257,11 +269,11 @@ async function publicBundles(where: Prisma.ProductBundleWhereInput, viewerId: st
     include: publicBundleInclude,
   });
   const out: BundleView[] = [];
-  const ctx = await getPriceContext();
+  const [ctx, sales] = await Promise.all([getPriceContext(), salesForProducts(rows.flatMap((b) => b.items.map((i) => ({ id: i.product.id, shopId: b.shopId }))))]);
   for (const b of rows) {
     if (b.items.length < 2) continue;
     if (viewerId && (await isBlockedBetween(viewerId, b.shop.ownerId))) continue;
-    out.push(bundleView(b, ctx));
+    out.push(bundleView(b, ctx, sales));
   }
   return out;
 }
