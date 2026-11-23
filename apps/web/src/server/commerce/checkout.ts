@@ -18,6 +18,8 @@ import { requireFlag } from "@/server/flags";
 import { discountLabel, fitRows, loadCartDiscounts, type DiscountRow } from "./discounts";
 import { localize, priceContextFor, shopFxFor } from "./currency";
 import { runningSalesByShop, saleFor, saleNote, saleUnit } from "./sales";
+import { cartGiftCards, debitGiftCardTx, giftCardForOrder } from "./giftcards";
+import { maskGiftCode } from "@werkraum/shared";
 
 /**
  * Checkout (§13.5, §31.4 Nr. 8):
@@ -28,7 +30,8 @@ import { runningSalesByShop, saleFor, saleNote, saleUnit } from "./sales";
  * Bezahlt wird eine Bestellung erst durch das Provider-Ereignis (Webhook).
  */
 
-type CheckoutResponse = { url: string; orderIds: string[]; mode: "stripe" | "simulated" };
+/** `paidWithGiftCard`: alle Bestellungen ganz mit Geschenkgutschein bezahlt – keine Zahlung nötig */
+type CheckoutResponse = { url: string; orderIds: string[]; mode: "stripe" | "simulated"; paidWithGiftCard?: boolean };
 
 const lineInclude = {
   product: {
@@ -95,6 +98,8 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
     platformFeeMinor: number;
     discountMinor: number;
     discountLabel: string;
+    /** mit Geschenkgutschein bezahlt (Bestellwährung) */
+    giftCardMinor: number;
     currency: string;
     destination: string | null;
     lines: { name: string; unitMinor: number; quantity: number }[];
@@ -184,7 +189,18 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
           details.set(shopId, d);
           return d.amountMinor;
         });
-        if (data.expectedTotalMinor != null && data.expectedTotalMinor !== grandTotal(groups).total) {
+        // Geschenkgutscheine (je Shop einer): Anrechnung wie im Warenkorb, nach allen Rabatten
+        const gifts = await cartGiftCards(cart!.id);
+        const giftUse = new Map(
+          groups.flatMap((g) => {
+            const card = gifts.get(g.shopId);
+            if (!card) return [];
+            const use = giftCardForOrder(card, { goodsNetMinor: g.subtotal - g.discount, shippingMinor: g.fees.shipping, feeBps: fee(g.shopId) }, g.lines[0]!.currency, ctx);
+            return use.appliedMinor > 0 ? [[g.shopId, { ...use, card }] as const] : [];
+          }),
+        );
+        const totalAfterGifts = grandTotal(groups).total - [...giftUse.values()].reduce((s, u) => s + u.appliedMinor, 0);
+        if (data.expectedTotalMinor != null && data.expectedTotalMinor !== totalAfterGifts) {
           const invalid = [...details.values()].find((d) => d.coupon?.problem);
           throw fail.conflict(
             invalid ? `Gutschein ${invalid.coupon!.code}: ${invalid.coupon!.problem} Bitte prüfe deine Bestellung erneut.` : "Preise oder Versandkosten haben sich geändert. Bitte prüfe deine Bestellung erneut.",
@@ -219,6 +235,10 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
           const d = details.get(g.shopId)!;
           const rows: DiscountRow[] = fitRows(d.rows, g.discount);
           const couponId = rows.some((r) => r.kind === "coupon") ? d.coupon!.id : null;
+          const gift = giftUse.get(g.shopId);
+          const giftMinor = gift?.appliedMinor ?? 0;
+          const payTotal = g.fees.total - giftMinor;
+          const fee$ = gift ? gift.platformFeeMinor : g.fees.platformFee;
           const order = await tx.order.create({
             data: {
               number,
@@ -232,8 +252,9 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
               discounts: rows.length ? rows : undefined,
               couponId,
               shippingMinor: g.fees.shipping,
-              totalMinor: g.fees.total,
-              platformFeeMinor: g.fees.platformFee,
+              totalMinor: payTotal,
+              giftCardMinor: giftMinor,
+              platformFeeMinor: fee$,
               feeBps: fee(g.shopId),
               shippingAddress: party.shippingAddress,
               buyerDetails: party.buyerDetails,
@@ -251,18 +272,19 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
                 })),
               },
               payments: {
-                create: { provider: mode, status: "REQUIRES_PAYMENT", amountMinor: g.fees.total, currency, applicationFeeMinor: g.fees.platformFee },
+                create: { provider: payTotal === 0 ? "giftcard" : mode, status: "REQUIRES_PAYMENT", amountMinor: payTotal, currency, applicationFeeMinor: fee$ },
               },
               events: {
                 create: {
                   actorId: user.id,
                   from: null,
                   to: "PENDING_PAYMENT",
-                  note: `Bestellung aufgegeben – Zahlung ausstehend${rows.length ? ` · Rabatt: ${rows.map((r) => `${r.label} −${formatMoney(r.amountMinor, currency as Currency)}`).join(", ")}` : ""}${saleNote(g.lines, currency, g.lines.reduce((s, l) => s + l.saleSavedMinor * l.quantity, 0))}`,
+                  note: `Bestellung aufgegeben – Zahlung ausstehend${rows.length ? ` · Rabatt: ${rows.map((r) => `${r.label} −${formatMoney(r.amountMinor, currency as Currency)}`).join(", ")}` : ""}${saleNote(g.lines, currency, g.lines.reduce((s, l) => s + l.saleSavedMinor * l.quantity, 0))}${gift ? ` · Geschenkgutschein ${maskGiftCode(gift.card.code)} −${formatMoney(giftMinor, currency as Currency)}` : ""}`,
                 },
               },
             },
           });
+          if (gift) await debitGiftCardTx(tx, { giftCardId: gift.card.id, orderId: order.id, debitMinor: gift.debitMinor, appliedMinor: giftMinor });
           out.push({
             id: order.id,
             number,
@@ -271,6 +293,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
             platformFeeMinor: order.platformFeeMinor,
             discountMinor: order.discountMinor,
             discountLabel: discountLabel(rows),
+            giftCardMinor: giftMinor,
             currency,
             destination: g.lines[0]!.shop.stripeAccountId,
             lines: g.lines.map((l) => ({ name: `${l.variantName ? `${l.title} – ${l.variantName}` : l.title}${l.sale ? ` (Aktion −${l.sale.percent} %)` : ""}`, unitMinor: l.unitMinor, quantity: l.quantity })),
@@ -285,6 +308,9 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
     let firstUrl = "";
     if (mode === "stripe") {
       for (const o of created) {
+        // Ganz mit Geschenkgutschein bezahlt → keine Zahlung beim Anbieter
+        if (o.totalMinor === 0) continue;
+        const giftLabel = o.giftCardMinor > 0 ? "Geschenkgutschein" : "";
         const session = await createCheckoutSession({
           orderId: o.id,
           orderNumber: o.number,
@@ -294,7 +320,8 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
           lines: o.lines,
           shippingMinor: o.shippingMinor,
           applicationFeeMinor: o.platformFeeMinor,
-          discount: o.discountMinor > 0 ? { amountMinor: o.discountMinor, label: o.discountLabel } : undefined,
+          // Stripe kennt keine negativen Positionen: Rabatte und Gutschein-Anrechnung als ein Coupon
+          discount: o.discountMinor + o.giftCardMinor > 0 ? { amountMinor: o.discountMinor + o.giftCardMinor, label: [o.discountMinor > 0 ? o.discountLabel : "", giftLabel].filter(Boolean).join(" + ") } : undefined,
           destinationAccountId: o.destination!,
           expiresAt: sessionExpiresAt,
           idempotencyKey: `checkout-session:${o.id}`,
@@ -302,12 +329,18 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
         await db.order.update({ where: { id: o.id }, data: { checkoutSessionId: session.id } });
         if (!firstUrl && session.url) firstUrl = session.url;
       }
-      if (!firstUrl) throw new Error("Stripe lieferte keine Checkout-URL");
+      if (!firstUrl && created.some((o) => o.totalMinor > 0)) throw new Error("Stripe lieferte keine Checkout-URL");
     } else {
-      firstUrl = `/kasse/simulation?bestellung=${created[0]!.id}`;
+      const payable = created.find((o) => o.totalMinor > 0);
+      if (payable) firstUrl = `/kasse/simulation?bestellung=${payable.id}`;
     }
+    // Vollständig mit Geschenkgutschein bezahlte Bestellungen sofort verbuchen (gleicher Weg wie eine Zahlung)
+    for (const o of created.filter((x) => x.totalMinor === 0)) {
+      await markOrderPaid(o.id, { provider: "giftcard", providerRef: `gc_${o.id}`, amountMinor: 0, currency: o.currency });
+    }
+    if (!firstUrl) firstUrl = `/kasse/erfolg?bestellung=${created[0]!.id}`;
 
-    const response: CheckoutResponse = { url: firstUrl, orderIds: created.map((o) => o.id), mode };
+    const response: CheckoutResponse = { url: firstUrl, orderIds: created.map((o) => o.id), mode, ...(created.every((o) => o.totalMinor === 0) ? { paidWithGiftCard: true } : {}) };
     await db.idempotencyKey.update({ where: { key: `checkout:${user.id}:${data.idempotencyKey}` }, data: { response } });
     return response;
   } catch (e) {

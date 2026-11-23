@@ -492,6 +492,10 @@ struct MeNotificationSettings: Decodable, Sendable {
     var weeklyDigest: Bool?
     /// Newsletter von Creator:innen, denen man folgt (ältere Server: fehlt)
     var creatorNewsletters: Bool?
+    /// Preisalarm für gemerkte Produkte (ältere Server: fehlt)
+    var priceAlerts: Bool?
+    /// Erinnerung an den Warenkorb (ältere Server: fehlt)
+    var cartReminders: Bool?
 }
 
 struct MeRelationEntry: Decodable, Sendable, Identifiable, Hashable {

@@ -78,10 +78,10 @@ test.describe.serial("Gutscheine und Sets", () => {
     await elias.getByRole("button", { name: /Gutscheincode für/ }).click();
     const input = elias.getByLabel(/Gutscheincode für/);
     await input.fill("FALSCH123");
-    await elias.getByRole("button", { name: "Einlösen" }).click();
+    await elias.getByRole("button", { name: "Einlösen", exact: true }).click();
     await expect(elias.getByRole("alert").filter({ hasText: "nicht gültig" })).toBeVisible();
     await input.fill(CODE.toLowerCase());
-    await elias.getByRole("button", { name: "Einlösen" }).click();
+    await elias.getByRole("button", { name: "Einlösen", exact: true }).click();
     const discount = Math.round(kit.priceMinor * 0.2);
     const chf = (m: number) => (m / 100).toFixed(2);
     const section = elias.locator("section").filter({ has: elias.getByRole("link", { name: /Lenas/ }) }).first();
@@ -122,7 +122,7 @@ test.describe.serial("Gutscheine und Sets", () => {
     await elias.goto("/warenkorb");
     await elias.getByRole("button", { name: /Gutscheincode für/ }).click();
     await elias.getByLabel(/Gutscheincode für/).fill(CODE);
-    await elias.getByRole("button", { name: "Einlösen" }).click();
+    await elias.getByRole("button", { name: "Einlösen", exact: true }).click();
     await expect(elias.getByRole("alert").filter({ hasText: "bereits eingelöst" })).toBeVisible();
   });
 

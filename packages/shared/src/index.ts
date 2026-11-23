@@ -12,3 +12,4 @@ export * from "./currency";
 export * from "./sales";
 export * from "./comment-filter";
 export * from "./profile-theme";
+export * from "./giftcards";

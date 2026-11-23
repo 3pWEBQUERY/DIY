@@ -50,7 +50,9 @@ function plainText(text: string, opts: MailOptions) {
   if (opts.items?.length) parts.push(opts.items.map((i) => `• ${i.text}${i.excerpt ? `\n  „${i.excerpt}“` : ""}${i.url ? `\n  ${i.url}` : ""}`).join("\n\n"));
   for (const sec of opts.sections ?? []) if (sec.cards.length) parts.push(`${sec.title.toUpperCase()}\n${sec.cards.map((c) => `• ${c.title}${c.meta ? ` – ${c.meta}` : ""}\n  ${c.url}`).join("\n")}`);
   if (opts.cta) parts.push(`${opts.cta.label}: ${opts.cta.url}`);
-  parts.push(`—\n${BRAND.name} · ${BRAND.claim}\n${LEGAL.company} · ${LEGAL_ADDRESS} · ${BRAND.supportEmail}${opts.unsubscribeUrl ? `\n${opts.unsubscribeLabel ?? "E-Mails abbestellen"}: ${opts.unsubscribeUrl}` : ""}`);
+  parts.push(
+    `—\n${opts.footerNote ? `${opts.footerNote}\n` : ""}${BRAND.name} · ${BRAND.claim}\n${LEGAL.company} · ${LEGAL_ADDRESS} · ${BRAND.supportEmail}${opts.unsubscribeUrl ? `\n${opts.unsubscribeLabel ?? "E-Mails abbestellen"}: ${opts.unsubscribeUrl}` : ""}${opts.reportUrl ? `\n${opts.reportLabel ?? "Melden"}: ${opts.reportUrl}` : ""}`,
+  );
   return parts.join("\n\n");
 }
 
@@ -141,6 +143,9 @@ export type MailOptions = {
   footerNote?: string;
   /** Unsichtbares Bild zum Zählen von Öffnungen (Creator-Newsletter) */
   trackingPixelUrl?: string;
+  /** Link „… melden“ in der Fusszeile (Creator-Newsletter → Moderation) */
+  reportUrl?: string;
+  reportLabel?: string;
 };
 export type MailCard = { title: string; meta?: string; url: string; imageUrl?: string | null };
 export type MailSection = { title: string; intro?: string; cards: MailCard[] };
@@ -208,6 +213,7 @@ export function renderMail(subject: string, text: string, opts: MailOptions = {}
     : "";
   const footerLinks = [
     opts.unsubscribeUrl ? `<a href="${esc(opts.unsubscribeUrl)}" style="color:${C.muted};text-decoration:underline;white-space:nowrap">${esc(opts.unsubscribeLabel ?? "E-Mails abbestellen")}</a>` : null,
+    opts.reportUrl ? `<a href="${esc(opts.reportUrl)}" style="color:${C.muted};text-decoration:underline;white-space:nowrap">${esc(opts.reportLabel ?? "Melden")}</a>` : null,
     `<a href="${app}/einstellungen/benachrichtigungen" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Benachrichtigungen</a>`,
     `<a href="${app}/hilfe" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Hilfe</a>`,
     `<a href="${app}/rechtliches/datenschutz" style="color:${C.muted};text-decoration:underline;white-space:nowrap">Datenschutz</a>`,

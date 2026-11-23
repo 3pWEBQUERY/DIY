@@ -208,6 +208,9 @@ export async function getNotificationSettings(userId: string) {
     weeklyDigest: p.weeklyDigest,
     /** Newsletter von Creator:innen (im JSON gespeichert, Standard: an) */
     creatorNewsletters: (p.notificationPrefs as { creatorNewsletters?: unknown } | null)?.creatorNewsletters !== false,
+    /** Preisalarm für gemerkte Produkte und Warenkorb-Erinnerung (im JSON gespeichert, Standard: an) */
+    priceAlerts: (p.notificationPrefs as { priceAlerts?: unknown } | null)?.priceAlerts !== false,
+    cartReminders: (p.notificationPrefs as { cartReminders?: unknown } | null)?.cartReminders !== false,
   };
 }
 
@@ -219,8 +222,10 @@ export async function updateNotificationSettings(user: U, input: unknown) {
     prefs[t] = { inApp: (LOCKED_IN_APP_NOTIFICATIONS as readonly string[]).includes(t) ? true : v.inApp, email: v.email };
   }
   // Newsletter von Creator:innen: ohne Angabe (ältere App) den bisherigen Wert behalten
-  const before = (await db.userPreference.findUnique({ where: { userId: user.id }, select: { notificationPrefs: true } }))?.notificationPrefs as { creatorNewsletters?: unknown } | null | undefined;
+  const before = (await db.userPreference.findUnique({ where: { userId: user.id }, select: { notificationPrefs: true } }))?.notificationPrefs as { creatorNewsletters?: unknown; priceAlerts?: unknown; cartReminders?: unknown } | null | undefined;
   prefs.creatorNewsletters = d.creatorNewsletters ?? before?.creatorNewsletters !== false;
+  prefs.priceAlerts = d.priceAlerts ?? before?.priceAlerts !== false;
+  prefs.cartReminders = d.cartReminders ?? before?.cartReminders !== false;
   await db.userPreference.upsert({
     where: { userId: user.id },
     create: { userId: user.id, notificationPrefs: prefs, emailDigest: d.emailDigest, ...(d.weeklyDigest !== undefined ? { weeklyDigest: d.weeklyDigest } : {}) },

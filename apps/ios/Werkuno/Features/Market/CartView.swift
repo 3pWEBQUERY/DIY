@@ -162,6 +162,9 @@ struct CartView: View {
                 MarketAmountRow(label: "Warenwert", value: Fmt.money(max(0, (g.subtotal ?? g.fees.subtotal) - digital), currency: cur))
                 MarketDiscountRows(rows: g.discounts ?? [], currency: cur)
                 MarketAmountRow(label: "Versand (kombiniert)", value: g.fees.shipping == 0 ? "kostenlos" : Fmt.money(g.fees.shipping, currency: cur))
+                if let gc = g.giftCard, gc.appliedMinor > 0 {
+                    MarketAmountRow(label: "Geschenkgutschein", value: "− " + Fmt.money(gc.appliedMinor, currency: cur))
+                }
                 MarketAmountRow(label: "Bestellung bei \(g.shop.name)", value: Fmt.money(max(0, g.fees.total - digital), currency: cur), strong: false)
                 if let inc = g.incompleteBundles, !inc.isEmpty {
                     Text("\(inc.map { "Set „\($0.title)“" }.joined(separator: ", ")): Der Set-Rabatt gilt nur, solange alle Teile im Warenkorb liegen.")
@@ -170,6 +173,10 @@ struct CartView: View {
                 MarketCouponField(shopId: g.shop.id, shopName: g.shop.name, coupon: g.coupon) { await load() }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
+                if let gc = g.giftCard {
+                    MarketGiftCardAppliedRow(shopId: g.shop.id, giftCard: gc, currency: cur) { await load() }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if let d = g.shop.processingDays, g.lines.contains(where: { !$0.isDigital }) {
                     Text("Versand in ca. \(Fmt.plural(d, "Werktag", "Werktagen"))").font(.wr(.caption)).foregroundStyle(Color.muted).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -253,7 +260,9 @@ struct CartView: View {
         VStack(alignment: .leading, spacing: 14) {
             let digital = c.groups.reduce(0) { $0 + digitalMinor($1.lines) }
             MarketFeeSummary(subtotal: max(0, c.totals.subtotal - digital), shipping: c.totals.shipping, total: max(0, c.totals.total - digital), currency: cur,
-                             discounts: (c.totals.discount ?? 0) > 0 ? [MarketDiscountRow(kind: "total", label: "Rabatte", amountMinor: c.totals.discount ?? 0)] : [])
+                             discounts: (c.totals.discount ?? 0) > 0 ? [MarketDiscountRow(kind: "total", label: "Rabatte", amountMinor: c.totals.discount ?? 0)] : [],
+                             giftCard: c.totals.giftCard ?? 0)
+            MarketGiftCardRedeemField { await load() }
             if let fx = c.fx, c.groups.contains(where: { $0.converted == true }) {
                 MarketFxNote(currency: cur, shopCurrency: c.groups.first(where: { $0.converted == true })?.shop.currency, eurChf: fx.eurChf, date: fx.date)
             }

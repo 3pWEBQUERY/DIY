@@ -227,7 +227,7 @@ struct CheckoutView: View {
                             .hairline()
                         }
                         VStack(alignment: .leading, spacing: 8) {
-                            MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total, currency: c.currency)
+                            MarketFeeSummary(subtotal: c.totals.subtotal, shipping: c.totals.shipping, total: c.totals.total, currency: c.currency, giftCard: c.totals.giftCard ?? 0)
                             Text("Endpreis in \(Currency.name(c.currency)). Keine Zusatzgebühren für Käufer:innen.").font(.wr(.caption)).foregroundStyle(Color.muted)
                             if let fx = c.fx, c.groups.contains(where: { $0.converted == true }) {
                                 MarketFxNote(currency: c.currency ?? "CHF", shopCurrency: c.groups.first(where: { $0.converted == true })?.shop.currency, eurChf: fx.eurChf, date: fx.date)
@@ -315,7 +315,7 @@ struct CheckoutView: View {
             Button { Task { await submit(c) } } label: {
                 HStack(spacing: 8) {
                     if submitting { ProgressView().tint(.white) } else { Image(systemName: "lock.fill") }
-                    Text(submitting ? "Einen Moment …" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total, currency: c.currency))")
+                    Text(submitting ? "Einen Moment …" : c.totals.total <= 0 ? "Mit Geschenkgutschein bestellen" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total, currency: c.currency))")
                         .monospacedDigit()
                 }
                 .font(.wr(.body, .semibold))
@@ -389,7 +389,10 @@ struct CheckoutView: View {
             let r: MarketCheckoutStarted = try await APIClient.shared.post("/checkout", body)
             started = r
             await app.refreshCounts()
-            if r.mode == "simulated" {
+            if r.paidWithGiftCard == true {
+                // Ganz mit Geschenkgutschein bezahlt – keine Zahlung nötig
+                await finish(ids: r.orderIds, paid: true)
+            } else if r.mode == "simulated" {
                 simulate = MarketSimulation(orderIds: r.orderIds, totalMinor: c.totals.total)
             } else if let u = AppConfig.resolve(r.url) {
                 webPay = MarketWebLink(url: u)

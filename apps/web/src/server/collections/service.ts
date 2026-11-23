@@ -12,6 +12,8 @@ import { getProjectCards, type ProjectCardData } from "@/server/projects/service
 import { getTutorialCards, type TutorialCardData } from "@/server/tutorials/service";
 import { slugify } from "@/lib/utils";
 import { publicProductWhere } from "@/server/commerce/restock";
+import { getPriceContext } from "@/server/commerce/currency";
+import { salePriceFields, salesForProducts, type PriceSale } from "@/server/commerce/sale-prices";
 
 /**
  * Gespeichertes & Sammlungen (PRD §10.7). Lesezeichen selbst verwaltet
@@ -24,7 +26,21 @@ export const SAVED_LABEL: Record<SavedType, string> = { POST: "Beiträge", PROJE
 
 const PAGE = 48;
 
-export type ProductMini = { id: string; title: string; priceMinor: number; currency: "CHF" | "EUR"; coverUrl: string | null; href: string; shopName: string; soldOut: boolean; kind?: string };
+export type ProductMini = {
+  id: string;
+  title: string;
+  priceMinor: number;
+  currency: "CHF" | "EUR";
+  coverUrl: string | null;
+  href: string;
+  shopName: string;
+  soldOut: boolean;
+  kind?: string;
+  /** Laufende Aktion (Preis oben ist dann der Aktionspreis) */
+  sale?: PriceSale | null;
+  /** Preisalarm: der Shop hat den Preis gesenkt, seit es gemerkt wurde */
+  priceDropped?: boolean;
+};
 export type ArticleMini = { id: string; title: string; dek: string; coverUrl: string | null; href: string; authorName: string; readingMinutes: number };
 
 export async function getProductMinis(ids: string[], viewerId: string | null = null): Promise<ProductMini[]> {
@@ -37,12 +53,21 @@ export async function getProductMinis(ids: string[], viewerId: string | null = n
       // Wie Shop-/Produktseiten: keine Shops gesperrter/gelöschter oder blockierter Konten
       shop: { status: "ACTIVE", owner: { status: { in: ["ACTIVE", "SUSPENDED"] } }, ...(rel.blocked.length ? { ownerId: { notIn: rel.blocked } } : {}) },
     },
-    select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, shop: { select: { slug: true, name: true } } },
+    select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, shopId: true, shop: { select: { slug: true, name: true } } },
   });
+  // Preise wie überall: Aktion zuerst, dann in die Währung der Betrachter:in
+  const [ctx, sales, drops] = await Promise.all([
+    getPriceContext(),
+    salesForProducts(rows),
+    viewerId ? db.priceAlertSent.findMany({ where: { userId: viewerId, kind: "PRICE_DROP", productId: { in: rows.map((r) => r.id) } }, select: { productId: true, ref: true } }) : [],
+  ]);
   const byId = new Map(rows.map((r) => [r.id, r]));
   return ids.flatMap((id) => {
     const p = byId.get(id);
-    return p ? [{ id: p.id, title: p.title, priceMinor: p.priceMinor, currency: (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR", coverUrl: p.coverUrl, href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name, soldOut: p.status === "SOLD_OUT", kind: p.kind }] : [];
+    if (!p) return [];
+    const price = salePriceFields(ctx, p, sales.get(p.id));
+    const dropped = drops.some((d) => d.productId === p.id && d.ref === String(p.priceMinor));
+    return [{ id: p.id, title: p.title, priceMinor: price.priceMinor, currency: price.currency, coverUrl: p.coverUrl, href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name, soldOut: p.status === "SOLD_OUT", kind: p.kind, sale: price.sale, priceDropped: dropped }];
   });
 }
 

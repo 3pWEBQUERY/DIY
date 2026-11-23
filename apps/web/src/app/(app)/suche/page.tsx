@@ -9,6 +9,7 @@ import { DIFFICULTY_LABEL, type Currency } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { browseCategories } from "@/server/categories/settings";
 import { search, SEARCH_TYPES, type SearchType } from "@/server/discovery/search";
+import { getPriceContext } from "@/server/commerce/currency";
 import { getProjectCards } from "@/server/projects/service";
 import { getTutorialCards } from "@/server/tutorials/service";
 import { Page, PageHeader, TabLinks } from "@/components/shell/page";
@@ -33,7 +34,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const sp = flatSearchParams(await searchParams);
   const q = (sp.q ?? "").trim();
   const type = SEARCH_TYPES.includes(sp.typ as SearchType) ? (sp.typ as SearchType) : null;
-  const [user, cats] = await Promise.all([currentUser(), browseCategories(sp.kategorie)]);
+  const [user, cats, px] = await Promise.all([currentUser(), browseCategories(sp.kategorie), getPriceContext()]);
   const viewerId = user?.id ?? null;
   const filters = {
     q,
@@ -121,7 +122,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               </Select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="spec">Preis bis (CHF)</span>
+              <span className="spec">Preis bis ({px.currency === "EUR" ? "€" : "CHF"})</span>
               <input name="preis_max" type="number" min={0} defaultValue={sp.preis_max} className="h-9 w-24 border border-line-strong bg-card px-2 rounded-2xl" />
             </label>
             <label className="flex h-9 items-center gap-2">

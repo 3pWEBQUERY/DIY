@@ -106,6 +106,53 @@ export function verifyUnsubscribeToken(t: string | null | undefined) {
 }
 
 export const unsubscribeLink = (userId: string, creatorId: string) => `${appUrl()}/api/newsletter/abbestellen?t=${unsubscribeToken(userId, creatorId)}`;
+
+/** „Newsletter melden“ aus der Mail: der Zustell-Token weist die Empfänger:in aus (ohne Anmeldung) */
+export const reportLink = (deliveryId: string) => `${appUrl()}/newsletter-melden?t=${deliveryToken(deliveryId)}`;
+
+async function deliveryForReport(t: string | null | undefined) {
+  const id = verifyDeliveryToken(t);
+  if (!id) return null;
+  return db.newsletterDelivery.findUnique({
+    where: { id },
+    select: { userId: true, newsletter: { select: { id: true, subject: true, body: true, authorId: true, author: { select: { profile: { select: { displayName: true, handle: true } } } } } } },
+  });
+}
+
+/** Kontext für die Melde-Seite (Betreff und Absender:in) */
+export async function reportContext(t: string | null | undefined) {
+  const d = await deliveryForReport(t);
+  if (!d) return null;
+  return { subject: d.newsletter.subject, creatorName: d.newsletter.author.profile?.displayName ?? "Unbekannt", handle: d.newsletter.author.profile?.handle ?? "" };
+}
+
+/**
+ * Newsletter melden: Moderationsfall gegen die Absenderin (Ziel USER, wie Meldungen von Profilen), mit
+ * Betreff und Textauszug im Fall. Eine Meldung je Person und Absender:in; ohne Anmeldung möglich.
+ */
+export async function reportNewsletter(t: string | null | undefined, input: { reason: string; details?: string }) {
+  const d = await deliveryForReport(t);
+  if (!d) throw fail.notFound("Dieser Link ist nicht gültig.");
+  const { REPORT_REASONS } = await import("@werkraum/shared");
+  if (!(REPORT_REASONS as readonly string[]).includes(input.reason)) throw fail.invalid("Bitte wähle einen Grund.", { reason: "Bitte wähle einen Grund" });
+  await rateLimit(`newsletter-report:${d.userId}`, 10, 86_400);
+  const existing = await db.report.findUnique({ where: { reporterId_targetType_targetId: { reporterId: d.userId, targetType: "USER", targetId: d.newsletter.authorId } }, include: { case: { select: { number: true } } } });
+  if (existing) return { caseNumber: existing.case?.number ?? null, duplicate: true };
+  const { openOrAttachCase } = await import("@/server/moderation/cases");
+  const n = d.newsletter;
+  const excerpt = stripCardRefs(n.body).replace(/\s+/g, " ").slice(0, 600);
+  const details = [`Newsletter „${n.subject}“ (${n.id})`, excerpt, (input.details ?? "").trim().slice(0, 1000)].filter(Boolean).join("\n\n");
+  const c = await openOrAttachCase({
+    reporterId: d.userId,
+    targetType: "USER",
+    targetId: n.authorId,
+    reason: input.reason,
+    details,
+    subjectUserId: n.authorId,
+    snapshot: { title: `Newsletter: ${n.subject}`, href: `/u/${n.author.profile?.handle ?? ""}` },
+  });
+  return { caseNumber: c.number, duplicate: false };
+}
 const openPixel = (deliveryId: string) => `${appUrl()}/api/newsletter/geoeffnet?t=${deliveryToken(deliveryId)}`;
 const clickLink = (deliveryId: string, url: string) => `${appUrl()}/api/newsletter/klick?t=${deliveryToken(deliveryId)}&u=${encodeURIComponent(url)}`;
 
@@ -183,7 +230,7 @@ export async function buildNewsletterMail(n: { subject: string; body: string }, 
     cta: { label: `Profil von ${first} ansehen`, url: track(profileUrl) },
     footerNote: `Du erhältst diesen Newsletter, weil du ${creator.displayName} auf Werkuno folgst.`,
     ...(opts.recipientId ? { unsubscribeUrl: unsubscribeLink(opts.recipientId, creator.id), unsubscribeLabel: `Newsletter von ${first} abbestellen` } : {}),
-    ...(opts.deliveryId ? { trackingPixelUrl: openPixel(opts.deliveryId) } : {}),
+    ...(opts.deliveryId ? { trackingPixelUrl: openPixel(opts.deliveryId), reportUrl: reportLink(opts.deliveryId), reportLabel: "Newsletter melden" } : {}),
   };
   return { subject: n.subject, text: stripCardRefs(n.body), mail };
 }
@@ -245,7 +292,10 @@ export async function getMyNewsletter(user: U, id: string) {
   return { id: n.id, subject: n.subject, body: n.body, status: n.status as NewsletterStatus, scheduledAt: n.scheduledAt?.toISOString() ?? null, sentAt: n.sentAt?.toISOString() ?? null, recipientCount: n.recipientCount, openCount: n.openCount, clickCount: n.clickCount };
 }
 
-function checkContent(body: string) {
+function checkContent(body: string, subject = "") {
+  if (detectSuspiciousPayment(subject)) {
+    throw fail.invalid("Zahlungsaufforderungen und Links zu fremden Bezahldiensten sind im Newsletter nicht erlaubt. Verkaufe über deinen Werkuno-Shop.", { subject: "Bitte ohne Zahlungslinks" });
+  }
   if (detectSuspiciousPayment(body)) {
     throw fail.invalid("Zahlungsaufforderungen und Links zu fremden Bezahldiensten sind im Newsletter nicht erlaubt. Verkaufe über deinen Werkuno-Shop.", { body: "Bitte ohne Zahlungslinks" });
   }
@@ -255,7 +305,7 @@ function checkContent(body: string) {
 export async function saveNewsletter(user: U, id: string | null, input: unknown) {
   await requirePro(user);
   const d = newsletterInputSchema.parse(input);
-  checkContent(d.body);
+  checkContent(d.body, d.subject);
   if (!id) {
     await rateLimit(`newsletter-create:${user.id}`, 30, 86_400);
     const n = await db.creatorNewsletter.create({ data: { authorId: user.id, subject: d.subject, body: d.body } });

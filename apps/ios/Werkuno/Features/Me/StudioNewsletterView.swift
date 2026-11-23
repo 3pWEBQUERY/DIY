@@ -96,10 +96,46 @@ struct NewsletterCardRef: Hashable, Identifiable {
         return plain.replacingOccurrences(of: "\n\n\n", with: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func compose(_ text: String, _ cards: [NewsletterCardRef]) -> String {
+    /// Position jeder Karte im gespeicherten Text: nach wie vielen Absätzen sie steht. So bleiben
+    /// Karten, die im Web mitten im Text gesetzt wurden, beim Bearbeiten in der App an ihrer Stelle.
+    static func anchors(_ body: String) -> [String: Int] {
+        guard let re = pattern else { return [:] }
+        var out: [String: Int] = [:]
+        var paragraphs = 0
+        var inParagraph = false
+        for line in body.components(separatedBy: "\n") {
+            let ns = line as NSString
+            let matches = re.matches(in: line, range: NSRange(location: 0, length: ns.length))
+            let rest = re.stringByReplacingMatches(in: line, range: NSRange(location: 0, length: ns.length), withTemplate: "").trimmingCharacters(in: .whitespaces)
+            if !rest.isEmpty {
+                if !inParagraph { paragraphs += 1 }
+                inParagraph = true
+            } else if matches.isEmpty {
+                inParagraph = false
+            }
+            for m in matches {
+                let key = "\(ns.substring(with: m.range(at: 1))):\(ns.substring(with: m.range(at: 2)))"
+                if out[key] == nil { out[key] = paragraphs }
+            }
+        }
+        return out
+    }
+
+    /// Text und Karten zusammensetzen: bekannte Karten an ihre frühere Stelle (nach dem n-ten Absatz),
+    /// neue Karten ans Ende.
+    static func compose(_ text: String, _ cards: [NewsletterCardRef], anchors: [String: Int] = [:]) -> String {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cards.isEmpty else { return t }
-        return t + "\n\n" + cards.map(\.token).joined(separator: "\n")
+        let paragraphs = t.isEmpty ? [] : t.components(separatedBy: "\n\n").map { $0.trimmingCharacters(in: .newlines) }.filter { !$0.isEmpty }
+        var blocks: [String] = []
+        for i in 0...paragraphs.count {
+            let here = cards.filter { anchors[$0.id] == i }
+            if !here.isEmpty { blocks.append(here.map(\.token).joined(separator: "\n")) }
+            if i < paragraphs.count { blocks.append(paragraphs[i]) }
+        }
+        let rest = cards.filter { a in anchors[a.id].map { $0 > paragraphs.count } ?? true }
+        if !rest.isEmpty { blocks.append(rest.map(\.token).joined(separator: "\n")) }
+        return blocks.joined(separator: "\n\n")
     }
 }
 
@@ -353,6 +389,8 @@ struct StudioNewsletterEditor: View {
     @State private var scheduledAt: Date?
     @State private var subject = ""
     @State private var text = ""
+    /// Stelle der Karten im geladenen Text (Absatz-Index), damit sie beim Speichern dort bleiben
+    @State private var cardAnchors: [String: Int] = [:]
     @State private var cards: [NewsletterCardRef] = []
     @State private var options: NewsletterCardOptions?
     @State private var planLater = false
@@ -517,7 +555,7 @@ struct StudioNewsletterEditor: View {
     // MARK: Logik
 
     private var payload: [String: JSONValue] {
-        ["subject": .string(subject.trimmed), "body": .string(NewsletterCardRef.compose(text, cards))]
+        ["subject": .string(subject.trimmed), "body": .string(NewsletterCardRef.compose(text, cards, anchors: cardAnchors))]
     }
 
     private func load() async {
@@ -532,6 +570,7 @@ struct StudioNewsletterEditor: View {
                 subject = d.subject
                 text = NewsletterCardRef.strip(d.body)
                 cards = NewsletterCardRef.extract(d.body)
+                cardAnchors = NewsletterCardRef.anchors(d.body)
                 if let at = d.scheduledAt { planDate = max(at, Date.now.addingTimeInterval(300)) }
             } catch {
                 formError = (error as? APIError)?.message ?? error.localizedDescription

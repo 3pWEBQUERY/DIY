@@ -9,6 +9,7 @@ import { getPublicShop } from "@/server/commerce/shops";
 import { listProducts } from "@/server/commerce/products";
 import { listShopReviews } from "@/server/commerce/reviews";
 import { shopSaleBanner } from "@/server/commerce/sales";
+import { giftCardOffer } from "@/server/commerce/giftcards";
 import { SaleBanner } from "@/components/commerce/sale-banner";
 import { ProductGrid } from "@/components/commerce/product-card";
 import { Avatar, Empty, Notice, SectionTitle, Stat } from "@/components/ui/misc";
@@ -37,12 +38,13 @@ export default async function ShopPage({ params, searchParams }: Params) {
   const shop = await getPublicShop(shopSlug, user?.id);
   if (!shop) notFound();
   const profile = shop.owner.profile!;
-  const [products, reviews, sale] = await Promise.all([
+  const [products, reviews, sale, giftOffer] = await Promise.all([
     listProducts(
       { shopId: shop.id, includeSoldOut: true, shopStatuses: shop.isOwner ? ["ACTIVE", "PAUSED", "PENDING_VERIFICATION", "DRAFT"] : ["ACTIVE", "PAUSED"] },
       sp.cursor ?? null, { take: 24, viewerId: user?.id }),
     listShopReviews(shop.id, user?.id, 6),
     shopSaleBanner(shop.id),
+    giftCardOffer(shop.slug, user?.id),
   ]);
   const v = shop.verification;
   const country = COUNTRY_LABEL[shop.country as ShipCountry] ?? shop.country;
@@ -104,6 +106,16 @@ export default async function ShopPage({ params, searchParams }: Params) {
       </header>
 
       {sale && <SaleBanner sale={sale} className="mt-8" />}
+      {giftOffer && !giftOffer.isOwner && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rule bg-card px-5 py-4">
+          <p className="text-[14px]">
+            <span className="font-semibold">Geschenkgutschein</span> <span className="text-muted">– verschenke ein Stück aus dieser Werkstatt.</span>
+          </p>
+          <LinkButton href={`/markt/${shop.slug}/geschenkgutschein`} variant="outline" size="sm">
+            Gutschein verschenken
+          </LinkButton>
+        </div>
+      )}
 
       <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_300px]">
         <section aria-labelledby="arbeiten">

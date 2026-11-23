@@ -65,6 +65,10 @@ export const notificationPrefsSchema = z.object({
   weeklyDigest: z.boolean().optional(),
   /** Newsletter von Creator:innen, denen man folgt; fehlt bei älteren App-Versionen → unverändert */
   creatorNewsletters: z.boolean().optional(),
+  /** Preisalarm für gemerkte Produkte (Aktion, Preissenkung, wieder verfügbar); fehlt → unverändert */
+  priceAlerts: z.boolean().optional(),
+  /** Erinnerung an einen liegengebliebenen Warenkorb; fehlt → unverändert */
+  cartReminders: z.boolean().optional(),
 });
 
 export const FEED_DEFAULTS = ["FOR_YOU", "FOLLOWING", "NEW"] as const;

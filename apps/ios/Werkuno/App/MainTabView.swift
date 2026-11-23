@@ -149,6 +149,7 @@ struct RouteView: View {
             case .checkout: CheckoutView()
             case .orders: OrderListView()
             case .order(let id): OrderDetailView(id: id)
+            case .giftCards: MyGiftCardsView()
             case .communities: CommunityListView()
             case .community(let s): CommunityDetailView(slug: s)
             case .communityManage(let s): CommunityManageView(slug: s)

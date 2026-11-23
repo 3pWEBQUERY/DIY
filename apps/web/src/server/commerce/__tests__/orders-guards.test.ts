@@ -29,6 +29,8 @@ vi.mock("@/server/notifications", () => ({ notify: vi.fn() }));
 vi.mock("@/server/ratelimit", () => ({ rateLimit: vi.fn() }));
 vi.mock("../inventory", () => ({ lockOrder: vi.fn() }));
 vi.mock("../shops", () => ({ requireOwnShop: vi.fn() }));
+// Geschenkgutscheine: Rückbuchung beim Storno ist eigener Dienst (hier nicht Gegenstand)
+vi.mock("../giftcards", () => ({ restoreGiftCardsTx: vi.fn(async () => 0) }));
 vi.mock("../payments", () => ({ orderWith: m.orderWith, initiateRefund: m.initiateRefund, grantMissingEntitlementsTx: vi.fn(), restockOrderTx: m.restock, APPLE_REFUND_MESSAGE: "apple" }));
 
 const { cancelBySeller, refundOrderByAdmin } = await import("../orders");

@@ -10,6 +10,7 @@ import { CartLines } from "@/components/commerce/cart-lines";
 import { FeeSummary } from "@/components/commerce/order-parts";
 import { FxNote } from "@/components/commerce/fx-note";
 import { CouponField } from "@/components/commerce/coupon-field";
+import { GiftCardApplied, GiftCardField } from "@/components/commerce/giftcard-field";
 import { ResumePaymentButton } from "@/components/commerce/payment-actions";
 import { Empty, Notice, SectionTitle } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
@@ -79,10 +80,11 @@ export default async function CartPage() {
                   </p>
                 )}
                 <div className="ml-auto max-w-sm border-t border-line pt-3">
-                  <FeeSummary subtotal={g.subtotal} discounts={g.discounts} shipping={g.fees.shipping} total={g.fees.total} currency={cart.currency} />
+                  <FeeSummary subtotal={g.subtotal} discounts={g.discounts} shipping={g.fees.shipping} total={g.fees.total} currency={cart.currency} giftCardMinor={g.giftCard?.appliedMinor} />
                   {g.converted && <FxNote compact currency={cart.currency} shopCurrency={g.shop.currency} eurChf={cart.fx.eurChf} date={cart.fx.date} className="mt-1" />}
                   <p className="mt-1 text-[12px] text-muted">Kombinierter Versand: es gilt der höchste Versandsatz dieses Shops.</p>
                   <CouponField shopId={g.shop.id} shopName={g.shop.name} coupon={g.coupon} />
+                  {g.giftCard && <GiftCardApplied shopId={g.shop.id} giftCard={g.giftCard} currency={cart.currency} />}
                 </div>
               </section>
             ))}
@@ -97,7 +99,9 @@ export default async function CartPage() {
                 shipping={cart.totals.shipping}
                 total={cart.totals.total}
                 currency={cart.currency}
+                giftCardMinor={cart.totals.giftCard}
               />
+              <GiftCardField className="mt-4" />
               {cart.groups.some((g) => g.converted) && <FxNote currency={cart.currency} eurChf={cart.fx.eurChf} date={cart.fx.date} className="mt-4" />}
               <p className="mt-4 text-[12.5px] leading-relaxed text-muted">
                 Für dich fallen keine weiteren Gebühren an. Die Shops zahlen eine Plattformprovision von höchstens {formatBps(cart.feeBps)} auf den Warenwert – sie ist im Preis bereits enthalten.

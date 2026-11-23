@@ -269,6 +269,17 @@ struct MarketFees: Decodable, Hashable, Sendable {
     var sellerNet: Int?
     /// Summe der Rabatte (nur in den Warenkorb-Summen)
     var discount: Int?
+    /// Mit Geschenkgutschein angerechnet (nur in den Warenkorb-Summen; `total` ist bereits abzüglich)
+    var giftCard: Int?
+}
+
+/// Im Warenkorb hinterlegter Geschenkgutschein eines Shops
+struct MarketCartGiftCard: Decodable, Hashable, Sendable {
+    var code: String
+    var currency: String
+    var appliedMinor: Int
+    var balanceAfterMinor: Int
+    var problem: String?
 }
 
 struct MarketCartLine: Decodable, Hashable, Identifiable, Sendable {
@@ -307,6 +318,7 @@ struct MarketCartGroup: Decodable, Hashable, Identifiable, Sendable {
     var discount: Int?
     var discounts: [MarketDiscountRow]?
     var coupon: MarketCartCoupon?
+    var giftCard: MarketCartGiftCard?
     var incompleteBundles: [IdTitle]?
     var id: String { shop.id }
 }
@@ -370,6 +382,8 @@ struct MarketCheckoutStarted: Decodable, Sendable {
     var url: String
     var orderIds: [String]
     var mode: String
+    /// Alles mit Geschenkgutschein bezahlt – keine Zahlung nötig
+    var paidWithGiftCard: Bool?
 }
 
 struct MarketURLResult: Decodable, Sendable { var url: String }
@@ -528,6 +542,8 @@ struct MarketOrderDetail: Decodable, Hashable, Identifiable, Sendable {
     var discountMinor: Int?
     var discounts: [MarketDiscountRow]?
     var subtotalMinor: Int
+    /// Mit Geschenkgutschein bezahlt
+    var giftCardMinor: Int?
     var shippingMinor: Int
     var totalMinor: Int
     var platformFeeMinor: Int?

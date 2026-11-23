@@ -190,4 +190,53 @@ export async function setCommentFilter(user: Pick<SessionUser, "id">, input: unk
   return { words: parsed.data.words };
 }
 
+/** Höchstens so viele (neueste) Kommentare prüft „Bestehende Kommentare prüfen“ in einem Durchgang */
+export const RETRO_FILTER_LIMIT = 5_000;
+
+type RetroRow = { id: string; body: string; parentId: string | null; targetType: TargetType; targetId: string };
+
+/**
+ * Wortfilter rückwirkend: bestehende, sichtbare Kommentare (Haupt­kommentare und Antworten) fremder
+ * Personen unter eigenen Inhalten prüfen. `dryRun` zählt nur (für die Rückfrage), sonst werden die
+ * Treffer ausgeblendet – mit derselben Zählregel wie beim Löschen: ein Hauptkommentar nimmt seine
+ * sichtbaren Antworten aus dem Zähler mit, eine Antwort unter einem ausgeblendeten zählt schon nicht mehr.
+ */
+export async function applyCommentFilterToExisting(user: Pick<SessionUser, "id">, opts: { dryRun: boolean }) {
+  if (!(await isPro(user.id))) throw fail.forbidden(`Wortfilter: ${PRO_HINT}`);
+  const words = (await db.userProfile.findUnique({ where: { userId: user.id }, select: { commentFilterWords: true } }))?.commentFilterWords ?? [];
+  if (!words.length) return { matched: 0, hidden: 0, scanned: 0, limited: false };
+  const rows = await db.$queryRaw<RetroRow[]>`
+    SELECT c.id, c.body, c."parentId", c."targetType", c."targetId" FROM "Comment" c
+      LEFT JOIN "Post" p ON c."targetType" = 'POST' AND p.id = c."targetId"
+      LEFT JOIN "Project" pr ON c."targetType" = 'PROJECT' AND pr.id = c."targetId"
+      LEFT JOIN "Tutorial" t ON c."targetType" = 'TUTORIAL' AND t.id = c."targetId"
+      LEFT JOIN "BlogArticle" a ON c."targetType" = 'ARTICLE' AND a.id = c."targetId"
+     WHERE c."filteredAt" IS NULL AND c.state = 'PUBLISHED' AND c."authorId" <> ${user.id}
+       AND COALESCE(p."authorId", pr."ownerId", t."authorId", a."authorId") = ${user.id}
+     ORDER BY c."createdAt" DESC
+     LIMIT ${RETRO_FILTER_LIMIT}`;
+  const hits = rows.filter((r) => !!matchCommentFilter(r.body, words));
+  const result = { matched: hits.length, hidden: 0, scanned: rows.length, limited: rows.length >= RETRO_FILTER_LIMIT };
+  if (opts.dryRun || !hits.length) return result;
+  // Hauptkommentare zuerst: ihre Antworten verlassen den Zähler mit ihnen
+  const ordered = [...hits.filter((h) => !h.parentId), ...hits.filter((h) => !!h.parentId)];
+  const now = new Date();
+  for (const h of ordered) {
+    await db.$transaction(async (tx) => {
+      const done = await tx.comment.updateMany({ where: { id: h.id, filteredAt: null, state: "PUBLISHED" }, data: { filteredAt: now } });
+      if (!done.count) return;
+      result.hidden++;
+      let by = 1;
+      if (h.parentId) {
+        const parent = await tx.comment.findUnique({ where: { id: h.parentId }, select: { state: true, filteredAt: true } });
+        if (parent?.state !== "PUBLISHED" || parent.filteredAt) by = 0;
+      } else {
+        by += await tx.comment.count({ where: { parentId: h.id, state: "PUBLISHED", filteredAt: null } });
+      }
+      if (by) await bumpCounter(tx, h.targetType, h.targetId, "comment", -by);
+    });
+  }
+  return result;
+}
+
 export { normalizeFilterText };

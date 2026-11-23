@@ -137,11 +137,12 @@ async function mailBatch(pending: PendingMail[]) {
     // Sicherheits-, Bestell- und Moderationsmails lassen sich nicht abbestellen – nur Neuigkeiten
     const optional = list.some((n) => !ALWAYS_INSTANT.includes(n.type as NotificationType));
     const target = list.length === 1 ? mailHref(list[0]!) : "/benachrichtigungen";
-    const subject = list.length === 1 ? `${NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit"} auf ${BRAND.name}` : `${list.length} Neuigkeiten auf ${BRAND.name}`;
+    const label = (n: PendingMail) => (String(((n.data ?? {}) as Record<string, unknown>).kind ?? "").startsWith("price_") ? "Preisalarm" : (NOTIFICATION_LABEL[n.type as NotificationType] ?? "Neuigkeit"));
+    const subject = list.length === 1 ? `${label(list[0]!)} auf ${BRAND.name}` : `${list.length} Neuigkeiten auf ${BRAND.name}`;
     try {
       const r = await sendMail(to, subject, list.length > items.length ? `Das ist in deiner Werkstatt passiert.${more}` : "Das ist in deiner Werkstatt passiert:", {
         eyebrow: list.length === 1 ? "Neuigkeit" : `${list.length} Neuigkeiten`,
-        heading: list.length === 1 ? (NOTIFICATION_LABEL[list[0]!.type as NotificationType] ?? "Neuigkeit") : "Neues aus deiner Werkstatt",
+        heading: list.length === 1 ? label(list[0]!) : "Neues aus deiner Werkstatt",
         preheader: items.map((i) => i.text).join(" · ").slice(0, 140),
         items,
         cta: { label: list.length === 1 ? "Ansehen" : "Alle Benachrichtigungen", url: `${appUrl}${target}` },

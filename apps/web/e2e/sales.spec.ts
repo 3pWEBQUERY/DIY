@@ -121,6 +121,12 @@ test.describe.serial("Shop-Aktionen", () => {
     await buyer.goto(`/suche?q=${encodeURIComponent(info.title)}&typ=product`);
     await expect(buyer.locator("main").getByText("−25 %").first()).toBeVisible();
 
+    // Preisspanne der Suche nach dem Aktionspreis (App-API: Rappen der Betrachter-Währung)
+    const inRange = await (await buyer.request.get(`/api/v1/app/search?q=${encodeURIComponent(info.title)}&types=product&priceMin=${expected}&priceMax=${expected}`)).json();
+    expect((((inRange.data ?? inRange).results?.product ?? []) as { id: string }[]).map((x) => x.id)).toContain(p.id);
+    const above = await (await buyer.request.get(`/api/v1/app/search?q=${encodeURIComponent(info.title)}&types=product&priceMin=${expected + 10}&priceMax=${p.priceMinor}`)).json();
+    expect((((above.data ?? above).results?.product ?? []) as { id: string }[]).map((x) => x.id)).not.toContain(p.id);
+
     // Profil der Verkäuferin (Shop-Reiter, neueste Arbeiten): ist das Produkt dabei, zeigt es den Rabatt
     await buyer.goto(`/u/mattia.holz?tab=shop`);
     const card = buyer.locator("main a").filter({ hasText: info.title });

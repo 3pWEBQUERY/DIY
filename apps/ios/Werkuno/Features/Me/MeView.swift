@@ -24,6 +24,7 @@ struct MeView: View {
                         }
                     }
                     MeNavRow(symbol: "shippingbox", title: "Meine Bestellungen", subtitle: "Käufe, Status, Belege") { router.open(.orders) }
+                    MeNavRow(symbol: "gift", title: "Geschenkgutscheine", subtitle: "Erhalten, Guthaben, Code hinzufügen") { router.open(.giftCards) }
                 }
                 if app.me?.isModerator == true {
                     MeGroup(title: "Team") {

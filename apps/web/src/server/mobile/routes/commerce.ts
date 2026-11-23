@@ -1,5 +1,6 @@
 import "server-only";
 import * as promo from "@/server/commerce/promotions";
+import * as giftcards from "@/server/commerce/giftcards";
 import * as sales from "@/server/commerce/sales";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
@@ -132,6 +133,17 @@ export const commerceRoutes: RouteDef[] = [
   DELETE("/cart/coupon/:shopId", async (c) => {
     await promo.removeCoupon(await me(), c.p.shopId!);
     return { ok: true };
+  }),
+  // ── Geschenkgutscheine (Kauf nur im Web; einlösen und ansehen auch in der App) ──
+  POST("/cart/giftcard", async (c) => {
+    const { code } = await c.body({ code: zStr });
+    return giftcards.applyGiftCardToCart(await me(), String(code ?? ""));
+  }),
+  DELETE("/cart/giftcard/:shopId", async (c) => giftcards.removeGiftCardFromCart(await me(), c.p.shopId!)),
+  GET("/me/giftcards", async () => giftcards.myGiftCards(await me())),
+  POST("/me/giftcards/claim", async (c) => {
+    const { code } = await c.body({ code: zStr });
+    return giftcards.claimGiftCard(await me(), String(code ?? ""));
   }),
   GET("/tutorials/:id/bundles", async (c) => promo.bundlesForTutorial(c.p.id!, await viewerId())),
   GET("/bundles/for-product/:id", async (c) => promo.bundlesForProduct(c.p.id!, await viewerId())),

@@ -9,6 +9,7 @@ import { getCustomerDetails } from "@/server/account/customer";
 import { CheckoutForm } from "@/components/commerce/checkout-form";
 import { FeeSummary } from "@/components/commerce/order-parts";
 import { FxNote } from "@/components/commerce/fx-note";
+import { GiftCardField } from "@/components/commerce/giftcard-field";
 import { Notice } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 
@@ -93,7 +94,9 @@ export default async function CheckoutPage() {
                 shipping={cart.totals.shipping}
                 total={cart.totals.total}
                 currency={cart.currency}
+                giftCardMinor={cart.totals.giftCard}
               />
+              <GiftCardField className="mt-3" />
               <p className="mt-3 text-[12px] leading-relaxed text-muted">Endpreis in {cart.currency === "EUR" ? "Euro" : "Franken"}. Keine Zusatzgebühren für Käufer:innen.</p>
               {cart.groups.some((g) => g.converted) && <FxNote currency={cart.currency} eurChf={cart.fx.eurChf} date={cart.fx.date} className="mt-2" />}
             </div>

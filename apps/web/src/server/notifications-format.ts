@@ -206,6 +206,7 @@ export function notificationParts(n: NotificationLike): NotificationParts {
             return { lead: null, text: `Automatische Auszahlung von ${amount} ist unterwegs${day ? ` – voraussichtlich am ${day} auf deinem Konto` : ""}.`, excerpt: null };
         }
       }
+      if (str(data.kind) === "giftcard") return { lead: null, text: str(data.text) ?? "Neuigkeit zu einem Geschenkgutschein.", excerpt: str(data.note) };
       if (str(data.kind) === "shop_reconnect") return { lead: null, text: str(data.note) ?? "Bitte verbinde das Auszahlungskonto deines Shops neu.", excerpt: null };
       if (str(data.kind) === "review") return { lead: name ?? "Jemand", text: `hat${title ? ` ${title}` : " deinen Artikel"} bewertet${str(data.stars) ? ` (${str(data.stars)} von 5)` : ""}.`, excerpt };
       const number = str(data.number);
@@ -249,6 +250,11 @@ export function notificationParts(n: NotificationLike): NotificationParts {
         excerpt: str(data.changeNote),
       };
     case "RESTOCK": {
+      // Preisalarm (gemerkte Produkte) und Warenkorb-Erinnerung: fertiger Satz mit Preisen der Empfänger:in
+      const k = str(data.kind);
+      if (k === "price_sale" || k === "price_drop" || k === "price_back" || k === "cart") {
+        return { lead: null, text: str(data.message) ?? (k === "cart" ? "Dein Warenkorb wartet." : `Neuigkeit zu einem gemerkten Produkt${title ? `: ${title}` : ""}.`), excerpt: null };
+      }
       if (str(data.kind) === "available") {
         return { lead: null, text: `Wieder verfügbar: ${title ?? "ein Produkt, das du angefragt hast"}. Du hattest nach einer Nachproduktion gefragt.`, excerpt: null };
       }

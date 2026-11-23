@@ -247,11 +247,16 @@ struct MarketFeeSummary: View {
     var total: Int
     var currency: String? = "CHF"
     var discounts: [MarketDiscountRow] = []
+    /// Mit Geschenkgutschein bezahlt (vom Total bereits abgezogen)
+    var giftCard: Int = 0
     var body: some View {
         VStack(spacing: 8) {
             MarketAmountRow(label: "Zwischensumme", value: Fmt.money(subtotal, currency: currency))
             MarketDiscountRows(rows: discounts, currency: currency)
             MarketAmountRow(label: "Versand", value: shipping == 0 ? "kostenlos" : Fmt.money(shipping, currency: currency))
+            if giftCard > 0 {
+                MarketAmountRow(label: "Geschenkgutschein", value: "− " + Fmt.money(giftCard, currency: currency))
+            }
             Divider().overlay(Color.line)
             MarketAmountRow(label: "Total", value: Fmt.money(total, currency: currency), strong: true)
         }
@@ -264,7 +269,7 @@ struct MarketOrderTotals: View {
     var seller = false
     var body: some View {
         VStack(spacing: 8) {
-            MarketFeeSummary(subtotal: order.subtotalMinor, shipping: order.shippingMinor, total: order.totalMinor, currency: order.currency, discounts: order.discounts ?? [])
+            MarketFeeSummary(subtotal: order.subtotalMinor, shipping: order.shippingMinor, total: order.totalMinor, currency: order.currency, discounts: order.discounts ?? [], giftCard: order.giftCardMinor ?? 0)
             let refunded = (order.refunds ?? []).filter { $0.status == "SUCCEEDED" }.reduce(0) { $0 + $1.amountMinor }
             if refunded > 0 { MarketAmountRow(label: "Erstattet", value: "− " + Fmt.money(refunded, currency: order.currency), muted: true) }
             if seller, let share = order.sellerShare {

@@ -5,7 +5,8 @@ import { rateLimit } from "@/server/ratelimit";
 import { clientIpHash } from "@/server/auth/session";
 import { publicProductSql } from "@/server/commerce/restock";
 import { getPriceContext } from "@/server/commerce/currency";
-import { salePriceFields, salesForProducts } from "@/server/commerce/sale-prices";
+import { effectivePriceSql, salePriceFields, salesForProducts } from "@/server/commerce/sale-prices";
+
 
 /**
  * Globale Suche (PRD §18) auf Postgres: Volltext (deutsch, unaccent) + Trigramm-Ähnlichkeit
@@ -20,6 +21,7 @@ export type SearchFilters = {
   category?: string;
   difficulty?: number;
   maxMinutes?: number;
+  /** Preisspanne in Rappen/Cent der Währung der Betrachter:in, gegen den Preis inkl. laufender Aktion */
   priceMin?: number;
   priceMax?: number;
   free?: boolean;
@@ -100,8 +102,8 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
         WHERE ${publicProductSql("pr")} AND s.status = 'ACTIVE' AND s."ownerId" NOT IN (${Prisma.join(blocked)})
           AND (pr.search @@ ${tsQuery(q)} OR pr.title % ${q} OR pr.title ILIKE ${like})
           ${f.category ? Prisma.sql`AND pr.category = ${f.category}` : Prisma.empty}
-          ${f.priceMin != null ? Prisma.sql`AND pr."priceMinor" >= ${f.priceMin}` : Prisma.empty}
-          ${f.priceMax != null ? Prisma.sql`AND pr."priceMinor" <= ${f.priceMax}` : Prisma.empty}
+          ${f.priceMin != null ? Prisma.sql`AND ${effectivePriceSql("pr", px.currency, px.eurChf)} >= ${f.priceMin}` : Prisma.empty}
+          ${f.priceMax != null ? Prisma.sql`AND ${effectivePriceSql("pr", px.currency, px.eurChf)} <= ${f.priceMax}` : Prisma.empty}
           ${f.country ? Prisma.sql`AND pr."shipsFrom" = ${f.country}` : Prisma.empty}
         ORDER BY score DESC LIMIT ${limit}`
         .then(async (rows) => {

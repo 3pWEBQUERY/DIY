@@ -3,6 +3,7 @@ import { db, type Tx } from "@/server/db";
 import { emit } from "@/server/events";
 import { expireCheckoutSession, isCompletedSessionPaymentFailed, paymentsMode, retrieveCheckoutSession } from "./stripe";
 import { lockOrder, release } from "./inventory";
+import { restoreGiftCardsTx } from "./giftcards";
 
 /**
  * Storniert eine noch unbezahlte Bestellung und gibt die Reservierung frei.
@@ -19,6 +20,8 @@ export async function cancelPendingOrderTx(
   for (const it of order.items) await release(tx, it);
   // Unbezahlt storniert: der Gutschein wird wieder frei
   if (order.couponId) await tx.$executeRaw`UPDATE "ShopCoupon" SET "usedCount" = GREATEST("usedCount" - 1, 0), "updatedAt" = NOW() WHERE id = ${order.couponId}`;
+  // … und ein angerechneter Geschenkgutschein erhält sein Guthaben zurück
+  await restoreGiftCardsTx(tx, orderId);
   await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date(), reservationExpiresAt: null } });
   await tx.payment.updateMany({
     where: { orderId, status: { in: ["REQUIRES_PAYMENT", "PROCESSING"] } },
