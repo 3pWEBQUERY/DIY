@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BarChart3, FileText, Film, LayoutTemplate, Percent, ShieldCheck } from "lucide-react";
+import { BarChart3, CalendarClock, FileText, Film, LayoutTemplate, Mail, MessageSquareLock, Palette, Percent, Printer, ShieldCheck, Timer } from "lucide-react";
 import { formatMoney } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -28,7 +28,7 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
   if (!user?.profile) redirect("/anmelden?weiter=/studio/pro");
   if (sp.abo === "erfolg" && sp.session_id) await confirmProCheckout(user.id, sp.session_id);
 
-  const [status, prices, enabled, fee, proFee, sec, proSec, mb, proMb] = await Promise.all([
+  const [status, prices, enabled, fee, proFee, sec, proSec, mb, proMb, newsletters] = await Promise.all([
     getProStatus(user.id),
     proPrices(),
     flagEnabled("pro", user.id),
@@ -38,6 +38,7 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
     getSetting("pro.maxVideoSeconds"),
     getSetting("media.maxVideoMb"),
     getSetting("pro.maxVideoMb"),
+    getSetting("pro.newslettersPer30Days"),
   ]);
   const handle = user.profile.handle;
 
@@ -47,6 +48,12 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
     { icon: BarChart3, title: "Statistik über 12 Monate", text: "Verläufe über ein ganzes Jahr statt 12 Wochen – und alle Zahlen als CSV für Excel oder Numbers." },
     { icon: Film, title: "Längere Videos", text: `Videos bis ${minutes(Math.max(sec, proSec))} und ${Math.max(mb, proMb)} MB statt ${minutes(sec)} und ${mb} MB.` },
     { icon: Percent, title: "Tiefere Provision im Shop", text: `${formatBps(Math.min(fee, proFee))} statt ${formatBps(fee)} auf den Warenwert jedes Verkaufs.` },
+    { icon: Mail, title: "Newsletter an deine Follower", text: `Neue Projekte, Anleitungen oder Drops direkt ins Postfach – sofort oder geplant, mit Öffnungen und Klicks. Bis zu ${newsletters} Newsletter in 30 Tagen.` },
+    { icon: Timer, title: "Shop-Aktionen mit Countdown", text: "Zeitlich begrenzte Rabatte auf den ganzen Shop oder ausgewählte Stücke – mit Countdown auf Karten, Produktseite und im Shop, automatisch an und aus." },
+    { icon: CalendarClock, title: "Planen und Inhaltskalender", text: "Projekte und Anleitungen zu einem festen Zeitpunkt veröffentlichen – und alles Geplante und Veröffentlichte im Kalender sehen." },
+    { icon: MessageSquareLock, title: "Kommentare im Griff", text: "Einen Kommentar oben anheften, Kommentare mit bestimmten Wörtern automatisch ausblenden und Kommentare je Inhalt schliessen." },
+    { icon: Palette, title: "Eigenes Profil-Design", text: "Akzentfarbe, Titelbild und Reihenfolge der Bereiche selbst wählen – im Web und in der iOS-App." },
+    { icon: Printer, title: "Anleitungs-PDF mit deinem Branding", text: "Druck- und PDF-Version deiner Anleitungen mit deinem Logo, Namen und Link samt QR-Code." },
   ];
 
   const fair = (
