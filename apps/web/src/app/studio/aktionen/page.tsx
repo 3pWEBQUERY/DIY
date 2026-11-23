@@ -10,6 +10,7 @@ import { Notice } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { SaleManager } from "@/components/commerce/sale-manager";
 import { BRAND } from "@/config/brand";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Aktionen" };
 
@@ -20,6 +21,8 @@ export default async function StudioSalesPage() {
   const shop = await getMyShop(user.id);
   if (!shop) redirect("/studio/shop");
   const data = await listMySales(user);
+  // Ohne Pro und ohne bisherige Aktionen: direkt zur Pro-Seite mit dieser Funktion
+  if (!data.pro && !data.sales.length) redirect(proHref("aktionen"));
 
   return (
     <div>
@@ -31,7 +34,7 @@ export default async function StudioSalesPage() {
       {!data.pro && (
         <Notice tone="neutral" className="mb-8" title="Aktionen gehören zu Creator Pro">
           Mit Creator Pro startest du Aktionen wie „−20 % bis Sonntag“ – mit Countdown, automatisch ein und aus.{" "}
-          <Link href="/studio/pro" className="font-semibold underline underline-offset-2">
+          <Link href={proHref("aktionen")} className="font-semibold underline underline-offset-2">
             Creator Pro ansehen
           </Link>
         </Notice>
@@ -46,7 +49,7 @@ export default async function StudioSalesPage() {
           sales={data.sales.map((s) => ({ id: s.id, title: s.title, percent: s.percent, startsAt: s.startsAt, endsAt: s.endsAt, productIds: s.productIds, active: s.active, status: s.status }))}
         />
       ) : (
-        <LinkButton href="/studio/pro">Zu Creator Pro</LinkButton>
+        <LinkButton href={proHref("aktionen")}>Zu Creator Pro</LinkButton>
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { useId } from "react";
 import { CalendarClock } from "lucide-react";
 import { ProMark } from "@/components/pro/pro-mark";
 import { cn } from "@/lib/utils";
+import { proHref } from "@/lib/pro-features";
 
 /** ISO → Wert für `<input type="datetime-local">` in der Zeitzone des Browsers */
 export function toLocalInput(iso: string | null | undefined) {
@@ -52,8 +53,8 @@ export function PublishSchedule({
       <p className={cn("flex flex-wrap items-center gap-2 text-[13px] text-muted", className)}>
         <CalendarClock size={15} aria-hidden />
         Zeitgesteuert veröffentlichen kannst du mit
-        <Link href="/studio/pro" className="inline-flex items-center gap-1 font-semibold text-ink-2 underline-offset-2 hover:underline">
-          Creator Pro <ProMark size="sm" />
+        <Link href={proHref("kalender")} className="inline-flex items-center gap-1 font-semibold text-ink-2 underline-offset-2 hover:underline">
+          Creator Pro <ProMark size="sm" /> →
         </Link>
       </p>
     );

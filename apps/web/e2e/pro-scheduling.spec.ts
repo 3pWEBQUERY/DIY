@@ -79,13 +79,15 @@ test.describe.serial("Creator Pro – Planung & PDF-Branding", () => {
     await sql(`UPDATE "Project" SET state = 'REMOVED' WHERE id = $1`, [r.id]);
   });
 
-  test("Ohne Pro: Planen von Projekten nicht möglich, Kalender zeigt Hinweis", async ({ browser }) => {
+  test("Ohne Pro: Planen von Projekten nicht möglich, Kalender führt zu Creator Pro", async ({ browser }) => {
     const page = await loginAs(browser, "elias");
     const res = await page.request.post("/api/v1/app/projects", { data: { title: "E2E ohne Pro", category: "holz", publishAt: new Date(Date.now() + 3600_000).toISOString() } });
     expect(res.status()).toBe(403);
     expect(await res.text()).toContain("Creator Pro");
+    // Ohne Pro führt der Kalender zur Pro-Seite, die Funktion steht zuerst
     await page.goto("/studio/kalender");
-    await expect(page.locator("main")).toContainText("Creator Pro ansehen");
+    await expect(page).toHaveURL(/\/studio\/pro\?funktion=kalender/);
+    await expect(page.getByRole("heading", { name: /„Planen und Inhaltskalender“ gehört zu Creator Pro/ })).toBeVisible();
   });
 
   test("PDF-Branding im Studio speichern", async ({ browser }) => {

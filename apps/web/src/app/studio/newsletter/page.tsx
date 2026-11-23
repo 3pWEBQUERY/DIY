@@ -11,6 +11,7 @@ import { LinkButton } from "@/components/ui/button";
 import { ProMark } from "@/components/pro/pro-mark";
 import { NEWSLETTER_STATUS_LABEL, rate, type NewsletterStatus } from "@/lib/newsletter";
 import { BRAND } from "@/config/brand";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Newsletter" };
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ export default async function NewsletterPage() {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/studio/newsletter");
   const { pro, items, recipients, quota } = await listMyNewsletters(user);
+  // Ohne Pro und ohne bisherige Newsletter: direkt zur Pro-Seite mit dieser Funktion
+  if (!pro && !items.length) redirect(proHref("newsletter"));
 
   if (!pro && !items.length) {
     return (
@@ -62,7 +65,7 @@ export default async function NewsletterPage() {
 
       {!pro && (
         <Notice tone="warn" className="mb-6" title={`${PRO_NAME} ist nicht aktiv`}>
-          Deine bisherigen Newsletter bleiben sichtbar. Neue schreiben und senden kannst du wieder mit <Link href="/studio/pro" className="underline">{PRO_NAME}</Link>.
+          Deine bisherigen Newsletter bleiben sichtbar. Neue schreiben und senden kannst du wieder mit <Link href={proHref("newsletter")} className="underline">{PRO_NAME}</Link>.
         </Notice>
       )}
       {!newsletterMailConfigured() && (

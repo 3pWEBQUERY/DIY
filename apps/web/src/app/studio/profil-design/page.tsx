@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shell/page";
 import { Notice } from "@/components/ui/misc";
 import { ProfileThemeEditor } from "@/components/pro/profile-theme-editor";
 import { BRAND } from "@/config/brand";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Profil-Design" };
 
@@ -16,6 +17,8 @@ export default async function ProfileDesignPage() {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/studio/profil-design");
   const [s, cover] = await Promise.all([profileThemeSettings(user.id), db.userProfile.findUnique({ where: { userId: user.id }, select: { coverUrl: true } })]);
+  // Ohne Pro: direkt zur Pro-Seite mit dieser Funktion (gespeichertes Design wäre ohnehin nicht sichtbar)
+  if (!s.pro) redirect(proHref("profil-design"));
 
   return (
     <div>
@@ -27,7 +30,7 @@ export default async function ProfileDesignPage() {
       {!s.pro && (
         <Notice tone="neutral" className="mb-8" title="Gehört zu Creator Pro">
           Du kannst alles ausprobieren – speichern und auf deinem Profil zeigen geht mit Creator Pro.{" "}
-          <Link href="/studio/pro" className="font-semibold underline">
+          <Link href={proHref("profil-design")} className="font-semibold underline">
             Creator Pro ansehen
           </Link>
         </Notice>

@@ -18,6 +18,7 @@ import { EyeOff, Lock, Pin } from "lucide-react";
 import { LikeButton, ReportDialog } from "./actions";
 import { callAction, callData } from "@/lib/use-action";
 import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
+import { proHref } from "@/lib/pro-features";
 
 /** Kommentare & Fragen mit einer Antwortebene (§9.4). */
 export function Comments({
@@ -136,8 +137,8 @@ export function Comments({
               {meta.locked ? "Kommentare öffnen" : "Kommentare schliessen"}
             </Button>
           ) : (
-            <Link href="/studio/pro" className="text-[12.5px] font-semibold text-ink-2 underline-offset-2 hover:underline">
-              Mit Creator Pro
+            <Link href={proHref("kommentare")} className="text-[12.5px] font-semibold text-ink-2 underline-offset-2 hover:underline">
+              Mit Creator Pro freischalten →
             </Link>
           )}
         </div>
@@ -320,7 +321,7 @@ function CommentItem({ c, targetType, targetId, viewer, onChange, isReply, canMo
                 {c.pinned ? "Lösen" : "Anheften"}
               </button>
             ) : (
-              <Link href="/studio/pro" className="text-xs text-muted hover:text-ink" title="Kommentare anheften gehört zu Creator Pro">
+              <Link href={proHref("kommentare")} className="text-xs text-muted hover:text-ink" title="Kommentare anheften gehört zu Creator Pro">
                 Anheften · Pro
               </Link>
             ))}

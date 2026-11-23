@@ -11,6 +11,7 @@ import { Download } from "lucide-react";
 import { isPro } from "@/server/pro/service";
 import { ProMark } from "@/components/pro/pro-mark";
 import { cn } from "@/lib/utils";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Statistiken" };
 export const dynamic = "force-dynamic";
@@ -53,7 +54,7 @@ export default async function StudioStatsPage({ searchParams }: { searchParams: 
               </a>
             </>
           ) : (
-            <Link href="/studio/pro" className="inline-flex items-center gap-2 rounded-xl bg-sunken px-3.5 py-2 text-[13px] text-ink-2 hover:text-ink">
+            <Link href={proHref("statistik")} className="inline-flex items-center gap-2 rounded-xl bg-sunken px-3.5 py-2 text-[13px] text-ink-2 hover:text-ink">
               <ProMark /> 12 Monate Verlauf und CSV-Export mit Creator Pro
             </Link>
           )}

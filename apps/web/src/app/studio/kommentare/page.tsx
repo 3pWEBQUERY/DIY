@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shell/page";
 import { Empty, Notice, SectionTitle } from "@/components/ui/misc";
 import { CommentFilterForm, FilteredCommentList, RetroFilterButton } from "@/components/pro/comment-filter-form";
 import { BRAND } from "@/config/brand";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Kommentare" };
 
@@ -16,6 +17,8 @@ export default async function StudioCommentsPage() {
   const user = await currentUser();
   if (!user) redirect("/anmelden?weiter=/studio/kommentare");
   const f = await getCommentFilter(user.id);
+  // Ohne Pro und ohne Gefiltertes zum Prüfen: direkt zur Pro-Seite mit dieser Funktion
+  if (!f.pro && !f.hidden.length && !f.words.length) redirect(proHref("kommentare"));
 
   return (
     <div className="max-w-3xl">
@@ -28,7 +31,7 @@ export default async function StudioCommentsPage() {
       {!f.pro && (
         <Notice tone="neutral" className="mb-8" title="Gehört zu Creator Pro">
           Wortfilter, angeheftete Kommentare und geschlossene Kommentare gibt es mit Creator Pro.{" "}
-          <Link href="/studio/pro" className="font-semibold underline">
+          <Link href={proHref("kommentare")} className="font-semibold underline">
             Creator Pro ansehen
           </Link>
         </Notice>

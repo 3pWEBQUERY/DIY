@@ -10,6 +10,7 @@ import { getPdfBrand } from "@/server/pro/pdf-brand";
 import { PdfBrandForm } from "@/components/pro/pdf-brand-form";
 import { db } from "@/server/db";
 import { appUrl } from "@/server/commerce/stripe";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
@@ -48,7 +49,7 @@ export default async function StudioSettingsPage() {
         <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-2">
           {pro.active
             ? "Dein Abo, Schaufenster-Projekte, Medienkit und die Jahresstatistik verwaltest du an einem Ort."
-            : `Schaufenster im Profil, Medienkit, Statistik über 12 Monate, längere Videos und eine tiefere Shop-Provision. Die Grundfunktionen von ${BRAND.name} bleiben kostenlos.`}
+            : `Newsletter, Shop-Aktionen, Planung, eigenes Profil-Design, Schaufenster, Medienkit, Statistik über 12 Monate, längere Videos und eine tiefere Shop-Provision. Die Grundfunktionen von ${BRAND.name} bleiben kostenlos.`}
         </p>
         <LinkButton href="/studio/pro" className="mt-5">{pro.active ? "Creator Pro verwalten" : "Creator Pro ansehen"}</LinkButton>
       </section>
@@ -62,7 +63,7 @@ export default async function StudioSettingsPage() {
           {pro.active ? (
             <PdfBrandForm brand={brand} defaultName={user.profile.displayName} defaultLink={shopLink.startsWith("https://") ? shopLink : ""} previewHref={latest ? `/anleitungen/${latest.slug}/drucken` : null} />
           ) : (
-            <LinkButton href="/studio/pro" variant="outline">Mit Creator Pro freischalten</LinkButton>
+            <LinkButton href={proHref("pdf-branding")} variant="outline">Mit Creator Pro freischalten</LinkButton>
           )}
         </div>
       </section>
