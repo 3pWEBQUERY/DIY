@@ -85,6 +85,8 @@ struct MeProfilePage: Decodable, Sendable {
     var products: [ProductCard]?
     var collections: [CollectionRef]?
     var articleCount: Int?
+    /// Profil-Design (Creator Pro); nil = Standard
+    var theme: ProfileThemeValue?
 }
 
 struct MeFollowUser: Decodable, Sendable, Identifiable, Hashable {
@@ -488,6 +490,8 @@ struct MeNotificationSettings: Decodable, Sendable {
     var emailDigest: String
     /// Wochenrückblick per E-Mail (ältere Server: fehlt)
     var weeklyDigest: Bool?
+    /// Newsletter von Creator:innen, denen man folgt (ältere Server: fehlt)
+    var creatorNewsletters: Bool?
 }
 
 struct MeRelationEntry: Decodable, Sendable, Identifiable, Hashable {

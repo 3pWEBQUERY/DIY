@@ -68,6 +68,7 @@ struct ShopView: View {
                         NoticeView(tone: .info, title: "Nur für dich sichtbar", message: "Dein Shop ist \(L.shopStatus[s.status ?? ""]?.lowercased() ?? "noch nicht aktiv"). Nach der Verifizierung ist er öffentlich.")
                     }
                     actions(s)
+                    if let sale = s.sale, sale.isRunning { SaleBannerView(sale: sale) }
                     if let d = s.description?.nilIfEmpty {
                         Text(d).font(.wr(.body)).foregroundStyle(Color.ink2).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
                     }

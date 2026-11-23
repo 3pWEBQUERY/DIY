@@ -7,6 +7,7 @@ import { Page, PageHeader } from "@/components/shell/page";
 import { Notice } from "@/components/ui/misc";
 import { ProjectEditor } from "@/components/projects/project-editor";
 import { flatSearchParams } from "@/lib/search-params";
+import { isPro } from "@/server/pro/service";
 
 export const metadata: Metadata = { title: "Neues Projekt", robots: { index: false } };
 
@@ -35,7 +36,7 @@ export default async function NewProjectPage({ searchParams }: { searchParams: P
           Das Originalprojekt ist nicht (mehr) verfügbar. Du kannst trotzdem ein eigenes Projekt anlegen.
         </Notice>
       )}
-      <ProjectEditor mode="create" remixSource={source} defaultCategory={defaultCategory} categories={categories} />
+      <ProjectEditor mode="create" remixSource={source} defaultCategory={defaultCategory} categories={categories} pro={await isPro(user.id)} />
     </Page>
   );
 }

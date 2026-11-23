@@ -31,6 +31,12 @@ struct ProfileView: View {
     @State private var bioExpanded = false
     @State private var unblocked = false
     @State private var unmuted = false
+    @State private var showThemeEditor = false
+    @State private var showCommentFilter = false
+
+    /// Profil-Design (Creator Pro): Akzentfarbe, sonst die Werkuno-Farbe
+    private var accent: Color { page?.theme?.accentColor ?? Color.moss }
+    private var coverLayout: String { page?.theme?.coverLayout ?? "wide" }
 
     var body: some View {
         MePhase(value: page, error: error, retry: load) { p in
@@ -46,6 +52,8 @@ struct ProfileView: View {
         .toolbar { toolbar }
         .task { if page == nil { await load() } }
         .refreshable { await load() }
+        .sheet(isPresented: $showThemeEditor) { ProfileThemeEditorSheet { Task { await load() } } }
+        .sheet(isPresented: $showCommentFilter) { CommentFilterSheet() }
         // Stories geändert (gesehen, neu, Highlight): nur Ring und Highlights neu laden – Beitragsliste bleibt, wo sie ist
         .onReceive(NotificationCenter.default.publisher(for: .storiesChanged)) { _ in
             guard page != nil else { return }
@@ -75,7 +83,7 @@ struct ProfileView: View {
             cursor = p.postsCursor
             error = nil
             if first {
-                tab = !(p.projects ?? []).isEmpty ? .projects : .posts
+                tab = themedTabs(p).first ?? (!(p.projects ?? []).isEmpty ? .projects : .posts)
                 if p.viewer?.isSelf == false, let id = p.profile?.userId { SocialAPI.track("USER", id) }
             }
         } catch {
@@ -104,6 +112,9 @@ struct ProfileView: View {
                         Button("Profil bearbeiten", systemImage: "pencil") { router.open(.settingsSection(.profile)) }
                         Button("Werkuno Studio", systemImage: "chart.bar.xaxis") { router.open(.studio) }
                         Button("Entwürfe & geplante Beiträge", systemImage: "doc.text") { router.open(.postDrafts) }
+                        Divider()
+                        Button("Profil-Design", systemImage: "paintpalette") { showThemeEditor = true }
+                        Button("Kommentar-Wortfilter", systemImage: "text.badge.xmark") { showCommentFilter = true }
                     } else {
                         Button("Nachricht schreiben", systemImage: "bubble.left") { router.present(.newConversation(handle: prof.handle)) }
                         Divider()
@@ -152,12 +163,28 @@ struct ProfileView: View {
                             .padding(.top, 14)
                             .padding(.bottom, 40)
                     } header: { Group {
-                        MeTabSwitcher(items: tabs(p, prof), selection: $tab)
+                        MeTabSwitcher(items: tabs(p, prof), selection: $tab, accent: p.theme == nil ? nil : accent)
                     }.font(.wr(.footnote, .semibold)) }
                 }
             }
         }
         .scrollIndicators(.hidden)
+        .tint(accent)
+    }
+
+    /// Profil-Design: gewählte Bereiche in gewählter Reihenfolge (nur vorhandene)
+    private func themedTabs(_ p: MeProfilePage) -> [MeProfileTab] {
+        guard let sections = p.theme?.sections else { return [] }
+        return sections.compactMap { s -> MeProfileTab? in
+            switch s {
+            case "posts": return .posts
+            case "projects": return .projects
+            case "tutorials": return (p.tutorials ?? []).isEmpty ? nil : .tutorials
+            case "shop": return (p.products ?? []).isEmpty ? nil : .shop
+            case "articles": return (p.articleCount ?? 0) > 0 ? .blog : nil
+            default: return nil
+            }
+        }
     }
 
     private func tabs(_ p: MeProfilePage, _ prof: MeProfilePage.Profile) -> [(value: MeProfileTab, label: String, count: Int?)] {
@@ -169,23 +196,25 @@ struct ProfileView: View {
         if (p.articleCount ?? 0) > 0 { t.append((.blog, "Blog", p.articleCount)) }
         if !(p.collections ?? []).isEmpty { t.append((.collections, "Sammlungen", p.collections?.count)) }
         t.append((.about, "Über mich", nil))
-        return t
+        // Profil-Design: Reihenfolge und Auswahl der Bereiche, der Rest (Bewertungen, Sammlungen, Über mich) dahinter
+        let order = themedTabs(p)
+        guard !order.isEmpty else { return t }
+        let themed: Set<MeProfileTab> = [.posts, .projects, .tutorials, .shop, .blog]
+        let first = order.compactMap { k in t.first { $0.value == k } }
+        return first + t.filter { !themed.contains($0.value) }
     }
 
     // MARK: Kopf
 
     private func hero(_ prof: MeProfilePage.Profile, _ viewer: MeProfilePage.Viewer) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            CoverView(url: prof.coverUrl, seed: prof.userId, category: prof.categories?.first, showLabel: false, kind: .workbench)
-                .frame(height: 170)
-                .frame(maxWidth: .infinity)
-                .clipped()
-                .accessibilityHidden(true)
+            cover(prof)
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .bottom) {
                     profileAvatar(prof)
-                        .offset(y: -44)
-                        .padding(.bottom, -44)
+                        .offset(y: coverLayout == "none" ? 0 : -44)
+                        .padding(.bottom, coverLayout == "none" ? 0 : -44)
+                        .padding(.top, coverLayout == "none" ? 12 : 0)
                     Spacer()
                     actions(prof, viewer).padding(.top, 10)
                 }
@@ -193,7 +222,7 @@ struct ProfileView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(prof.displayName).font(.display(28)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                         if prof.isCreatorPro == true {
-                            Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.moss).accessibilityLabel("Creator Pro")
+                            Image(systemName: "checkmark.seal.fill").foregroundStyle(accent).accessibilityLabel("Creator Pro")
                         }
                     }
                     HStack(spacing: 6) {
@@ -245,6 +274,20 @@ struct ProfileView: View {
         }
     }
 
+    /// Titelbild je nach Profil-Design: breit (Standard), gerahmt oder ohne
+    @ViewBuilder private func cover(_ prof: MeProfilePage.Profile) -> some View {
+        if coverLayout != "none" {
+            let framed = coverLayout == "framed"
+            CoverView(url: prof.coverUrl, seed: prof.userId, category: prof.categories?.first, showLabel: false, kind: .workbench)
+                .frame(height: framed ? 130 : 170)
+                .frame(maxWidth: .infinity)
+                .clipShape(.rect(cornerRadius: framed ? Radius.card : 0, style: .continuous))
+                .padding(.horizontal, framed ? Space.gutter : 0)
+                .padding(.top, framed ? 8 : 0)
+                .accessibilityHidden(true)
+        }
+    }
+
     /// Profilbild – mit Story-Ring, wenn die Person gerade Stories hat (Koralle = neu)
     @ViewBuilder private func profileAvatar(_ prof: MeProfilePage.Profile) -> some View {
         let avatar = AvatarView(url: prof.avatarUrl, name: prof.displayName, size: 88, category: prof.categories?.first)
@@ -252,7 +295,7 @@ struct ProfileView: View {
             Button { router.openStories(handle: prof.handle) } label: {
                 avatar
                     .padding(4)
-                    .overlay(Circle().strokeBorder(ring.unseen ? Color.moss : Color.lineStrong, lineWidth: 2.5))
+                    .overlay(Circle().strokeBorder(ring.unseen ? accent : Color.lineStrong, lineWidth: 2.5))
                     .padding(3)
                     .background(Color.paper, in: Circle())
             }
@@ -319,6 +362,7 @@ struct ProfileView: View {
                     }
                     .buttonStyle(.glass)
                     .accessibilityLabel("Nachricht schreiben")
+                    NewsletterProfileButton(creatorId: prof.userId, creatorName: prof.displayName.components(separatedBy: " ").first ?? prof.displayName, following: viewer.following)
                 }
                 ShareLink(item: MeLinks.profile(prof.handle)) {
                     Image(systemName: "square.and.arrow.up").font(.wr(.subheadline, .semibold)).frame(minWidth: 22, minHeight: 22)

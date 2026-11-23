@@ -24,12 +24,16 @@ struct CommentsSection: View {
     @State private var loadingOlder = false
     @State private var text = ""
     @State private var replyTo: CommentItem?
+    @State private var meta: CommentMeta?
     @FocusState private var focused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title, subtitle: comments.isEmpty ? nil : Fmt.plural(total, "Beitrag", "Beiträge"))
-            if allowComments && app.isSignedIn { composer }
+            if let meta, meta.isOwner, meta.lockable, stepKey == nil { ownerBar(meta) }
+            if meta?.locked == true {
+                if meta?.isOwner != true || stepKey != nil { lockedNotice }
+            } else if allowComments && app.isSignedIn { composer }
             if !loaded {
                 YarnSpinner(size: 22).frame(maxWidth: .infinity).padding()
             } else if comments.isEmpty {
@@ -37,26 +41,34 @@ struct CommentsSection: View {
                     .font(.wr(.subheadline)).foregroundStyle(Color.muted).padding(.vertical, 8)
             } else {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Als Lösung markierte Antworten stehen oben, dann chronologisch – ältere Seiten davor
-                    ForEach(comments.filter { $0.isAnswer == true }) { c in thread(c) }
+                    // Angehefteter Kommentar ganz oben, dann markierte Antworten, dann chronologisch – ältere Seiten davor
+                    ForEach(comments.filter { $0.pinned == true }) { c in thread(c) }
+                    ForEach(comments.filter { $0.isAnswer == true && $0.pinned != true }) { c in thread(c) }
                     if nextCursor != nil { olderButton }
-                    ForEach(comments.filter { $0.isAnswer != true }) { c in thread(c) }
+                    ForEach(comments.filter { $0.isAnswer != true && $0.pinned != true }) { c in thread(c) }
                 }
             }
         }
         .task(id: id) {
             if let initial, !loaded { comments = initial; loaded = true }
-            await load()
+            async let page: Void = load()
+            async let settings: Void = loadMeta()
+            _ = await (page, settings)
         }
         .onChange(of: comments.count) { _, n in if nextCursor == nil { onCount?(n) } }
     }
 
+    private var owner: CommentOwner? {
+        guard let meta, meta.isOwner else { return nil }
+        return CommentOwner(pro: meta.ownerPro, name: meta.ownerName)
+    }
+
     @ViewBuilder
     private func thread(_ c: CommentItem) -> some View {
-        CommentRow(comment: c, type: type, showStep: stepKey == nil, onReply: { replyTo = c; focused = true }, onDeleted: { removed(c.id) })
+        CommentRow(comment: c, type: type, showStep: stepKey == nil, owner: owner, ownerName: meta?.ownerName ?? "", onReply: { replyTo = c; focused = true }, onDeleted: { removed(c.id) }, onChanged: { Task { await load() } })
         if let replies = c.replies, !replies.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                ForEach(replies) { r in CommentRow(comment: r, type: type, isReply: true, onReply: { replyTo = c; focused = true }, onDeleted: { removed(r.id) }) }
+                ForEach(replies) { r in CommentRow(comment: r, type: type, isReply: true, owner: owner, ownerName: meta?.ownerName ?? "", onReply: { replyTo = c; focused = true }, onDeleted: { removed(r.id) }, onChanged: { Task { await load() } }) }
             }
             .padding(.leading, 34)
             .overlay(alignment: .leading) { Rectangle().fill(Color.line).frame(width: 1).padding(.leading, 16) }
@@ -79,6 +91,44 @@ struct CommentsSection: View {
     }
 
     private var total: Int { comments.reduce(0) { $0 + 1 + ($1.replies?.count ?? 0) } }
+
+    private var lockedNotice: some View {
+        Label("Die Kommentare sind geschlossen.", systemImage: "lock")
+            .font(.wr(.subheadline)).foregroundStyle(Color.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color.sunken, in: .rect(cornerRadius: 14, style: .continuous))
+    }
+
+    /// Inhaber:in: Kommentare schliessen/öffnen (Creator Pro); ohne Pro ein dezenter Hinweis
+    private func ownerBar(_ m: CommentMeta) -> some View {
+        HStack(spacing: 10) {
+            if m.locked { Image(systemName: "lock").foregroundStyle(Color.muted) }
+            Text(m.locked ? "Kommentare sind geschlossen." : "Du kannst Kommentare anheften und schliessen.")
+                .font(.wr(.caption)).foregroundStyle(Color.muted)
+            Spacer(minLength: 0)
+            if m.locked || m.ownerPro {
+                AsyncButton { await setLocked(!m.locked) } label: {
+                    Text(m.locked ? "Öffnen" : "Schliessen").font(.wr(.caption, .semibold))
+                }
+                .buttonStyle(.plain).foregroundStyle(Color.moss)
+            } else {
+                Button("Mit Creator Pro") { router.open(.creatorPro) }
+                    .font(.wr(.caption, .semibold)).foregroundStyle(Color.ink2).buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func loadMeta() async {
+        meta = try? await APIClient.shared.get("/comments/meta", query: ["type": type, "id": id])
+    }
+
+    private func setLocked(_ locked: Bool) async {
+        let ok = await app.run(locked ? "Kommentare geschlossen." : "Kommentare wieder offen.") {
+            _ = try await APIClient.shared.post("/comments/lock", ["type": JSONValue.string(type), "id": .string(id), "locked": .bool(locked)]) as JSONValue
+        }
+        if ok { meta?.locked = locked }
+    }
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -190,14 +240,23 @@ struct CommentsSection: View {
     }
 }
 
+/// Inhaber:in des kommentierten Inhalts (darf anheften, einblenden, entfernen)
+struct CommentOwner: Hashable, Sendable {
+    var pro: Bool
+    var name: String
+}
+
 struct CommentRow: View {
     var comment: CommentItem
     var type: String
     var isReply = false
     /// Hinweis „Schritt n“ zeigen (nicht innerhalb der Fragen eines Schritts)
     var showStep = true
+    var owner: CommentOwner? = nil
+    var ownerName: String = ""
     var onReply: () -> Void
     var onDeleted: () -> Void
+    var onChanged: () -> Void = {}
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
     @Environment(\.contentLinksEnabled) private var linksEnabled
@@ -208,6 +267,7 @@ struct CommentRow: View {
                 AvatarView(url: comment.author.avatarUrl, name: comment.author.displayName, size: isReply ? 26 : 32)
             }.buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 4) {
+                markers
                 HStack(spacing: 6) {
                     Text(comment.author.displayName).font(.wr(.footnote, .semibold)).foregroundStyle(Color.ink)
                     Text(Fmt.relative(comment.createdAt)).font(.wr(.caption)).foregroundStyle(Color.muted)
@@ -222,7 +282,8 @@ struct CommentRow: View {
                     if app.isSignedIn { Button("Antworten", action: onReply).font(.wr(.caption, .semibold)).foregroundStyle(Color.muted).buttonStyle(.plain) }
                     Spacer()
                     Menu {
-                        if comment.author.id == app.me?.id || app.me?.isModerator == true {
+                        ownerActions
+                        if comment.author.id == app.me?.id || app.me?.isModerator == true || owner != nil {
                             Button("Löschen", systemImage: "trash", role: .destructive) {
                                 Task { if await app.run("Kommentar entfernt.", { _ = try await APIClient.shared.delete("/comments/\(comment.id)") as JSONValue }) { onDeleted() } }
                             }
@@ -243,6 +304,43 @@ struct CommentRow: View {
                     .accessibilityLabel("Optionen des Kommentars")
                 }
             }
+        }
+    }
+}
+
+// MARK: - Creator Pro: Anheften, Wortfilter
+
+extension CommentRow {
+    @ViewBuilder
+    var markers: some View {
+        if comment.pinned == true, !isReply {
+            Label(ownerName.isEmpty ? "Angeheftet" : "Angeheftet von \(ownerName)", systemImage: "pin.fill")
+                .font(.wr(.caption2, .semibold)).foregroundStyle(Color.moss)
+        }
+        if comment.filtered == true {
+            Label("Ausgeblendet durch deinen Wortfilter", systemImage: "eye.slash")
+                .font(.wr(.caption2, .semibold)).foregroundStyle(Color.muted)
+        }
+    }
+
+    @ViewBuilder
+    var ownerActions: some View {
+        if let owner {
+            if comment.filtered == true {
+                Button("Einblenden", systemImage: "eye") {
+                    Task { if await app.run("Kommentar eingeblendet.", { _ = try await APIClient.shared.post("/comments/\(comment.id)/unfilter") as JSONValue }) { onChanged() } }
+                }
+            } else if !isReply, ["POST", "PROJECT", "TUTORIAL", "ARTICLE"].contains(type) {
+                if comment.pinned == true || owner.pro {
+                    Button(comment.pinned == true ? "Lösen" : "Anheften", systemImage: comment.pinned == true ? "pin.slash" : "pin") {
+                        let pin = comment.pinned != true
+                        Task { if await app.run(pin ? "Kommentar angeheftet." : "Kommentar gelöst.", { _ = try await APIClient.shared.post("/comments/\(comment.id)/pin", ["pinned": JSONValue.bool(pin)]) as JSONValue }) { onChanged() } }
+                    }
+                } else {
+                    Button("Anheften (Creator Pro)", systemImage: "pin") { router.open(.creatorPro) }
+                }
+            }
+            Divider()
         }
     }
 }

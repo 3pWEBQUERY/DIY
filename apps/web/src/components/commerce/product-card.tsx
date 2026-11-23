@@ -3,6 +3,7 @@ import { Star } from "lucide-react";
 import { PRODUCT_KIND_LABEL, formatMoney, type Currency, type ProductKind } from "@werkraum/shared";
 import { Cover, type Variants } from "@/components/ui/media";
 import { cn } from "@/lib/utils";
+import { SaleCountdown } from "./sale-countdown";
 
 /** Minimale Kartendaten – kompatibel mit `ProductCardData` aus `server/commerce/products`. */
 export type ProductCardProps = {
@@ -18,6 +19,8 @@ export type ProductCardProps = {
   ratingAvg?: number;
   ratingCount?: number;
   href: string;
+  /** Laufende Shop-Aktion: `priceMinor` ist der Aktionspreis */
+  sale?: { percent: number; endsAt: string; regularMinor: number } | null;
 };
 
 export function Price({ minor, currency = "CHF", className }: { minor: number; currency?: Currency | string; className?: string }) {
@@ -39,7 +42,8 @@ export function RatingInline({ avg, count, className }: { avg: number; count: nu
 /**
  * Produktkarte: Das Foto ist die Karte (quadratisch und vollständig sichtbar – wie auf der Produktseite
  * nichts abgeschnitten; ruhiger Zoom beim Hover). Darunter eine klare
- * Typo-Hierarchie – Shop, Titel, Preis. Angebotsart dezent auf dem Bild, keine Rabatt-Badges.
+ * Typo-Hierarchie – Shop, Titel, Preis. Angebotsart dezent auf dem Bild; nur echte, zeitlich begrenzte
+ * Shop-Aktionen zeigen Rabatt und Restzeit (kein Dauer-„Sale“).
  */
 export function ProductCard({ product, priority, sizes, className, showShop = true }: { product: ProductCardProps; priority?: boolean; sizes?: string; className?: string; showShop?: boolean }) {
   const p = product;
@@ -61,6 +65,7 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
         />
         <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-paper/90 px-2 py-1 text-[11px] font-semibold leading-none text-ink-2 backdrop-blur-sm">{PRODUCT_KIND_LABEL[p.kind]}</span>
         {soldOut && <span className="absolute right-2.5 top-2.5 rounded-lg bg-ink/85 px-2 py-1 text-[11px] font-semibold leading-none text-paper">Vergriffen</span>}
+        {p.sale && !soldOut && <span className="num absolute right-2.5 top-2.5 rounded-lg bg-clay px-2 py-1 text-[11px] font-bold leading-none text-paper">−{p.sale.percent} %</span>}
       </div>
       <div className="flex flex-1 flex-col px-0.5 pt-3">
         {showShop && <p className="truncate text-[12.5px] text-muted">{p.shop.name}</p>}
@@ -70,9 +75,18 @@ export function ProductCard({ product, priority, sizes, className, showShop = tr
           </Link>
         </h3>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1.5">
-          <Price minor={p.priceMinor} currency={p.currency} className={cn("text-[15px] font-bold", soldOut ? "text-muted line-through decoration-1" : "text-ink")} />
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <Price minor={p.priceMinor} currency={p.currency} className={cn("text-[15px] font-bold", soldOut ? "text-muted line-through decoration-1" : p.sale ? "text-clay-ink" : "text-ink")} />
+            {p.sale && !soldOut && (
+              <>
+                <span className="sr-only">statt</span>
+                <Price minor={p.sale.regularMinor} currency={p.currency} className="text-[12.5px] text-muted line-through decoration-1" />
+              </>
+            )}
+          </span>
           {rated && <RatingInline avg={p.ratingAvg ?? 0} count={p.ratingCount ?? 0} />}
         </div>
+        {p.sale && !soldOut && <SaleCountdown endsAt={p.sale.endsAt} refreshOnEnd={false} className="mt-1 text-[11.5px] text-clay-ink" prefix="Aktion · noch " />}
       </div>
     </article>
   );

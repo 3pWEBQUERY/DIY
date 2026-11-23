@@ -21,7 +21,8 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, localize } from "@/server/commerce/currency";
-import { currencyForCountry } from "@werkraum/shared";
+import { currencyForCountry, isValidSchedule } from "@werkraum/shared";
+import { requireProScheduling } from "@/server/pro/scheduling";
 
 /**
  * Anleitungen (PRD §11).
@@ -118,6 +119,14 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
   if (existing && existing.authorId !== user.id) throw fail.forbidden();
   if (existing?.state === "HIDDEN" && opts.publish) throw fail.forbidden("Diese Anleitung wurde von der Moderation ausgeblendet.");
 
+  // Creator Pro: Erstveröffentlichung planen statt sofort (bleibt bis dahin Entwurf, der Worker veröffentlicht)
+  const publishAt = opts.publish ? (data.publishAt ?? null) : null;
+  if (publishAt) {
+    if (existing?.currentVersionId) throw fail.invalid("Diese Anleitung ist bereits veröffentlicht – neue Versionen erscheinen sofort.", { publishAt: "Nur für die Erstveröffentlichung" });
+    await requireProScheduling(user.id);
+  }
+  const publishNow = opts.publish && !publishAt;
+
   if (data.projectId) {
     const pr = await db.project.findUnique({ where: { id: data.projectId }, select: { ownerId: true } });
     if (!pr || pr.ownerId !== user.id) throw fail.forbidden("Du kannst nur eigene Projekte verknüpfen.");
@@ -193,7 +202,13 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
     await tx.tutorialStep.deleteMany({ where: { versionId: draft.id } });
     await tx.tutorialStep.createMany({ data: stepRows(draft.id) });
 
-    if (!opts.publish) return { id: t.id, slug: t.slug, version: null as number | null, duplicate: false };
+    if (publishAt) {
+      // „Im Feed teilen“ bis zur Veröffentlichung merken: Die Arbeitskopie (Version 0) hat kein eigenes
+      // „wesentlich“-Merkmal – das Feld trägt hier den Wunsch, die Erstveröffentlichung zu teilen
+      await tx.tutorialVersion.update({ where: { id: draft.id }, data: { isMajor: data.shareToFeed } });
+      await tx.tutorial.update({ where: { id: t.id }, data: { scheduledAt: publishAt } });
+    }
+    if (!publishNow) return { id: t.id, slug: t.slug, version: null as number | null, duplicate: false };
 
     // Gleichzeitige/doppelte Veröffentlichungen derselben Anleitung nacheinander abarbeiten
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tutorial-publish:${t.id}`}))`;
@@ -220,6 +235,7 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
       data: {
         currentVersionId: v.id,
         state: "PUBLISHED",
+        scheduledAt: null,
         publishedAt: existing?.publishedAt ?? new Date(),
         safetyKinds,
         qualityScore: 0.4 + (coverUrl ? 0.15 : 0) + Math.min(0.25, steps.length / 40) + (safetyKinds.length ? 0.05 : 0) + (stepMediaIds.length ? 0.15 : 0),
@@ -250,7 +266,90 @@ export async function saveTutorial(user: SessionUser, tutorialId: string | null,
   }
   const { duplicate: _duplicate, ...out } = result;
   await indexHashtags("TUTORIAL", out.id);
-  return { ...out, href };
+  return { ...out, href, scheduledAt: publishAt?.toISOString() ?? null };
+}
+
+/** Termin einer geplanten Erstveröffentlichung ändern (Datum) oder aufheben (null → bleibt Entwurf). */
+export async function scheduleTutorial(user: SessionUser, tutorialId: string, at: Date | null) {
+  const t = await db.tutorial.findUnique({ where: { id: tutorialId }, select: { authorId: true, state: true, currentVersionId: true } });
+  if (!t || t.state === "REMOVED") throw fail.notFound();
+  if (t.authorId !== user.id) throw fail.forbidden();
+  if (t.currentVersionId) throw fail.conflict("Diese Anleitung ist bereits veröffentlicht.");
+  if (at) {
+    await requireProScheduling(user.id);
+    if (!isValidSchedule(at)) throw fail.invalid("Wähle einen Zeitpunkt zwischen 5 Minuten und einem Jahr ab jetzt.", { publishAt: "Ungültiger Zeitpunkt" });
+  }
+  await db.tutorial.update({ where: { id: tutorialId }, data: { scheduledAt: at } });
+  return { id: tutorialId, scheduledAt: at?.toISOString() ?? null };
+}
+
+/**
+ * Geplante Anleitung jetzt veröffentlichen – über `saveTutorial` mit dem Stand der Arbeitskopie, also
+ * derselbe Weg wie beim Klick auf „Veröffentlichen“ (Prüfung, Version 1, Ereignis, Feed, Hashtags).
+ */
+export async function publishTutorialDraft(actor: SessionUser, tutorialId: string) {
+  const edit = await getTutorialForEdit(actor, tutorialId);
+  if (!edit || edit.currentVersion) return null;
+  const draftRow = await db.tutorialVersion.findUnique({ where: { tutorialId_version: { tutorialId, version: DRAFT_VERSION } }, select: { isMajor: true, changeNote: true } });
+  const v = edit.values;
+  const input = {
+    title: v.title,
+    summary: v.summary,
+    category: v.category,
+    difficulty: v.difficulty,
+    minutes: v.minutes ?? undefined,
+    projectId: v.projectId ?? undefined,
+    coverMediaId: v.cover?.id ?? undefined,
+    language: v.language,
+    supportersOnly: v.supportersOnly,
+    materials: v.materials,
+    tools: v.tools,
+    steps: v.steps.map((st) => ({ ...st, minutes: st.minutes ?? undefined, media: st.media.map((m) => ({ id: m.id, alt: m.alt })) })),
+    changeNote: draftRow?.changeNote || undefined,
+    isMajor: false,
+    shareToFeed: !!draftRow?.isMajor,
+  };
+  return saveTutorial(actor, tutorialId, input, { publish: true });
+}
+
+/** Worker (minütlich): fällige geplante Anleitungen veröffentlichen und die Autor:in informieren. */
+export async function publishScheduledTutorials(now = new Date()) {
+  const due = await db.tutorial.findMany({
+    // Gesperrte/gebannte Konten veröffentlichen nichts – nach Ablauf der Sperre geht die Anleitung online
+    where: { state: "DRAFT", currentVersionId: null, scheduledAt: { lte: now }, author: { status: "ACTIVE" } },
+    orderBy: { scheduledAt: "asc" },
+    take: 20,
+    select: { id: true, authorId: true, title: true, scheduledAt: true },
+  });
+  const { loadActor } = await import("@/server/blog/service");
+  const { notify } = await import("@/server/notifications");
+  let n = 0;
+  for (const d of due) {
+    // Beanspruchen: ein zweiter Worker-Lauf veröffentlicht nicht doppelt
+    const claimed = await db.tutorial.updateMany({ where: { id: d.id, scheduledAt: d.scheduledAt, currentVersionId: null }, data: { scheduledAt: null } });
+    if (!claimed.count) continue;
+    const actor = await loadActor(d.authorId);
+    try {
+      if (!actor) throw new Error("Autor:in nicht aktiv");
+      const r = await publishTutorialDraft(actor, d.id);
+      if (!r?.version) continue;
+      n++;
+      await notify({
+        recipientId: d.authorId,
+        type: "PROJECT_ACTIVITY",
+        targetType: "TUTORIAL",
+        targetId: d.id,
+        bundle: false,
+        data: { kind: "SCHEDULED_PUBLISHED", message: `Deine geplante Anleitung „${d.title}“ ist jetzt online.`, href: r.href },
+      }).catch(() => {});
+    } catch (e) {
+      // Später erneut versuchen (z. B. Ratenbegrenzung); ungültige Inhalte meldet die Autor:in im Editor
+      await db.tutorial.updateMany({ where: { id: d.id, currentVersionId: null, scheduledAt: null }, data: { scheduledAt: new Date(now.getTime() + 15 * 60_000) } });
+      const { captureError } = await import("@/server/monitoring");
+      await captureError(e, { source: "WORKER", path: "tutorial.scheduled", meta: { tutorialId: d.id } }).catch(() => {});
+    }
+  }
+  return n;
 }
 
 /** Leser:innen über eine wesentliche neue Version informieren (Worker, aus dem Ereignis TutorialPublished). */
@@ -718,6 +817,8 @@ export async function getTutorialForEdit(user: SessionUser, tutorialId: string) 
     slug: t.slug,
     state: t.state,
     currentVersion: lastPublished?.version ?? null,
+    /** Geplante Erstveröffentlichung (Creator Pro) */
+    scheduledAt: t.scheduledAt?.toISOString() ?? null,
     values: {
       title: t.title,
       summary: t.summary,

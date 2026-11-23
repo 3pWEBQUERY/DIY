@@ -70,6 +70,9 @@ export default async function CartPage() {
                   action={<span className="spec">Versand ab {COUNTRY_LABEL[g.shop.country as ShipCountry] ?? g.shop.country}</span>}
                 />
                 <CartLines lines={g.lines} currency={cart.currency} />
+                {g.lines.some((l) => l.onSale) && (g.coupon || g.lines.some((l) => !l.onSale)) && (
+                  <p className="mt-3 text-[13px] text-muted">Artikel in einer Aktion sind von Gutscheinen und Set-Rabatten ausgenommen.</p>
+                )}
                 {g.incompleteBundles.length > 0 && (
                   <p role="status" className="mt-3 text-[13px] text-warn">
                     {g.incompleteBundles.map((b) => `Set „${b.title}“`).join(", ")}: Der Set-Rabatt gilt nur, solange alle Teile in der Set-Menge im Warenkorb liegen.

@@ -38,10 +38,11 @@ import { purgeDeletedAccount } from "@/server/account/deletion";
 import { syncProSubscriptions } from "@/server/pro/service";
 import { runCompetitionPhases } from "@/server/communities/competitions";
 import { auditCheckpointJob } from "@/server/audit";
-import { notifyTutorialReaders } from "@/server/tutorials/service";
-import { notifyProjectFollowers } from "@/server/projects/service";
+import { notifyTutorialReaders, publishScheduledTutorials } from "@/server/tutorials/service";
+import { notifyProjectFollowers, publishScheduledProjects } from "@/server/projects/service";
 import { reconcileHashtags } from "@/server/hashtags/sync";
 import { FX_SETTING_KEY, refreshFxRate } from "@/server/commerce/currency";
+import { processDueNewsletters } from "@/server/pro/newsletter";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -81,6 +82,7 @@ const Q = {
   payouts: "payouts.run",
   hashtags: "hashtags.index",
   fx: "fx.refresh",
+  newsletters: "newsletter.send",
 } as const;
 
 /** Fan-out an Leser:innen einer Anleitung bzw. Follower:innen eines Projekts (aus der Outbox). */
@@ -427,10 +429,15 @@ async function main() {
     // Zuerst abgelaufene Sperren aufheben – sonst blieben geplante Beiträge dieser Konten liegen
     await liftExpiredSuspensions();
     await publishScheduledPosts();
+    // Creator Pro: geplante Projekte und Anleitungen
+    await publishScheduledProjects();
+    await publishScheduledTutorials();
   }));
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
   await boss.work(Q.hashtags, guarded(Q.hashtags, async () => void (await reconcileHashtags())));
   await boss.work(Q.fx, guarded(Q.fx, async () => void (await refreshFxRate())));
+  // Creator-Newsletter: fällige übernehmen und in Teilen verschicken (setzt nach Abbrüchen fort)
+  await boss.work(Q.newsletters, guarded(Q.newsletters, async () => void (await processDueNewsletters())));
   // Beim Start sofort einen Kurs laden, falls noch keiner gespeichert ist
   if (!(await db.systemSetting.findUnique({ where: { key: FX_SETTING_KEY }, select: { key: true } }))) await boss.send(Q.fx, {}).catch(() => {});
   // Audit-Kette prüfen und Prüfpunkt schreiben (DB + Log-Zeile „audit_checkpoint“ ausserhalb der DB)
@@ -477,6 +484,7 @@ async function main() {
   await boss.schedule(Q.hashtags, "*/5 * * * *");
   // EZB-Referenzkurs EUR→CHF (Veröffentlichung um ca. 16 Uhr; mehrmals täglich, falls ein Abruf scheitert)
   await boss.schedule(Q.fx, "20 6,12,17,22 * * *", null, { tz: "Europe/Zurich" });
+  await boss.schedule(Q.newsletters, "* * * * *");
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => void dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);

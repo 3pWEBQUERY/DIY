@@ -86,6 +86,8 @@ export default async function ProductPage({ params }: Params) {
       "@type": "Offer",
       price: (seo.priceMinor / 100).toFixed(2),
       priceCurrency: seo.currency,
+      // Aktionspreis gilt bis zum Ende der Shop-Aktion
+      ...(p.sale?.appliesToBuyer ? { priceValidUntil: p.sale.endsAt.slice(0, 10) } : {}),
       availability: p.purchasable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
       seller: { "@type": "Organization", name: p.shop.name },
@@ -157,7 +159,13 @@ export default async function ProductPage({ params }: Params) {
               signedIn={!!user}
               entitlementId={p.viewer.entitlementId}
               paymentsLive={mode !== "disabled"}
+              sale={p.sale?.appliesToBuyer ? p.sale : null}
             />
+            {p.sale && p.isOwner && (
+              <p className="mt-2 text-[12.5px] text-muted">
+                Deine Aktion „{p.sale.title}“ läuft: Käufer:innen sehen −{p.sale.percent} %. <Link href="/studio/aktionen" className="underline underline-offset-2">Aktionen verwalten</Link>
+              </p>
+            )}
             {p.priceOriginal && (
               <p className="mt-2 text-[12.5px] text-muted">
                 Shop-Preis {formatMoney(p.priceOriginal.priceMinor, p.priceOriginal.currency)} · umgerechnet zum EZB-Kurs{p.priceOriginal.fxDate ? ` vom ${new Date(`${p.priceOriginal.fxDate}T12:00:00Z`).toLocaleDateString("de-CH", { day: "numeric", month: "long", timeZone: "Europe/Zurich" })}` : ""}. Du bezahlst in {currency === "EUR" ? "Euro" : "Franken"}.

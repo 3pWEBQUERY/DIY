@@ -638,6 +638,7 @@ private struct MeNotificationSettingsView: View {
     @State private var order: [String] = []
     @State private var digest = "DAILY"
     @State private var weekly = true
+    @State private var newsletters = true
     @State private var loaded = false
     @State private var error: String?
     @State private var revision = 0
@@ -724,6 +725,13 @@ private struct MeNotificationSettingsView: View {
                      ? "Du hast E-Mails ausgeschaltet – solange bekommst du auch keinen Rückblick."
                      : "Jeden Sonntag das Neueste aus deinen Kategorien, von Leuten, denen du folgst, und Neuigkeiten zu Gemerktem. Ohne neue Inhalte kommt keine Mail.")
             }.font(.wr(.footnote)) }
+
+            Section {
+                Toggle("Newsletter von Creator:innen", isOn: Binding(get: { newsletters }, set: { newsletters = $0; Haptics.selection(); revision += 1 }))
+                    .tint(.moss)
+            } header: { Group { Text("Newsletter") }.font(.wr(.footnote, .semibold)) } footer: { Group {
+                Text("Creator:innen mit Creator Pro können den Menschen, die ihnen folgen, einen Newsletter schicken. Einzelne bestellst du auf dem jeweiligen Profil ab.")
+            }.font(.wr(.footnote)) }
         }
         .meFormStyle()
     }
@@ -752,6 +760,7 @@ private struct MeNotificationSettingsView: View {
             order = known.filter { p[$0] != nil } + s.matrix.map(\.type).filter { !known.contains($0) }
             digest = s.emailDigest
             weekly = s.weeklyDigest ?? true
+            newsletters = s.creatorNewsletters ?? true
             loaded = true
             error = nil
         } catch { self.error = MeErr.text(error) }
@@ -762,7 +771,7 @@ private struct MeNotificationSettingsView: View {
         defer { saving = false }
         var obj: [String: JSONValue] = [:]
         for (k, v) in prefs { obj[k] = ["inApp": .bool(locked.contains(k) ? true : v.inApp), "email": .bool(v.email)] }
-        do { _ = try await APIClient.shared.put("/settings/notifications", ["prefs": JSONValue.object(obj), "emailDigest": .string(digest), "weeklyDigest": .bool(weekly)]) as JSONValue }
+        do { _ = try await APIClient.shared.put("/settings/notifications", ["prefs": JSONValue.object(obj), "emailDigest": .string(digest), "weeklyDigest": .bool(weekly), "creatorNewsletters": .bool(newsletters)]) as JSONValue }
         catch { app.show(error: error); await load() }
     }
 

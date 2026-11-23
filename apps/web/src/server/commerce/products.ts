@@ -18,6 +18,7 @@ import { requireFlag } from "@/server/flags";
 import { publicProductWhere, publicProductSql, isPublicProduct, restockSummary, notifyBackInStock, pendingRestockCounts } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, isConverted, localize, type PriceContext } from "./currency";
+import { runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sales";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -34,6 +35,7 @@ export const productCardSelect = {
   ratingAvg: true,
   ratingCount: true,
   publishedAt: true,
+  shopId: true,
   shop: { select: { slug: true, name: true } },
   media: { orderBy: { position: "asc" }, take: 1, select: { alt: true, media: { select: { variants: true } } } },
 } satisfies Prisma.ProductSelect;
@@ -57,20 +59,26 @@ export type ProductCardData = {
   href: string;
   /** Preis im Shop, wenn für die Betrachter:in umgerechnet wurde */
   original?: { priceMinor: number; currency: "CHF" | "EUR" } | null;
+  /** Laufende Shop-Aktion: `priceMinor` ist bereits der Aktionspreis, `regularMinor` der reguläre (Betrachter-Währung) */
+  sale?: { id: string; title: string; percent: number; endsAt: string; regularMinor: number; shopRegularMinor: number } | null;
 };
 
 /** Produktkarte; mit `ctx` im Preis der Betrachter:in (Käuferansicht), ohne im Shop-Preis (Studio). */
-export function toProductCard(p: ProductCardRow, ctx?: PriceContext): ProductCardData {
+export function toProductCard(p: ProductCardRow, ctx?: PriceContext, sale?: ActiveSale | null): ProductCardData {
   const m = p.media[0];
   const shopCurrency = (p.currency === "EUR" ? "EUR" : "CHF") as "CHF" | "EUR";
   const converted = !!ctx && isConverted(ctx, shopCurrency);
+  // Aktionen nur in der Käuferansicht (mit ctx); der Shop sieht im Studio seine regulären Preise
+  const s = ctx ? sale ?? null : null;
+  const shopPrice = saleUnit(p.priceMinor, s);
   return {
     id: p.id,
     slug: p.slug,
     title: p.title,
-    priceMinor: ctx ? localize(ctx, p.priceMinor, shopCurrency) : p.priceMinor,
+    priceMinor: ctx ? localize(ctx, shopPrice, shopCurrency) : p.priceMinor,
     currency: ctx ? ctx.currency : shopCurrency,
-    original: converted ? { priceMinor: p.priceMinor, currency: shopCurrency } : null,
+    original: converted ? { priceMinor: shopPrice, currency: shopCurrency } : null,
+    sale: s && ctx ? { id: s.id, title: s.title, percent: s.percent, endsAt: s.endsAt.toISOString(), regularMinor: localize(ctx, p.priceMinor, shopCurrency), shopRegularMinor: p.priceMinor } : null,
     kind: p.kind,
     category: p.category,
     status: p.status,
@@ -219,8 +227,8 @@ export async function listProducts(
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const page = rows.slice(0, take);
-  const ctx = await getPriceContext();
-  return { items: page.map((p) => toProductCard(p, ctx)), nextCursor: rows.length > take ? page[page.length - 1]!.id : null };
+  const [ctx, sales] = await Promise.all([getPriceContext(), runningSalesByShop(page.map((p) => p.shopId))]);
+  return { items: page.map((p) => toProductCard(p, ctx, saleFor(sales, p.shopId, p.id))), nextCursor: rows.length > take ? page[page.length - 1]!.id : null };
 }
 
 /* ───────────────────────── Studio: Lesen ───────────────────────── */
@@ -578,18 +586,36 @@ export async function getProductPage(shopSlug: string, productSlug: string, view
   // Käufer:innen sehen Preise in ihrer Währung (Varianten: umgerechneter Gesamtpreis minus Grundpreis,
   // damit Produktseite und Warenkorb dieselben Beträge zeigen); der Shop sieht seine eigenen Preise
   const ctx = isOwner ? null : await getPriceContext();
-  const price = (minor: number) => (ctx ? localize(ctx, minor, p.currency) : minor);
+  // Laufende Shop-Aktion (auch der Shop sieht sie als Hinweis, rechnet aber mit seinen Preisen)
+  const sale = saleFor(await runningSalesByShop([p.shopId]), p.shopId, p.id);
+  const buyerSale = ctx ? sale : null;
+  const regular = (minor: number) => (ctx ? localize(ctx, minor, p.currency) : minor);
+  const price = (minor: number) => regular(saleUnit(minor, buyerSale));
   const basePrice = price(p.priceMinor);
   const localDelta = (delta: number) => (ctx ? price(p.priceMinor + delta) - basePrice : delta);
+  const regularBase = regular(p.priceMinor);
 
   return {
     ...p,
     priceMinor: basePrice,
     currency: ctx ? ctx.currency : p.currency,
-    shippingMinor: price(p.shippingMinor),
+    shippingMinor: regular(p.shippingMinor),
     variants: p.variants.map((v) => ({ ...v, priceDeltaMinor: localDelta(v.priceDeltaMinor) })),
     /** Preis im Shop, wenn umgerechnet wurde (Hinweis „umgerechnet von …“) */
-    priceOriginal: ctx && isConverted(ctx, p.currency) ? { priceMinor: p.priceMinor, currency: p.currency, fxDate: ctx.fxDate } : null,
+    priceOriginal: ctx && isConverted(ctx, p.currency) ? { priceMinor: saleUnit(p.priceMinor, buyerSale), currency: p.currency, fxDate: ctx.fxDate } : null,
+    /** Laufende Aktion: regulärer Preis (Grundpreis und je Variante) zum Durchstreichen, Ende für den Countdown */
+    sale: sale
+      ? {
+          id: sale.id,
+          title: sale.title,
+          percent: sale.percent,
+          endsAt: sale.endsAt.toISOString(),
+          regularMinor: regularBase,
+          shopRegularMinor: p.priceMinor,
+          regularDeltas: Object.fromEntries(p.variants.map((v) => [v.id, regular(p.priceMinor + v.priceDeltaMinor) - regularBase])),
+          appliesToBuyer: !!buyerSale,
+        }
+      : null,
     shippingOriginalMinor: p.shippingMinor,
     project,
     tutorial,
@@ -626,6 +652,6 @@ export async function moreFromShop(shopId: string, exceptId: string, take = 4) {
     take,
     select: productCardSelect,
   });
-  const ctx = await getPriceContext();
-  return rows.map((p) => toProductCard(p, ctx));
+  const [ctx, sales] = await Promise.all([getPriceContext(), runningSalesByShop([shopId])]);
+  return rows.map((p) => toProductCard(p, ctx, saleFor(sales, p.shopId, p.id)));
 }

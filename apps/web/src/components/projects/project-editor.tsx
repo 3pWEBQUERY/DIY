@@ -29,6 +29,7 @@ import { StatusMark } from "./status";
 import { TagInput } from "@/components/ui/tag-input";
 import { callAction } from "@/lib/use-action";
 import { useHashtagAssist } from "@/components/hashtags/hashtag-assist";
+import { PublishSchedule, fromLocalInput, toLocalInput } from "@/components/pro/publish-schedule";
 
 type Values = ProjectEditData["values"];
 
@@ -70,8 +71,16 @@ export function ProjectEditor({
   remixOf,
   defaultCategory,
   categories = CATEGORIES,
+  pro = false,
+  unpublished = false,
+  scheduledAt = null,
 }: {
   mode: "create" | "edit";
+  /** Creator Pro: „Später veröffentlichen“ */
+  pro?: boolean;
+  /** Bearbeiten eines noch nie veröffentlichten (geplanten) Projekts */
+  unpublished?: boolean;
+  scheduledAt?: string | null;
   projectId?: string;
   initial?: Values;
   remixSource?: RemixSource | null;
@@ -103,6 +112,9 @@ export function ProjectEditor({
   const [tools, setTools] = useState<Line[]>(toLines(initial?.tools));
   const [remixNote, setRemixNote] = useState(initial?.remixNote ?? "");
   const [copied, setCopied] = useState(false);
+  const canSchedule = mode === "create" || unpublished;
+  const [later, setLater] = useState(!!scheduledAt);
+  const [publishAt, setPublishAt] = useState(toLocalInput(scheduledAt));
 
   const readyImages = media.filter((m) => m.state === "ready" && m.kind === "IMAGE");
   const effectiveCover = readyImages.find((m) => m.id === coverId)?.id ?? readyImages[0]?.id ?? null;
@@ -143,11 +155,18 @@ export function ProjectEditor({
       tools: tools.filter((m) => m.name.trim()).map((m) => ({ name: m.name, quantity: m.quantity, note: m.note })),
       remixOfId: remixSource?.id,
       remixNote: isRemix ? remixNote : undefined,
+      // Geplant: Zeitpunkt; im Entwurf ohne Termin (Haken entfernt) sofort veröffentlichen
+      ...(canSchedule ? { publishAt: pro && later ? (fromLocalInput(publishAt) ?? "") : mode === "edit" ? null : undefined } : {}),
     };
+    if (canSchedule && pro && later && !publishAt) {
+      setFields({ publishAt: "Bitte wähle Datum und Uhrzeit" });
+      return;
+    }
     start(async () => {
       const r = mode === "edit" && projectId ? await callAction(() => updateProjectAction(projectId, payload)) : await callAction(() => createProjectAction(payload));
       if (r.ok) {
-        toast(mode === "edit" ? "Änderungen gespeichert." : isRemix ? "Nachbau angelegt – viel Freude beim Bauen!" : "Projekt angelegt.");
+        const planned = "scheduledAt" in r.data && r.data.scheduledAt;
+        toast(planned ? `Geplant für ${new Date(r.data.scheduledAt as string).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}.` : mode === "edit" ? "Änderungen gespeichert." : isRemix ? "Nachbau angelegt – viel Freude beim Bauen!" : "Projekt angelegt.");
         router.push(r.data.href);
         router.refresh();
       } else {
@@ -319,6 +338,10 @@ export function ProjectEditor({
         </section>
       )}
 
+      {canSchedule && (
+        <PublishSchedule pro={pro} enabled={later} onEnabled={setLater} value={publishAt} onChange={setPublishAt} error={fields.publishAt} noun="das Projekt" />
+      )}
+
       <div className="sticky bottom-[4.75rem] z-20 flex items-center justify-between gap-3 rounded-2xl border border-line bg-card/95 px-4 py-3 backdrop-blur md:bottom-4">
         <span className="hidden text-[13px] text-muted sm:block">
           {mode === "edit" ? "Änderungen sind nach dem Speichern sofort sichtbar." : "Du kannst alles später ergänzen – auch Journal und Anleitung."}
@@ -328,7 +351,7 @@ export function ProjectEditor({
             Abbrechen
           </Button>
           <Button type="submit" disabled={pending || uploading}>
-            {uploading ? "Lädt hoch …" : pending ? "Speichert …" : mode === "edit" ? "Speichern" : isRemix ? "Nachbau anlegen" : "Projekt anlegen"}
+            {uploading ? "Lädt hoch …" : pending ? "Speichert …" : canSchedule && pro && later ? "Planen" : mode === "edit" ? (unpublished ? "Jetzt veröffentlichen" : "Speichern") : isRemix ? "Nachbau anlegen" : "Projekt anlegen"}
           </Button>
         </div>
       </div>

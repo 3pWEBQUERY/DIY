@@ -34,6 +34,7 @@ export const SETTING_META: Record<SettingKey, { label: string; help: string; gro
   "supporters.feeBps": { label: "Unterstützer-Abo – Anteil Werkuno", help: "Anteil am Monatsbetrag, den Werkuno behält (1500 = 15 %). Deckt Zahlungs- bzw. Apple-Gebühren.", group: "Creator Pro", unit: "bps", min: 0, max: 5000, format: "bps" },
   "pro.maxVideoSeconds": { label: "Creator Pro – max. Videolänge", help: "Statt der Standard-Videolänge.", group: "Creator Pro", unit: "Sek.", min: 10, max: 3600 },
   "pro.maxVideoMb": { label: "Creator Pro – max. Videogrösse", help: "Pro Datei.", group: "Creator Pro", unit: "MB", min: 10, max: 4000 },
+  "pro.newslettersPer30Days": { label: "Creator Pro – Newsletter je 30 Tage", help: "Höchstzahl verschickter bzw. geplanter Newsletter an Follower:innen je Creatorin in 30 Tagen.", group: "Creator Pro", unit: "Ausgaben", min: 1, max: 30 },
   "app.testflightUrl": { label: "TestFlight-Link (iOS-Beta)", help: "Öffentlicher Einladungslink aus App Store Connect → TestFlight → Externe Gruppe. Ist er gesetzt, erscheint auf iPhones ein Beta-Hinweis (Feed, Startseite) mit Anleitung unter /beta. Leer = ausgeblendet.", group: "iOS-App", placeholder: "https://testflight.apple.com/join/…" },
   "signup.minAge": { label: "Mindestalter", help: "Plattform ist für Erwachsene konzipiert (§8.4).", group: "Registrierung", unit: "Jahre", min: 16, max: 21 },
 };

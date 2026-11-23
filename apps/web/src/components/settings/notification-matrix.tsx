@@ -30,8 +30,9 @@ function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onCh
   );
 }
 
-export function NotificationMatrix({ rows, digest: initialDigest, weekly: initialWeekly = true }: { rows: Row[]; digest: string; weekly?: boolean }) {
+export function NotificationMatrix({ rows, digest: initialDigest, weekly: initialWeekly = true, newsletters: initialNewsletters = true }: { rows: Row[]; digest: string; weekly?: boolean; newsletters?: boolean }) {
   const [weekly, setWeekly] = useState(initialWeekly);
+  const [newsletters, setNewsletters] = useState(initialNewsletters);
   const preview = useAction(sendWeeklyPreviewAction, { success: "Beispiel verschickt – schau in dein Postfach." });
   const [state, setState] = useState(() => Object.fromEntries(rows.map((r) => [r.type, { inApp: r.inApp, email: r.email }])) as Record<NotificationType, { inApp: boolean; email: boolean }>);
   const [digest, setDigest] = useState<EmailDigest>((EMAIL_DIGEST as readonly string[]).includes(initialDigest) ? (initialDigest as EmailDigest) : "DAILY");
@@ -43,7 +44,7 @@ export function NotificationMatrix({ rows, digest: initialDigest, weekly: initia
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        run({ prefs: state, emailDigest: digest, weeklyDigest: weekly });
+        run({ prefs: state, emailDigest: digest, weeklyDigest: weekly, creatorNewsletters: newsletters });
       }}
     >
       <SettingsSection n="01" title="Ereignisse & Kanäle" description="Wähle pro Ereignis, ob es in der App erscheint und ob du zusätzlich eine E-Mail bekommst. Sicherheits- und Moderationshinweise erscheinen immer in der App.">
@@ -116,6 +117,21 @@ export function NotificationMatrix({ rows, digest: initialDigest, weekly: initia
         <Button type="button" variant="ghost" size="sm" className="mt-3" onClick={() => preview.run()} disabled={preview.pending}>
           {preview.pending ? "Wird verschickt …" : "Beispiel an mich senden"}
         </Button>
+      </SettingsSection>
+
+      <SettingsSection n="04" title="Newsletter von Creator:innen" description="Creator:innen mit Creator Pro können den Menschen, die ihnen folgen, einen Newsletter schicken – höchstens ein paar Mal im Monat. Einzelne Newsletter bestellst du auf dem jeweiligen Profil oder mit dem Link in der Mail ab.">
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={newsletters}
+            onChange={(e) => setNewsletters(e.target.checked)}
+            className="mt-0.5 size-[18px] shrink-0 cursor-pointer appearance-none rounded-xs border border-field bg-card grid place-content-center before:size-2.5 before:scale-0 before:bg-paper before:content-[''] before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)] checked:border-moss checked:bg-moss checked:before:scale-100"
+          />
+          <span>
+            <span className="font-semibold">Newsletter von Creator:innen erhalten, denen ich folge</span>
+            <span className="mt-0.5 block text-[13px] text-muted">Unabhängig vom E-Mail-Rhythmus oben.</span>
+          </span>
+        </label>
       </SettingsSection>
 
       <div className="flex justify-end border-t border-line pt-4">

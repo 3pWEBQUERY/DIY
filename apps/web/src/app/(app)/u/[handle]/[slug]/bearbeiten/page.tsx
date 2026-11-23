@@ -7,6 +7,7 @@ import { getProjectForEdit } from "@/server/projects/service";
 import { categoryOptions } from "@/server/categories/settings";
 import { Page, PageHeader } from "@/components/shell/page";
 import { ProjectEditor } from "@/components/projects/project-editor";
+import { isPro } from "@/server/pro/service";
 
 export const metadata: Metadata = { title: "Projekt bearbeiten", robots: { index: false } };
 
@@ -23,7 +24,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ ha
         <ArrowLeft size={13} /> Zurück zum Projekt
       </Link>
       <PageHeader kicker="Werkblatt bearbeiten" title={data.values.title} />
-      <ProjectEditor mode="edit" projectId={data.id} initial={data.values} remixOf={data.remixOf} categories={await categoryOptions(data.values.category)} />
+      <ProjectEditor mode="edit" projectId={data.id} initial={data.values} remixOf={data.remixOf} categories={await categoryOptions(data.values.category)} pro={await isPro(user.id)} unpublished={data.unpublished} scheduledAt={data.scheduledAt} />
     </Page>
   );
 }

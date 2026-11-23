@@ -59,6 +59,12 @@ struct StudioProView: View {
             MeProBenefit(symbol: "chart.bar.xaxis", title: "Statistik über 12 Monate", text: "Verläufe über ein ganzes Jahr statt 12 Wochen – und alle Zahlen als CSV für Excel oder Numbers."),
             MeProBenefit(symbol: "film", title: "Längere Videos", text: "Längere und grössere Videos in Beiträgen, Projekten und Anleitungen."),
             MeProBenefit(symbol: "percent", title: "Tiefere Provision im Shop", text: "Eine tiefere Plattformprovision auf den Warenwert jedes Verkaufs."),
+            MeProBenefit(symbol: "envelope", title: "Newsletter an deine Follower", text: "Neue Projekte, Anleitungen oder Drops direkt ins Postfach – sofort oder geplant, mit Öffnungen und Klicks."),
+            MeProBenefit(symbol: "timer", title: "Shop-Aktionen mit Countdown", text: "Zeitlich begrenzte Rabatte auf den ganzen Shop oder ausgewählte Stücke – mit Countdown, automatisch an und aus."),
+            MeProBenefit(symbol: "calendar.badge.clock", title: "Planen und Inhaltskalender", text: "Projekte und Anleitungen zu einem festen Zeitpunkt veröffentlichen und alles Geplante im Blick behalten."),
+            MeProBenefit(symbol: "text.bubble", title: "Kommentare im Griff", text: "Einen Kommentar oben anheften, Kommentare mit bestimmten Wörtern ausblenden und Kommentare je Inhalt schliessen."),
+            MeProBenefit(symbol: "paintpalette", title: "Eigenes Profil-Design", text: "Akzentfarbe, Titelbild und Reihenfolge der Bereiche auf deinem Profil selbst wählen."),
+            MeProBenefit(symbol: "printer", title: "Anleitungs-PDF mit deinem Branding", text: "Druck- und PDF-Version deiner Anleitungen mit deinem Logo, Namen und Link."),
         ]
     }
 
@@ -112,7 +118,7 @@ struct StudioProView: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 10) {
-                    PageTitle(kicker: "Werkuno Studio", title: "Creator Pro", subtitle: "Werkzeuge für Menschen, die mit ihren Projekten wachsen wollen – Schaufenster, Medienkit, Jahresstatistik, längere Videos und eine tiefere Shop-Provision.")
+                    PageTitle(kicker: "Werkuno Studio", title: "Creator Pro", subtitle: "Werkzeuge für Menschen, die mit ihren Projekten wachsen wollen – Newsletter, Shop-Aktionen, Planung, eigenes Profil-Design, Medienkit, Jahresstatistik und eine tiefere Shop-Provision.")
                     if d.status.active { Pill(text: "Aktiv", symbol: "seal.fill", tint: .moss) }
                 }
 

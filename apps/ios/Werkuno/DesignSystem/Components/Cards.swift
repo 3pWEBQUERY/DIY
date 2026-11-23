@@ -165,11 +165,18 @@ struct ProductCardView: View {
                         if product.soldOut { Pill(text: "Ausverkauft", tint: .ink, filled: true).padding(8) }
                         else if product.kind == "UNIQUE" { Pill(text: "Einzelstück", tint: .clay, filled: true).padding(8) }
                     }
+                    .overlay(alignment: .topTrailing) {
+                        if let s = product.sale, !product.soldOut, s.isRunning { SaleBadge(percent: s.percent).padding(8) }
+                    }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(product.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                     if let shop = product.shop?.name { Text(shop).font(.wr(.caption)).foregroundStyle(Color.muted).a11yLineLimit(1) }
                     HStack {
-                        Text(Fmt.money(product.priceMinor, currency: product.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
+                        if let s = product.sale, !product.soldOut {
+                            SalePriceText(priceMinor: product.priceMinor, regularMinor: s.regularMinor, currency: product.currency)
+                        } else {
+                            Text(Fmt.money(product.priceMinor, currency: product.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
+                        }
                         Spacer()
                         if let r = product.ratingAvg, (product.ratingCount ?? 0) > 0 {
                             Label(String(format: "%.1f", r), systemImage: "star.fill").font(.wr(.caption2)).foregroundStyle(Color.ochreText).labelStyle(.compact)

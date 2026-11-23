@@ -139,6 +139,12 @@ export const contentRoutes: RouteDef[] = [
     return { ok: true };
   }),
   POST("/projects/:id/status", async (c) => projects.setProjectStatus(await me(), c.p.id!, await c.json())),
+  // Creator Pro: geplante Veröffentlichung – { at: ISO | null } (null = Termin aufheben, bleibt Entwurf)
+  POST("/projects/:id/schedule", async (c) => {
+    const { at } = await c.body({ at: z.string().max(40).nullish() });
+    return projects.scheduleProject(await me(), c.p.id!, at ? new Date(at) : null);
+  }),
+  POST("/projects/:id/publish-now", async (c) => projects.publishProjectNow(await me(), c.p.id!)),
   POST("/projects/:id/updates", async (c) => projects.addProjectUpdate(await me(), c.p.id!, await c.json())),
   DELETE("/project-updates/:id", async (c) => {
     await projects.deleteProjectUpdate(await me(), c.p.id!);
@@ -183,6 +189,18 @@ export const contentRoutes: RouteDef[] = [
   PUT("/tutorials/:id", async (c) => {
     const { input, publish } = await c.body({ input: z.unknown(), publish: zBool });
     return tutorials.saveTutorial(await me(), c.p.id!, input, { publish: !!publish });
+  }),
+  // Creator Pro: geplante Erstveröffentlichung verschieben/aufheben – { at: ISO | null }
+  POST("/tutorials/:id/schedule", async (c) => {
+    const { at } = await c.body({ at: z.string().max(40).nullish() });
+    return tutorials.scheduleTutorial(await me(), c.p.id!, at ? new Date(at) : null);
+  }),
+  // Geplante Inhalte (Beiträge, Artikel, Projekte, Anleitungen, Newsletter) – Liste „Geplant“ im Studio
+  GET("/studio/scheduled", async () => {
+    const u = await me();
+    const [{ upcomingScheduled }, { isPro }] = await Promise.all([import("@/server/pro/calendar"), import("@/server/pro/service")]);
+    const [items, pro] = await Promise.all([upcomingScheduled(u.id), isPro(u.id)]);
+    return { items, pro };
   }),
   POST("/tutorials/:id/published", async (c) => {
     const { published } = await c.body({ published: zBool });

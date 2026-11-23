@@ -312,14 +312,16 @@ async function applyToContent(tx: Tx, type: TargetType, id: string, action: "HID
       return { kind: "content", model: "post", id, field: "state", value: p.state };
     }
     case "COMMENT": {
-      const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true, targetType: true, targetId: true, parentId: true } });
+      const c = await tx.comment.findUniqueOrThrow({ where: { id }, select: { state: true, targetType: true, targetId: true, parentId: true, filteredAt: true } });
       if (keep(c.state)) return { kind: "none" };
       await tx.comment.update({ where: { id }, data: { state: contentState } });
       // Kommentarzähler nur beim Übergang aus „sichtbar“ – samt der Antworten, die mit dem Hauptkommentar verschwinden
       // Eine Antwort zählt nur, solange ihr Hauptkommentar sichtbar ist (gleiche Regel wie deleteComment)
-      const parentVisible = !c.parentId || (await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true } }))?.state === "PUBLISHED";
-      if (c.state === "PUBLISHED" && parentVisible) {
-        const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: id, state: "PUBLISHED" } });
+      // Vom Wortfilter Ausgeblendetes (Creator Pro) wurde nie gezählt
+      const parentRow = c.parentId ? await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true, filteredAt: true } }) : null;
+      const parentVisible = !c.parentId || (parentRow?.state === "PUBLISHED" && !parentRow.filteredAt);
+      if (c.state === "PUBLISHED" && !c.filteredAt && parentVisible) {
+        const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: id, state: "PUBLISHED", filteredAt: null } });
         await bumpCounter(tx, c.targetType, c.targetId, "comment", -(1 + replies));
       }
       return { kind: "content", model: "comment", id, field: "state", value: c.state };
@@ -517,9 +519,10 @@ async function revertPrior(tx: Tx, prior: Prior, action: string, applied: { unti
     if (prior.model === "post") await syncPostCount(tx, (await tx.post.findUniqueOrThrow({ where: { id: prior.id }, select: { authorId: true } })).authorId);
     if (prior.model === "project") await syncProjectCount(tx, (await tx.project.findUniqueOrThrow({ where: { id: prior.id }, select: { ownerId: true } })).ownerId);
     if (prior.model === "comment" && prior.value === "PUBLISHED") {
-      const c = await tx.comment.findUniqueOrThrow({ where: { id: prior.id }, select: { targetType: true, targetId: true, parentId: true } });
-      const parentVisible = !c.parentId || (await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true } }))?.state === "PUBLISHED";
-      const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: prior.id, state: "PUBLISHED" } });
+      const c = await tx.comment.findUniqueOrThrow({ where: { id: prior.id }, select: { targetType: true, targetId: true, parentId: true, filteredAt: true } });
+      const parentRow = c.parentId ? await tx.comment.findUnique({ where: { id: c.parentId }, select: { state: true, filteredAt: true } }) : null;
+      const parentVisible = !c.filteredAt && (!c.parentId || (parentRow?.state === "PUBLISHED" && !parentRow.filteredAt));
+      const replies = c.parentId ? 0 : await tx.comment.count({ where: { parentId: prior.id, state: "PUBLISHED", filteredAt: null } });
       if (parentVisible) await bumpCounter(tx, c.targetType, c.targetId, "comment", 1 + replies);
     }
   }

@@ -15,11 +15,13 @@ import { listPublicCollections } from "@/server/collections/service";
 import { profileAwards } from "@/server/communities/competitions";
 import { listGivenReviews, listReceivedReviews, profileReviewCounts, shopRatingDistribution } from "@/server/commerce/reviews";
 import { decodeFollowCursor, encodeFollowCursor } from "../params";
-import { DELETE, GET, PATCH, POST, me, need, str, takeParam, viewer, viewerId, zBool, zIds, zStr, type RouteDef } from "../router";
+import { DELETE, GET, PATCH, POST, PUT, me, need, str, takeParam, viewer, viewerId, zBool, zIds, zStr, type RouteDef } from "../router";
 import { publicProductWhere } from "@/server/commerce/restock";
 import * as stories from "@/server/stories/service";
 import { listHighlights } from "@/server/stories/highlights";
 import { getPriceContext, localizePrice } from "@/server/commerce/currency";
+import * as commentTools from "@/server/pro/comment-tools";
+import { effectiveProfileTheme, profileThemeSettings, saveProfileTheme } from "@/server/pro/profile-theme";
 
 /**
  * Kommentarliste für die App. Ohne `paged=1`/`cursor` wie bisher nur die erste Seite als Liste
@@ -144,6 +146,33 @@ export const socialRoutes: RouteDef[] = [
     await ix.deleteComment(await me(), c.p.id!);
     return { ok: true };
   }),
+  // ── Creator Pro: Kommentare anheften, Wortfilter, schliessen ──
+  /** Geschlossen? Inhaber:in? Pro? – für den Kommentarbereich */
+  GET("/comments/meta", async (c) => {
+    const t = z.enum(["POST", "PROJECT", "TUTORIAL", "ARTICLE"]).safeParse(c.q.get("type"));
+    const id = str(c.q, "id");
+    if (!t.success || !id) throw fail.invalid("type und id erforderlich");
+    const m = await commentTools.commentMeta(t.data, id, await viewerId());
+    if (!m) throw fail.notFound();
+    return m;
+  }),
+  POST("/comments/:id/pin", async (c) => {
+    const { pinned } = await c.body({ pinned: zBool });
+    return commentTools.setCommentPinned(await me(), c.p.id!, pinned !== false);
+  }),
+  POST("/comments/:id/unfilter", async (c) => commentTools.unfilterComment(await me(), c.p.id!)),
+  POST("/comments/lock", async (c) => {
+    const b = z.object({ type: z.enum(["POST", "PROJECT", "TUTORIAL"]), id: z.string().min(1), locked: z.boolean() }).parse(await c.json());
+    return commentTools.setCommentsLocked(await me(), b.type, b.id, b.locked);
+  }),
+  GET("/studio/comment-filter", async () => commentTools.getCommentFilter((await me()).id)),
+  PUT("/studio/comment-filter", async (c) => commentTools.setCommentFilter(await me(), await c.json())),
+  // ── Creator Pro: Profil-Design ──
+  GET("/me/profile-theme", async () => profileThemeSettings((await me()).id)),
+  PUT("/me/profile-theme", async (c) => {
+    const b = (await c.json()) as { theme?: unknown } | null;
+    return saveProfileTheme(await me(), b?.theme ?? null);
+  }),
   POST("/users/:id/follow", async (c) => {
     const { follow } = await c.body({ follow: zBool });
     return ix.setFollow(await me(), c.p.id!, follow !== false);
@@ -221,7 +250,10 @@ export const socialRoutes: RouteDef[] = [
           listHighlights(vid, userId),
           vid && !isSelf ? stories.isStoryMuted(vid, userId) : Promise.resolve(false),
         ]);
+    // Creator Pro: Profil-Design (nur solange Pro aktiv ist)
+    const theme = blocked ? null : await effectiveProfileTheme(userId);
     return {
+      theme,
       profile: {
         userId: p.userId,
         handle: p.handle,

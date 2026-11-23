@@ -9,6 +9,7 @@ import { getTutorialPage } from "@/server/tutorials/service";
 import { absUrl } from "@/components/projects/json-ld";
 import { PrintButton } from "@/components/pro/print-button";
 import { BRAND } from "@/config/brand";
+import { pdfBrandFor } from "@/server/pro/pdf-brand";
 import { formatDate, formatMinutes, pad } from "@/lib/utils";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ bilder?: string }> };
@@ -38,7 +39,10 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
   const cat = categoryBySlug(t.category);
   const stepsMinutes = t.steps.reduce((a, s) => a + (s.minutes ?? 0), 0);
   const url = absUrl(t.href) ?? t.href;
-  const qr = await QRCode.toString(url, { type: "svg", margin: 0, color: { dark: "#262427", light: "#00000000" } });
+  const qrOpts = { type: "svg" as const, margin: 0, color: { dark: "#262427", light: "#00000000" } };
+  // Creator Pro: eigenes Branding der Autor:in (Logo, Name, Link) statt des Werkuno-Kopfs
+  const [qr, brand] = await Promise.all([QRCode.toString(url, qrOpts), pdfBrandFor(t.author.id)]);
+  const brandQr = brand?.link ? await QRCode.toString(brand.link, qrOpts) : null;
   const cost = materialsCostEstimate(t.materials);
   const facts = [
     { label: "Schwierigkeit", value: DIFFICULTY_LABEL[t.difficulty] },
@@ -72,8 +76,12 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
         {/* Kopf */}
         <header className="grid grid-cols-[minmax(0,1fr)_auto] gap-6 border-b-2 border-ink pb-5">
           <div className="min-w-0">
+            {brand?.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logoUrl} alt={brand.name} className="mb-3 h-12 w-auto max-w-[180px] object-contain" data-testid="pdf-brand-logo" />
+            )}
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-              {BRAND.name} · Anleitung{cat ? ` · ${cat.name}` : ""}
+              {brand?.name ?? BRAND.name} · Anleitung{cat ? ` · ${cat.name}` : ""}
             </p>
             <h1 className="mt-2 text-[28px] font-extrabold leading-tight tracking-[-0.02em] text-balance">{t.title}</h1>
             {t.summary && <p className="mt-2 text-[14px] leading-relaxed text-ink-2">{t.summary}</p>}
@@ -207,8 +215,22 @@ export default async function TutorialPrintPage({ params, searchParams }: Props)
           ))}
         </section>
 
+        {brand && (
+          <div className="mt-8 flex items-center gap-4 border-t-2 border-ink pt-3 break-inside-avoid" data-testid="pdf-brand-footer">
+            {brand.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logoUrl} alt="" className="h-9 w-auto max-w-[120px] object-contain" />
+            )}
+            <div className="min-w-0 flex-1 text-[11.5px]">
+              <p className="font-extrabold">{brand.name}</p>
+              {brand.link && <p className="text-ink-2">{brand.link.replace(/^https:\/\//, "")}</p>}
+            </div>
+            {brandQr && <div className="size-[56px] [&_svg]:size-full" aria-label={`QR-Code: ${brand.link}`} role="img" dangerouslySetInnerHTML={{ __html: brandQr }} />}
+          </div>
+        )}
+
         <footer className="mt-8 border-t border-line pt-3 text-[10px] leading-relaxed text-muted">
-          {BRAND.name} · {url} · Gedruckt am {formatDate(new Date().toISOString(), { day: "numeric", month: "long", year: "numeric" })}. Tipps geben persönliche Erfahrungen wieder;
+          {brand ? `${brand.name} · erstellt mit ${BRAND.name}` : BRAND.name} · {url} · Gedruckt am {formatDate(new Date().toISOString(), { day: "numeric", month: "long", year: "numeric" })}. Tipps geben persönliche Erfahrungen wieder;
           Sicherheitshinweise ersetzen keine Herstellerangaben oder Fachberatung. Diese Anleitung ist urheberrechtlich geschützt und nur für den
           persönlichen Gebrauch bestimmt.
         </footer>

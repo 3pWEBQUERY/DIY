@@ -17,6 +17,7 @@ import { markOrderPaid, markPaymentFailed } from "./payments";
 import { requireFlag } from "@/server/flags";
 import { discountLabel, fitRows, loadCartDiscounts, type DiscountRow } from "./discounts";
 import { localize, priceContextFor, shopFxFor } from "./currency";
+import { runningSalesByShop, saleFor, saleNote, saleUnit } from "./sales";
 
 /**
  * Checkout (§13.5, §31.4 Nr. 8):
@@ -122,6 +123,8 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
         const cart = await db.cart.findUnique({ where: { userId: user.id }, include: { items: { include: lineInclude, orderBy: { createdAt: "asc" } } } });
         const items = cart?.items ?? [];
         if (!items.length) throw fail.invalid("Dein Warenkorb ist leer.");
+        // Laufende Shop-Aktionen (Aktionspreis gilt, solange die Aktion beim Bestellen läuft)
+        const sales = await runningSalesByShop(items.map((it) => it.product.shop.id));
 
         // ── Preise & Verfügbarkeit neu prüfen ──
         const lines = items.map((it) => {
@@ -134,13 +137,19 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
           const isDigital = p.kind === "DIGITAL";
           if (isDigital && !digitalEnabled) throw fail.conflict(opts.channel === "ios" && digitalEnabledWeb ? "Digitale Produkte sind in der App nicht erhältlich." : "Digitale Produkte sind derzeit nicht verfügbar.");
           if (it.variantId && !it.variant) throw fail.conflict(`Die gewählte Variante von ${title} gibt es nicht mehr.`);
+          const regular = unitPrice(p.priceMinor, it.variant?.priceDeltaMinor ?? 0);
+          const sale = saleFor(sales, p.shop.id, p.id);
           return {
             shopId: p.shop.id,
             productId: p.id,
             variantId: it.variantId,
             title: p.title,
             variantName: it.variant?.name ?? null,
-            unitMinor: localize(ctx, unitPrice(p.priceMinor, it.variant?.priceDeltaMinor ?? 0), p.currency),
+            unitMinor: localize(ctx, saleUnit(regular, sale), p.currency),
+            /** Ersparnis je Stück durch die Aktion (für den Bestellverlauf) */
+            saleSavedMinor: sale ? localize(ctx, regular, p.currency) - localize(ctx, saleUnit(regular, sale), p.currency) : 0,
+            sale,
+            onSale: !!sale,
             quantity: isDigital ? 1 : it.quantity,
             shippingMinor: isDigital ? 0 : localize(ctx, p.shippingMinor, p.currency),
             isDigital,
@@ -249,7 +258,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
                   actorId: user.id,
                   from: null,
                   to: "PENDING_PAYMENT",
-                  note: `Bestellung aufgegeben – Zahlung ausstehend${rows.length ? ` · Rabatt: ${rows.map((r) => `${r.label} −${formatMoney(r.amountMinor, currency as Currency)}`).join(", ")}` : ""}`,
+                  note: `Bestellung aufgegeben – Zahlung ausstehend${rows.length ? ` · Rabatt: ${rows.map((r) => `${r.label} −${formatMoney(r.amountMinor, currency as Currency)}`).join(", ")}` : ""}${saleNote(g.lines, currency, g.lines.reduce((s, l) => s + l.saleSavedMinor * l.quantity, 0))}`,
                 },
               },
             },
@@ -264,7 +273,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
             discountLabel: discountLabel(rows),
             currency,
             destination: g.lines[0]!.shop.stripeAccountId,
-            lines: g.lines.map((l) => ({ name: l.variantName ? `${l.title} – ${l.variantName}` : l.title, unitMinor: l.unitMinor, quantity: l.quantity })),
+            lines: g.lines.map((l) => ({ name: `${l.variantName ? `${l.title} – ${l.variantName}` : l.title}${l.sale ? ` (Aktion −${l.sale.percent} %)` : ""}`, unitMinor: l.unitMinor, quantity: l.quantity })),
           });
         }
         return out;

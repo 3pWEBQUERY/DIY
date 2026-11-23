@@ -6,6 +6,10 @@ import { SectionTitle } from "@/components/ui/misc";
 import { ProMark } from "@/components/pro/pro-mark";
 import { getProStatus } from "@/server/pro/service";
 import { BRAND } from "@/config/brand";
+import { getPdfBrand } from "@/server/pro/pdf-brand";
+import { PdfBrandForm } from "@/components/pro/pdf-brand-form";
+import { db } from "@/server/db";
+import { appUrl } from "@/server/commerce/stripe";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
@@ -13,7 +17,12 @@ export const metadata: Metadata = { title: "Einstellungen" };
 export default async function StudioSettingsPage() {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/studio/einstellungen");
-  const pro = await getProStatus(user.id);
+  const [pro, brand, latest] = await Promise.all([
+    getProStatus(user.id),
+    getPdfBrand(user.id),
+    db.tutorial.findFirst({ where: { authorId: user.id, state: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, select: { slug: true } }),
+  ]);
+  const shopLink = user.shop?.slug ? appUrl(`/markt/${user.shop.slug}`) : appUrl(`/u/${user.profile.handle}`);
   return (
     <div className="max-w-[820px]">
       <header className="mb-10">
@@ -42,6 +51,20 @@ export default async function StudioSettingsPage() {
             : `Schaufenster im Profil, Medienkit, Statistik über 12 Monate, längere Videos und eine tiefere Shop-Provision. Die Grundfunktionen von ${BRAND.name} bleiben kostenlos.`}
         </p>
         <LinkButton href="/studio/pro" className="mt-5">{pro.active ? "Creator Pro verwalten" : "Creator Pro ansehen"}</LinkButton>
+      </section>
+
+      <section aria-labelledby="se3" className="mt-12">
+        <SectionTitle n="02" title={<span id="se3" className="inline-flex items-center gap-2">PDF-Branding <ProMark /></span>} />
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
+          Die Druck- und PDF-Fassung deiner Anleitungen trägt dein Logo, deinen Namen und deinen Link mit QR-Code statt des {BRAND.name}-Kopfs. Ein kleiner Hinweis „erstellt mit {BRAND.name}“ bleibt.
+        </p>
+        <div className="mt-5 max-w-xl">
+          {pro.active ? (
+            <PdfBrandForm brand={brand} defaultName={user.profile.displayName} defaultLink={shopLink.startsWith("https://") ? shopLink : ""} previewHref={latest ? `/anleitungen/${latest.slug}/drucken` : null} />
+          ) : (
+            <LinkButton href="/studio/pro" variant="outline">Mit Creator Pro freischalten</LinkButton>
+          )}
+        </div>
       </section>
     </div>
   );

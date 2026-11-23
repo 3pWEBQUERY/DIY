@@ -16,6 +16,8 @@ import { ProjectCard, ProjectGrid } from "@/components/projects/project-card";
 import { TutorialCard } from "@/components/tutorials/tutorial-card";
 import { PostCard } from "@/components/social/post-card";
 import { FollowButton, ShareButton } from "@/components/social/actions";
+import { NewsletterToggle } from "@/components/pro/newsletter-toggle";
+import { newsletterState } from "@/server/pro/newsletter";
 import { ProfileSafetyMenu } from "./profile-menu";
 import { TrackView } from "@/components/analytics/track-view";
 import { Avatar, Badge, Empty } from "@/components/ui/misc";
@@ -41,6 +43,8 @@ import { flatSearchParams } from "@/lib/search-params";
 import { JsonLd } from "@/components/projects/json-ld";
 import { absoluteUrl, OG_BASE } from "@/config/seo";
 import { getPriceContext, localize } from "@/server/commerce/currency";
+import { effectiveProfileTheme, themeStyle } from "@/server/pro/profile-theme";
+import type { ProfileSection } from "@werkraum/shared";
 
 type Params = { params: Promise<{ handle: string }>; searchParams: Promise<{ tab?: string | string[]; art?: string | string[]; unterstuetzt?: string | string[]; session_id?: string | string[] }> };
 
@@ -72,6 +76,17 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 const TAB_KEYS = ["beitraege", "projekte", "anleitungen", "shop", "bewertungen", "sammlungen", "ueber"] as const;
 type Tab = (typeof TAB_KEYS)[number];
+
+/** Profil-Design: Bereich → Reiter (Blog ist eine eigene Seite) */
+const SECTION_TAB: Record<ProfileSection, Tab | "blog"> = { posts: "beitraege", projects: "projekte", tutorials: "anleitungen", shop: "shop", articles: "blog" };
+const THEMED_TABS: readonly Tab[] = ["beitraege", "projekte", "anleitungen", "shop"];
+
+/** Gewählte Bereiche in gewählter Reihenfolge (nur vorhandene), danach die übrigen Reiter wie gehabt */
+function themedTabs<T extends { key: Tab }>(tabs: T[], sections: ProfileSection[]) {
+  const chosen = sections.map((s) => SECTION_TAB[s]).filter((k): k is Tab => k !== "blog");
+  const first = chosen.map((k) => tabs.find((t) => t.key === k)).filter((t): t is T => !!t);
+  return [...first, ...tabs.filter((t) => !THEMED_TABS.includes(t.key))];
+}
 
 /** Creator-Profil (UI-04, PRD §12). Nicht genutzte Bereiche werden ausgeblendet. */
 export default async function ProfilePage({ params, searchParams }: Params) {
@@ -108,6 +123,10 @@ export default async function ProfilePage({ params, searchParams }: Params) {
   // Creator Pro: Kennzeichen, Schaufenster, Medienkit
   const [pro, featured, awards] = blocked ? [false, [], []] : await Promise.all([isPro(userId), featuredProjects(userId, profile.featuredProjectIds, viewerId), profileAwards(userId, viewer)]);
   const wins = awards.filter((a) => a.place === 1).length;
+  // Creator Pro: eigenes Profil-Design (endet Pro, gilt wieder der Standard)
+  const theme = pro ? await effectiveProfileTheme(userId, true) : null;
+  // Creator-Newsletter: Follower:innen einer Pro-Creatorin können ihn abonnieren bzw. abbestellen
+  const newsletter = viewerId && !blocked && following && pro ? await newsletterState(viewerId, userId) : null;
   const [ring, highlights, storiesMuted] = blocked
     ? [{ active: false, unseen: false }, [], false]
     : await Promise.all([storyRing(viewerId, userId), listHighlights(viewerId, userId), viewerId && !isSelf ? isStoryMuted(viewerId, userId) : Promise.resolve(false)]);
@@ -135,8 +154,16 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     ...(collections.length ? [{ key: "sammlungen" as Tab, label: "Sammlungen", count: collections.length }] : []),
     { key: "ueber" as Tab, label: "Über mich" },
   ];
+  // Profil-Design: gewählte Bereiche in gewählter Reihenfolge, Blog als Reiter (Link), der Rest dahinter
+  const ordered = theme ? themedTabs(tabs, theme.sections) : tabs;
+  const visibleTabs: { key: string; label: string; count?: number; href: string }[] = ordered.map((t) => ({ ...t, href: `/u/${profile.handle}?tab=${t.key}` }));
+  if (theme?.sections.includes("articles") && articles) {
+    const at = theme.sections.slice(0, theme.sections.indexOf("articles")).filter((s) => ordered.some((t) => t.key === SECTION_TAB[s])).length;
+    visibleTabs.splice(at, 0, { key: "blog", label: "Blog", count: articles, href: `/u/${profile.handle}/blog` });
+  }
   const requested = TAB_KEYS.includes(sp.tab as Tab) ? (sp.tab as Tab) : null;
-  const tab: Tab = requested && tabs.some((t) => t.key === requested) ? requested : (projects?.items.length ?? 0) > 0 && !requested ? "projekte" : "beitraege";
+  const themedFirst = theme ? ordered[0]?.key : undefined;
+  const tab: Tab = requested && ordered.some((t) => t.key === requested) ? requested : (themedFirst ?? ((projects?.items.length ?? 0) > 0 && !requested ? "projekte" : "beitraege"));
   const reviewView: "erhalten" | "abgegeben" = shop && (sp.art !== "abgegeben" || !reviewCounts.given) ? "erhalten" : "abgegeben";
   const [reviewList, ratingDist] =
     tab === "bewertungen"
@@ -174,13 +201,15 @@ export default async function ProfilePage({ params, searchParams }: Params) {
     },
   };
 
+  const cover = theme?.coverLayout ?? "wide";
   return (
-    <div>
+    <div style={themeStyle(theme)}>
       {!blocked && <JsonLd data={profileLd} />}
       {!isSelf && !blocked && <TrackView targetType="USER" targetId={userId} />}
       {/* Titelbild: Foto oder das Werkbank-Platzhalterbild (wie in der iOS-App) */}
+      {cover !== "none" && (
       <div className="mx-auto max-w-[1120px] px-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
-      <div className="relative h-44 overflow-hidden rounded-3xl border border-line bg-sunken sm:h-64">
+      <div className={cn("relative overflow-hidden border border-line bg-sunken", cover === "framed" ? "mx-auto h-36 max-w-[760px] rounded-2xl sm:h-48" : "h-44 rounded-3xl sm:h-64")}>
         {profile.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={profile.coverUrl} alt="" className="h-full w-full object-cover" />
@@ -189,6 +218,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
         )}
       </div>
       </div>
+      )}
 
       <div className="mx-auto max-w-[1120px] px-4 sm:px-6 lg:px-10">
         <header className="relative grid gap-6 border-b border-line pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -198,7 +228,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                 <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="rounded-2xl border border-rule" />
               </StoryAvatarLink>
             ) : (
-              <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className="-mt-14 ml-4 rounded-2xl border border-rule sm:-mt-16 sm:ml-8" />
+              <Avatar src={profile.avatarUrl} name={profile.displayName} size={128} ring className={cn("rounded-2xl border border-rule", cover === "none" ? "mt-6" : cover === "framed" ? "-mt-10 ml-4 sm:-mt-12 sm:ml-8" : "-mt-14 ml-4 sm:-mt-16 sm:ml-8")} />
             )}
             <div className="min-w-0 pb-1 sm:pt-5">
               <div className="flex flex-wrap items-center gap-2">
@@ -232,6 +262,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
             ) : viewer && !blocked ? (
               <>
                 <FollowButton userId={userId} following={following} />
+                {newsletter && <NewsletterToggle creatorId={userId} name={profile.displayName.split(" ")[0] || profile.displayName} initial={newsletter} />}
                 {profile.dmPolicy !== "NOBODY" && (
                   <LinkButton href={`/nachrichten/neu?an=${profile.handle}`} variant="outline"><MessageSquare size={15} /> Nachricht</LinkButton>
                 )}
@@ -263,7 +294,7 @@ export default async function ProfilePage({ params, searchParams }: Params) {
                   </div>
                 </section>
               )}
-              <TabLinks label="Profilbereiche" active={tab} tabs={tabs.map((t) => ({ ...t, href: `/u/${profile.handle}?tab=${t.key}` }))} />
+              <TabLinks label="Profilbereiche" active={tab} tabs={visibleTabs} />
               <div className="mt-6">
                 {tab === "beitraege" &&
                   (posts?.items.length ? (

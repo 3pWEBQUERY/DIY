@@ -196,6 +196,7 @@ struct CartView: View {
                     // Digital: kein Preis hier – der Kauf läuft über Apple auf der Produktseite
                     if !l.isDigital {
                         Text(l.quantity > 1 ? "\(l.quantity) × \(Fmt.money(l.unitMinor, currency: l.currency ?? cur))" : Fmt.money(l.unitMinor, currency: l.currency ?? cur)).font(.wr(.caption)).monospacedDigit().foregroundStyle(Color.muted)
+                        if let s = l.sale { CartSaleLine(sale: s, currency: l.currency ?? cur) }
                     }
                     if l.isDigital { Label("Kauf auf der Produktseite", systemImage: "arrow.down.circle").font(.wr(.caption2)).foregroundStyle(Color.slate) }
                 }

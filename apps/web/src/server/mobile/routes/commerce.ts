@@ -1,5 +1,6 @@
 import "server-only";
 import * as promo from "@/server/commerce/promotions";
+import * as sales from "@/server/commerce/sales";
 import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import * as products from "@/server/commerce/products";
@@ -90,8 +91,8 @@ export const commerceRoutes: RouteDef[] = [
     const vid = await viewerId();
     const s = need(await shops.getPublicShop(c.p.slug!, vid), "Shop nicht gefunden.");
     const shopId = (s as unknown as { id?: string; shop?: { id: string } }).id ?? (s as unknown as { shop?: { id: string } }).shop?.id;
-    const reviews = shopId ? await listShopReviews(shopId, vid, 12) : [];
-    return publicCommerce({ ...(s as object), reviews });
+    const [reviews, sale] = shopId ? await Promise.all([listShopReviews(shopId, vid, 12), sales.shopSaleBanner(shopId)]) : [[], null];
+    return publicCommerce({ ...(s as object), reviews, sale });
   }),
   GET("/market/products/:shopSlug/:productSlug", async (c) => {
     const vid = await viewerId();
@@ -340,5 +341,24 @@ export const commerceRoutes: RouteDef[] = [
   DELETE("/studio/coupons/:id", async (c) => {
     await promo.deleteCoupon(await me(), c.p.id!);
     return { ok: true, message: "Gutschein gelöscht." };
+  }),
+
+  // ── Studio: Aktionen mit Countdown (Creator Pro; wie /studio/aktionen im Web) ──
+  GET("/studio/sales", async () => sales.listMySales(await meAllowSuspended())),
+  POST("/studio/sales", async (c) => {
+    const r = await sales.saveSale(await me(), null, await c.json());
+    return { ...r, message: "Aktion angelegt." };
+  }),
+  PUT("/studio/sales/:id", async (c) => {
+    const r = await sales.saveSale(await me(), c.p.id!, await c.json());
+    return { ...r, message: "Aktion gespeichert." };
+  }),
+  POST("/studio/sales/:id/end", async (c) => {
+    await sales.endSale(await me(), c.p.id!);
+    return { ok: true, message: "Aktion beendet." };
+  }),
+  DELETE("/studio/sales/:id", async (c) => {
+    await sales.deleteSale(await me(), c.p.id!);
+    return { ok: true, message: "Aktion gelöscht." };
   }),
 ];

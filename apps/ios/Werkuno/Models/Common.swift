@@ -200,6 +200,20 @@ struct CommentItem: Codable, Hashable, Identifiable, Sendable {
     /// Frage zu einem Anleitungsschritt (Schlüssel und aktuelle Nummer/Titel)
     var stepKey: String? = nil
     var step: CommentStep? = nil
+    /// Von der Inhaber:in angeheftet (Creator Pro) – steht oben
+    var pinned: Bool? = nil
+    /// Vom Wortfilter ausgeblendet – nur für die Inhaber:in markiert
+    var filtered: Bool? = nil
+}
+
+/// Einstellungen des Kommentarbereichs (GET /comments/meta)
+struct CommentMeta: Codable, Hashable, Sendable {
+    var locked: Bool
+    var lockable: Bool
+    var isOwner: Bool
+    /// Nur für Inhaber:innen: darf anheften und schliessen (Creator Pro)
+    var ownerPro: Bool
+    var ownerName: String
 }
 
 struct CommentStep: Codable, Hashable, Sendable {
@@ -289,6 +303,8 @@ struct ProductCard: Codable, Hashable, Identifiable, Sendable {
     var ratingAvg: Double?
     var ratingCount: Int?
     var href: String?
+    /// Laufende Shop-Aktion: `priceMinor` ist bereits der Aktionspreis
+    var sale: MarketSale?
 
     var shopSlugValue: String? { shop?.slug ?? shopSlug }
     var imageURL: String? { cover?.best ?? coverUrl }

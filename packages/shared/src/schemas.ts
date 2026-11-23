@@ -103,6 +103,15 @@ export const materialLineSchema = z.object({
   costMinor: z.coerce.number().int("Ganze Rappen").min(0, "Preis kann nicht negativ sein").max(10_000_000, "Höchstens CHF 100'000").nullish(),
 });
 
+/**
+ * Geplante Veröffentlichung von Projekten und Anleitungen (Creator Pro): leer = sofort.
+ * Frühestens in 5 Minuten, spätestens in einem Jahr.
+ */
+export const publishAtSchema = z.coerce
+  .date()
+  .nullish()
+  .refine((d) => !d || isValidSchedule(d), { message: "Wähle einen Zeitpunkt zwischen 5 Minuten und einem Jahr ab jetzt" });
+
 export const projectUpsertSchema = z.object({
   title: z.string().trim().min(3, "Titel ist zu kurz").max(120),
   description: z.string().trim().max(10_000).default(""),
@@ -120,6 +129,8 @@ export const projectUpsertSchema = z.object({
   tools: z.array(materialLineSchema).max(60).default([]),
   remixOfId: z.string().optional(),
   remixNote: z.string().trim().max(2000).optional(),
+  /** Creator Pro: erst zu diesem Zeitpunkt veröffentlichen (nur solange noch nicht veröffentlicht) */
+  publishAt: publishAtSchema,
 });
 
 export const projectUpdateEntrySchema = z.object({
@@ -229,6 +240,8 @@ export const tutorialSaveSchema = tutorialUpsertSchema.extend({
   steps: z.array(tutorialStepInputSchema).min(1, "Mindestens ein Schritt").max(80),
   isMajor: z.boolean().default(false),
   shareToFeed: z.boolean().default(false),
+  /** Creator Pro: Erstveröffentlichung zu diesem Zeitpunkt statt sofort */
+  publishAt: publishAtSchema,
 });
 
 export const projectStatusChangeSchema = z.object({ status: z.enum(PROJECT_STATUS) });
