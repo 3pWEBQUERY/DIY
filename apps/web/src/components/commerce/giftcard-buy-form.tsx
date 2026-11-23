@@ -28,6 +28,9 @@ export function GiftCardBuyForm({ offer, senderName, mode }: { offer: Offer; sen
   const buy = useAction(buyGiftCardAction, { redirect: (d) => d.url });
   const customMinor = custom.trim() ? Math.round(Number(custom.replace(",", ".")) * 100) : null;
   const value = amount ?? (customMinor && Number.isFinite(customMinor) ? customMinor : null);
+  // Bezahlbetrag in der eigenen Währung: fester Betrag exakt, freier Betrag über das Verhältnis der festen
+  const ref = offer.amounts[0];
+  const payApprox = (v: number) => offer.amounts.find((x) => x.valueMinor === v)?.payMinor ?? (ref ? Math.round((v * ref.payMinor) / ref.valueMinor / 10) * 10 : null);
 
   return (
     <form
@@ -88,9 +91,9 @@ export function GiftCardBuyForm({ offer, senderName, mode }: { offer: Offer; sen
           </div>
         )}
         {!offer.custom && buy.fields.amountMinor && <p className="mt-1.5 text-[13px] text-danger">{buy.fields.amountMinor}</p>}
-        {offer.converted && value ? (
+        {offer.converted && value && payApprox(value) != null ? (
           <p className="mt-2 text-[12.5px] text-muted">
-            Wert {formatMoney(value, cur)} · du bezahlst ca. {formatMoney(offer.amounts.find((a) => a.valueMinor === value)?.payMinor ?? value, offer.payCurrency)}, umgerechnet zum Tageskurs.
+            Wert {formatMoney(value, cur)} · du bezahlst ca. {formatMoney(payApprox(value)!, offer.payCurrency)}, umgerechnet zum Tageskurs.
           </p>
         ) : null}
       </fieldset>
