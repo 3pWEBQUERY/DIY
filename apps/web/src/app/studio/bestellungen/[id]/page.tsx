@@ -111,7 +111,7 @@ export default async function StudioOrderPage({ params }: { params: Promise<{ id
               </tbody>
             </table></div>
             <div className="ml-auto mt-3 max-w-md border-t border-line pt-3">
-              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} seller={o.sellerShare} shopCurrency={o.shop.currency} shopFx={o.shopFx} />
+              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} giftCardMinor={o.giftCardMinor} seller={o.sellerShare} shopCurrency={o.shop.currency} shopFx={o.shopFx} />
             </div>
           </section>
 

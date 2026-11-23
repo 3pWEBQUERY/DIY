@@ -43,6 +43,7 @@ import { notifyProjectFollowers, publishScheduledProjects } from "@/server/proje
 import { reconcileHashtags } from "@/server/hashtags/sync";
 import { FX_SETTING_KEY, refreshFxRate } from "@/server/commerce/currency";
 import { processDueNewsletters } from "@/server/pro/newsletter";
+import { deliverDueGiftCards } from "@/server/commerce/giftcards";
 
 /** Fehler eines Jobs an die Fehlerüberwachung melden; pg-boss wiederholt den Job danach. */
 function guarded<A extends unknown[], R>(queue: string, fn: (...a: A) => Promise<R>) {
@@ -83,6 +84,9 @@ const Q = {
   hashtags: "hashtags.index",
   fx: "fx.refresh",
   newsletters: "newsletter.send",
+  giftcards: "giftcards.deliver",
+  priceAlerts: "alerts.price",
+  cartReminders: "cart.reminders",
 } as const;
 
 /** Fan-out an Leser:innen einer Anleitung bzw. Follower:innen eines Projekts (aus der Outbox). */
@@ -436,8 +440,15 @@ async function main() {
   await boss.work(Q.events, guarded(Q.events, async () => void (await sendEventReminders())));
   await boss.work(Q.hashtags, guarded(Q.hashtags, async () => void (await reconcileHashtags())));
   await boss.work(Q.fx, guarded(Q.fx, async () => void (await refreshFxRate())));
+  // Preisalarm für gemerkte Produkte (Aktion begonnen, wieder erhältlich) und Warenkorb-Erinnerung
+  const runPriceAlerts = await optional<unknown>("@/server/commerce/price-alerts", "runPriceAlerts");
+  const sendCartReminders = await optional<unknown>("@/server/commerce/cart-reminders", "sendCartReminders");
+  await boss.work(Q.priceAlerts, guarded(Q.priceAlerts, async () => void (await runPriceAlerts?.())));
+  await boss.work(Q.cartReminders, guarded(Q.cartReminders, async () => void (await sendCartReminders?.())));
   // Creator-Newsletter: fällige übernehmen und in Teilen verschicken (setzt nach Abbrüchen fort)
   await boss.work(Q.newsletters, guarded(Q.newsletters, async () => void (await processDueNewsletters())));
+  // Geplante Geschenkgutscheine zustellen, nie bezahlte Käufe verwerfen
+  await boss.work(Q.giftcards, guarded(Q.giftcards, async () => void (await deliverDueGiftCards())));
   // Beim Start sofort einen Kurs laden, falls noch keiner gespeichert ist
   if (!(await db.systemSetting.findUnique({ where: { key: FX_SETTING_KEY }, select: { key: true } }))) await boss.send(Q.fx, {}).catch(() => {});
   // Audit-Kette prüfen und Prüfpunkt schreiben (DB + Log-Zeile „audit_checkpoint“ ausserhalb der DB)
@@ -485,6 +496,10 @@ async function main() {
   // EZB-Referenzkurs EUR→CHF (Veröffentlichung um ca. 16 Uhr; mehrmals täglich, falls ein Abruf scheitert)
   await boss.schedule(Q.fx, "20 6,12,17,22 * * *", null, { tz: "Europe/Zurich" });
   await boss.schedule(Q.newsletters, "* * * * *");
+  await boss.schedule(Q.giftcards, "*/5 * * * *");
+  await boss.schedule(Q.priceAlerts, "*/10 * * * *");
+  // Tagsüber zur vollen Stunde (Zürich) – keine Erinnerungen mitten in der Nacht
+  await boss.schedule(Q.cartReminders, "15 8-20 * * *", null, { tz: "Europe/Zurich" });
 
   // Outbox zusätzlich alle 3 s abarbeiten (Cron-Auflösung ist 1 min)
   const tick = setInterval(() => void dispatchOutbox(boss).catch((e) => captureError(e, { source: "WORKER", path: "outbox_tick" })), 3000);

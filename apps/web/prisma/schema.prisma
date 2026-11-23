@@ -255,6 +255,8 @@ enum ArticleState {
 
 model User {
   id              String        @id @default(cuid())
+  giftCardsBought GiftCard[] @relation("giftCardPurchaser")
+  giftCardsHeld   GiftCard[] @relation("giftCardHolder")
   priceAlerts     PriceAlertSent[]
   newsletters        CreatorNewsletter[]
   newsletterDeliveries NewsletterDelivery[]
@@ -1414,6 +1416,8 @@ model Shop {
   id               String            @id @default(cuid())
   ownerId          String            @unique
   owner            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  giftCards        GiftCard[]
+  giftCardSettings ShopGiftCardSettings?
   sales            ShopSale[]
   slug             String            @unique
   name             String
@@ -1597,6 +1601,7 @@ model Cart {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  giftCards  CartGiftCard[]
   /// Erinnerung an den liegengebliebenen Warenkorb verschickt (einmal je Füllung; neue Artikel setzen zurück)
   remindedAt DateTime?
 
@@ -1638,6 +1643,10 @@ model Order {
   totalMinor      Int
   /// Summe aller Rabatte (Set-Rabatte und Gutschein) auf den Warenwert; totalMinor = subtotal − discount + shipping
   discountMinor   Int         @default(0)
+  /// Mit Geschenkgutschein bezahlt (Bestellwährung). totalMinor = Betrag über den Zahlungsanbieter,
+  /// also subtotal − discount + shipping − giftCardMinor (0 = ganz mit Gutschein, ohne Stripe)
+  giftCardMinor   Int         @default(0)
+  giftCardRedemptions GiftCardRedemption[]
   /// Rabattzeilen zum Bestellzeitpunkt: [{ kind: "bundle" | "coupon", label, amountMinor }]
   discounts       Json?
   couponId        String?
@@ -2818,4 +2827,97 @@ model PriceAlertSent {
 
   @@unique([userId, productId, kind, ref])
   @@index([productId])
+}
+
+// ───────────────────────────── Geschenkgutscheine (je Shop) ─────────────────────────────
+
+/// Geschenkgutscheine eines Shops: Beträge, Gültigkeit
+model ShopGiftCardSettings {
+  shopId         String   @id
+  shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  enabled        Boolean  @default(false)
+  /// feste Beträge in Shop-Währung (Rappen/Cent)
+  amounts        Int[]    @default([2500, 5000, 10000])
+  customEnabled  Boolean  @default(true)
+  customMinMinor Int      @default(1000)
+  customMaxMinor Int      @default(30000)
+  validityMonths Int      @default(36)
+  /// Kurzer Text des Shops, erscheint auf dem Gutschein
+  note           String   @default("")
+  updatedAt      DateTime @updatedAt
+}
+
+/// Geschenkgutschein: Wert in der Shop-Währung, Guthaben sinkt beim Einlösen
+model GiftCard {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  shopId            String
+  shop              Shop      @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  currency          String
+  initialMinor      Int
+  balanceMinor      Int
+  /// PENDING (Zahlung offen) | ACTIVE | CANCELLED (nicht bezahlt) | REFUNDED (Kauf erstattet)
+  status            String    @default("PENDING")
+  purchaserId       String?
+  purchaser         User?     @relation("giftCardPurchaser", fields: [purchaserId], references: [id], onDelete: SetNull)
+  senderName        String    @default("")
+  recipientEmail    String
+  recipientName     String    @default("")
+  message           String    @default("")
+  deliverAt         DateTime
+  deliveredAt       DateTime?
+  expiresAt         DateTime
+  /// Konto, das den Gutschein hinzugefügt hat (per Code oder E-Mail-Adresse)
+  claimedById       String?
+  claimedBy         User?     @relation("giftCardHolder", fields: [claimedById], references: [id], onDelete: SetNull)
+  /// Kauf: bezahlt in der Währung der Käufer:in
+  paidCurrency      String
+  paidMinor         Int
+  feeBps            Int
+  platformFeeMinor  Int
+  checkoutSessionId String?   @unique
+  paymentIntentId   String?
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  redemptions       GiftCardRedemption[]
+  carts             CartGiftCard[]
+
+  @@index([shopId, createdAt])
+  @@index([recipientEmail])
+  @@index([claimedById])
+  @@index([purchaserId])
+  @@index([status, deliverAt])
+}
+
+/// Einlösung bei einer Bestellung; `reversedAt` = Guthaben zurückgebucht (Storno, Vollerstattung)
+model GiftCardRedemption {
+  id               String    @id @default(cuid())
+  giftCardId       String
+  giftCard         GiftCard  @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// vom Guthaben abgebucht (Währung des Gutscheins)
+  amountMinor      Int
+  /// auf die Bestellung angerechnet (Bestellwährung)
+  orderAmountMinor Int
+  createdAt        DateTime  @default(now())
+  reversedAt       DateTime?
+
+  @@index([giftCardId])
+  @@index([orderId])
+}
+
+/// Im Warenkorb hinterlegter Geschenkgutschein (einer je Shop)
+model CartGiftCard {
+  cartId     String
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  shopId     String
+  giftCardId String
+  giftCard   GiftCard @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([cartId, shopId])
+  @@index([giftCardId])
 }

@@ -4,6 +4,7 @@ import { extractCardRefs, newsletterInputSchema, rate, safeClickTarget, stripCar
 const db = {
   creatorNewsletter: { findUnique: vi.fn(), count: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
   newsletterDelivery: { updateMany: vi.fn(), findUnique: vi.fn() },
+  report: { findUnique: vi.fn() },
   $queryRaw: vi.fn(),
 };
 let pro = true;
@@ -16,6 +17,8 @@ vi.mock("@/server/settings", () => ({ getSetting: async () => 4 }));
 vi.mock("@/server/ratelimit", () => ({ rateLimit: async () => undefined }));
 vi.mock("@/server/mail", () => ({ sendMail: vi.fn(async () => ({ delivered: false })) }));
 vi.mock("@/server/commerce/restock", () => ({ publicProductWhere: {} }));
+const openOrAttachCase = vi.fn(async (_input: Record<string, unknown>) => ({ number: 4711 }));
+vi.mock("@/server/moderation/cases", () => ({ openOrAttachCase }));
 
 const nl = await import("../newsletter");
 
@@ -128,5 +131,47 @@ describe("Öffnungen und Klicks", () => {
     expect(await nl.recordClick(nl.deliveryToken("d1"), "/u/lena")).toBe("https://werkuno.ch/u/lena");
     expect(db.creatorNewsletter.update).toHaveBeenCalledWith({ where: { id: "n1" }, data: { clickCount: { increment: 1 }, openCount: { increment: 1 } } });
     expect(await nl.recordClick(nl.deliveryToken("d1"), "javascript:alert(1)")).toBe("https://werkuno.ch/");
+  });
+});
+
+describe("Newsletter melden", () => {
+  const delivery = {
+    userId: "u-reader",
+    newsletter: { id: "nl1", subject: "Neu im Atelier", body: "Hallo zusammen\n\n[[projekt:abcdefgh1]]", authorId: "u-creator", author: { profile: { displayName: "Lena Brunner", handle: "lena.haekelt" } } },
+  };
+  beforeEach(() => {
+    openOrAttachCase.mockClear();
+    db.newsletterDelivery.findUnique.mockReset();
+    db.report.findUnique.mockReset();
+  });
+
+  it("öffnet einen Fall gegen die Absenderin mit Betreff und Textauszug", async () => {
+    db.newsletterDelivery.findUnique.mockResolvedValue(delivery);
+    db.report.findUnique.mockResolvedValue(null);
+    const r = await nl.reportNewsletter(nl.deliveryToken("d1"), { reason: "SPAM", details: "Ständig Werbung" });
+    expect(r).toEqual({ caseNumber: 4711, duplicate: false });
+    const input = openOrAttachCase.mock.calls[0]![0] as { reporterId: string; targetType: string; targetId: string; details: string };
+    expect(input).toMatchObject({ reporterId: "u-reader", targetType: "USER", targetId: "u-creator", reason: "SPAM", subjectUserId: "u-creator" });
+    expect(input.details).toContain("Neu im Atelier");
+    expect(input.details).toContain("Hallo zusammen");
+    expect(input.details).not.toContain("[[projekt:");
+    expect(input.details).toContain("Ständig Werbung");
+  });
+
+  it("lehnt ungültige Links und Gründe ab, meldet nicht doppelt", async () => {
+    await expect(nl.reportNewsletter("kaputt.abc", { reason: "SPAM" })).rejects.toThrow(/nicht gültig/);
+    db.newsletterDelivery.findUnique.mockResolvedValue(delivery);
+    await expect(nl.reportNewsletter(nl.deliveryToken("d1"), { reason: "UNSINN" })).rejects.toThrow(/Grund/);
+    db.report.findUnique.mockResolvedValue({ case: { number: 12 } });
+    expect(await nl.reportNewsletter(nl.deliveryToken("d1"), { reason: "SPAM" })).toEqual({ caseNumber: 12, duplicate: true });
+    expect(openOrAttachCase).not.toHaveBeenCalled();
+  });
+
+  it("Mail enthält Melde-Link nur beim echten Versand", async () => {
+    const creator = { id: "u-creator", displayName: "Lena Brunner", handle: "lena.haekelt" };
+    const sent = await nl.buildNewsletterMail({ subject: "Neu", body: "Hallo zusammen" }, creator, { deliveryId: "d1", recipientId: "u-reader", cards: [] });
+    expect(sent.mail.reportUrl).toMatch(/\/newsletter-melden\?t=d1\./);
+    const preview = await nl.buildNewsletterMail({ subject: "Neu", body: "Hallo zusammen" }, creator, { cards: [] });
+    expect(preview.mail.reportUrl).toBeUndefined();
   });
 });

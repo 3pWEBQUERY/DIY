@@ -11,6 +11,7 @@ import { hasRole } from "@/server/authz";
 import { assertNotOwn } from "@/server/admin/own";
 import { lockOrder } from "./inventory";
 import { orderWith, initiateRefund, grantMissingEntitlementsTx, restockOrderTx, APPLE_REFUND_MESSAGE } from "./payments";
+import { restoreGiftCardsTx } from "./giftcards";
 import { canReview, canSellerCancel, canTransition, refundableAmount, sellerShareFor, SELLER_ORDER_TABS } from "./rules";
 import { requireOwnShop } from "./shops";
 
@@ -299,6 +300,8 @@ export async function cancelBySeller(user: SessionUser, orderId: string, reason:
     const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
     if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital } }, data: { revokedAt: new Date() } });
     await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
+    // Mit Geschenkgutschein bezahlter Teil → Guthaben zurück
+    await restoreGiftCardsTx(tx, orderId);
     await tx.orderEvent.create({ data: { orderId, actorId: user.id, from: o.status, to: "CANCELLED", note: `Vom Shop storniert: ${why.slice(0, 500)}` } });
     await audit({ actorId: user.id, action: "order.cancel.seller", targetType: "Order", targetId: orderId, meta: { from: o.status } }, tx);
     await emit({ type: "OrderStatusChanged", orderId, to: "CANCELLED" }, tx);
@@ -344,6 +347,7 @@ export async function refundOrderByAdmin(actor: Pick<SessionUser, "id" | "role">
       const digital = full.items.filter((i) => i.isDigital).map((i) => i.id);
       if (digital.length) await tx.digitalEntitlement.updateMany({ where: { orderItemId: { in: digital } }, data: { revokedAt: new Date() } });
       await tx.order.update({ where: { id: orderId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
+      await restoreGiftCardsTx(tx, orderId);
       await tx.orderEvent.create({ data: { orderId, actorId: actor.id, from: full.status, to: "CANCELLED", note: "Von der Plattform storniert" } });
       await emit({ type: "OrderStatusChanged", orderId, to: "CANCELLED" }, tx);
     }

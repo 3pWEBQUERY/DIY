@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PROFILE_THEME, PROFILE_ACCENTS, commentFilterWordsSchema, contrastRatio, matchCommentFilter, parseProfileTheme, profileThemeSchema } from "@werkraum/shared";
 
 const proState = { pro: false };
-const comment = { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() };
+const comment = { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() };
+const queryRaw = vi.fn();
 const userProfile = { findUnique: vi.fn(), update: vi.fn() };
 vi.mock("@/server/db", () => ({
-  db: { comment, userProfile, $transaction: vi.fn(async (x: unknown) => (Array.isArray(x) ? x : (x as (tx: unknown) => unknown)({ comment }))) },
+  db: { comment, userProfile, $queryRaw: (...a: unknown[]) => queryRaw(...a), $transaction: vi.fn(async (x: unknown) => (Array.isArray(x) ? x : (x as (tx: unknown) => unknown)({ comment }))) },
   Prisma: { DbNull: null },
 }));
 vi.mock("../service", () => ({ isPro: vi.fn(async () => proState.pro) }));
@@ -115,5 +116,53 @@ describe("Kommentar-Werkzeuge: Berechtigungen", () => {
     proState.pro = true;
     await expect(tools.setCommentsLocked({ id: "owner" }, "ARTICLE", "a1", true)).rejects.toThrow(/nicht schliessen/);
     await expect(tools.setCommentsLocked({ id: "fremd" }, "PROJECT", "p1", true)).rejects.toThrow(/eigenen Inhalten/);
+  });
+});
+
+describe("Wortfilter rückwirkend", () => {
+  const rows = [
+    { id: "r1", body: "Antwort mit Mist", parentId: "t1", targetType: "POST", targetId: "p1" },
+    { id: "t1", body: "So ein Mist", parentId: null, targetType: "POST", targetId: "p1" },
+    { id: "t2", body: "Schöne Arbeit", parentId: null, targetType: "POST", targetId: "p1" },
+    { id: "r2", body: "GRATIS versand hier", parentId: "t2", targetType: "PROJECT", targetId: "pr1" },
+  ];
+  beforeEach(async () => {
+    proState.pro = true;
+    queryRaw.mockReset().mockResolvedValue(rows);
+    comment.updateMany.mockReset().mockResolvedValue({ count: 1 });
+    comment.count.mockReset();
+    comment.findUnique.mockReset();
+    userProfile.findUnique.mockReset().mockResolvedValue({ commentFilterWords: ["mist", "gratis versand"] });
+    const { bumpCounter } = await import("@/server/social/targets");
+    (bumpCounter as ReturnType<typeof vi.fn>).mockClear();
+  });
+
+  it("zählt nur, ohne etwas zu ändern (Rückfrage)", async () => {
+    const r = await tools.applyCommentFilterToExisting({ id: "owner" }, { dryRun: true });
+    expect(r).toMatchObject({ matched: 3, hidden: 0, scanned: 4, limited: false });
+    expect(comment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("blendet Treffer aus – Hauptkommentare zuerst, Zähler wie beim Löschen", async () => {
+    const { bumpCounter } = await import("@/server/social/targets");
+    // t1 hat zwei sichtbare Antworten (darunter r1) → −3; r1 danach unter ausgeblendetem t1 → 0; r2 unter sichtbarem t2 → −1
+    comment.count.mockResolvedValue(2);
+    comment.findUnique.mockImplementation(async ({ where }: { where: { id: string } }) => (where.id === "t1" ? { state: "PUBLISHED", filteredAt: new Date() } : { state: "PUBLISHED", filteredAt: null }));
+    const r = await tools.applyCommentFilterToExisting({ id: "owner" }, { dryRun: false });
+    expect(r.hidden).toBe(3);
+    expect(comment.updateMany.mock.calls.map((c) => (c[0] as { where: { id: string } }).where.id)).toEqual(["t1", "r1", "r2"]);
+    const calls = (bumpCounter as ReturnType<typeof vi.fn>).mock.calls.map((c) => [c[1], c[2], c[4]]);
+    expect(calls).toEqual([
+      ["POST", "p1", -3],
+      ["PROJECT", "pr1", -1],
+    ]);
+  });
+
+  it("nur mit Creator Pro und gespeicherter Wortliste", async () => {
+    userProfile.findUnique.mockResolvedValue({ commentFilterWords: [] });
+    expect(await tools.applyCommentFilterToExisting({ id: "owner" }, { dryRun: false })).toMatchObject({ matched: 0, hidden: 0 });
+    expect(queryRaw).not.toHaveBeenCalled();
+    proState.pro = false;
+    await expect(tools.applyCommentFilterToExisting({ id: "owner" }, { dryRun: true })).rejects.toThrow(/Creator Pro/);
   });
 });

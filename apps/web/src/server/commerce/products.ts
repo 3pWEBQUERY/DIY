@@ -18,7 +18,7 @@ import { requireFlag } from "@/server/flags";
 import { publicProductWhere, publicProductSql, isPublicProduct, restockSummary, notifyBackInStock, pendingRestockCounts } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, isConverted, localize, type PriceContext } from "./currency";
-import { runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sale-prices";
+import { effectivePriceSql, runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sale-prices";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -196,17 +196,24 @@ export async function productListWhere(filters: ProductFilters, viewerId?: strin
   };
 }
 
-/** Höchstens so viele Treffer werden für Preis-Sortierung/-Spanne berücksichtigt */
-const PRICE_CANDIDATES = 2000;
+/**
+ * Höchstens so viele Treffer werden für Preis-Sortierung/-Spanne berücksichtigt. Die übrigen Filter
+ * (Blockierungen, Shop-Status, Volltext) liegen als Prisma-Bedingung vor und lassen sich nicht als SQL
+ * wiederverwenden – deshalb zuerst nur die IDs (schmale Abfrage), dann Preis, Sortierung und Seite in
+ * einer SQL-Abfrage. Die Grenze schützt nur vor unbegrenzten Abfragen; sie liegt weit über dem Sortiment.
+ */
+const PRICE_CANDIDATES = 20_000;
 
 /**
- * Produkt-IDs nach dem Preis, den die Betrachter:in zahlt: laufende Shop-Aktion (höchster Rabatt,
- * auf 10 Rappen/Cent gerundet wie `salePrice`), dann in ihre Währung umgerechnet (wie `convertMinor`).
- * Preisspanne in derselben Grösse; Reihenfolge nach Preis oder nach der gewählten Sortierung.
+ * Produkt-IDs nach dem Preis, den die Betrachter:in zahlt (`effectivePriceSql`), mit Preisspanne in
+ * derselben Grösse; Reihenfolge nach Preis oder nach der gewählten Sortierung. Mit `page` nur die
+ * Seite nach `after` (Cursor = letzte Produkt-ID), sonst alle.
  */
-export async function effectivePriceOrder(ids: string[], opts: { currency: "CHF" | "EUR"; eurChf: number; min?: number | null; max?: number | null; sort?: ProductSort | null }) {
+export async function effectivePriceOrder(
+  ids: string[],
+  opts: { currency: "CHF" | "EUR"; eurChf: number; min?: number | null; max?: number | null; sort?: ProductSort | null; page?: { after?: string | null; limit: number } },
+) {
   if (!ids.length) return [];
-  const rate = opts.eurChf > 0 ? opts.eurChf : 1;
   const order =
     opts.sort === "preis-auf"
       ? Prisma.sql`v ASC, id ASC`
@@ -219,25 +226,17 @@ export async function effectivePriceOrder(ids: string[], opts: { currency: "CHF"
             : Prisma.sql`"publishedAt" DESC NULLS LAST, id DESC`;
   const rows = await db.$queryRaw<{ id: string }[]>`
     WITH c AS (
-      SELECT p.id, p."publishedAt", p."saveCount", p."ratingAvg", p."ratingCount", p.currency,
-        CASE WHEN s.pct > 0 AND p."priceMinor" > 0 THEN LEAST(p."priceMinor", GREATEST(10, ROUND(p."priceMinor" * (100 - s.pct) / 1000.0) * 10)) ELSE p."priceMinor" END AS eff
+      SELECT p.id, p."publishedAt", p."saveCount", p."ratingAvg", p."ratingCount", ${effectivePriceSql("p", opts.currency, opts.eurChf)} AS v
       FROM "Product" p
-      LEFT JOIN LATERAL (
-        SELECT MAX(x.percent) AS pct FROM "ShopSale" x
-        WHERE x."shopId" = p."shopId" AND x.active AND x."startsAt" <= now() AND x."endsAt" > now()
-          AND (cardinality(x."productIds") = 0 OR p.id = ANY(x."productIds"))
-      ) s ON true
       WHERE p.id = ANY(${ids})
-    ), v AS (
-      SELECT *, CASE
-        WHEN currency = ${opts.currency} OR eff <= 0 THEN eff
-        WHEN currency = 'EUR' THEN GREATEST(10, ROUND(eff * ${rate} / 10.0) * 10)
-        ELSE GREATEST(10, ROUND(eff / ${rate} / 10.0) * 10)
-      END AS v FROM c
+    ), r AS (
+      SELECT id, ROW_NUMBER() OVER (ORDER BY ${order}) AS rn FROM c
+      WHERE ${opts.min != null ? Prisma.sql`v >= ${opts.min}` : Prisma.sql`TRUE`} AND ${opts.max != null ? Prisma.sql`v <= ${opts.max}` : Prisma.sql`TRUE`}
     )
-    SELECT id FROM v
-    WHERE ${opts.min != null ? Prisma.sql`v >= ${opts.min}` : Prisma.sql`TRUE`} AND ${opts.max != null ? Prisma.sql`v <= ${opts.max}` : Prisma.sql`TRUE`}
-    ORDER BY ${order}`;
+    SELECT id FROM r
+    WHERE rn > COALESCE((SELECT rn FROM r WHERE id = ${opts.page?.after ?? null}), 0)
+    ORDER BY rn
+    ${opts.page ? Prisma.sql`LIMIT ${opts.page.limit}` : Prisma.empty}`;
   return rows.map((r) => r.id);
 }
 
@@ -245,18 +244,18 @@ async function listByEffectivePrice(filters: ProductFilters, cursor: string | nu
   const where = await productListWhere({ ...filters, minPriceMinor: undefined, maxPriceMinor: undefined }, viewerId);
   if (!where) return { items: [], nextCursor: null };
   const [candidates, ctx] = await Promise.all([db.product.findMany({ where, select: { id: true }, take: PRICE_CANDIDATES }), getPriceContext()]);
-  const ordered = await effectivePriceOrder(
+  // Nur die Seite (+1 zum Erkennen weiterer) kommt aus der Datenbank zurück
+  const ids = await effectivePriceOrder(
     candidates.map((c) => c.id),
-    { currency: ctx.currency, eurChf: ctx.eurChf, min: filters.minPriceMinor, max: filters.maxPriceMinor, sort: filters.sort },
+    { currency: ctx.currency, eurChf: ctx.eurChf, min: filters.minPriceMinor, max: filters.maxPriceMinor, sort: filters.sort, page: { after: cursor ?? null, limit: take + 1 } },
   );
-  const start = cursor ? ordered.indexOf(cursor) + 1 : 0;
-  const pageIds = ordered.slice(start, start + take);
+  const pageIds = ids.slice(0, take);
   if (!pageIds.length) return { items: [], nextCursor: null };
   const rows = await db.product.findMany({ where: { id: { in: pageIds } }, select: productCardSelect });
   const byId = new Map(rows.map((r) => [r.id, r]));
   const page = pageIds.map((id) => byId.get(id)).filter((r): r is (typeof rows)[number] => !!r);
   const sales = await runningSalesByShop(page.map((p) => p.shopId));
-  return { items: page.map((p) => toProductCard(p, ctx, saleFor(sales, p.shopId, p.id))), nextCursor: start + take < ordered.length ? pageIds[pageIds.length - 1]! : null };
+  return { items: page.map((p) => toProductCard(p, ctx, saleFor(sales, p.shopId, p.id))), nextCursor: ids.length > take ? pageIds[pageIds.length - 1]! : null };
 }
 
 /**
@@ -538,6 +537,15 @@ export async function upsertProduct(user: SessionUser, productId: string | null,
 
   // Wieder Bestand → wer eine Nachproduktion angefragt hat, wird informiert
   if (product.status === "ACTIVE") await notifyBackInStock([product.id]).catch(() => {});
+  // Preisalarm für gemerkte Produkte: wieder erhältlich bzw. Grundpreis gesenkt (price-alerts.ts)
+  if (product.status === "ACTIVE") {
+    const alerts = await import("@/server/commerce/price-alerts");
+    await alerts.runRestockAlerts([product.id]).catch(() => {});
+    if (existing && existing.priceMinor > data.priceMinor) await alerts.notifyPriceDrop(product.id, existing.priceMinor, data.priceMinor).catch(() => {});
+  } else if (product.status === "SOLD_OUT") {
+    // Ausverkauft gespeichert: Merkliste vormerken, damit „wieder erhältlich“ später erkannt wird
+    await (await import("@/server/commerce/price-alerts")).runRestockAlerts([product.id]).catch(() => {});
+  }
 
   // „Im Feed ankündigen“ – als gekennzeichneter Verkaufsbeitrag (§9.6)
   let announced = false;

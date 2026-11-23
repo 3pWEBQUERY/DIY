@@ -639,6 +639,8 @@ private struct MeNotificationSettingsView: View {
     @State private var digest = "DAILY"
     @State private var weekly = true
     @State private var newsletters = true
+    @State private var priceAlerts = true
+    @State private var cartReminders = true
     @State private var loaded = false
     @State private var error: String?
     @State private var revision = 0
@@ -732,6 +734,15 @@ private struct MeNotificationSettingsView: View {
             } header: { Group { Text("Newsletter") }.font(.wr(.footnote, .semibold)) } footer: { Group {
                 Text("Creator:innen mit Creator Pro können den Menschen, die ihnen folgen, einen Newsletter schicken. Einzelne bestellst du auf dem jeweiligen Profil ab.")
             }.font(.wr(.footnote)) }
+
+            Section {
+                Toggle("Preisalarm für gemerkte Produkte", isOn: Binding(get: { priceAlerts }, set: { priceAlerts = $0; Haptics.selection(); revision += 1 }))
+                    .tint(.moss)
+                Toggle("Erinnerung an den Warenkorb", isOn: Binding(get: { cartReminders }, set: { cartReminders = $0; Haptics.selection(); revision += 1 }))
+                    .tint(.moss)
+            } header: { Group { Text("Merkliste & Warenkorb") }.font(.wr(.footnote, .semibold)) } footer: { Group {
+                Text("Hinweis, wenn ein gemerktes Produkt in Aktion kommt, günstiger wird oder wieder erhältlich ist – je Anlass einmal. Die Warenkorb-Erinnerung kommt höchstens einmal pro Woche.")
+            }.font(.wr(.footnote)) }
         }
         .meFormStyle()
     }
@@ -761,6 +772,8 @@ private struct MeNotificationSettingsView: View {
             digest = s.emailDigest
             weekly = s.weeklyDigest ?? true
             newsletters = s.creatorNewsletters ?? true
+            priceAlerts = s.priceAlerts ?? true
+            cartReminders = s.cartReminders ?? true
             loaded = true
             error = nil
         } catch { self.error = MeErr.text(error) }
@@ -771,7 +784,7 @@ private struct MeNotificationSettingsView: View {
         defer { saving = false }
         var obj: [String: JSONValue] = [:]
         for (k, v) in prefs { obj[k] = ["inApp": .bool(locked.contains(k) ? true : v.inApp), "email": .bool(v.email)] }
-        do { _ = try await APIClient.shared.put("/settings/notifications", ["prefs": JSONValue.object(obj), "emailDigest": .string(digest), "weeklyDigest": .bool(weekly), "creatorNewsletters": .bool(newsletters)]) as JSONValue }
+        do { _ = try await APIClient.shared.put("/settings/notifications", ["prefs": JSONValue.object(obj), "emailDigest": .string(digest), "weeklyDigest": .bool(weekly), "creatorNewsletters": .bool(newsletters), "priceAlerts": .bool(priceAlerts), "cartReminders": .bool(cartReminders)]) as JSONValue }
         catch { app.show(error: error); await load() }
     }
 

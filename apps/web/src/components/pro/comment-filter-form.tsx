@@ -10,7 +10,8 @@ import { RelativeTime } from "@/components/ui/relative-time";
 import { toast } from "@/components/ui/toast";
 import { callAction } from "@/lib/use-action";
 import { useRouter } from "next/navigation";
-import { saveCommentFilterAction } from "@/app/studio/kommentare/actions";
+import { applyCommentFilterAction, saveCommentFilterAction } from "@/app/studio/kommentare/actions";
+import { confirmDialog } from "@/components/ui/confirm";
 import { deleteCommentAction, unfilterCommentAction } from "@/app/(app)/social-actions";
 
 /** Wörter aus dem Textfeld: je Zeile oder durch Komma/Semikolon getrennt, bereinigt und ohne Doppelte */
@@ -117,5 +118,50 @@ export function FilteredCommentList({ items }: { items: Hidden[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * „Bestehende Kommentare prüfen“: zählt zuerst (ohne etwas zu ändern), dann nach Rückfrage ausblenden.
+ * Gilt für die gespeicherte Wortliste.
+ */
+export function RetroFilterButton({ pro, hasWords }: { pro: boolean; hasWords: boolean }) {
+  const router = useRouter();
+  // Kein useTransition: ein Bestätigungsdialog innerhalb einer Transition bleibt leer
+  const [pending, setPending] = useState(false);
+  const check = async () => {
+    setPending(true);
+    try {
+      const dry = await callAction(() => applyCommentFilterAction(true));
+      if (!dry.ok) return toast(dry.error, "error");
+      if (!dry.data.matched) return toast(dry.data.scanned ? "Keine bestehenden Kommentare treffen deinen Wortfilter." : "Unter deinen Inhalten gibt es noch keine Kommentare zum Prüfen.");
+      const n = dry.data.matched;
+      const ok = await confirmDialog({
+        title: `${n === 1 ? "1 Kommentar" : `${n} Kommentare`} ausblenden?`,
+        body: `${n === 1 ? "Dieser Kommentar enthält" : "Diese Kommentare enthalten"} ein Wort deines Filters. Ausgeblendet sehen nur die jeweilige Person und du sie; du kannst sie unten jederzeit wieder einblenden.${dry.data.limited ? " Geprüft wurden die neuesten Kommentare – führe die Prüfung danach bei Bedarf erneut aus." : ""}`,
+        confirmLabel: "Ausblenden",
+        tone: "danger",
+      });
+      if (!ok) return;
+      const r = await callAction(() => applyCommentFilterAction(false));
+      if (!r.ok) return toast(r.error, "error");
+      toast(r.data.hidden === 1 ? "1 Kommentar ausgeblendet." : `${r.data.hidden} Kommentare ausgeblendet.`);
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <p className="text-[14px] font-semibold">Bestehende Kommentare prüfen</p>
+      <p className="mt-1 max-w-2xl text-[13.5px] leading-relaxed text-muted">
+        Der Filter wirkt auf neue Kommentare. Mit dieser Prüfung wendest du die gespeicherte Wortliste auch auf bisherige Kommentare unter deinen Inhalten an – du
+        siehst vorher, wie viele es betrifft.
+      </p>
+      <Button type="button" variant="outline" className="mt-3" disabled={!pro || !hasWords || pending} onClick={() => void check()}>
+        {pending ? "Wird geprüft …" : "Bestehende Kommentare prüfen"}
+      </Button>
+      {pro && !hasWords && <p className="mt-2 text-[12.5px] text-muted">Speichere zuerst mindestens ein Wort.</p>}
+    </div>
   );
 }

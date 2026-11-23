@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ArrowUpRight, ListChecks } from "lucide-react";
+import { ArrowUpRight, BellRing, ListChecks } from "lucide-react";
 import { VISIBILITY_LABEL } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { SAVED_LABEL, SAVED_TYPES, listCollections, listSaved, type SavedItems, type SavedType } from "@/server/collections/service";
@@ -188,13 +188,30 @@ function SavedContent({ content, viewer, controls }: { content: SavedItems; view
       );
     case "PRODUCT":
       return (
-        <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2">
-          {content.items.map((p) => (
-            <div key={p.id}>
-              <ProductMiniCard product={p} />
-              {controls(p.id)}
-            </div>
-          ))}
+        <div>
+          <p className="mb-4 flex items-center gap-2 text-[13px] text-muted">
+            <BellRing size={14} aria-hidden className="shrink-0" />
+            <span>
+              Wir sagen dir Bescheid, wenn ein gemerktes Produkt in Aktion kommt, günstiger wird oder wieder erhältlich ist –{" "}
+              <Link href="/einstellungen/benachrichtigungen" className="underline underline-offset-2 hover:text-ink">
+                Einstellungen
+              </Link>
+              .
+            </span>
+          </p>
+          <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2">
+            {content.items.map((p) => (
+              <div key={p.id}>
+                <ProductMiniCard product={p} />
+                {(p.sale || p.priceDropped) && (
+                  <p className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-moss-ink">
+                    {p.sale ? `In Aktion −${p.sale.percent} % · ${untilShort(p.sale.endsAt)}` : "Preis gesenkt, seit du es gemerkt hast"}
+                  </p>
+                )}
+                {controls(p.id)}
+              </div>
+            ))}
+          </div>
         </div>
       );
     case "ARTICLE":
@@ -209,4 +226,11 @@ function SavedContent({ content, viewer, controls }: { content: SavedItems; view
         </div>
       );
   }
+}
+
+/** „bis Sonntag“ bzw. „bis 30. Nov.“ für laufende Aktionen */
+function untilShort(iso: string) {
+  const end = new Date(iso);
+  const days = (end.getTime() - Date.now()) / 86_400_000;
+  return `bis ${end.toLocaleDateString("de-CH", days < 6 ? { weekday: "long", timeZone: "Europe/Zurich" } : { day: "numeric", month: "short", timeZone: "Europe/Zurich" })}`;
 }

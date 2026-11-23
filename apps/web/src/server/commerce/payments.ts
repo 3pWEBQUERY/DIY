@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { notify } from "@/server/notifications";
 import { token } from "@/server/crypto";
 import { commitSale, lockOrder, OutOfStockError, refreshSoldOut, restock, retakeSale, type StockLine } from "./inventory";
+import { restoreGiftCardsTx } from "./giftcards";
 import { cancelPendingOrderTx } from "./reservations";
 import { paymentStatusAfterRefund, refundableAmount, refundEffects, statusBeforeRefunded } from "./rules";
 import { createRefund, expireCheckoutSession, isStripeError, listRefunds, reverseTransferForDispute, type Stripe, retrieveConnectStatus } from "./stripe";
@@ -48,7 +49,8 @@ async function orderWith(tx: Tx, orderId: string) {
 
 /* ───────────────────────── Zahlung erfolgreich ───────────────────────── */
 
-export type PaidInput = { provider: "stripe" | "simulated"; providerRef: string; amountMinor: number; currency: string };
+/** `giftcard`: ganz mit Geschenkgutschein bezahlt (Betrag 0, kein Zahlungsanbieter) */
+export type PaidInput = { provider: "stripe" | "simulated" | "giftcard"; providerRef: string; amountMinor: number; currency: string };
 
 export { orderWith };
 
@@ -124,6 +126,7 @@ export async function markOrderPaid(orderId: string, input: PaidInput): Promise<
           // Eingelöster Gutschein und Sets dieses Shops sind mit der Bestellung erledigt
           await tx.cartCoupon.deleteMany({ where: { cartId: cart.id, shopId: order.shopId } });
           await tx.cartBundle.deleteMany({ where: { cartId: cart.id, bundle: { shopId: order.shopId } } });
+          await tx.cartGiftCard.deleteMany({ where: { cartId: cart.id, shopId: order.shopId } });
         }
         await tx.shop.update({ where: { id: order.shopId }, data: { salesCount: { increment: order.items.reduce((s, i) => s + i.quantity, 0) } } });
 
@@ -203,7 +206,8 @@ async function refundUnfulfillable(
     return o;
   });
   // Schlägt die Erstattung beim Anbieter fehl, holt retryCancelledRefunds sie nach (Bestellung ist storniert, Geld noch da)
-  await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: text.refundReason, actorId: null, system: true }).catch((e) =>
+  // Ganz mit Geschenkgutschein bezahlt: nichts zu erstatten – das Guthaben bucht cancelPendingOrderTx zurück
+  if (input.amountMinor > 0) await initiateRefund(orderId, { amountMinor: Math.min(input.amountMinor, order.totalMinor), reason: text.refundReason, actorId: null, system: true }).catch((e) =>
     log("error", "auto_refund_deferred", { orderId, err: e instanceof Error ? e.message : String(e) }),
   );
   await notify({
@@ -376,6 +380,8 @@ export async function applyRefunds(orderId: string, updates: RefundUpdate[]) {
         },
       });
       if (fx.toRefunded) {
+        // Vollerstattung: mit Geschenkgutschein bezahlter Teil geht als Guthaben zurück
+        await restoreGiftCardsTx(tx, orderId);
         await tx.order.update({ where: { id: orderId }, data: { status: "REFUNDED" } });
         await emit({ type: "OrderStatusChanged", orderId, to: "REFUNDED" }, tx);
         cur = "REFUNDED";
@@ -670,6 +676,11 @@ async function orderExists(id: string | null | undefined) {
 
 /** Fachliche Behandlung eines verifizierten Stripe-Events. Muss idempotent sein. */
 export async function handleStripeEvent(event: Stripe.Event) {
+  // Geschenkgutschein-Kauf (metadata.kind = "giftcard") – eigene Session, keine Bestellung
+  if (event.type.startsWith("checkout.session.")) {
+    const { handleGiftCardStripeEvent } = await import("./giftcards");
+    if (await handleGiftCardStripeEvent(event)) return;
+  }
   // Unterstützer-Abo (metadata.kind = "support") – vor Creator Pro, damit es dort nicht als Pro gilt
   if (/^(checkout\.session\.completed|customer\.subscription\.|invoice\.(paid|payment_succeeded))/.test(event.type)) {
     const { handleSupportStripeEvent } = await import("@/server/supporters/service");

@@ -14,6 +14,8 @@ import { requireFlag } from "@/server/flags";
 import { fitRows, loadCartDiscounts } from "./discounts";
 import { isConverted, localize, priceContextFor, type PriceContext } from "./currency";
 import { runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sales";
+import { cartGiftCards, giftCardForOrder } from "./giftcards";
+import { maskGiftCode } from "@werkraum/shared";
 
 /**
  * Warenkorb (§13.5): ein Warenkorb je Konto, Positionen je Produkt/Variante.
@@ -136,7 +138,7 @@ export async function getCartView(userId: string) {
   const sales = await runningSalesByShop(rows.map((r) => r.product.shop.id));
   const lines = rows.map((r) => ({ row: r, view: toLine(r, { digitalEnabled, ctx, sales }) }));
   const priced = lines.map((l) => ({ ...l.view, shopId: l.row.product.shop.id }));
-  const disc = await loadCartDiscounts(db, { userId, cartId: cart?.id, includePending: false });
+  const [disc, gifts] = await Promise.all([loadCartDiscounts(db, { userId, cartId: cart?.id, includePending: false }), cartGiftCards(cart?.id)]);
   const details = new Map<string, ReturnType<typeof disc.forShop>>();
   const shopCurrency = (shopId: string) => rows.find((r) => r.product.shop.id === shopId)?.product.shop.currency ?? "CHF";
   const groups = groupByShop(priced, fee, (shopId, ls, subtotal) => {
@@ -160,13 +162,23 @@ export async function getCartView(userId: string) {
       feeBps: fee(g.shopId),
       purchasable: g.lines.every((l) => !l.problem),
     };
+  }).map((g) => {
+    // Geschenkgutschein: wirkt wie ein Zahlungsmittel nach Rabatten (gleiche Rechnung wie an der Kasse)
+    const card = gifts.get(g.shop.id);
+    if (!card) return { ...g, giftCard: null };
+    const use = giftCardForOrder(card, { goodsNetMinor: g.subtotal - g.discount, shippingMinor: g.fees.shipping, feeBps: g.feeBps }, ctx.currency, ctx);
+    return {
+      ...g,
+      fees: { ...g.fees, total: g.fees.total - use.appliedMinor, platformFee: use.platformFeeMinor },
+      giftCard: { code: maskGiftCode(card.code), currency: card.currency, balanceMinor: card.balanceMinor, appliedMinor: use.appliedMinor, balanceAfterMinor: card.balanceMinor - use.debitMinor, problem: use.problem },
+    };
   });
   return {
     groups,
     /** Währung aller Beträge (Käufer:in) und Kurs für den Hinweis */
     currency: ctx.currency,
     fx: { eurChf: ctx.eurChf, date: ctx.fxDate },
-    totals: grandTotal(groups),
+    totals: { ...grandTotal(groups), giftCard: groups.reduce((s, g) => s + (g.giftCard?.appliedMinor ?? 0), 0) },
     feeBps,
     count: rows.reduce((s, r) => s + r.quantity, 0),
     hasProblems: groups.some((g) => !g.purchasable),
@@ -183,7 +195,8 @@ export async function cartCount(userId: string) {
 }
 
 async function ensureCart(userId: string) {
-  return db.cart.upsert({ where: { userId }, create: { userId }, update: {}, select: { id: true } });
+  // Neue Artikel: Warenkorb-Erinnerung wieder möglich (cart-reminders.ts)
+  return db.cart.upsert({ where: { userId }, create: { userId }, update: { remindedAt: null }, select: { id: true } });
 }
 
 /**
@@ -247,6 +260,7 @@ export async function updateCartItem(user: SessionUser, input: unknown) {
   if (avail <= 0) throw fail.conflict("Dieser Artikel ist leider nicht mehr verfügbar.");
   const qty = Math.min(data.quantity, avail);
   await db.cartItem.update({ where: { id: item.id }, data: { quantity: qty } });
+  await db.cart.update({ where: { userId: user.id }, data: { remindedAt: null } });
   return { quantity: qty, capped: qty < data.quantity };
 }
 

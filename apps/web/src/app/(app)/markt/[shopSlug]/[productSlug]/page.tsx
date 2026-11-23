@@ -191,6 +191,11 @@ export default async function ProductPage({ params }: Params) {
             <ShareButton url={href} title={p.title} image={p.coverUrl} />
             {p.saveCount > 0 && <span className="spec ml-auto">{p.saveCount} × gemerkt</span>}
           </div>
+          {!p.isOwner && (
+            <p className="mt-2 text-[12.5px] text-muted">
+              {p.viewer.saved ? "Gemerkt – wir sagen dir Bescheid, wenn es günstiger wird oder wieder erhältlich ist." : "Merken, und wir sagen dir Bescheid, wenn es günstiger wird oder wieder erhältlich ist."}
+            </p>
+          )}
 
           {/* Datenblatt */}
           <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 text-[14px]">

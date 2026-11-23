@@ -51,6 +51,7 @@ export function FeeSummary({
   discounts,
   shopCurrency,
   shopFx,
+  giftCardMinor,
   className,
 }: {
   subtotal: number;
@@ -65,6 +66,8 @@ export function FeeSummary({
   /** Verkäufer:innen: Shop-Währung und Kurs vom Kauf, wenn in der anderen Währung bezahlt wurde */
   shopCurrency?: string;
   shopFx?: number | null;
+  /** Mit Geschenkgutschein bezahlt (wird vom Gesamtbetrag abgezogen) */
+  giftCardMinor?: number;
   className?: string;
 }) {
   const c = cur(currency);
@@ -84,6 +87,12 @@ export function FeeSummary({
         </div>
       ))}
       <Row label="Versand" value={shipping ? formatMoney(shipping, c) : "kostenlos"} />
+      {!!giftCardMinor && (
+        <div className="flex items-baseline justify-between gap-4 py-1.5 text-moss-ink">
+          <dt className="text-[14px]">Geschenkgutschein</dt>
+          <dd className="num text-[14px]">− {formatMoney(giftCardMinor, c)}</dd>
+        </div>
+      )}
       <Row label={seller?.channel === "apple" ? "In der App bezahlt" : "Gesamt"} value={formatMoney(total, c)} strong />
       {!!refunded && <Row label="Davon erstattet" value={`− ${formatMoney(refunded, c)}`} muted />}
       {seller?.channel === "stripe" && (

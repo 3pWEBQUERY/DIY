@@ -79,6 +79,9 @@ struct ProfileThemeEditorSheet: View {
     @State private var custom = false
     @State private var pro = false
     @State private var loaded = false
+    /// Gespeicherte Wortliste (rückwirkend wirkt nur, was gespeichert ist)
+    @State private var savedCount = 0
+    @State private var retro: RetroFilterResult?
 
     var body: some View {
         NavigationStack {
@@ -205,6 +208,14 @@ private struct CommentFilterSettings: Decodable {
     var pro: Bool?
 }
 
+/// Ergebnis von „Bestehende Kommentare prüfen“ (`dryRun` zählt nur)
+private struct RetroFilterResult: Decodable {
+    var matched: Int
+    var hidden: Int
+    var scanned: Int
+    var limited: Bool?
+}
+
 struct CommentFilterSheet: View {
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
@@ -229,6 +240,12 @@ struct CommentFilterSheet: View {
                 } footer: {
                     Text("Neue Kommentare unter deinen Inhalten mit einem dieser Wörter werden ausgeblendet – die Person sieht ihren Kommentar weiterhin, alle anderen nicht. Gross-/Kleinschreibung und Umlaute spielen keine Rolle; Wörter ab 4 Zeichen treffen auch als Teil längerer Wörter.")
                 }
+                retroSection
+            }
+            .confirmationDialog(retroTitle, isPresented: Binding(get: { (retro?.matched ?? 0) > 0 }, set: { if !$0 { retro = nil } }), titleVisibility: .visible) {
+                Button("Ausblenden", role: .destructive) { Task { await applyRetro() } }
+            } message: {
+                Text("Ausgeblendet sehen nur die jeweilige Person und du sie. Unter Studio → Kommentare kannst du sie jederzeit wieder einblenden.")
             }
             .navigationTitle("Wortfilter")
             .navigationBarTitleDisplayMode(.inline)
@@ -242,6 +259,41 @@ struct CommentFilterSheet: View {
         }
     }
 
+    private var retroSection: some View {
+        Section {
+            AsyncButton { await checkRetro() } label: {
+                Label("Bestehende Kommentare prüfen", systemImage: "text.magnifyingglass")
+            }
+            .disabled(!pro || savedCount == 0)
+        } footer: {
+            Text(savedCount == 0 && pro ? "Speichere zuerst mindestens ein Wort." : "Wendet die gespeicherte Wortliste auch auf bisherige Kommentare an. Du siehst vorher, wie viele es betrifft.")
+        }
+    }
+
+    private var retroTitle: String {
+        let n = retro?.matched ?? 0
+        return n == 1 ? "1 Kommentar ausblenden?" : "\(n) Kommentare ausblenden?"
+    }
+
+    private func checkRetro() async {
+        do {
+            let r: RetroFilterResult = try await APIClient.shared.post("/studio/comment-filter/apply", ["dryRun": JSONValue.bool(true)])
+            if r.matched == 0 {
+                app.show(r.scanned == 0 ? "Unter deinen Inhalten gibt es noch keine Kommentare zum Prüfen." : "Keine bestehenden Kommentare treffen deinen Wortfilter.")
+            } else {
+                retro = r
+            }
+        } catch { app.show(error: error) }
+    }
+
+    private func applyRetro() async {
+        retro = nil
+        do {
+            let r: RetroFilterResult = try await APIClient.shared.post("/studio/comment-filter/apply", ["dryRun": JSONValue.bool(false)])
+            app.show(r.hidden == 1 ? "1 Kommentar ausgeblendet." : "\(r.hidden) Kommentare ausgeblendet.")
+        } catch { app.show(error: error) }
+    }
+
     private var words: [String] {
         text.split(whereSeparator: { $0 == "\n" || $0 == "," || $0 == ";" })
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -252,6 +304,7 @@ struct CommentFilterSheet: View {
         do {
             let s: CommentFilterSettings = try await APIClient.shared.get("/studio/comment-filter")
             text = s.words.joined(separator: "\n")
+            savedCount = s.words.count
             pro = s.pro ?? false
         } catch { app.show(error: error) }
         loaded = true

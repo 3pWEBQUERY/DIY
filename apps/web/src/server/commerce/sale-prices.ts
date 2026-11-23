@@ -1,6 +1,6 @@
 import "server-only";
 import { salePrice, saleForProduct } from "@werkraum/shared";
-import { db } from "@/server/db";
+import { db, Prisma } from "@/server/db";
 import { localize, localizePrice, type PriceContext } from "./currency";
 
 /**
@@ -66,3 +66,30 @@ export function saleView(s: ActiveSale) {
 }
 export type SaleView = ReturnType<typeof saleView>;
 
+/**
+ * SQL-Ausdruck: Preis, den die Betrachter:in für das Produkt `alias` zahlt – laufende Shop-Aktion
+ * (höchster Rabatt, auf 10 Rappen/Cent gerundet wie `salePrice`), dann in ihre Währung umgerechnet
+ * (wie `convertMinor`). Für Preis-Sortierung und Preisspanne in Marktplatz und Suche.
+ */
+export function effectivePriceSql(alias: string, currency: "CHF" | "EUR", eurChf: number) {
+  const p = Prisma.raw(`"${alias.replace(/"/g, "")}"`);
+  const rate = eurChf > 0 ? eurChf : 1;
+  return Prisma.sql`(
+    SELECT CASE
+      WHEN e.cur = ${currency} OR e.eff <= 0 THEN e.eff
+      WHEN e.cur = 'EUR' THEN GREATEST(10, ROUND(e.eff * ${rate} / 10.0) * 10)
+      ELSE GREATEST(10, ROUND(e.eff / ${rate} / 10.0) * 10)
+    END
+    FROM (
+      SELECT ${p}.currency AS cur,
+        CASE WHEN s.pct > 0 AND ${p}."priceMinor" > 0
+          THEN LEAST(${p}."priceMinor", GREATEST(10, ROUND(${p}."priceMinor" * (100 - s.pct) / 1000.0) * 10))
+          ELSE ${p}."priceMinor" END AS eff
+      FROM (
+        SELECT MAX(x.percent) AS pct FROM "ShopSale" x
+        WHERE x."shopId" = ${p}."shopId" AND x.active AND x."startsAt" <= now() AND x."endsAt" > now()
+          AND (cardinality(x."productIds") = 0 OR ${p}.id = ANY(x."productIds"))
+      ) s
+    ) e
+  )`;
+}

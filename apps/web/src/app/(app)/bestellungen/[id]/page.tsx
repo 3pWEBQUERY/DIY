@@ -157,7 +157,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               })}
             </ul>
             <div className="ml-auto mt-2 max-w-sm border-t border-line pt-3">
-              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} />
+              <FeeSummary subtotal={o.subtotalMinor} discounts={orderDiscountRows(o.discounts)} shipping={o.shippingMinor} total={o.totalMinor} currency={currency} refunded={refunded} giftCardMinor={o.giftCardMinor} />
               <p className="mt-2 text-[12px] text-muted">Endpreis – keine Zusatzgebühren. Die Plattformprovision hat der Shop getragen.</p>
             </div>
           </section>

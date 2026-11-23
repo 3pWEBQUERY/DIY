@@ -6,7 +6,7 @@ import { currentUser } from "@/server/auth/session";
 import { getCommentFilter } from "@/server/pro/comment-tools";
 import { PageHeader } from "@/components/shell/page";
 import { Empty, Notice, SectionTitle } from "@/components/ui/misc";
-import { CommentFilterForm, FilteredCommentList } from "@/components/pro/comment-filter-form";
+import { CommentFilterForm, FilteredCommentList, RetroFilterButton } from "@/components/pro/comment-filter-form";
 import { BRAND } from "@/config/brand";
 
 export const metadata: Metadata = { title: "Kommentare" };
@@ -43,6 +43,7 @@ export default async function StudioCommentsPage() {
           Höchstens {COMMENT_FILTER_MAX} Wörter.
         </p>
         <CommentFilterForm initial={f.words} pro={f.pro} />
+        <RetroFilterButton pro={f.pro} hasWords={f.words.length > 0} />
       </section>
 
       <section aria-labelledby="ausgeblendet" className="mb-12">

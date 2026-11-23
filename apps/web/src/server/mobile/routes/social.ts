@@ -168,6 +168,11 @@ export const socialRoutes: RouteDef[] = [
   }),
   GET("/studio/comment-filter", async () => commentTools.getCommentFilter((await me()).id)),
   PUT("/studio/comment-filter", async (c) => commentTools.setCommentFilter(await me(), await c.json())),
+  // Wortfilter rückwirkend auf bestehende Kommentare: { dryRun: true } zählt nur
+  POST("/studio/comment-filter/apply", async (c) => {
+    const b = (await c.json().catch(() => ({}))) as { dryRun?: unknown } | null;
+    return commentTools.applyCommentFilterToExisting(await me(), { dryRun: b?.dryRun !== false });
+  }),
   // ── Creator Pro: Profil-Design ──
   GET("/me/profile-theme", async () => profileThemeSettings((await me()).id)),
   PUT("/me/profile-theme", async (c) => {

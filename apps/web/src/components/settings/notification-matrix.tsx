@@ -30,9 +30,25 @@ function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onCh
   );
 }
 
-export function NotificationMatrix({ rows, digest: initialDigest, weekly: initialWeekly = true, newsletters: initialNewsletters = true }: { rows: Row[]; digest: string; weekly?: boolean; newsletters?: boolean }) {
+export function NotificationMatrix({
+  rows,
+  digest: initialDigest,
+  weekly: initialWeekly = true,
+  newsletters: initialNewsletters = true,
+  priceAlerts: initialPriceAlerts = true,
+  cartReminders: initialCartReminders = true,
+}: {
+  rows: Row[];
+  digest: string;
+  weekly?: boolean;
+  newsletters?: boolean;
+  priceAlerts?: boolean;
+  cartReminders?: boolean;
+}) {
   const [weekly, setWeekly] = useState(initialWeekly);
   const [newsletters, setNewsletters] = useState(initialNewsletters);
+  const [priceAlerts, setPriceAlerts] = useState(initialPriceAlerts);
+  const [cartReminders, setCartReminders] = useState(initialCartReminders);
   const preview = useAction(sendWeeklyPreviewAction, { success: "Beispiel verschickt – schau in dein Postfach." });
   const [state, setState] = useState(() => Object.fromEntries(rows.map((r) => [r.type, { inApp: r.inApp, email: r.email }])) as Record<NotificationType, { inApp: boolean; email: boolean }>);
   const [digest, setDigest] = useState<EmailDigest>((EMAIL_DIGEST as readonly string[]).includes(initialDigest) ? (initialDigest as EmailDigest) : "DAILY");
@@ -44,7 +60,7 @@ export function NotificationMatrix({ rows, digest: initialDigest, weekly: initia
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        run({ prefs: state, emailDigest: digest, weeklyDigest: weekly, creatorNewsletters: newsletters });
+        run({ prefs: state, emailDigest: digest, weeklyDigest: weekly, creatorNewsletters: newsletters, priceAlerts, cartReminders });
       }}
     >
       <SettingsSection n="01" title="Ereignisse & Kanäle" description="Wähle pro Ereignis, ob es in der App erscheint und ob du zusätzlich eine E-Mail bekommst. Sicherheits- und Moderationshinweise erscheinen immer in der App.">
@@ -134,11 +150,45 @@ export function NotificationMatrix({ rows, digest: initialDigest, weekly: initia
         </label>
       </SettingsSection>
 
+      <SettingsSection n="05" title="Merkliste & Warenkorb" description="Hinweise zu Produkten, die du gemerkt oder in den Warenkorb gelegt hast. Die Kanäle (App, E-Mail) richten sich nach „Nachproduktion & wieder verfügbar“ oben.">
+        <div className="space-y-4">
+          <PlainCheck
+            checked={priceAlerts}
+            onChange={setPriceAlerts}
+            title="Preisalarm für gemerkte Produkte"
+            hint="Wenn ein gemerktes Produkt in eine Aktion kommt, günstiger wird oder wieder erhältlich ist – je Anlass höchstens einmal."
+          />
+          <PlainCheck
+            checked={cartReminders}
+            onChange={setCartReminders}
+            title="Erinnerung an den Warenkorb"
+            hint="Einmal, wenn Artikel einen Tag lang im Warenkorb liegen – höchstens einmal pro Woche."
+          />
+        </div>
+      </SettingsSection>
+
       <div className="flex justify-end border-t border-line pt-4">
         <Button type="submit" variant="ink" disabled={pending} aria-busy={pending}>
           {pending ? "Speichert …" : "Einstellungen speichern"}
         </Button>
       </div>
     </form>
+  );
+}
+
+function PlainCheck({ checked, onChange, title, hint }: { checked: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 size-[18px] shrink-0 cursor-pointer appearance-none rounded-xs border border-field bg-card grid place-content-center before:size-2.5 before:scale-0 before:bg-paper before:content-[''] before:[clip-path:polygon(14%_44%,0_65%,50%_100%,100%_16%,80%_0%,43%_62%)] checked:border-moss checked:bg-moss checked:before:scale-100"
+      />
+      <span>
+        <span className="font-semibold">{title}</span>
+        <span className="mt-0.5 block text-[13px] text-muted">{hint}</span>
+      </span>
+    </label>
   );
 }
