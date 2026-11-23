@@ -576,6 +576,18 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         a: "Shops bündeln Produkte – etwa eine Anleitung mit dem passenden Materialset – zu einem Set mit Rabatt. Der Rabatt gilt, solange alle Teile in der Set-Menge im Warenkorb liegen.",
         tags: "set bundle paket rabatt",
       },
+      {
+        id: "geschenkgutschein",
+        q: "Wie funktionieren Geschenkgutscheine?",
+        a: "Viele Shops bieten Geschenkgutscheine an – du findest sie auf der Shopseite. Du wählst einen Betrag, gibst Name und E-Mail der beschenkten Person, eine persönliche Nachricht und den Zustelltag an und bezahlst im Checkout. Die beschenkte Person erhält den Code per E-Mail. Eingelöst wird er im [Warenkorb](/warenkorb) oder an der Kasse des ausstellenden Shops; ein Restbetrag bleibt als Guthaben. Deine erhaltenen Gutscheine und ihr Guthaben siehst du unter [Meine Geschenkgutscheine](/geschenkgutscheine). In der iOS-App kannst du Gutscheine einlösen, aber nicht kaufen.",
+        tags: "geschenkgutschein geschenk gutschein guthaben verschenken einlösen code",
+      },
+      {
+        id: "preisalarm",
+        q: "Sagt ihr mir Bescheid, wenn etwas günstiger wird?",
+        a: "Ja. Merkst du dir ein Produkt (Speichern), schicken wir dir eine Nachricht, wenn es in eine Aktion kommt, der Shop den Preis senkt oder es wieder erhältlich ist – je Anlass höchstens einmal. Liegt dein Warenkorb einen Tag lang unberührt, erinnern wir dich einmal daran. Beides kannst du unter [Einstellungen → Benachrichtigungen](/einstellungen/benachrichtigungen) abschalten.",
+        tags: "preisalarm merkliste gemerkt günstiger aktion preis gesenkt wieder erhältlich warenkorb erinnerung",
+      },
     ],
   },
   {

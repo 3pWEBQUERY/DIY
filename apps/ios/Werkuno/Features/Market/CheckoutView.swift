@@ -315,7 +315,7 @@ struct CheckoutView: View {
             Button { Task { await submit(c) } } label: {
                 HStack(spacing: 8) {
                     if submitting { ProgressView().tint(.white) } else { Image(systemName: "lock.fill") }
-                    Text(submitting ? "Einen Moment …" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total, currency: c.currency))")
+                    Text(submitting ? "Einen Moment …" : c.totals.total <= 0 ? "Mit Geschenkgutschein bestellen" : "Zahlungspflichtig bestellen · \(Fmt.money(c.totals.total, currency: c.currency))")
                         .monospacedDigit()
                 }
                 .font(.wr(.body, .semibold))

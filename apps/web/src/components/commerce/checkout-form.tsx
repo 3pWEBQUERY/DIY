@@ -243,7 +243,7 @@ export function CheckoutForm({
         )}
         <Button type="submit" size="lg" className="w-full" disabled={pending}>
           <Lock size={15} />
-          {pending ? "Einen Moment …" : `Zahlungspflichtig bestellen · ${formatMoney(totalMinor, currency)}`}
+          {pending ? "Einen Moment …" : totalMinor <= 0 ? "Mit Geschenkgutschein bestellen" : `Zahlungspflichtig bestellen · ${formatMoney(totalMinor, currency)}`}
         </Button>
         <p className="text-center text-[12.5px] leading-relaxed text-muted">
           {mode === "stripe" ? `Du bezahlst sicher über Stripe. Kartendaten werden nicht bei ${BRAND.name} gespeichert.` : "Im Testmodus wird nichts belastet."} Mit der Bestellung akzeptierst du die{" "}
