@@ -41,6 +41,8 @@ export default async function globalSetup() {
   // Käufer ohne gespeicherte Angaben, leerer Warenkorb
   const elias = await userId("elias");
   await sql(`DELETE FROM "CustomerDetails" WHERE "userId" = $1`, [elias]);
+  // Kein Geschenkgutschein aus einem abgebrochenen Lauf im Warenkorb (verfälscht Kassen-Tests)
+  await sql(`DELETE FROM "CartGiftCard" WHERE "cartId" IN (SELECT id FROM "Cart" WHERE "userId" = $1)`, [elias]);
   await sql(`DELETE FROM "Review" WHERE "authorId" = $1`, [elias]);
   await sql(`DELETE FROM "CartItem" WHERE "cartId" IN (SELECT id FROM "Cart" WHERE "userId" = $1)`, [elias]);
   // Lena und Mira sind Mitglieder in „Werkbank Holz“ (Mattia leitet sie)

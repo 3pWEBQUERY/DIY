@@ -92,7 +92,7 @@ test.describe.serial("Geschenkgutscheine", () => {
       await elias.getByLabel("PLZ").fill("3600");
       await elias.getByLabel("Ort", { exact: true }).fill("Thun");
     }
-    await elias.getByRole("button", { name: /Zahlungspflichtig bestellen/ }).click();
+    await elias.getByRole("button", { name: "Mit Geschenkgutschein bestellen" }).click();
     // Keine Zahlung nötig → direkt bestätigt
     await expect(elias).toHaveURL(/kasse\/erfolg\?bestellung=/, { timeout: 20_000 });
     firstOrderId = new URL(elias.url()).searchParams.get("bestellung")!;
