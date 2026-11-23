@@ -7,6 +7,7 @@ import { audit } from "@/server/audit";
 import { isPro } from "@/server/pro/service";
 import type { SessionUser } from "@/server/auth/session";
 import { requireOwnShop } from "./shops";
+import { localize, localizePrice, type PriceContext } from "./currency";
 
 /**
  * Shop-Aktionen mit Countdown (Creator Pro).
@@ -45,6 +46,33 @@ export function saleFor(map: Map<string, ActiveSale[]>, shopId: string, productI
 /** Stückpreis in der Shop-Währung mit Aktion */
 export function saleUnit(shopUnit: number, sale: Pick<ActiveSale, "percent"> | null | undefined) {
   return sale ? salePrice(shopUnit, sale.percent) : shopUnit;
+}
+
+/** Laufende Aktion je Produkt für eine ganze Liste – eine Abfrage, kein N+1 */
+export async function salesForProducts(rows: readonly { id: string; shopId: string }[], now = new Date()) {
+  const byShop = await runningSalesByShop(rows.map((r) => r.shopId), now);
+  return new Map(rows.map((r) => [r.id, saleFor(byShop, r.shopId, r.id, now)] as const));
+}
+
+/** Aktions-Angaben bei eingebetteten Produkten (gleiche Form wie auf Produktkarten) */
+export type PriceSale = { id: string; title: string; percent: number; endsAt: string; regularMinor: number; shopRegularMinor: number };
+
+/**
+ * Preis eines Produkts für Anzeigen ausserhalb der Produktkarten (Beiträge, Projekte, Anleitungen,
+ * Blog, Nachrichten, Suche, Profil): Aktionspreis in der Shop-Währung, dann in die Währung der
+ * Betrachter:in umgerechnet – dieselbe Rechnung wie Karte, Warenkorb und Kasse.
+ */
+export function localizeWithSale<T extends { priceMinor: number; currency: string }>(ctx: PriceContext, item: T, sale: ActiveSale | null | undefined) {
+  const s = sale ?? null;
+  const base = localizePrice(ctx, { ...item, priceMinor: saleUnit(item.priceMinor, s) });
+  const tag: PriceSale | null = s ? { id: s.id, title: s.title, percent: s.percent, endsAt: s.endsAt.toISOString(), regularMinor: localize(ctx, item.priceMinor, item.currency), shopRegularMinor: item.priceMinor } : null;
+  return { ...base, sale: tag };
+}
+
+/** Nur die Preisfelder (für Objekte, die nicht das ganze Produkt weitergeben) */
+export function salePriceFields<T extends { priceMinor: number; currency: string }>(ctx: PriceContext, item: T, sale: ActiveSale | null | undefined) {
+  const x = localizeWithSale(ctx, item, sale);
+  return { priceMinor: x.priceMinor, currency: x.currency, original: x.original, sale: x.sale };
 }
 
 /** Öffentliche Angaben zu einer Aktion (Karten, Produktseite, Shop-Banner, App) */

@@ -348,6 +348,8 @@ struct MarketCheckoutPage: Decodable, Sendable {
     var details: MarketCustomerDetails?
     var detailsRequired: Bool?
     var digitalOnly: Bool?
+    /// Angebotene Zahlungsmittel (Anzeige), z. B. „TWINT“, „Rechnung oder Raten (Klarna)“
+    var paymentMethods: [String]?
 
     var hasDigitalItems: Bool { cart.groups.contains { $0.lines.contains(where: \.isDigital) } }
 }

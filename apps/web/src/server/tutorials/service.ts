@@ -21,6 +21,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, localize } from "@/server/commerce/currency";
+import { salePriceFields, salesForProducts } from "@/server/commerce/sales";
 import { currencyForCountry, isValidSchedule } from "@werkraum/shared";
 import { requireProScheduling } from "@/server/pro/scheduling";
 
@@ -702,11 +703,11 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
       currentVersion: { include: { steps: { orderBy: { position: "asc" }, select: stepSelect } } },
       versions: { where: { version: { gt: DRAFT_VERSION } }, orderBy: { version: "desc" }, take: 30, select: { version: true, changeNote: true, isMajor: true, publishedAt: true } },
       project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, ownerId: true, visibility: true, state: true, owner: { select: { profile: { select: { handle: true, displayName: true } } } } } },
-      products: { where: { ...publicProductWhere, shop: { status: "ACTIVE" } }, take: 6, select: { id: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true } } } },
+      products: { where: { ...publicProductWhere, shop: { status: "ACTIVE" } }, take: 6, select: { id: true, shopId: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, shop: { select: { slug: true, name: true } } } },
     },
   });
   if (!t) return null;
-  const px = await getPriceContext();
+  const [px, productSales] = await Promise.all([getPriceContext(), salesForProducts(t.products)]);
   const isOwner = viewerId === t.authorId;
   if (!isOwner && (t.author.status === "BANNED" || t.author.status === "DELETED")) return null;
   if (!(await canViewContent(viewerId, { ownerId: t.authorId, visibility: "PUBLIC", state: t.state }))) return null;
@@ -774,7 +775,7 @@ export const getTutorialPage = cache(async (slug: string, viewerId: string | nul
     steps,
     author: { id: t.authorId, handle: t.author.profile?.handle ?? "unbekannt", displayName: t.author.profile?.displayName ?? "Unbekannt", avatarUrl: t.author.profile?.avatarUrl ?? null, bio: t.author.profile?.bio ?? "", followerCount: t.author.profile?.followerCount ?? 0 },
     project: project ? { id: project.id, title: project.title, status: project.status, coverUrl: project.coverUrl, category: project.category, href: `/u/${project.owner.profile?.handle}/${project.slug}`, ownerName: project.owner.profile?.displayName ?? "" } : null,
-    products: t.products.map((p) => ({ id: p.id, title: p.title, kind: p.kind, priceMinor: localize(px, p.priceMinor, p.currency), currency: px.currency, coverUrl: p.coverUrl, soldOut: p.status === "SOLD_OUT", href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name })),
+    products: t.products.map((p) => ({ id: p.id, title: p.title, kind: p.kind, ...salePriceFields(px, p, productSales.get(p.id)), coverUrl: p.coverUrl, soldOut: p.status === "SOLD_OUT", href: `/markt/${p.shop.slug}/${p.slug}`, shopName: p.shop.name })),
     comments: commentPage.items,
     /** Cursor für ältere Kommentare (null = alle geladen) */
     commentsCursor: commentPage.nextCursor,

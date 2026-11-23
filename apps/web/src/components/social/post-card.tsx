@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { MessageCircle, Repeat2, Pencil, Trash2, ArrowUpRight, Users, LogOut } from "lucide-react";
 import { CoauthorDialog, leaveCoauthor } from "./coauthor-dialog";
-import { PROJECT_STATUS_LABEL, categoryBySlug, formatMoney, type Currency } from "@werkraum/shared";
+import { PROJECT_STATUS_LABEL, categoryBySlug } from "@werkraum/shared";
 import type { PostView } from "@/server/social/posts";
 import { Avatar, Badge } from "@/components/ui/misc";
 import { MediaImage, Placeholder } from "@/components/ui/media";
@@ -23,6 +23,7 @@ import { deletePostAction, repostAction } from "@/app/(app)/social-actions";
 import { usePathname, useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/media/video";
 import { callAction } from "@/lib/use-action";
+import { EmbedPrice } from "@/components/commerce/embed-price";
 
 const KIND_LABEL: Partial<Record<string, string>> = {
   PROJECT_UPDATE: "Fortschritt",
@@ -265,7 +266,7 @@ export function PostCard({ post, viewer, defaultOpenComments }: { post: PostView
               <span className="spec text-clay-ink">Im Shop von {post.product.shop.name}</span>
               <span className="block font-semibold line-clamp-2">{post.product.title}</span>
             </span>
-            <span className="shrink-0 font-mono text-sm font-semibold">{formatMoney(post.product.priceMinor, post.product.currency as Currency)}</span>
+            <EmbedPrice minor={post.product.priceMinor} currency={post.product.currency} sale={post.product.sale} className="shrink-0 justify-end text-sm" />
           </Link>
         )}
       </div>

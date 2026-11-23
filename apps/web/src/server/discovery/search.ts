@@ -4,7 +4,8 @@ import { relationsFor } from "@/server/visibility";
 import { rateLimit } from "@/server/ratelimit";
 import { clientIpHash } from "@/server/auth/session";
 import { publicProductSql } from "@/server/commerce/restock";
-import { getPriceContext, localize } from "@/server/commerce/currency";
+import { getPriceContext } from "@/server/commerce/currency";
+import { salePriceFields, salesForProducts } from "@/server/commerce/sales";
 
 /**
  * Globale Suche (PRD §18) auf Postgres: Volltext (deutsch, unaccent) + Trigramm-Ähnlichkeit
@@ -92,8 +93,8 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
   if (types.includes("product")) {
     tasks.push(
       db
-        .$queryRaw<{ id: string; title: string; slug: string; shopSlug: string; shopName: string; category: string; coverUrl: string | null; priceMinor: number; currency: string; score: number }[]>`
-        SELECT pr.id, pr.title, pr.slug, s.slug AS "shopSlug", s.name AS "shopName", pr.category, pr."coverUrl", pr."priceMinor", pr.currency,
+        .$queryRaw<{ id: string; shopId: string; title: string; slug: string; shopSlug: string; shopName: string; category: string; coverUrl: string | null; priceMinor: number; currency: string; score: number }[]>`
+        SELECT pr.id, pr."shopId", pr.title, pr.slug, s.slug AS "shopSlug", s.name AS "shopName", pr.category, pr."coverUrl", pr."priceMinor", pr.currency,
           (ts_rank(pr.search, ${tsQuery(q)}) * 2 + similarity(pr.title, ${q}))::float AS score
         FROM "Product" pr JOIN "Shop" s ON s.id = pr."shopId"
         WHERE ${publicProductSql("pr")} AND s.status = 'ACTIVE' AND s."ownerId" NOT IN (${Prisma.join(blocked)})
@@ -103,8 +104,9 @@ export async function search(f: SearchFilters, viewerId: string | null): Promise
           ${f.priceMax != null ? Prisma.sql`AND pr."priceMinor" <= ${f.priceMax}` : Prisma.empty}
           ${f.country ? Prisma.sql`AND pr."shipsFrom" = ${f.country}` : Prisma.empty}
         ORDER BY score DESC LIMIT ${limit}`
-        .then((rows) => {
-          empty.product = rows.map((r) => ({ type: "product", id: r.id, title: r.title, subtitle: r.shopName, href: `/markt/${r.shopSlug}/${r.slug}`, cover: r.coverUrl, category: r.category, score: r.score, meta: { priceMinor: localize(px, r.priceMinor, r.currency), currency: px.currency } }));
+        .then(async (rows) => {
+          const sales = await salesForProducts(rows);
+          empty.product = rows.map((r) => ({ type: "product", id: r.id, title: r.title, subtitle: r.shopName, href: `/markt/${r.shopSlug}/${r.slug}`, cover: r.coverUrl, category: r.category, score: r.score, meta: salePriceFields(px, r, sales.get(r.id)) }));
         }),
     );
   }

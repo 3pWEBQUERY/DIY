@@ -20,6 +20,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, localize } from "@/server/commerce/currency";
+import { salePriceFields, salesForProducts } from "@/server/commerce/sales";
 import { requireProScheduling } from "@/server/pro/scheduling";
 
 /**
@@ -717,7 +718,7 @@ const pageInclude = {
     where: { ...publicProductWhere },
     orderBy: { publishedAt: "desc" },
     take: 12,
-    select: { id: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, publishedAt: true, createdAt: true, shop: { select: { slug: true, name: true, status: true } } },
+    select: { id: true, shopId: true, slug: true, title: true, kind: true, priceMinor: true, currency: true, coverUrl: true, status: true, publishedAt: true, createdAt: true, shop: { select: { slug: true, name: true, status: true } } },
   },
   articles: { include: { article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, publishedAt: true, author: { select: { profile: { select: { handle: true, displayName: true } } } } } } } },
   _count: { select: { followers: true, updates: true } },
@@ -800,9 +801,10 @@ async function buildProjectView(p: Prisma.ProjectGetPayload<{ include: typeof pa
 
   // Verkaufte Produkte im Preis der Betrachter:in
   const px = await getPriceContext();
-  const products = p.products
-    .filter((pr) => pr.shop.status === "ACTIVE")
-    .map((pr) => ({ id: pr.id, title: pr.title, kind: pr.kind, priceMinor: localize(px, pr.priceMinor, pr.currency), currency: px.currency, coverUrl: pr.coverUrl, soldOut: pr.status === "SOLD_OUT", href: `/markt/${pr.shop.slug}/${pr.slug}`, shopName: pr.shop.name, at: (pr.publishedAt ?? pr.createdAt).toISOString() }));
+  const liveProducts = p.products.filter((pr) => pr.shop.status === "ACTIVE");
+  const productSales = await salesForProducts(liveProducts);
+  const products = liveProducts
+    .map((pr) => ({ id: pr.id, title: pr.title, kind: pr.kind, ...salePriceFields(px, pr, productSales.get(pr.id)), coverUrl: pr.coverUrl, soldOut: pr.status === "SOLD_OUT", href: `/markt/${pr.shop.slug}/${pr.slug}`, shopName: pr.shop.name, at: (pr.publishedAt ?? pr.createdAt).toISOString() }));
 
   const articles = p.articles
     .filter((a) => a.article.state === "PUBLISHED")

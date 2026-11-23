@@ -155,8 +155,11 @@ export const commerceRoutes: RouteDef[] = [
     const view = await cart.getCartView(u.id);
     const details = await getCustomerDetails(u.id);
     const digitalOnly = view.groups.length > 0 && view.groups.every((g) => g.lines.every((l) => l.isDigital));
+    const [twint, klarna] = await Promise.all([getSetting("payments.twint"), getSetting("payments.klarna")]);
+    // Anzeige; welche Stripe tatsächlich anbietet, hängt vom Dashboard und der Bestellung ab
+    const paymentMethods = ["Karte", "Apple Pay", "Google Pay", ...(twint && view.currency === "CHF" ? ["TWINT"] : []), ...(klarna ? ["Rechnung oder Raten (Klarna)"] : [])];
     // details = gespeicherte Angaben (null → beim ersten Kauf Pflichtformular, dann POST /checkout mit `details`)
-    return { cart: appCartView(view), details, detailsRequired: !details, digitalOnly };
+    return { cart: appCartView(view), details, detailsRequired: !details, digitalOnly, paymentMethods };
   }),
   GET("/me/customer-details", async () => ({ details: await getCustomerDetails((await me()).id) })),
   PUT("/me/customer-details", async (c) => ({ details: await saveCustomerDetails((await me()).id, await c.json()) })),
@@ -341,6 +344,62 @@ export const commerceRoutes: RouteDef[] = [
   DELETE("/studio/coupons/:id", async (c) => {
     await promo.deleteCoupon(await me(), c.p.id!);
     return { ok: true, message: "Gutschein gelöscht." };
+  }),
+
+  // ── Studio: Sets (wie /studio/rabatte im Web; Eigentum am Shop prüft der Dienst) ──
+  GET("/studio/bundles", async () => {
+    const u = await meAllowSuspended();
+    const [bundles, options, shop] = await Promise.all([
+      promo.listMyBundles(u),
+      promo.bundleOptions(u),
+      db.shop.findUnique({ where: { ownerId: u.id }, select: { currency: true } }),
+    ]);
+    return {
+      currency: shop?.currency ?? "CHF",
+      bundles: bundles.map((b) => ({
+        id: b.id,
+        title: b.title,
+        description: b.description,
+        discountPct: b.discountPct,
+        active: b.active,
+        tutorial: b.tutorial,
+        items: b.items.map((i) => ({ productId: i.productId, quantity: i.quantity, title: i.product.title, priceMinor: i.product.priceMinor, status: i.product.status })),
+        fullMinor: b.price.fullMinor,
+        discountMinor: b.price.discountMinor,
+        priceMinor: b.price.priceMinor,
+        unavailable: b.unavailable,
+      })),
+      options,
+    };
+  }),
+  POST("/studio/bundles", async (c) => {
+    const r = await promo.saveBundle(await me(), null, await c.json());
+    return { ...r, message: "Set angelegt." };
+  }),
+  PUT("/studio/bundles/:id", async (c) => {
+    const r = await promo.saveBundle(await me(), c.p.id!, await c.json());
+    return { ...r, message: "Set gespeichert." };
+  }),
+  /** Aktiv/inaktiv: speichert das Set unverändert mit neuem Status (gleiche Prüfungen wie beim Bearbeiten) */
+  POST("/studio/bundles/:id/active", async (c) => {
+    const { active } = await c.body({ active: zBool });
+    const u = await me();
+    const b = (await promo.listMyBundles(u)).find((x) => x.id === c.p.id);
+    if (!b) throw fail.notFound("Set nicht gefunden.");
+    const on = active !== false;
+    await promo.saveBundle(u, b.id, {
+      title: b.title,
+      description: b.description,
+      discountPct: b.discountPct,
+      tutorialId: b.tutorialId,
+      active: on,
+      items: b.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+    });
+    return { active: on, message: on ? "Set aktiviert." : "Set deaktiviert." };
+  }),
+  DELETE("/studio/bundles/:id", async (c) => {
+    await promo.deleteBundle(await me(), c.p.id!);
+    return { ok: true, message: "Set gelöscht." };
   }),
 
   // ── Studio: Aktionen mit Countdown (Creator Pro; wie /studio/aktionen im Web) ──

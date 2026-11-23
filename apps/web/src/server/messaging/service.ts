@@ -23,7 +23,8 @@ async function otherPresence(viewerId: string, me: { isRequest: boolean }, other
   return (await presenceFor(viewerId, [other.user])).get(other.user.id) ?? null;
 }
 import { storyRefSelect, toStoryRef, type StoryRefRow } from "@/server/stories/ref";
-import { getPriceContext, localizePrice } from "@/server/commerce/currency";
+import { getPriceContext } from "@/server/commerce/currency";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen
@@ -289,10 +290,11 @@ async function orderContext(conv: { orderId: string | null; productId: string | 
     };
   }
   if (conv.productId) {
-    const p = await db.product.findUnique({ where: { id: conv.productId }, select: { title: true, slug: true, coverUrl: true, priceMinor: true, currency: true, status: true, kind: true, shop: { select: { name: true, slug: true } } } });
+    const p = await db.product.findUnique({ where: { id: conv.productId }, select: { id: true, shopId: true, title: true, slug: true, coverUrl: true, priceMinor: true, currency: true, status: true, kind: true, shop: { select: { name: true, slug: true } } } });
     if (!p) return null;
-    const lp = localizePrice(await getPriceContext(), p);
-    return { type: "product" as const, title: p.title, coverUrl: p.coverUrl, priceMinor: lp.priceMinor, currency: lp.currency, original: lp.original, status: p.status, kind: p.kind, shop: p.shop, href: `/markt/${p.shop.slug}/${p.slug}` };
+    const [ctx, sales] = await Promise.all([getPriceContext(), salesForProducts([p])]);
+    const lp = localizeWithSale(ctx, p, sales.get(p.id));
+    return { type: "product" as const, title: p.title, coverUrl: p.coverUrl, priceMinor: lp.priceMinor, currency: lp.currency, original: lp.original, sale: lp.sale, status: p.status, kind: p.kind, shop: p.shop, href: `/markt/${p.shop.slug}/${p.slug}` };
   }
   return null;
 }

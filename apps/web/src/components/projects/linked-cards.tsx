@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { PRODUCT_KIND_LABEL, formatMoney, type Currency, type ProductKind } from "@werkraum/shared";
+import { PRODUCT_KIND_LABEL, type Currency, type ProductKind } from "@werkraum/shared";
 import { Cover } from "@/components/ui/media";
 import { cn } from "@/lib/utils";
+import { EmbedPrice, type EmbedSale } from "@/components/commerce/embed-price";
 
 /**
  * Schlanke Karten für verknüpfte Produkte & Artikel auf Projekt-/Anleitungsseiten
@@ -12,7 +13,7 @@ export function ProductMiniCard({
   product: p,
   className,
 }: {
-  product: { id: string; title: string; kind?: ProductKind | string; priceMinor: number; currency: Currency | string; coverUrl: string | null; href: string; shopName: string; soldOut?: boolean };
+  product: { id: string; title: string; kind?: ProductKind | string; priceMinor: number; currency: Currency | string; coverUrl: string | null; href: string; shopName: string; soldOut?: boolean; sale?: EmbedSale };
   className?: string;
 }) {
   return (
@@ -28,7 +29,7 @@ export function ProductMiniCard({
           <p className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug">{p.title}</p>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="num text-[15px] font-semibold">{formatMoney(p.priceMinor, p.currency === "EUR" ? "EUR" : "CHF")}</span>
+          <EmbedPrice minor={p.priceMinor} currency={p.currency === "EUR" ? "EUR" : "CHF"} sale={p.sale} className="text-[15px]" />
           {p.soldOut ? <span className="spec text-clay-ink">Ausverkauft</span> : <ArrowUpRight size={15} className="text-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink" />}
         </div>
       </div>
