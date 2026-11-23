@@ -89,7 +89,8 @@ describe("Kommentare seitenweise", () => {
   it("zeigt die neuesten zuerst geladenen aufsteigend und liefert einen Cursor zu älteren", async () => {
     // 101 neueste (absteigend) → eine Seite à 100 + Hinweis auf mehr
     const desc = Array.from({ length: ix.COMMENT_PAGE + 1 }, (_, k) => row(500 - k));
-    m.db.comment.findMany.mockImplementation(async (q: { where: { isAnswer: boolean } }) => (q.where.isAnswer ? [] : desc));
+    // Abfragen für Lösungen und den angehefteten Kommentar (Creator Pro) liefern hier nichts
+    m.db.comment.findMany.mockImplementation(async (q: { where: { isAnswer?: boolean; pinnedAt?: { not?: null } | null } }) => (q.where.isAnswer || q.where.pinnedAt?.not === null ? [] : desc));
     const page = await ix.listCommentPage("POST", "p1", "u1");
     expect(page.items).toHaveLength(ix.COMMENT_PAGE);
     expect(page.items[0]!.id).toBe("c0401");

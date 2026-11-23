@@ -41,11 +41,17 @@ struct ProjectEditorSheet: View {
     @State private var remixOwner: String?
     @State private var remixSourceId: String?
     @State private var durationSeed = 0
+    // Creator Pro: geplante Veröffentlichung (nur Neuanlage bzw. noch nie veröffentlicht)
+    @State private var unpublished = false
+    @State private var scheduleLater = false
+    @State private var publishAt = PublishScheduleSection.defaultDate()
 
     @FocusState private var titleFocused: Bool
 
     private var isEdit: Bool { handle != nil && slug != nil }
     private var isRemix: Bool { remixSourceId != nil }
+    private var canSchedule: Bool { !isEdit || unpublished }
+    private var isPro: Bool { app.me?.profile?.isCreatorPro == true }
     private let steps: [(title: String, symbol: String)] = [("Idee", "lightbulb"), ("Bilder", "photo.on.rectangle"), ("Stand", "gauge.with.dots.needle.33percent"), ("Material", "list.bullet.rectangle")]
 
     var body: some View {
@@ -288,6 +294,9 @@ struct ProjectEditorSheet: View {
                 SectionHeader("Werkzeug", subtitle: tools.isEmpty ? nil : Fmt.plural(tools.count, "Position", "Positionen"))
                 ProjectsLineEditor(lines: $tools, kind: .tool, errorPrefix: "tools", errors: errors)
             }
+            if canSchedule {
+                PublishScheduleSection(isPro: isPro, enabled: $scheduleLater, date: $publishAt, noun: "das Projekt", error: errors.fields["publishAt"])
+            }
         }
     }
 
@@ -329,6 +338,8 @@ struct ProjectEditorSheet: View {
                 tools = (v.tools ?? []).map(ProjectsLineDraft.init)
                 remixNote = v.remixNote ?? ""
                 if let r = d.remixOf { remixTitle = r.title; remixOwner = r.ownerName }
+                unpublished = d.unpublished == true
+                if let at = PublishScheduleSection.parse(d.scheduledAt) { scheduleLater = true; publishAt = at }
                 durationSeed += 1
             } else if let remixOf {
                 let src: ProjectRemixSource = try await APIClient.shared.get("/projects/remix-source/\(remixOf)")
@@ -387,6 +398,12 @@ struct ProjectEditorSheet: View {
         if let cover = media.refs.first?.id { body["coverMediaId"] = .string(cover) }
         if let rid = remixSourceId, !isEdit { body["remixOfId"] = .string(rid) }
         if isRemix || isEdit { body["remixNote"] = .string(remixNote.trimmed) }
+        // Geplant: Zeitpunkt; ein noch nie veröffentlichtes Projekt ohne Termin geht jetzt online
+        if canSchedule && isPro && scheduleLater {
+            body["publishAt"] = .string(PublishScheduleSection.iso(publishAt))
+        } else if isEdit && unpublished {
+            body["publishAt"] = .null
+        }
 
         do {
             let result: ProjectSaveResult
@@ -397,7 +414,11 @@ struct ProjectEditorSheet: View {
             }
             Haptics.success()
             NotificationCenter.default.post(name: .projectsChanged, object: projectId)
-            app.show(isEdit ? "Änderungen gespeichert." : isRemix ? "Nachbau angelegt – viel Freude beim Bauen!" : "Projekt angelegt.")
+            if let at = PublishScheduleSection.parse(result.scheduledAt) {
+                app.show("Geplant für \(at.formatted(date: .abbreviated, time: .shortened)).")
+            } else {
+                app.show(isEdit ? "Änderungen gespeichert." : isRemix ? "Nachbau angelegt – viel Freude beim Bauen!" : "Projekt angelegt.")
+            }
             dismiss()
             if !isEdit {
                 let h = app.handle ?? result.href.flatMap { Route.from(href: $0) }.flatMap { r -> String? in

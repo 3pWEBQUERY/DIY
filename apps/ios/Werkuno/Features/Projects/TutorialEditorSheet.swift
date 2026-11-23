@@ -45,6 +45,9 @@ struct TutorialEditorSheet: View {
     @State private var isMajor = false
     @State private var notifyReaders = false
     @State private var shareToFeed = false
+    // Creator Pro: Erstveröffentlichung planen
+    @State private var scheduleLater = false
+    @State private var publishAt = PublishScheduleSection.defaultDate()
     @State private var durationSeed = 0
 
     private let sections = ["Überblick", "Material", "Schritte", "Freigabe"]
@@ -146,7 +149,7 @@ struct TutorialEditorSheet: View {
                     .controlSize(.large)
                     .disabled(saving || uploading)
                 AsyncButton { await save(publish: true) } label: {
-                    Label(currentVersion == nil ? "Veröffentlichen" : "Version \((currentVersion ?? 0) + 1)", systemImage: "paperplane.fill")
+                    Label(publishLabel, systemImage: scheduleLater && currentVersion == nil && app.me?.profile?.isCreatorPro == true ? "calendar.badge.clock" : "paperplane.fill")
                 }
                 .primaryButton()
                 .disabled(saving || uploading)
@@ -161,7 +164,7 @@ struct TutorialEditorSheet: View {
         switch root {
         case "materials", "tools": return 1
         case "steps": return 2
-        case "changeNote", "isMajor", "notifyReaders", "shareToFeed": return 3
+        case "changeNote", "isMajor", "notifyReaders", "shareToFeed", "publishAt": return 3
         default: return 0
         }
     }
@@ -405,6 +408,10 @@ struct TutorialEditorSheet: View {
             .padding(16)
             .cardSurface()
 
+            if currentVersion == nil {
+                PublishScheduleSection(isPro: app.me?.profile?.isCreatorPro == true, enabled: $scheduleLater, date: $publishAt, noun: "die Anleitung", error: errors["publishAt"])
+            }
+
             if state == "PUBLISHED" {
                 NoticeView(tone: .info, message: "«Entwurf speichern» ändert die öffentliche Version nicht. Erst «Veröffentlichen» macht deine Änderungen sichtbar.")
             }
@@ -426,6 +433,7 @@ struct TutorialEditorSheet: View {
                 state = d.state
                 currentVersion = d.currentVersion
                 projectOptions = d.projectOptions ?? []
+                if let at = PublishScheduleSection.parse(d.scheduledAt) { scheduleLater = true; publishAt = at }
                 apply(v)
             } else {
                 async let opts: [IdTitle] = APIClient.shared.get("/me/project-options")
@@ -476,6 +484,11 @@ struct TutorialEditorSheet: View {
         return f.isEmpty
     }
 
+    private var publishLabel: String {
+        if let v = currentVersion { return "Version \(v + 1)" }
+        return scheduleLater && app.me?.profile?.isCreatorPro == true ? "Planen" : "Veröffentlichen"
+    }
+
     private func save(publish: Bool) async {
         guard !saving, !uploading else { return }
         // Leere Schritte am Ende ignorieren
@@ -503,6 +516,10 @@ struct TutorialEditorSheet: View {
         if let p = projectId.nilIfEmpty { input["projectId"] = .string(p) }
         if let c = coverId { input["coverMediaId"] = .string(c) }
         if let n = changeNote.nilIfEmpty { input["changeNote"] = .string(n.trimmed) }
+        // Creator Pro: geplante Erstveröffentlichung statt sofort
+        if publish, currentVersion == nil, scheduleLater, app.me?.profile?.isCreatorPro == true {
+            input["publishAt"] = .string(PublishScheduleSection.iso(publishAt))
+        }
         let body: [String: JSONValue] = ["input": .object(input), "publish": .bool(publish)]
 
         do {
@@ -513,6 +530,11 @@ struct TutorialEditorSheet: View {
                 r = try await APIClient.shared.post("/tutorials", body)
             }
             Haptics.success()
+            if r.version == nil, let at = PublishScheduleSection.parse(r.scheduledAt) {
+                app.show("Geplant für \(at.formatted(date: .abbreviated, time: .shortened)).")
+                dismiss()
+                return
+            }
             app.show(publish ? (r.version.map { $0 == 1 ? "Anleitung veröffentlicht." : "Version \($0) veröffentlicht." } ?? "Anleitung veröffentlicht.") : "Entwurf gespeichert.")
             dismiss()
             if !isEdit || r.slug != originalSlug {

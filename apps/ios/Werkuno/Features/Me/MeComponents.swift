@@ -148,6 +148,8 @@ struct MeKPI: View {
 struct MeTabSwitcher<T: Hashable>: View {
     var items: [(value: T, label: String, count: Int?)]
     @Binding var selection: T
+    /// Eigene Farbe des aktiven Reiters (Profil-Design, Creator Pro)
+    var accent: Color? = nil
     @Namespace private var ns
 
     var body: some View {
@@ -168,7 +170,7 @@ struct MeTabSwitcher<T: Hashable>: View {
                         .foregroundStyle(on ? Color.paper : Color.ink)
                         .padding(.horizontal, 14).padding(.vertical, 9)
                         .background {
-                            if on { Capsule().fill(Color.action).matchedGeometryEffect(id: "tab", in: ns) }
+                            if on { Capsule().fill(accent ?? Color.action).matchedGeometryEffect(id: "tab", in: ns) }
                         }
                         .contentShape(Capsule())
                     }

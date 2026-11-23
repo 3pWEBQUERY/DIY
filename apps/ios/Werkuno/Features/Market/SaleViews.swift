@@ -506,3 +506,24 @@ struct StudioSaleEditor: View {
         }
     }
 }
+
+/// Warenkorb: „statt CHF 85.00 · −20 % Herbst-Aktion · noch 2 T 4 Std“
+struct CartSaleLine: View {
+    var sale: MarketSale
+    var currency: String?
+    var body: some View {
+        HStack(spacing: 4) {
+            if let r = sale.regularUnitMinor {
+                Text("statt")
+                Text(Fmt.money(r, currency: currency)).strikethrough()
+                Text("·")
+            }
+            Text("−\(sale.percent) % \(sale.title) ·").foregroundStyle(Color.clay)
+            SaleCountdownText(endsAt: sale.endsAt).foregroundStyle(Color.clay)
+        }
+        .font(.wr(.caption2)).monospacedDigit().foregroundStyle(Color.muted)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .accessibilityElement(children: .combine)
+    }
+}

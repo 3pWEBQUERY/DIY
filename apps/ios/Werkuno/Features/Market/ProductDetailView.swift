@@ -162,6 +162,27 @@ struct ProductDetailView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    /// Laufende Aktion, die für diese Person gilt (nicht für den Shop selbst; digitale Produkte: App-Preis ohne Aktion)
+    private func buyerSale(_ p: MarketProductPage) -> MarketSale? {
+        guard let s = p.sale, s.appliesToBuyer == true, s.isRunning, !(p.isDigital && !(p.isOwner ?? false)) else { return nil }
+        return s
+    }
+
+    private func regularUnitPrice(_ p: MarketProductPage, _ s: MarketSale) -> Int? {
+        guard let base = s.regularMinor else { return nil }
+        let delta = selectedVariant(p).flatMap { s.regularDeltas?[$0.id] } ?? 0
+        return max(0, base + delta)
+    }
+
+    private func saleHeader(_ s: MarketSale) -> some View {
+        HStack(spacing: 8) {
+            SaleBadge(percent: s.percent)
+            Text(s.title).font(.wr(.footnote, .semibold)).foregroundStyle(Color.clay)
+            SaleCountdownText(endsAt: s.endsAt).font(.wr(.caption)).foregroundStyle(Color.muted)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private func titleBlock(_ p: MarketProductPage) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -172,11 +193,16 @@ struct ProductDetailView: View {
             }
             Text(p.title).font(.display(30)).foregroundStyle(Color.ink).fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
+            if let s = buyerSale(p) { saleHeader(s) }
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 // Digital: Preis so, wie Apple ihn abrechnet (wie in der Kaufleiste)
                 Text(p.isDigital && !(p.isOwner ?? false) ? (storePrice ?? Fmt.money(unitPrice(p), currency: p.currency)) : Fmt.money(unitPrice(p), currency: p.currency))
                     .font(.wr(.title2, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
                     .contentTransition(.numericText())
+                if let s = buyerSale(p), let r = regularUnitPrice(p, s), r > unitPrice(p) {
+                    Text(Fmt.money(r, currency: p.currency)).font(.wr(.subheadline)).monospacedDigit().strikethrough().foregroundStyle(Color.muted)
+                        .accessibilityLabel("statt \(Fmt.money(r, currency: p.currency))")
+                }
                 if !p.isDigital {
                     Text((p.shippingMinor ?? 0) == 0 ? "Versand kostenlos" : "zzgl. \(Fmt.money(p.shippingMinor, currency: p.currency)) Versand")
                         .font(.wr(.footnote)).foregroundStyle(Color.muted)

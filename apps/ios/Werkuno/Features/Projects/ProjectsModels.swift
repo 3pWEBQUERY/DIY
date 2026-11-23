@@ -224,6 +224,9 @@ struct ProjectEditData: Decodable, Sendable {
     var href: String?
     var values: Values?
     var remixOf: RemixRef?
+    /// Noch nie veröffentlicht (Entwurf, ggf. geplant – Creator Pro)
+    var unpublished: Bool?
+    var scheduledAt: String?
 }
 
 /// GET /projects/remix-source/:id
@@ -240,7 +243,7 @@ struct ProjectRemixSource: Decodable, Sendable {
 }
 
 /// POST /projects, PUT /projects/:id
-struct ProjectSaveResult: Decodable, Sendable { var id: String; var slug: String; var href: String? }
+struct ProjectSaveResult: Decodable, Sendable { var id: String; var slug: String; var href: String?; var scheduledAt: String? }
 
 /// GET /materials?q=
 struct ProjectsMaterialHit: Decodable, Hashable, Identifiable, Sendable {
@@ -388,10 +391,12 @@ struct TutorialEditData: Decodable, Sendable {
     var currentVersion: Int?
     var values: TutorialEditValues?
     var projectOptions: [IdTitle]?
+    /// Geplante Erstveröffentlichung (Creator Pro)
+    var scheduledAt: String?
 }
 
 /// POST /tutorials, PUT /tutorials/:id
-struct TutorialSaveResult: Decodable, Sendable { var id: String; var slug: String; var version: Int?; var href: String? }
+struct TutorialSaveResult: Decodable, Sendable { var id: String; var slug: String; var version: Int?; var href: String?; var scheduledAt: String? }
 
 // MARK: - Hilfen
 

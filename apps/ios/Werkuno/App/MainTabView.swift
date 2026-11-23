@@ -240,6 +240,7 @@ struct StudioSectionView: View {
         case .projects: StudioProjectsView()
         case .tutorials: StudioTutorialsView()
         case .articles: StudioArticlesView()
+        case .scheduled: ScheduledContentView()
         case .products: StudioProductsView()
         case .orders: StudioOrdersView()
         case .coupons: StudioCouponsView()

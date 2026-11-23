@@ -177,6 +177,8 @@ struct MarketProductPage: Decodable, Sendable {
     /// Preis im Shop, wenn für diese Person umgerechnet wurde (Hinweis „Shop-Preis … umgerechnet“)
     struct PriceOriginal: Decodable, Hashable, Sendable { var priceMinor: Int; var currency: String; var fxDate: String? }
     var priceOriginal: PriceOriginal?
+    /// Laufende Shop-Aktion (regulärer Preis zum Durchstreichen, Countdown)
+    var sale: MarketSale?
     var status: String
     var materials: String?
     var dimensions: String?
@@ -243,9 +245,11 @@ struct MarketShopPage: Decodable, Sendable {
     var count: Count?
     var isOwner: Bool?
     var reviews: [MarketReview]?
+    /// Laufende Aktion (Banner mit Countdown)
+    var sale: MarketSale?
 
     enum CodingKeys: String, CodingKey {
-        case id, ownerId, slug, name, tagline, description, status, sellerType, country, shippingPolicy, returnPolicy, processingDays, ratingAvg, ratingCount, salesCount, createdAt, verification, owner, isOwner, reviews
+        case id, ownerId, slug, name, tagline, description, status, sellerType, country, shippingPolicy, returnPolicy, processingDays, ratingAvg, ratingCount, salesCount, createdAt, verification, owner, isOwner, reviews, sale
         case count = "_count"
     }
 }
@@ -286,6 +290,8 @@ struct MarketCartLine: Decodable, Hashable, Identifiable, Sendable {
     var problem: String?
     /// Währung der Beträge (Käufer:in); fehlt bei älteren Servern → CHF
     var currency: String?
+    /// Laufende Shop-Aktion: regulärer Stückpreis zum Durchstreichen
+    var sale: MarketSale?
 }
 
 struct MarketCartGroup: Decodable, Hashable, Identifiable, Sendable {
