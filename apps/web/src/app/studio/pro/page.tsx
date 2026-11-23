@@ -126,7 +126,7 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
                   <span>
                     <span className="block text-[15px] font-semibold">
                       {b.title}
-                      {focus?.key === b.key && <span className="spec ml-2 text-moss">Hierher gekommen</span>}
+                      {focus?.key === b.key && <span className="spec ml-2 text-moss">Gesucht</span>}
                     </span>
                     <span className="mt-0.5 block text-[14px] leading-relaxed text-muted">{b.text}</span>
                   </span>
