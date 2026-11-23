@@ -30,7 +30,8 @@ import { maskGiftCode } from "@werkraum/shared";
  * Bezahlt wird eine Bestellung erst durch das Provider-Ereignis (Webhook).
  */
 
-type CheckoutResponse = { url: string; orderIds: string[]; mode: "stripe" | "simulated" };
+/** `paidWithGiftCard`: alle Bestellungen ganz mit Geschenkgutschein bezahlt – keine Zahlung nötig */
+type CheckoutResponse = { url: string; orderIds: string[]; mode: "stripe" | "simulated"; paidWithGiftCard?: boolean };
 
 const lineInclude = {
   product: {
@@ -339,7 +340,7 @@ export async function startCheckout(user: SessionUser, input: unknown, opts: { c
     }
     if (!firstUrl) firstUrl = `/kasse/erfolg?bestellung=${created[0]!.id}`;
 
-    const response: CheckoutResponse = { url: firstUrl, orderIds: created.map((o) => o.id), mode };
+    const response: CheckoutResponse = { url: firstUrl, orderIds: created.map((o) => o.id), mode, ...(created.every((o) => o.totalMinor === 0) ? { paidWithGiftCard: true } : {}) };
     await db.idempotencyKey.update({ where: { key: `checkout:${user.id}:${data.idempotencyKey}` }, data: { response } });
     return response;
   } catch (e) {

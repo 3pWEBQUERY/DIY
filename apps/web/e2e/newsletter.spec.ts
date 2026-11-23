@@ -72,6 +72,21 @@ test.describe.serial("Creator-Newsletter", () => {
     const evil = await page.request.get(`/api/newsletter/klick?t=${token}&u=${encodeURIComponent("javascript:alert(1)")}`, { maxRedirects: 0 });
     expect(evil.headers()["location"]).not.toContain("javascript");
 
+    // Melden über den Link aus der Mail (ohne Anmeldung): Moderationsfall gegen die Absenderin
+    await sql(`DELETE FROM "Report" WHERE "reporterId" = $1 AND "targetType" = 'USER' AND "targetId" = $2`, [elias, mattia]);
+    const anon = await browser.newPage();
+    await anon.goto(`/newsletter-melden?t=${token}`);
+    await expect(anon.getByRole("heading", { name: "Newsletter melden" })).toBeVisible();
+    await anon.getByText("Spam oder Werbung").click();
+    await anon.getByRole("button", { name: "Newsletter melden" }).click();
+    await expect(anon.getByText(/deine Meldung ist bei unserem Moderationsteam/)).toBeVisible();
+    const rep = await one<{ details: string }>(`SELECT details FROM "Report" WHERE "reporterId" = $1 AND "targetType" = 'USER' AND "targetId" = $2`, [elias, mattia]);
+    expect(rep?.details).toContain(`Newsletter „`);
+    await sql(`DELETE FROM "Report" WHERE "reporterId" = $1 AND "targetType" = 'USER' AND "targetId" = $2`, [elias, mattia]);
+    await anon.goto(`/newsletter-melden?t=ungueltig.abc`);
+    await expect(anon.getByRole("heading", { name: "Link ungültig" })).toBeVisible();
+    await anon.close();
+
     // Verschickt: nicht mehr änderbar
     await page.goto(`/studio/newsletter/${n!.id}`);
     await expect(page.getByText("Dieser Newsletter ist verschickt")).toBeVisible();

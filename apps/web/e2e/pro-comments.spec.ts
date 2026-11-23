@@ -69,6 +69,36 @@ test.describe.serial("Creator Pro: Kommentare und Profil-Design", () => {
     expect(list[0]).toMatchObject({ id, pinned: true });
   });
 
+  test("Wortfilter rückwirkend: erst zählen, nach Rückfrage bestehende Kommentare ausblenden", async ({ browser }) => {
+    const owner = await loginAs(browser, "mattia");
+    const elias = await loginAs(browser, "elias");
+    const lena = await loginAs(browser, "lena");
+    // Erst kommentieren, dann das Wort in den Filter nehmen – der Kommentar bleibt zunächst sichtbar
+    await owner.request.put("/api/v1/app/studio/comment-filter", { data: { words: [`Sperrwort${tag}`] } });
+    const r = await elias.request.post("/api/v1/app/comments", { data: { type: "PROJECT", id: project.id, body: `Alt: nachtwort${tag} e2e${tag}` } });
+    const { id } = (await r.json()).data;
+    expect((await comments(lena)).find((c) => c.id === id)).toBeTruthy();
+    const before = await commentCount();
+    // Nur das neue Wort: der zuvor bewusst eingeblendete Kommentar bleibt unberührt
+    await owner.request.put("/api/v1/app/studio/comment-filter", { data: { words: [`Nachtwort${tag}`] } });
+
+    // App-API: dryRun zählt nur
+    const dry = await (await owner.request.post("/api/v1/app/studio/comment-filter/apply", { data: { dryRun: true } })).json();
+    expect((dry.data ?? dry).matched).toBeGreaterThanOrEqual(1);
+    expect((await comments(lena)).find((c) => c.id === id)).toBeTruthy();
+
+    // Web: Rückfrage, dann ausgeblendet und nicht mehr gezählt
+    await owner.goto("/studio/kommentare");
+    await owner.getByRole("button", { name: "Bestehende Kommentare prüfen" }).click();
+    const dlg = owner.locator('dialog[aria-labelledby="confirm-title"]');
+    await expect(dlg).toContainText("ausblenden?");
+    await dlg.getByRole("button", { name: "Ausblenden" }).click();
+    await expect(owner.getByText(/Kommentare? ausgeblendet\./)).toBeVisible();
+    expect((await comments(lena)).find((c) => c.id === id)).toBeUndefined();
+    expect((await comments(elias)).find((c) => c.id === id)).toMatchObject({ filtered: false });
+    expect(await commentCount()).toBe(before - 1);
+  });
+
   test("Kommentare schliessen: niemand kann mehr kommentieren", async ({ browser }) => {
     const owner = await loginAs(browser, "mattia");
     const elias = await loginAs(browser, "elias");

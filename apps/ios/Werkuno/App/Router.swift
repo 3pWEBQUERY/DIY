@@ -93,6 +93,7 @@ enum Route: Hashable {
     case checkout
     case orders
     case order(id: String)
+    case giftCards
     case communities
     case community(slug: String)
     case communityManage(slug: String)
@@ -155,6 +156,7 @@ enum Route: Hashable {
             case "warenkorb": return .cart
             case "kasse": return .checkout
             case "bestellungen": return .orders
+            case "geschenkgutscheine": return .giftCards
             case "communities": return .communities
             case "blogs": return .blogHome
             case "nachrichten":
