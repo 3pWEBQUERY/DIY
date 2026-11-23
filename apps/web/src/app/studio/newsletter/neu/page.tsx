@@ -6,6 +6,7 @@ import { isPro } from "@/server/pro/service";
 import { PageHeader } from "@/components/shell/page";
 import { NewsletterEditor } from "@/components/pro/newsletter-editor";
 import { BRAND } from "@/config/brand";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Neuer Newsletter" };
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function NewNewsletterPage() {
   const user = await currentUser();
   if (!user?.profile) redirect("/anmelden?weiter=/studio/newsletter/neu");
-  if (!(await isPro(user.id))) redirect("/studio/newsletter");
+  if (!(await isPro(user.id))) redirect(proHref("newsletter"));
   const [options, recipients, quota] = await Promise.all([cardOptions(user), countRecipients(user.id), newsletterQuota(user.id)]);
   return (
     <div>

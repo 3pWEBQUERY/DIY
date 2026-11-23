@@ -168,7 +168,7 @@ struct RouteView: View {
             case .materials: MaterialsView()
             case .studio: StudioView()
             case .studioSection(let s): StudioSectionView(section: s)
-            case .creatorPro: StudioProView()
+            case .creatorPro(let feature): StudioProView(highlight: feature)
             case .sellerOrder(let id): SellerOrderDetailView(id: id)
             case .settings: SettingsView()
             case .settingsSection(let s): SettingsSectionView(section: s)

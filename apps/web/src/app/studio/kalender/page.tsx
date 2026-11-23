@@ -5,12 +5,11 @@ import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
 import { currentUser } from "@/server/auth/session";
 import { isPro } from "@/server/pro/service";
 import { CALENDAR_KIND_LABEL, contentCalendar, upcomingScheduled, type CalendarItem, type CalendarKind } from "@/server/pro/calendar";
-import { ProMark } from "@/components/pro/pro-mark";
-import { LinkButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/misc";
 import { TZ, addDaysToDayKey, zurichDateTimeIso, zurichDayKey } from "@/lib/tz";
 import { cn } from "@/lib/utils";
 import { isoWeekKey, weekStart } from "@/lib/calendar-weeks";
+import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Inhaltskalender" };
 export const dynamic = "force-dynamic";
@@ -52,35 +51,14 @@ function weekTitle(from: string, to: string) {
 /**
  * Inhaltskalender (Creator Pro): geplante und veröffentlichte Beiträge, Artikel, Projekte, Anleitungen
  * und Newsletter auf einen Blick. Monatsraster am Bildschirm, Tagesliste auf schmalen Geräten.
- * Ohne Pro: die Liste der geplanten Beiträge und Artikel plus Hinweis.
+ * Ohne Pro: Weiterleitung zur Pro-Seite (Funktion „kalender“ hervorgehoben).
  */
 export default async function ContentCalendarPage({ searchParams }: { searchParams: Promise<{ monat?: string; ansicht?: string; woche?: string }> }) {
   const [user, sp] = await Promise.all([currentUser(), searchParams]);
   if (!user?.profile) redirect("/anmelden?weiter=/studio/kalender");
   const pro = await isPro(user.id);
-
-  if (!pro) {
-    const upcoming = await upcomingScheduled(user.id);
-    return (
-      <div className="max-w-[820px]">
-        <Header />
-        <section className="rounded-2xl border border-line bg-card p-6 sm:p-8">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="headline text-2xl">Alles geplant im Blick</h2>
-            <ProMark size="md" />
-          </div>
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-2">
-            Mit Creator Pro planst du auch Projekte und Anleitungen auf einen Zeitpunkt und siehst alle Veröffentlichungen im Wochen- und Monatskalender – Beiträge, Artikel, Projekte, Anleitungen und Newsletter.
-          </p>
-          <LinkButton href="/studio/pro" className="mt-5">Creator Pro ansehen</LinkButton>
-        </section>
-        <section className="mt-10" aria-labelledby="geplant">
-          <SectionTitle n="01" title={<span id="geplant">Geplant</span>} />
-          <UpcomingList items={upcoming} empty="Nichts geplant. Beiträge und Artikel kannst du beim Veröffentlichen auf später legen." />
-        </section>
-      </div>
-    );
-  }
+  // Ohne Pro: direkt zur Pro-Seite mit dieser Funktion
+  if (!pro) redirect(proHref("kalender"));
 
   const week = sp.ansicht === "woche";
   const first = monthStart(sp.monat);

@@ -4,24 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn, pad } from "@/lib/utils";
 import { ProMark } from "@/components/pro/pro-mark";
+import { proHref, type ProFeatureKey } from "@/lib/pro-features";
 
 /** Navigationspunkte gemäss PRD §6.3. */
-export const STUDIO_NAV = [
+export const STUDIO_NAV: { href: string; label: string; exact?: boolean; shop?: boolean; pro?: boolean; proFeature?: ProFeatureKey }[] = [
   { href: "/studio", label: "Übersicht", exact: true },
   { href: "/studio/inhalte", label: "Meine Inhalte" },
   { href: "/studio/projekte", label: "Meine Projekte" },
   { href: "/studio/anleitungen", label: "Anleitungen" },
   { href: "/studio/blog", label: "Blog" },
-  { href: "/studio/kalender", label: "Inhaltskalender", proFeature: true },
+  { href: "/studio/kalender", label: "Inhaltskalender", proFeature: "kalender" },
   { href: "/studio/produkte", label: "Produkte", shop: true },
   { href: "/studio/bestellungen", label: "Bestellungen", shop: true },
   { href: "/studio/rabatte", label: "Gutscheine & Sets", shop: true },
   { href: "/studio/geschenkgutscheine", label: "Geschenkgutscheine", shop: true },
-  { href: "/studio/aktionen", label: "Aktionen", shop: true, proFeature: true },
+  { href: "/studio/aktionen", label: "Aktionen", shop: true, proFeature: "aktionen" },
   { href: "/studio/unterstuetzer", label: "Unterstützer:innen" },
-  { href: "/studio/newsletter", label: "Newsletter", proFeature: true },
-  { href: "/studio/kommentare", label: "Kommentare", proFeature: true },
-  { href: "/studio/profil-design", label: "Profil-Design", proFeature: true },
+  { href: "/studio/newsletter", label: "Newsletter", proFeature: "newsletter" },
+  { href: "/studio/kommentare", label: "Kommentare", proFeature: "kommentare" },
+  { href: "/studio/profil-design", label: "Profil-Design", proFeature: "profil-design" },
   { href: "/studio/shop", label: "Shopverwaltung" },
   { href: "/studio/medien", label: "Medienbibliothek" },
   { href: "/studio/statistiken", label: "Statistiken" },
@@ -29,6 +30,13 @@ export const STUDIO_NAV = [
   { href: "/studio/pro", label: "Creator Pro", pro: true },
   { href: "/studio/einstellungen", label: "Einstellungen" },
 ];
+
+/** Ziel eines Eintrags: ohne Pro führen Pro-Funktionen zur Pro-Seite mit dieser Funktion */
+function targetHref(item: (typeof STUDIO_NAV)[number], isPro: boolean, hasShop = true) {
+  if (item.shop && !hasShop) return "/studio/shop";
+  if (item.proFeature && !isPro) return proHref(item.proFeature);
+  return item.href;
+}
 
 /** Aktiv bei exakter Übereinstimmung oder in einem Unterpfad – „/studio/pro“ darf nicht „/studio/produkte“ treffen. */
 function isActive(pathname: string, item: { href: string; exact?: boolean }) {
@@ -47,7 +55,7 @@ export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?
           return (
             <li key={item.href}>
               <Link
-                href={disabled ? "/studio/shop" : item.href}
+                href={targetHref(item, isPro, hasShop)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-9 items-center gap-3 px-3 text-[14px] text-ink-2 hover:bg-sunken rounded-xl",
@@ -58,8 +66,8 @@ export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?
                 <span className={cn("font-mono text-[10px]", active ? "text-paper" : "text-muted")}>{pad(i + 1)}</span>
                 <span className="truncate">{item.label}</span>
                 {disabled && <span className="ml-auto spec">Shop</span>}
-                {"pro" in item && item.pro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label={isPro ? "Aktiv" : "Pro"} />}
-                {"proFeature" in item && item.proFeature && !isPro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label="Pro" />}
+                {item.pro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label={isPro ? "Aktiv" : "Pro"} />}
+                {item.proFeature && !isPro && <ProMark className={cn("ml-auto", active && "bg-paper text-ink")} label="Pro" />}
               </Link>
             </li>
           );
@@ -70,15 +78,16 @@ export function StudioNav({ hasShop, isPro = false }: { hasShop: boolean; isPro?
 }
 
 /** Mobile Studio-Navigation als horizontale Leiste. */
-export function StudioMobileNav() {
+export function StudioMobileNav({ isPro = false }: { isPro?: boolean }) {
   const pathname = usePathname();
   return (
     <div className="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-line px-4 pb-2 scrollbar-none md:hidden">
       {STUDIO_NAV.map((item) => {
         const active = isActive(pathname, item);
         return (
-          <Link key={item.href} href={item.href} className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors", active ? "bg-moss font-semibold text-paper" : "text-muted hover:bg-sunken hover:text-ink")}>
+          <Link key={item.href} href={targetHref(item, isPro)} className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition-colors", active ? "bg-moss font-semibold text-paper" : "text-muted hover:bg-sunken hover:text-ink")}>
             {item.label}
+            {item.proFeature && !isPro && <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-moss">Pro</span>}
           </Link>
         );
       })}

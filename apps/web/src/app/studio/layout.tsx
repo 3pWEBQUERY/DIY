@@ -37,7 +37,7 @@ export default async function StudioLayout({ children }: { children: React.React
       <div className="mx-auto flex max-w-[1400px]">
         <StudioNav hasShop={!!user.shop} isPro={pro} />
         <main id="main" className="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-12">
-          <StudioMobileNav />
+          <StudioMobileNav isPro={pro} />
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

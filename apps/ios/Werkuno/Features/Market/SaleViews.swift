@@ -215,7 +215,7 @@ struct StudioSalesView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Aktionen wie „−20 % bis Sonntag“ gehören zu Creator Pro – mit Countdown, automatisch ein und aus.")
                 .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
-            Button("Creator Pro ansehen") { router.open(.creatorPro) }
+            Button("Mit Creator Pro freischalten") { router.open(.creatorPro(feature: .aktionen)) }
                 .buttonStyle(.glassProminent).tint(.moss)
         }
     }

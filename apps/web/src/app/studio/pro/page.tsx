@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { BarChart3, CalendarClock, FileText, Film, LayoutTemplate, Mail, MessageSquareLock, Palette, Percent, Printer, ShieldCheck, Timer } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { isProFeatureKey, proFeatures } from "@/lib/pro-features";
+import { cn } from "@/lib/utils";
 import { formatMoney } from "@werkraum/shared";
 import { currentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -23,7 +25,7 @@ export const dynamic = "force-dynamic";
 const minutes = (sec: number) => (sec >= 60 ? `${Math.round(sec / 60)} Min.` : `${sec} Sek.`);
 
 /** Creator Pro (§22.3): abschliessen, verwalten und die Pro-Werkzeuge an einem Ort. */
-export default async function ProPage({ searchParams }: { searchParams: Promise<{ abo?: string; session_id?: string }> }) {
+export default async function ProPage({ searchParams }: { searchParams: Promise<{ abo?: string; session_id?: string; funktion?: string }> }) {
   const [user, sp] = await Promise.all([currentUser(), searchParams]);
   if (!user?.profile) redirect("/anmelden?weiter=/studio/pro");
   if (sp.abo === "erfolg" && sp.session_id) await confirmProCheckout(user.id, sp.session_id);
@@ -42,19 +44,16 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
   ]);
   const handle = user.profile.handle;
 
-  const benefits = [
-    { icon: LayoutTemplate, title: "Profil mit Schaufenster", text: `Bis zu ${FEATURED_MAX} Projekte ganz oben in deinem Profil hervorheben – und das Pro-Kennzeichen neben deinem Namen.` },
-    { icon: FileText, title: "Medienkit für Kooperationen", text: "Eine Seite mit deinen besten Arbeiten und echten, erklärten Zahlen. Teilbar per Link, druckbar als PDF." },
-    { icon: BarChart3, title: "Statistik über 12 Monate", text: "Verläufe über ein ganzes Jahr statt 12 Wochen – und alle Zahlen als CSV für Excel oder Numbers." },
-    { icon: Film, title: "Längere Videos", text: `Videos bis ${minutes(Math.max(sec, proSec))} und ${Math.max(mb, proMb)} MB statt ${minutes(sec)} und ${mb} MB.` },
-    { icon: Percent, title: "Tiefere Provision im Shop", text: `${formatBps(Math.min(fee, proFee))} statt ${formatBps(fee)} auf den Warenwert jedes Verkaufs.` },
-    { icon: Mail, title: "Newsletter an deine Follower", text: `Neue Projekte, Anleitungen oder Drops direkt ins Postfach – sofort oder geplant, mit Öffnungen und Klicks. Bis zu ${newsletters} Newsletter in 30 Tagen.` },
-    { icon: Timer, title: "Shop-Aktionen mit Countdown", text: "Zeitlich begrenzte Rabatte auf den ganzen Shop oder ausgewählte Stücke – mit Countdown auf Karten, Produktseite und im Shop, automatisch an und aus." },
-    { icon: CalendarClock, title: "Planen und Inhaltskalender", text: "Projekte und Anleitungen zu einem festen Zeitpunkt veröffentlichen – und alles Geplante und Veröffentlichte im Kalender sehen." },
-    { icon: MessageSquareLock, title: "Kommentare im Griff", text: "Einen Kommentar oben anheften, Kommentare mit bestimmten Wörtern automatisch ausblenden und Kommentare je Inhalt schliessen." },
-    { icon: Palette, title: "Eigenes Profil-Design", text: "Akzentfarbe, Titelbild und Reihenfolge der Bereiche selbst wählen – im Web und in der iOS-App." },
-    { icon: Printer, title: "Anleitungs-PDF mit deinem Branding", text: "Druck- und PDF-Version deiner Anleitungen mit deinem Logo, Namen und Link samt QR-Code." },
-  ];
+  const benefits = proFeatures({
+    featuredMax: FEATURED_MAX,
+    videoProText: `${minutes(Math.max(sec, proSec))} und ${Math.max(mb, proMb)} MB`,
+    videoStdText: `${minutes(sec)} und ${mb} MB`,
+    feeText: formatBps(fee),
+    proFeeText: formatBps(Math.min(fee, proFee)),
+    newsletters,
+  });
+  // Von einem gesperrten Einstieg gekommen: diese Funktion zuerst zeigen
+  const focus = !status.active && isProFeatureKey(sp.funktion) ? benefits.find((b) => b.key === sp.funktion) ?? null : null;
 
   const fair = (
     <div className="flex gap-3 rounded-2xl bg-sunken p-4 text-[13.5px] leading-relaxed text-ink-2">
@@ -75,7 +74,7 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
         {PRO_NAME}
         {status.active && <ProMark size="md" label="Aktiv" />}
       </h1>
-      <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">Werkzeuge für Menschen, die mit ihren Projekten wachsen wollen – Schaufenster, Medienkit, Jahresstatistik, längere Videos und eine tiefere Shop-Provision.</p>
+      <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">Werkzeuge für Menschen, die mit ihren Projekten wachsen wollen – Newsletter, Shop-Aktionen, Planung, eigenes Profil-Design, Medienkit, Jahresstatistik und eine tiefere Shop-Provision.</p>
     </header>
   );
 
@@ -93,16 +92,42 @@ export default async function ProPage({ searchParams }: { searchParams: Promise<
             Dein Abo wird gerade aktiviert – das dauert meist nur ein paar Sekunden. Lade die Seite gleich neu.
           </Notice>
         )}
+        {focus && (
+          <section aria-labelledby="pro-fokus" className="mb-10 rounded-2xl border border-moss/40 bg-moss-soft p-5 sm:p-6">
+            <p className="spec mb-2 text-moss">Pro-Funktion</p>
+            <div className="flex gap-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-paper text-moss">
+                <focus.icon size={21} strokeWidth={1.8} aria-hidden />
+              </span>
+              <div>
+                <h2 id="pro-fokus" className="headline text-[1.35rem]">
+                  „{focus.title}“ gehört zu {PRO_NAME}
+                </h2>
+                <p className="mt-1.5 max-w-2xl text-[14.5px] leading-relaxed text-ink-2">{focus.text}</p>
+                <p className="mt-2 text-[13.5px] text-muted">Mit dem Abo schaltest du diese und alle weiteren Pro-Funktionen frei – darunter siehst du, was alles dazugehört.</p>
+              </div>
+            </div>
+          </section>
+        )}
         <div className="grid gap-10 lg:grid-cols-[1fr_380px] lg:items-start">
           <div>
+            <h2 className="spec mb-3">Alles in {PRO_NAME}</h2>
             <ul className="divide-y divide-line border-y border-line">
               {benefits.map((b) => (
-                <li key={b.title} className="flex gap-4 py-5">
+                <li
+                  key={b.key}
+                  id={`funktion-${b.key}`}
+                  aria-current={focus?.key === b.key ? "true" : undefined}
+                  className={cn("flex scroll-mt-28 gap-4 py-5", focus?.key === b.key && "-mx-3 rounded-xl bg-moss-soft px-3")}
+                >
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-moss-soft text-moss">
                     <b.icon size={19} strokeWidth={1.8} aria-hidden />
                   </span>
                   <span>
-                    <span className="block text-[15px] font-semibold">{b.title}</span>
+                    <span className="block text-[15px] font-semibold">
+                      {b.title}
+                      {focus?.key === b.key && <span className="spec ml-2 text-moss">Gesucht</span>}
+                    </span>
                     <span className="mt-0.5 block text-[14px] leading-relaxed text-muted">{b.text}</span>
                   </span>
                 </li>

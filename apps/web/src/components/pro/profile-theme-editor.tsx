@@ -19,6 +19,7 @@ import { toast } from "@/components/ui/toast";
 import { callAction } from "@/lib/use-action";
 import { cn } from "@/lib/utils";
 import { saveProfileThemeAction } from "@/app/studio/profil-design/actions";
+import { proHref } from "@/lib/pro-features";
 
 type Profile = { handle: string; displayName: string; avatarUrl: string | null; coverUrl: string | null };
 
@@ -123,8 +124,8 @@ export function ProfileThemeEditor({ initial, custom, pro, profile }: { initial:
             </Button>
           )}
           {!pro && (
-            <Link href="/studio/pro" className="text-[13px] font-semibold text-ink-2 underline-offset-2 hover:underline">
-              Mit Creator Pro speichern
+            <Link href={proHref("profil-design")} className="text-[13px] font-semibold text-ink-2 underline-offset-2 hover:underline">
+              Mit Creator Pro speichern →
             </Link>
           )}
           <Link href={`/u/${profile.handle}`} className="ml-auto text-[13px] text-muted hover:text-ink">

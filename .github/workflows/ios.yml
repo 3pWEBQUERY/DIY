@@ -30,9 +30,24 @@ jobs:
         working-directory: apps/ios
         run: |
           set +e
-          xcodebuild -project Werkuno.xcodeproj -scheme Werkuno -configuration Debug \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1
-          code=$?
-          grep -E "error:|BUILD (SUCCEEDED|FAILED)" build.log | tail -80
+          # Zu komplexe Ausdrücke als Fehler mit Datei/Zeile melden statt den Build minutenlang
+          # hängen zu lassen; nach 25 Min. abbrechen und zeigen, woran der Compiler gerade war.
+          ( xcodebuild -project Werkuno.xcodeproj -scheme Werkuno -configuration Debug \
+              -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+              CODE_SIGNING_ALLOWED=NO \
+              OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -solver-expression-time-threshold=30 -Xfrontend -warn-long-expression-type-checking=2000' \
+              build > build.log 2>&1; echo $? > build.code ) &
+          pid=$!
+          for i in $(seq 1 300); do
+            kill -0 $pid 2>/dev/null || break
+            sleep 5
+          done
+          if kill -0 $pid 2>/dev/null; then
+            echo "::error::Build nach 25 Minuten abgebrochen – letzte Ausgabe:"
+            pkill -f xcodebuild; sleep 2
+            tail -60 build.log
+            exit 1
+          fi
+          code=$(cat build.code 2>/dev/null || echo 1)
+          grep -E "error:|warning: .*(type-check|reasonable time)|BUILD (SUCCEEDED|FAILED)" build.log | tail -80
           exit $code

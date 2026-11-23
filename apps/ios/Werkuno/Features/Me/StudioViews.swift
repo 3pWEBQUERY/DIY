@@ -93,9 +93,9 @@ struct StudioView: View {
                     SectionHeader("Verwalten", number: o.shop != nil ? "05" : "04")
                     MeGroup {
                         ForEach(StudioSection.allCases.filter { app.marketplaceEnabled || !Route.studioSection($0).needsMarketplace }) { s in
-                            MeNavRow(symbol: s.symbol, title: s.title, subtitle: subtitle(s), tint: isShopSection(s) ? .clay : .ink) { router.open(.studioSection(s)) }
+                            MeNavRow(symbol: s.symbol, title: s.title, subtitle: subtitle(s), tint: isShopSection(s) ? .clay : .ink, trailing: lockedFeature(s) == nil ? nil : "Pro") { openSection(s) }
                         }
-                        MeNavRow(symbol: "seal", title: "Creator Pro", subtitle: app.me?.profile?.isCreatorPro == true ? "Aktiv · Schaufenster, Medienkit, Abo" : "Status und Vorteile", tint: .moss) { router.open(.creatorPro) }
+                        MeNavRow(symbol: "seal", title: "Creator Pro", subtitle: app.me?.profile?.isCreatorPro == true ? "Aktiv · Schaufenster, Medienkit, Abo" : "Status und Vorteile", tint: .moss) { router.open(.creatorPro()) }
                     }
                 }
 
@@ -112,6 +112,23 @@ struct StudioView: View {
         }
     }
 
+    private var isPro: Bool { app.me?.profile?.isCreatorPro == true }
+
+    /// Pro-Funktion, die ohne Abo gesperrt ist – ein Tipp führt dann zur Pro-Seite mit dieser Funktion
+    private func lockedFeature(_ s: StudioSection) -> ProFeature? {
+        guard !isPro else { return nil }
+        switch s {
+        case .newsletter: return .newsletter
+        case .sales: return .aktionen
+        case .scheduled: return .kalender
+        default: return nil
+        }
+    }
+
+    private func openSection(_ s: StudioSection) {
+        if let f = lockedFeature(s) { router.open(.creatorPro(feature: f)) } else { router.open(.studioSection(s)) }
+    }
+
     private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .bundles, .sales, .shop, .revenue].contains(s) }
 
     private func subtitle(_ s: StudioSection) -> String? {
@@ -120,7 +137,7 @@ struct StudioView: View {
         case .projects: "Status, Sichtbarkeit, Journal"
         case .tutorials: "Versionen, Leser:innen im Fortschritt"
         case .articles: "Entwürfe, geplante und veröffentlichte Artikel"
-        case .scheduled: "Alles, was bald erscheint"
+        case .scheduled: isPro ? "Alles, was bald erscheint" : "Planen und Inhaltskalender (Pro)"
         case .newsletter: app.me?.profile?.isCreatorPro == true ? "An deine Follower:innen" : "An deine Follower:innen (Pro)"
         case .products: app.me?.shop == nil ? "Mit eigenem Shop" : "Angebote, Bestand, Preise"
         case .orders: "Eingegangene Bestellungen"

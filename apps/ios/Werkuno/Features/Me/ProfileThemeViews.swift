@@ -111,7 +111,7 @@ struct ProfileThemeEditorSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Gehört zu Creator Pro").font(.wr(.subheadline, .semibold))
                 Text("Probier es aus – speichern und auf deinem Profil zeigen geht mit Creator Pro.").font(.wr(.footnote)).foregroundStyle(Color.muted)
-                Button("Creator Pro ansehen") { dismiss(); router.open(.creatorPro) }.font(.wr(.footnote, .semibold))
+                Button("Mit Creator Pro freischalten") { ProUnlock.open(.profilDesign, router: router) { dismiss() } }.font(.wr(.footnote, .semibold))
             }
         }
     }
@@ -229,7 +229,11 @@ struct CommentFilterSheet: View {
             Form {
                 if loaded && !pro {
                     Section {
-                        Button("Wortfilter gehört zu Creator Pro – ansehen") { dismiss(); router.open(.creatorPro) }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Der Wortfilter gehört zu Creator Pro").font(.wr(.subheadline, .semibold))
+                            Button("Mit Creator Pro freischalten") { ProUnlock.open(.kommentare, router: router) { dismiss() } }
+                                .font(.wr(.footnote, .semibold))
+                        }
                     }
                 }
                 Section {

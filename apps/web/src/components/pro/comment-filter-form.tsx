@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { applyCommentFilterAction, saveCommentFilterAction } from "@/app/studio/kommentare/actions";
 import { confirmDialog } from "@/components/ui/confirm";
 import { deleteCommentAction, unfilterCommentAction } from "@/app/(app)/social-actions";
+import { proHref } from "@/lib/pro-features";
 
 /** Wörter aus dem Textfeld: je Zeile oder durch Komma/Semikolon getrennt, bereinigt und ohne Doppelte */
 function parseWords(text: string) {
@@ -66,8 +67,8 @@ export function CommentFilterForm({ initial, pro }: { initial: string[]; pro: bo
           {pending ? "Speichert …" : "Wortfilter speichern"}
         </Button>
         {!pro && (
-          <Link href="/studio/pro" className="text-[13px] font-semibold text-ink-2 underline-offset-2 hover:underline">
-            Mit Creator Pro
+          <Link href={proHref("kommentare")} className="text-[13px] font-semibold text-ink-2 underline-offset-2 hover:underline">
+            Mit Creator Pro freischalten →
           </Link>
         )}
       </div>

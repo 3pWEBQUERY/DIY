@@ -202,7 +202,7 @@ struct StudioNewsletterView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Newsletter gehören zu Creator Pro: Neue Projekte, Anleitungen oder Drops direkt per E-Mail an deine Follower:innen – sofort oder geplant, mit Öffnungen und Klicks.")
                 .font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
-            Button("Creator Pro ansehen") { router.open(.creatorPro) }
+            Button("Mit Creator Pro freischalten") { router.open(.creatorPro(feature: .newsletter)) }
                 .buttonStyle(.glassProminent).tint(.moss)
         }
     }
