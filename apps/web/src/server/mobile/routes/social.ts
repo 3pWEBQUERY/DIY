@@ -20,7 +20,7 @@ import { publicProductWhere } from "@/server/commerce/restock";
 import * as stories from "@/server/stories/service";
 import { listHighlights } from "@/server/stories/highlights";
 import { getPriceContext } from "@/server/commerce/currency";
-import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sale-prices";
 import * as commentTools from "@/server/pro/comment-tools";
 import { effectiveProfileTheme, profileThemeSettings, saveProfileTheme } from "@/server/pro/profile-theme";
 

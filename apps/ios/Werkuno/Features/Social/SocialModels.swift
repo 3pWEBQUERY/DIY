@@ -170,6 +170,8 @@ struct SocialThreadContext: Decodable, Hashable, Sendable {
     var coverUrl: String?
     var priceMinor: Int?
     var href: String?
+    /// Produktanfrage: laufende Shop-Aktion (`priceMinor` ist bereits der Aktionspreis)
+    var sale: MarketSale?
 
     var isOrder: Bool { type == "order" }
 }

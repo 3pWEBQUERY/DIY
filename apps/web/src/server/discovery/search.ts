@@ -5,7 +5,7 @@ import { rateLimit } from "@/server/ratelimit";
 import { clientIpHash } from "@/server/auth/session";
 import { publicProductSql } from "@/server/commerce/restock";
 import { getPriceContext } from "@/server/commerce/currency";
-import { salePriceFields, salesForProducts } from "@/server/commerce/sales";
+import { salePriceFields, salesForProducts } from "@/server/commerce/sale-prices";
 
 /**
  * Globale Suche (PRD §18) auf Postgres: Volltext (deutsch, unaccent) + Trigramm-Ähnlichkeit

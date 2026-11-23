@@ -43,7 +43,7 @@ import { flatSearchParams } from "@/lib/search-params";
 import { JsonLd } from "@/components/projects/json-ld";
 import { absoluteUrl, OG_BASE } from "@/config/seo";
 import { getPriceContext, localize } from "@/server/commerce/currency";
-import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sale-prices";
 import { EmbedPrice } from "@/components/commerce/embed-price";
 import { effectiveProfileTheme, themeStyle } from "@/server/pro/profile-theme";
 import type { ProfileSection } from "@werkraum/shared";

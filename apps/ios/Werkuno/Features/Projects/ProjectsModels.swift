@@ -57,6 +57,8 @@ struct ProjectPage: Decodable, Hashable, Sendable {
         var soldOut: Bool?
         var href: String?
         var shopName: String?
+        /// Laufende Shop-Aktion: `priceMinor` ist bereits der Aktionspreis
+        var sale: MarketSale?
     }
 
     struct LinkedArticle: Decodable, Hashable, Identifiable, Sendable {

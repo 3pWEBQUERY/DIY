@@ -24,7 +24,7 @@ async function otherPresence(viewerId: string, me: { isRequest: boolean }, other
 }
 import { storyRefSelect, toStoryRef, type StoryRefRow } from "@/server/stories/ref";
 import { getPriceContext } from "@/server/commerce/currency";
-import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sale-prices";
 
 /**
  * Nachrichten (PRD §16). Direktnachrichten und Käufer↔Verkäufer-Unterhaltungen

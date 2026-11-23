@@ -2,7 +2,7 @@ import "server-only";
 import { recordView, viewRequest, type ViewRequest } from "@/server/analytics/service";
 import { z } from "zod";
 import { convertMinor, productUpsertSchema, SHIP_COUNTRIES, PRODUCT_KIND, CATEGORY_SLUGS, type ProductKind } from "@werkraum/shared";
-import { db, type Prisma, type Tx } from "@/server/db";
+import { db, Prisma, type Tx } from "@/server/db";
 import { fail } from "@/server/errors";
 import { attachMedia, releaseMedia } from "@/server/media/service";
 import { getSetting } from "@/server/settings";
@@ -18,7 +18,7 @@ import { requireFlag } from "@/server/flags";
 import { publicProductWhere, publicProductSql, isPublicProduct, restockSummary, notifyBackInStock, pendingRestockCounts } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, isConverted, localize, type PriceContext } from "./currency";
-import { runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sales";
+import { runningSalesByShop, saleFor, saleUnit, type ActiveSale } from "./sale-prices";
 
 /* ───────────────────────── Karten & Listen ───────────────────────── */
 
@@ -196,6 +196,69 @@ export async function productListWhere(filters: ProductFilters, viewerId?: strin
   };
 }
 
+/** Höchstens so viele Treffer werden für Preis-Sortierung/-Spanne berücksichtigt */
+const PRICE_CANDIDATES = 2000;
+
+/**
+ * Produkt-IDs nach dem Preis, den die Betrachter:in zahlt: laufende Shop-Aktion (höchster Rabatt,
+ * auf 10 Rappen/Cent gerundet wie `salePrice`), dann in ihre Währung umgerechnet (wie `convertMinor`).
+ * Preisspanne in derselben Grösse; Reihenfolge nach Preis oder nach der gewählten Sortierung.
+ */
+export async function effectivePriceOrder(ids: string[], opts: { currency: "CHF" | "EUR"; eurChf: number; min?: number | null; max?: number | null; sort?: ProductSort | null }) {
+  if (!ids.length) return [];
+  const rate = opts.eurChf > 0 ? opts.eurChf : 1;
+  const order =
+    opts.sort === "preis-auf"
+      ? Prisma.sql`v ASC, id ASC`
+      : opts.sort === "preis-ab"
+        ? Prisma.sql`v DESC, id DESC`
+        : opts.sort === "beliebt"
+          ? Prisma.sql`"saveCount" DESC, id DESC`
+          : opts.sort === "bewertet"
+            ? Prisma.sql`"ratingAvg" DESC, "ratingCount" DESC, id DESC`
+            : Prisma.sql`"publishedAt" DESC NULLS LAST, id DESC`;
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    WITH c AS (
+      SELECT p.id, p."publishedAt", p."saveCount", p."ratingAvg", p."ratingCount", p.currency,
+        CASE WHEN s.pct > 0 AND p."priceMinor" > 0 THEN LEAST(p."priceMinor", GREATEST(10, ROUND(p."priceMinor" * (100 - s.pct) / 1000.0) * 10)) ELSE p."priceMinor" END AS eff
+      FROM "Product" p
+      LEFT JOIN LATERAL (
+        SELECT MAX(x.percent) AS pct FROM "ShopSale" x
+        WHERE x."shopId" = p."shopId" AND x.active AND x."startsAt" <= now() AND x."endsAt" > now()
+          AND (cardinality(x."productIds") = 0 OR p.id = ANY(x."productIds"))
+      ) s ON true
+      WHERE p.id = ANY(${ids})
+    ), v AS (
+      SELECT *, CASE
+        WHEN currency = ${opts.currency} OR eff <= 0 THEN eff
+        WHEN currency = 'EUR' THEN GREATEST(10, ROUND(eff * ${rate} / 10.0) * 10)
+        ELSE GREATEST(10, ROUND(eff / ${rate} / 10.0) * 10)
+      END AS v FROM c
+    )
+    SELECT id FROM v
+    WHERE ${opts.min != null ? Prisma.sql`v >= ${opts.min}` : Prisma.sql`TRUE`} AND ${opts.max != null ? Prisma.sql`v <= ${opts.max}` : Prisma.sql`TRUE`}
+    ORDER BY ${order}`;
+  return rows.map((r) => r.id);
+}
+
+async function listByEffectivePrice(filters: ProductFilters, cursor: string | null | undefined, take: number, viewerId?: string | null): Promise<{ items: ProductCardData[]; nextCursor: string | null }> {
+  const where = await productListWhere({ ...filters, minPriceMinor: undefined, maxPriceMinor: undefined }, viewerId);
+  if (!where) return { items: [], nextCursor: null };
+  const [candidates, ctx] = await Promise.all([db.product.findMany({ where, select: { id: true }, take: PRICE_CANDIDATES }), getPriceContext()]);
+  const ordered = await effectivePriceOrder(
+    candidates.map((c) => c.id),
+    { currency: ctx.currency, eurChf: ctx.eurChf, min: filters.minPriceMinor, max: filters.maxPriceMinor, sort: filters.sort },
+  );
+  const start = cursor ? ordered.indexOf(cursor) + 1 : 0;
+  const pageIds = ordered.slice(start, start + take);
+  if (!pageIds.length) return { items: [], nextCursor: null };
+  const rows = await db.product.findMany({ where: { id: { in: pageIds } }, select: productCardSelect });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const page = pageIds.map((id) => byId.get(id)).filter((r): r is (typeof rows)[number] => !!r);
+  const sales = await runningSalesByShop(page.map((p) => p.shopId));
+  return { items: page.map((p) => toProductCard(p, ctx, saleFor(sales, p.shopId, p.id))), nextCursor: start + take < ordered.length ? pageIds[pageIds.length - 1]! : null };
+}
+
 /**
  * Öffentliche Produktliste für Marktplatz, Suche, Profile und Entdecken.
  * Nur aktive Produkte aktiver Shops, keine Produkte blockierter Konten,
@@ -207,18 +270,18 @@ export async function listProducts(
   opts: { take?: number; viewerId?: string | null } = {},
 ): Promise<{ items: ProductCardData[]; nextCursor: string | null }> {
   const take = Math.min(opts.take ?? 24, 60);
+  // Preis-Sortierung und Preisspanne nach dem Preis, den Käufer:innen zahlen (Aktion, Währung)
+  if (filters.sort === "preis-auf" || filters.sort === "preis-ab" || filters.minPriceMinor != null || filters.maxPriceMinor != null) {
+    return listByEffectivePrice(filters, cursor, take, opts.viewerId);
+  }
   const where = await productListWhere(filters, opts.viewerId);
   if (!where) return { items: [], nextCursor: null };
   const orderBy: Prisma.ProductOrderByWithRelationInput[] =
-    filters.sort === "preis-auf"
-      ? [{ priceMinor: "asc" }, { id: "asc" }]
-      : filters.sort === "preis-ab"
-        ? [{ priceMinor: "desc" }, { id: "desc" }]
-        : filters.sort === "beliebt"
-          ? [{ saveCount: "desc" }, { id: "desc" }]
-          : filters.sort === "bewertet"
-            ? [{ ratingAvg: "desc" }, { ratingCount: "desc" }, { id: "desc" }]
-            : [{ publishedAt: "desc" }, { id: "desc" }];
+    filters.sort === "beliebt"
+      ? [{ saveCount: "desc" }, { id: "desc" }]
+      : filters.sort === "bewertet"
+        ? [{ ratingAvg: "desc" }, { ratingCount: "desc" }, { id: "desc" }]
+        : [{ publishedAt: "desc" }, { id: "desc" }];
   const rows = await db.product.findMany({
     where,
     select: productCardSelect,

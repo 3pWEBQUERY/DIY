@@ -20,7 +20,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, localize } from "@/server/commerce/currency";
-import { salePriceFields, salesForProducts } from "@/server/commerce/sales";
+import { salePriceFields, salesForProducts } from "@/server/commerce/sale-prices";
 import { requireProScheduling } from "@/server/pro/scheduling";
 
 /**

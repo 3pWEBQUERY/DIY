@@ -14,7 +14,7 @@ import { assertCategoryAllowed } from "@/server/categories/settings";
 import { isPublicProduct } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext, type PriceContext } from "@/server/commerce/currency";
-import { localizeWithSale, salesForProducts, type ActiveSale } from "@/server/commerce/sales";
+import { localizeWithSale, salesForProducts, type ActiveSale } from "@/server/commerce/sale-prices";
 
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },

@@ -135,7 +135,7 @@ struct PostItem: Codable, Hashable, Identifiable, Sendable {
         var handle: String? { ownerHandle ?? owner?.handle }
     }
     struct TutorialRef: Codable, Hashable, Sendable { var id: String; var slug: String; var title: String; var difficulty: Int?; var minutes: Int?; var coverUrl: String?; var category: String? }
-    struct ProductRef: Codable, Hashable, Sendable { var id: String; var slug: String?; var title: String; var priceMinor: Int?; var currency: String?; var coverUrl: String?; var shopSlug: String?; var shop: ShopRef?; var status: String? }
+    struct ProductRef: Codable, Hashable, Sendable { var id: String; var slug: String?; var title: String; var priceMinor: Int?; var currency: String?; var coverUrl: String?; var shopSlug: String?; var shop: ShopRef?; var status: String?; var sale: MarketSale? }
     struct ShopRef: Codable, Hashable, Sendable { var slug: String?; var name: String? }
     struct ArticleRef: Codable, Hashable, Sendable { var id: String; var slug: String?; var title: String; var dek: String?; var coverUrl: String?; var href: String?; var authorHandle: String? }
     struct CommunityRef: Codable, Hashable, Sendable { var id: String?; var slug: String; var name: String }

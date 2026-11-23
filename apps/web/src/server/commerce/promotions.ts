@@ -13,7 +13,7 @@ import { available, bundlePrice, couponProblem } from "./rules";
 import { requireOwnShop } from "./shops";
 import { publicProductWhere } from "./restock";
 import { getPriceContext, localize, type PriceContext } from "./currency";
-import { saleUnit, salesForProducts, type ActiveSale } from "./sales";
+import { saleUnit, salesForProducts, type ActiveSale } from "./sale-prices";
 
 /**
  * Gutscheine und Sets (Bundles).

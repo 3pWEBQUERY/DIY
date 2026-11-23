@@ -15,7 +15,7 @@ import { stripInline } from "@/lib/inline-marks";
 import { publicProductWhere } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
 import { getPriceContext } from "@/server/commerce/currency";
-import { localizeWithSale, salesForProducts } from "@/server/commerce/sales";
+import { localizeWithSale, salesForProducts } from "@/server/commerce/sale-prices";
 
 /**
  * Blogs (PRD §14): blockbasierte Artikel mit Entwürfen, Revisionen, geplanter
