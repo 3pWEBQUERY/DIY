@@ -33,9 +33,9 @@ struct ScheduledContentView: View {
                     }
                 }
                 if data.pro != true {
-                    Text("Mit Creator Pro planst du auch Projekte und Anleitungen.")
-                        .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                    ProUnlockCard(feature: .kalender, message: "Mit Creator Pro planst du auch Projekte und Anleitungen und siehst alles Geplante im Inhaltskalender.")
                         .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             } else if let error {
                 ErrorStateView(message: error) { await load() }

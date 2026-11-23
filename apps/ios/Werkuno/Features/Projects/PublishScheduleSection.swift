@@ -9,6 +9,7 @@ struct PublishScheduleSection: View {
     /// „das Projekt“ / „die Anleitung“
     var noun: String
     var error: String?
+    @State private var showPro = false
 
     private var range: ClosedRange<Date> {
         let now = Date()
@@ -36,6 +37,13 @@ struct PublishScheduleSection: View {
             } else {
                 Label("Zeitgesteuert veröffentlichen kannst du mit Creator Pro.", systemImage: "calendar.badge.clock")
                     .font(.wr(.footnote)).foregroundStyle(Color.muted)
+                // Als Blatt: der Editor bleibt offen, Eingaben gehen nicht verloren
+                Button { showPro = true } label: {
+                    Label("Mit Creator Pro freischalten", systemImage: "arrow.right")
+                        .font(.wr(.footnote, .semibold))
+                        .foregroundStyle(Color.moss)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(14)
@@ -43,6 +51,7 @@ struct PublishScheduleSection: View {
         .overlay {
             RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Color.line, lineWidth: 1)
         }
+        .sheet(isPresented: $showPro) { ProFeatureSheet(feature: .kalender) }
     }
 
     /// Ausgangswert: morgen um 9 Uhr (lokale Zeit)

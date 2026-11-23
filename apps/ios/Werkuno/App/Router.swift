@@ -113,7 +113,8 @@ enum Route: Hashable {
     case materials
     case studio
     case studioSection(StudioSection)
-    case creatorPro
+    /// Creator Pro; `feature` hebt die angetippte Pro-Funktion hervor (`/studio/pro?funktion=…`)
+    case creatorPro(feature: ProFeature? = nil)
     case sellerOrder(id: String)
     case settings
     case settingsSection(SettingsSection)
@@ -209,7 +210,7 @@ enum Route: Hashable {
             case ("materialien", 2): return .material(slug: s[1])
             case ("einspruch", _): return .appeal(caseId: s[1])
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
-            case ("studio", 2) where s[1] == "pro": return .creatorPro
+            case ("studio", 2) where s[1] == "pro": return .creatorPro(feature: q["funktion"].flatMap(ProFeature.init(rawValue:)))
             case ("studio", _):
                 let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "kalender": .scheduled, "newsletter": .newsletter, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "aktionen": .sales, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
                 return map[s[1]].map { .studioSection($0) } ?? .studio

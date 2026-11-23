@@ -113,8 +113,13 @@ struct ProfileView: View {
                         Button("Werkuno Studio", systemImage: "chart.bar.xaxis") { router.open(.studio) }
                         Button("Entwürfe & geplante Beiträge", systemImage: "doc.text") { router.open(.postDrafts) }
                         Divider()
-                        Button("Profil-Design", systemImage: "paintpalette") { showThemeEditor = true }
-                        Button("Kommentar-Wortfilter", systemImage: "text.badge.xmark") { showCommentFilter = true }
+                        // Ohne Creator Pro: direkt zur Pro-Seite mit der Funktion hervorgehoben
+                        Button(app.me?.profile?.isCreatorPro == true ? "Profil-Design" : "Profil-Design (Pro)", systemImage: "paintpalette") {
+                            if app.me?.profile?.isCreatorPro == true { showThemeEditor = true } else { router.open(.creatorPro(feature: .profilDesign)) }
+                        }
+                        Button(app.me?.profile?.isCreatorPro == true ? "Kommentar-Wortfilter" : "Kommentar-Wortfilter (Pro)", systemImage: "text.badge.xmark") {
+                            if app.me?.profile?.isCreatorPro == true { showCommentFilter = true } else { router.open(.creatorPro(feature: .kommentare)) }
+                        }
                     } else {
                         Button("Nachricht schreiben", systemImage: "bubble.left") { router.present(.newConversation(handle: prof.handle)) }
                         Divider()

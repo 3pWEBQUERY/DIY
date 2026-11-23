@@ -113,7 +113,7 @@ struct CommentsSection: View {
                 }
                 .buttonStyle(.plain).foregroundStyle(Color.moss)
             } else {
-                Button("Mit Creator Pro") { router.open(.creatorPro) }
+                Button("Mit Creator Pro") { router.open(.creatorPro(feature: .kommentare)) }
                     .font(.wr(.caption, .semibold)).foregroundStyle(Color.ink2).buttonStyle(.plain)
             }
         }
@@ -337,7 +337,7 @@ extension CommentRow {
                         Task { if await app.run(pin ? "Kommentar angeheftet." : "Kommentar gelöst.", { _ = try await APIClient.shared.post("/comments/\(comment.id)/pin", ["pinned": JSONValue.bool(pin)]) as JSONValue }) { onChanged() } }
                     }
                 } else {
-                    Button("Anheften (Creator Pro)", systemImage: "pin") { router.open(.creatorPro) }
+                    Button("Anheften (Creator Pro)", systemImage: "pin") { router.open(.creatorPro(feature: .kommentare)) }
                 }
             }
             Divider()

@@ -31,14 +31,9 @@ struct MeProOverview: Decodable, Sendable {
     var featuredMax: Int?
 }
 
-private struct MeProBenefit: Identifiable {
-    var id: String { title }
-    var symbol: String
-    var title: String
-    var text: String
-}
-
 struct StudioProView: View {
+    /// Angetippte Pro-Funktion (ohne Abo): oben erklärt und in der Liste markiert
+    var highlight: ProFeature? = nil
     @Environment(AppState.self) private var app
     @Environment(Router.self) private var router
     @State private var data: MeProOverview?
@@ -51,22 +46,6 @@ struct StudioProView: View {
     @State private var selectedPlan: String?
     @State private var purchasing = false
     @State private var showManage = false
-
-    private func benefits(max: Int) -> [MeProBenefit] {
-        [
-            MeProBenefit(symbol: "rectangle.3.group", title: "Profil mit Schaufenster", text: "Bis zu \(max) Projekte ganz oben in deinem Profil hervorheben – und das Pro-Kennzeichen neben deinem Namen."),
-            MeProBenefit(symbol: "doc.richtext", title: "Medienkit für Kooperationen", text: "Eine Seite mit deinen besten Arbeiten und echten, erklärten Zahlen. Teilbar per Link, druckbar als PDF."),
-            MeProBenefit(symbol: "chart.bar.xaxis", title: "Statistik über 12 Monate", text: "Verläufe über ein ganzes Jahr statt 12 Wochen – und alle Zahlen als CSV für Excel oder Numbers."),
-            MeProBenefit(symbol: "film", title: "Längere Videos", text: "Längere und grössere Videos in Beiträgen, Projekten und Anleitungen."),
-            MeProBenefit(symbol: "percent", title: "Tiefere Provision im Shop", text: "Eine tiefere Plattformprovision auf den Warenwert jedes Verkaufs."),
-            MeProBenefit(symbol: "envelope", title: "Newsletter an deine Follower", text: "Neue Projekte, Anleitungen oder Drops direkt ins Postfach – sofort oder geplant, mit Öffnungen und Klicks."),
-            MeProBenefit(symbol: "timer", title: "Shop-Aktionen mit Countdown", text: "Zeitlich begrenzte Rabatte auf den ganzen Shop oder ausgewählte Stücke – mit Countdown, automatisch an und aus."),
-            MeProBenefit(symbol: "calendar.badge.clock", title: "Planen und Inhaltskalender", text: "Projekte und Anleitungen zu einem festen Zeitpunkt veröffentlichen und alles Geplante im Blick behalten."),
-            MeProBenefit(symbol: "text.bubble", title: "Kommentare im Griff", text: "Einen Kommentar oben anheften, Kommentare mit bestimmten Wörtern ausblenden und Kommentare je Inhalt schliessen."),
-            MeProBenefit(symbol: "paintpalette", title: "Eigenes Profil-Design", text: "Akzentfarbe, Titelbild und Reihenfolge der Bereiche auf deinem Profil selbst wählen."),
-            MeProBenefit(symbol: "printer", title: "Anleitungs-PDF mit deinem Branding", text: "Druck- und PDF-Version deiner Anleitungen mit deinem Logo, Namen und Link."),
-        ]
-    }
 
     var body: some View {
         MePhase(value: data, error: error, retry: load) { d in content(d) }
@@ -138,6 +117,7 @@ struct StudioProView: View {
                             .font(.wr(.subheadline, .semibold)).foregroundStyle(Color.moss)
                     }
                 } else if let offer = d.apple, d.enabled != false, !plans.isEmpty {
+                    if let highlight { highlightCard(highlight, max: max) }
                     subscribeCard(offer)
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader("Das bietet Creator Pro")
@@ -145,12 +125,14 @@ struct StudioProView: View {
                     }
                 } else if d.apple != nil, d.enabled != false {
                     // Angebot vorhanden, aber die Abos liessen sich nicht aus dem App Store laden
+                    if let highlight { highlightCard(highlight, max: max) }
                     storeUnavailableCard
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader("Das bietet Creator Pro")
                         benefitList(max: max)
                     }
                 } else {
+                    if let highlight { highlightCard(highlight, max: max) }
                     VStack(alignment: .leading, spacing: 10) {
                         Label("Für dein Konto nicht aktiv", systemImage: "seal").font(.wr(.headline, .semibold)).foregroundStyle(Color.ink)
                         Text("Du nutzt alle Grundfunktionen von Werkuno. Ist Creator Pro für dein Konto aktiv, kannst du hier Schaufenster, Medienkit und Abo verwalten.")
@@ -453,24 +435,57 @@ struct StudioProView: View {
 
     private func benefitList(max: Int) -> some View {
         VStack(spacing: 0) {
-            ForEach(benefits(max: max)) { b in
-                HStack(alignment: .top, spacing: 14) {
-                    Image(systemName: b.symbol)
-                        .font(.wr(size: 17, weight: .medium))
-                        .foregroundStyle(Color.moss)
-                        .frame(width: 38, height: 38)
-                        .background(Color.mossSoft, in: .rect(cornerRadius: 11, style: .continuous))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(b.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
-                        Text(b.text).font(.wr(.footnote)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 12)
-                .accessibilityElement(children: .combine)
-                .hairline()
+            ForEach(ProFeature.allCases) { f in
+                benefitRow(f, max: max, marked: f == highlight)
             }
         }
+    }
+
+    private func benefitRow(_ f: ProFeature, max: Int, marked: Bool) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: f.symbol)
+                .font(.wr(size: 17, weight: .medium))
+                .foregroundStyle(marked ? Color.paper : Color.moss)
+                .frame(width: 38, height: 38)
+                .background(marked ? Color.moss : Color.mossSoft, in: .rect(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(f.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink)
+                Text(f.text(featuredMax: max)).font(.wr(.footnote)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                if marked {
+                    Text("Diese Funktion hast du gerade angetippt").font(.wr(.caption, .semibold)).foregroundStyle(Color.moss)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, marked ? 10 : 0)
+        .background(marked ? Color.mossSoft.opacity(0.5) : Color.clear, in: .rect(cornerRadius: 12, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(marked ? .isSelected : [])
+        .hairline()
+        .id(f)
+    }
+
+    /// Ohne Abo, von einer gesperrten Funktion aus geöffnet: ruhige Erklärung ganz oben, direkt vor dem Abschluss
+    private func highlightCard(_ f: ProFeature, max: Int) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: f.symbol)
+                .font(.wr(size: 18, weight: .medium))
+                .foregroundStyle(Color.paper)
+                .frame(width: 40, height: 40)
+                .background(Color.moss, in: .rect(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("„\(f.shortName)“ gehört zu Creator Pro").font(.wr(.headline, .semibold)).foregroundStyle(Color.ink)
+                Text(f.text(featuredMax: max)).font(.wr(.subheadline)).foregroundStyle(Color.ink2).fixedSize(horizontal: false, vertical: true)
+                Text("Mit dem Abo schaltest du diese und alle weiteren Pro-Funktionen frei.")
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+        .accessibilityElement(children: .combine)
     }
 
     private var fairNote: some View {
