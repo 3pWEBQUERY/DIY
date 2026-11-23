@@ -112,7 +112,7 @@ struct StudioView: View {
         }
     }
 
-    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .sales, .shop, .revenue].contains(s) }
+    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .bundles, .sales, .shop, .revenue].contains(s) }
 
     private func subtitle(_ s: StudioSection) -> String? {
         switch s {
@@ -121,9 +121,11 @@ struct StudioView: View {
         case .tutorials: "Versionen, Leser:innen im Fortschritt"
         case .articles: "Entwürfe, geplante und veröffentlichte Artikel"
         case .scheduled: "Alles, was bald erscheint"
+        case .newsletter: app.me?.profile?.isCreatorPro == true ? "An deine Follower:innen" : "An deine Follower:innen (Pro)"
         case .products: app.me?.shop == nil ? "Mit eigenem Shop" : "Angebote, Bestand, Preise"
         case .orders: "Eingegangene Bestellungen"
         case .coupons: app.me?.shop == nil ? "Mit eigenem Shop" : "Rabattcodes für Aktionen"
+        case .bundles: app.me?.shop == nil ? "Mit eigenem Shop" : "Produkte bündeln mit Set-Rabatt"
         case .sales: app.me?.shop == nil ? "Mit eigenem Shop" : "Rabatt mit Countdown (Pro)"
         case .shop: app.me?.shop?.name ?? "Shop eröffnen"
         case .media: "Bilder, Videos, Alt-Texte"

@@ -13,14 +13,15 @@ import { attachMedia, releaseMedia } from "@/server/media/service";
 import { assertCategoryAllowed } from "@/server/categories/settings";
 import { isPublicProduct } from "@/server/commerce/restock";
 import { indexHashtags } from "@/server/hashtags/sync";
-import { getPriceContext, localizePrice, type PriceContext } from "@/server/commerce/currency";
+import { getPriceContext, type PriceContext } from "@/server/commerce/currency";
+import { localizeWithSale, salesForProducts, type ActiveSale } from "@/server/commerce/sale-prices";
 
 export const postInclude = {
   author: { select: { id: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } },
   media: { orderBy: { position: "asc" }, include: { media: { select: { id: true, variants: true, width: true, height: true, kind: true, state: true } } } },
   project: { select: { id: true, slug: true, title: true, status: true, coverUrl: true, category: true, difficulty: true, state: true, visibility: true, owner: { select: { profile: { select: { handle: true } } } } } },
   tutorial: { select: { id: true, slug: true, title: true, difficulty: true, minutes: true, coverUrl: true, category: true, state: true } },
-  product: { select: { id: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, hideWhenSoldOut: true, shop: { select: { slug: true, name: true, status: true } } } },
+  product: { select: { id: true, shopId: true, slug: true, title: true, priceMinor: true, currency: true, coverUrl: true, status: true, kind: true, hideWhenSoldOut: true, shop: { select: { slug: true, name: true, status: true } } } },
   article: { select: { id: true, slug: true, title: true, dek: true, coverUrl: true, readingMinutes: true, state: true, author: { select: { profile: { select: { handle: true } } } } } },
   community: { select: { slug: true, name: true } },
   coauthors: { where: { status: "ACCEPTED" }, orderBy: { respondedAt: "asc" }, select: { user: { select: { id: true, status: true, profile: { select: { handle: true, displayName: true, avatarUrl: true } } } } } },
@@ -44,7 +45,7 @@ type PostRow = Prisma.PostGetPayload<{ include: typeof postInclude }>;
 export type PostView = ReturnType<typeof toView>;
 
 /** blocked: wechselseitig blockierte Profile (Original eines Reposts ausblenden) */
-type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null; blocked?: Set<string>; price?: PriceContext };
+type ViewerState = { liked: Set<string>; saved: Set<string>; votes: Map<string, string[]>; id?: string | null; blocked?: Set<string>; price?: PriceContext; sales?: Map<string, ActiveSale | null> };
 
 /**
  * Umfrage für die Anzeige. Stimmenzahlen erst nach eigener Abstimmung, nach Ende oder für die
@@ -89,7 +90,7 @@ function toView(p: PostRow, viewer: ViewerState) {
     // Deaktivieren eines Angebots darf der Beitrag Titel, Bild und Preis nicht weiter verbreiten)
     project: p.project && p.project.state === "PUBLISHED" && p.project.visibility === "PUBLIC" ? { ...p.project, ownerHandle: p.project.owner.profile?.handle ?? "" } : null,
     tutorial: p.tutorial && p.tutorial.state === "PUBLISHED" ? p.tutorial : null,
-    product: p.product && isPublicProduct(p.product) && p.product.shop.status === "ACTIVE" ? (viewer.price ? localizePrice(viewer.price, p.product) : p.product) : null,
+    product: p.product && isPublicProduct(p.product) && p.product.shop.status === "ACTIVE" ? (viewer.price ? localizeWithSale(viewer.price, p.product, viewer.sales?.get(p.product.id)) : { ...p.product, original: null, sale: null }) : null,
     article: p.article && p.article.state === "PUBLISHED" ? { ...p.article, authorHandle: p.article.author.profile?.handle ?? "" } : null,
     community: p.community,
     repostOf:
@@ -119,6 +120,11 @@ function toView(p: PostRow, viewer: ViewerState) {
   };
 }
 
+/** Laufende Shop-Aktionen der verknüpften Produkte (eine Abfrage je Seite) */
+function productSalesOf(rows: { product: { id: string; shopId: string } | null }[]) {
+  return salesForProducts(rows.flatMap((r) => (r.product ? [r.product] : [])));
+}
+
 async function viewerState(viewerId: string | null | undefined, ids: string[]): Promise<ViewerState> {
   // Verkaufte Produkte in Beiträgen im Preis der Betrachter:in
   const price = await getPriceContext();
@@ -138,6 +144,7 @@ async function viewerState(viewerId: string | null | undefined, ids: string[]): 
 export async function hydratePosts(ids: string[], viewerId?: string | null) {
   if (!ids.length) return [];
   const [rows, v] = await Promise.all([db.post.findMany({ where: { id: { in: ids } }, include: postInclude }), viewerState(viewerId, ids)]);
+  v.sales = await productSalesOf(rows);
   const byId = new Map(rows.map((r) => [r.id, r]));
   return ids.map((id) => byId.get(id)).filter((r): r is PostRow => !!r).map((r) => toView(r, v));
 }
@@ -153,7 +160,8 @@ export async function listPosts(where: Prisma.PostWhereInput, viewerId: string |
   });
   const hasMore = rows.length > take;
   const page = rows.slice(0, take);
-  const v = await viewerState(viewerId, page.map((p) => p.id));
+  const [v, sales] = await Promise.all([viewerState(viewerId, page.map((p) => p.id)), productSalesOf(page)]);
+  v.sales = sales;
   return { items: page.map((r) => toView(r, v)), nextCursor: hasMore ? page[page.length - 1]!.id : null };
 }
 

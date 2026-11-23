@@ -31,6 +31,9 @@ struct MarketBundle: Decodable, Hashable, Identifiable, Sendable {
         var unitMinor: Int
         var quantity: Int
         var inStock: Bool
+        /// Laufende Shop-Aktion: Prozent und regulärer Stückpreis
+        struct ItemSale: Decodable, Hashable, Sendable { var percent: Int; var regularUnitMinor: Int }
+        var sale: ItemSale?
         var id: String { productId }
     }
     var id: String
@@ -44,6 +47,8 @@ struct MarketBundle: Decodable, Hashable, Identifiable, Sendable {
     var priceMinor: Int
     var currency: String?
     var purchasable: Bool
+    /// Teile in einer Aktion: Aktionspreise statt Set-Rabatt (wie im Warenkorb)
+    var saleBlocksSet: Bool?
 
     /// Sets mit digitalen Produkten gibt es in der App nicht (Digitales nur per In-App-Kauf)
     var hasDigital: Bool { items.contains { $0.kind == "DIGITAL" } }
@@ -189,6 +194,9 @@ struct MarketBundleCard: View {
                         let full = Text(verbatim: Fmt.money(bundle.fullMinor, currency: bundle.currency)).strikethrough()
                         Text("statt \(full) · −\(bundle.discountPct) %").font(.wr(.subheadline)).foregroundStyle(Color.muted)
                     }
+                }
+                if bundle.saleBlocksSet == true && bundle.discountPct > 0 {
+                    Text("Teile sind gerade in einer Aktion – du zahlst die Aktionspreise, der Set-Rabatt von \(bundle.discountPct) % gilt währenddessen nicht.").font(.wr(.caption)).foregroundStyle(Color.clayInk)
                 }
                 Text("zzgl. Versand des Shops").font(.wr(.caption)).foregroundStyle(Color.muted)
                 if isOwner {

@@ -354,7 +354,7 @@ struct TutorialDetailView: View {
                         }
                     }
                     ForEach(products) { pr in
-                        LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.soldOut == true ? " · Ausverkauft" : "")", title: pr.title, seed: pr.id, category: t.category, url: pr.coverUrl, kind: .product) {
+                        LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.sale.map { " · −\($0.percent) %" } ?? "")\(pr.soldOut == true ? " · Ausverkauft" : "")", title: pr.title, seed: pr.id, category: t.category, url: pr.coverUrl, kind: .product) {
                             router.open(href: pr.href)
                         }
                     }

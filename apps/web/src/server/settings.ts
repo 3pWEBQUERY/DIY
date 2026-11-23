@@ -13,6 +13,10 @@ export const SETTING_DEFAULTS = {
   "commerce.payoutHoldDays": 3,
   // Versendete Bestellungen ohne Erhaltsbestätigung gelten nach so vielen Tagen als abgeschlossen
   "commerce.autoCompleteDays": 14,
+  // Zahlungsmittel an der Kasse (zusätzlich zu Karte inkl. Apple Pay / Google Pay). Müssen im
+  // Stripe-Dashboard aktiviert sein; sonst fällt die Kasse automatisch auf die übrigen zurück.
+  "payments.twint": true, // nur Bestellungen in Franken
+  "payments.klarna": true, // Rechnung oder Raten über Klarna
   "media.maxImageMb": 15,
   "media.maxVideoMb": 200,
   "media.maxVideoSeconds": 180,

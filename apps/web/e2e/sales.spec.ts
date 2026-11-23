@@ -105,6 +105,41 @@ test.describe.serial("Shop-Aktionen", () => {
     expect(order!.note).toContain(`Aktion: „E2E Aktion ${tag}“ −25 %`);
   });
 
+  test("Aktionspreis auch in Suche, Profil und bei Preis-Sortierung und -Spanne", async ({ browser }) => {
+    const p = product!;
+    const expected = salePrice(p.priceMinor, 25);
+    const info = (await one<{ title: string; shopSlug: string }>(`SELECT p.title, s.slug AS "shopSlug" FROM "Product" p JOIN "Shop" s ON s.id = p."shopId" WHERE p.id = $1`, [p.id]))!;
+    const buyer = await loginAs(browser, "elias");
+
+    // Suche (App-API und Web): Aktionspreis mit Rabatt
+    const sj = await (await buyer.request.get(`/api/v1/app/search?q=${encodeURIComponent(info.title)}&types=product`)).json();
+    const hits = ((sj.data ?? sj).results?.product ?? []) as { id: string; meta: { priceMinor: number; sale: { percent: number; regularMinor: number } | null } }[];
+    const hit = hits.find((h) => h.id === p.id);
+    expect(hit, JSON.stringify(sj).slice(0, 300)).toBeTruthy();
+    expect(hit!.meta.priceMinor).toBe(expected);
+    expect(hit!.meta.sale).toMatchObject({ percent: 25, regularMinor: p.priceMinor });
+    await buyer.goto(`/suche?q=${encodeURIComponent(info.title)}&typ=product`);
+    await expect(buyer.locator("main").getByText("−25 %").first()).toBeVisible();
+
+    // Profil der Verkäuferin (Shop-Reiter, neueste Arbeiten): ist das Produkt dabei, zeigt es den Rabatt
+    await buyer.goto(`/u/mattia.holz?tab=shop`);
+    const card = buyer.locator("main a").filter({ hasText: info.title });
+    if (await card.count()) await expect(card.first()).toContainText("−25 %");
+
+    // Preisspanne nach dem Aktionspreis: der reguläre Preis liegt ausserhalb, der Aktionspreis innerhalb
+    const lo = (expected - 10) / 100;
+    const hi = (expected + 10) / 100;
+    const ranged = await (await buyer.request.get(`/api/v1/app/market/products?shop=${info.shopSlug}&min=${lo}&max=${hi}`)).json();
+    const ids = ((ranged.data ?? ranged).items as { id: string }[]).map((x) => x.id);
+    expect(ids).toContain(p.id);
+
+    // Preis-Sortierung nach dem Preis, den Käufer:innen zahlen
+    const sorted = await (await buyer.request.get(`/api/v1/app/market/products?shop=${info.shopSlug}&sort=preis-auf&take=60`)).json();
+    const items = (sorted.data ?? sorted).items as { id: string; priceMinor: number }[];
+    expect(items.find((x) => x.id === p.id)?.priceMinor).toBe(expected);
+    for (let i = 1; i < items.length; i++) expect(items[i]!.priceMinor).toBeGreaterThanOrEqual(items[i - 1]!.priceMinor);
+  });
+
   test("ohne Creator Pro keine neuen Aktionen", async ({ browser }) => {
     test.skip(hadSub, "Konto hat ein echtes Abo – nicht entziehen");
     await sql(`DELETE FROM "Subscription" WHERE "userId" = $1 AND id = $2`, [mattia, `e2e_sub_${tag}`]);

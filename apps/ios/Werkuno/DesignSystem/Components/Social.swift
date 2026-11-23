@@ -403,7 +403,7 @@ struct PostCardView: View {
             LinkedThreadRow(kicker: "Anleitung · \(Fmt.minutes(t.minutes))", title: t.title, seed: t.id, category: t.category, url: t.coverUrl, kind: .tutorial) { router.open(.tutorial(slug: t.slug)) }
         }
         if let pr = post.product, let shop = pr.shopSlug ?? pr.shop?.slug, let slug = pr.slug {
-            LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl, kind: .product) { router.open(.product(shopSlug: shop, productSlug: slug)) }
+            LinkedThreadRow(kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.sale.map { " · −\($0.percent) %" } ?? "")", title: pr.title, seed: pr.id, category: nil, url: pr.coverUrl, kind: .product) { router.open(.product(shopSlug: shop, productSlug: slug)) }
         }
         if let a = post.article {
             LinkedThreadRow(kicker: "Artikel", title: a.title, seed: a.id, category: nil, url: a.coverUrl, kind: .article) {

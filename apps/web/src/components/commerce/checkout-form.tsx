@@ -29,6 +29,7 @@ export function CheckoutForm({
   currency,
   orderCount,
   mode,
+  paymentMethods = [],
   digitalOnly,
 }: {
   saved: Details | null;
@@ -36,6 +37,8 @@ export function CheckoutForm({
   currency: Currency;
   orderCount: number;
   mode: "stripe" | "simulated";
+  /** Angebotene Zahlungsmittel (Anzeige; Stripe zeigt im Checkout die tatsächlich möglichen) */
+  paymentMethods?: string[];
   digitalOnly: boolean;
 }) {
   const router = useRouter();
@@ -226,6 +229,18 @@ export function CheckoutForm({
       )}
 
       <div className="space-y-3">
+        {mode === "stripe" && paymentMethods.length > 0 && (
+          <div>
+            <p className="spec mb-2">Bezahlen mit</p>
+            <ul className="flex flex-wrap gap-1.5" aria-label="Zahlungsmittel">
+              {paymentMethods.map((m) => (
+                <li key={m} className="rounded-full border border-rule px-2.5 py-1 text-[12.5px] text-ink-2">
+                  {m}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <Button type="submit" size="lg" className="w-full" disabled={pending}>
           <Lock size={15} />
           {pending ? "Einen Moment …" : `Zahlungspflichtig bestellen · ${formatMoney(totalMinor, currency)}`}

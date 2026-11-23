@@ -4,7 +4,7 @@ import Observation
 // MARK: - Navigationsziele
 
 enum StudioSection: String, Hashable, CaseIterable, Identifiable {
-    case content, projects, tutorials, articles, scheduled, products, orders, coupons, sales, shop, media, stats, revenue, supporters
+    case content, projects, tutorials, articles, scheduled, newsletter, products, orders, coupons, bundles, sales, shop, media, stats, revenue, supporters
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -13,9 +13,11 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .tutorials: "Anleitungen"
         case .articles: "Blog"
         case .scheduled: "Geplant"
+        case .newsletter: "Newsletter"
         case .products: "Produkte"
         case .orders: "Bestellungen"
         case .coupons: "Gutscheine"
+        case .bundles: "Sets"
         case .sales: "Aktionen"
         case .shop: "Shop"
         case .media: "Medienbibliothek"
@@ -31,9 +33,11 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .tutorials: "list.number"
         case .articles: "text.book.closed"
         case .scheduled: "calendar.badge.clock"
+        case .newsletter: "envelope"
         case .products: "tag"
         case .orders: "shippingbox"
         case .coupons: "ticket"
+        case .bundles: "square.stack.3d.up"
         case .sales: "timer"
         case .shop: "storefront"
         case .media: "photo.on.rectangle"
@@ -205,7 +209,7 @@ enum Route: Hashable {
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
             case ("studio", 2) where s[1] == "pro": return .creatorPro
             case ("studio", _):
-                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "kalender": .scheduled, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "aktionen": .sales, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
+                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "kalender": .scheduled, "newsletter": .newsletter, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "aktionen": .sales, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
                 return map[s[1]].map { .studioSection($0) } ?? .studio
             case ("einstellungen", _):
                 let map: [String: SettingsSection] = ["profil": .profile, "konto": .account, "sicherheit": .security, "benachrichtigungen": .notifications, "feed": .feed, "privatsphaere": .privacy, "hilfe-support": .support, "unterstuetzungen": .supporting]

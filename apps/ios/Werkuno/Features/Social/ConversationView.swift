@@ -912,7 +912,7 @@ struct SocialThreadContextCard: View {
                 Text(context.title ?? "Produkt").font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(1)
             }
             Spacer(minLength: 4)
-            Text(Fmt.money(context.priceMinor, currency: context.currency)).font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(Color.ink)
+            Text("\(Fmt.money(context.priceMinor, currency: context.currency))\(context.sale.map { " · −\($0.percent) %" } ?? "")").font(.wr(.footnote, .semibold)).monospacedDigit().foregroundStyle(context.sale == nil ? Color.ink : Color.clayInk)
             Image(systemName: "arrow.up.right").font(.wr(.caption)).foregroundStyle(Color.clayInk)
         }
         .padding(12)

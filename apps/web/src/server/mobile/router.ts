@@ -172,7 +172,7 @@ export async function dispatch(routes: RouteDef[], req: NextRequest, parts: stri
       throw fail.notFound("Unbekannter Endpunkt.");
     }
     // Marktplatz per Feature-Flag pausiert → Kauf- und Shop-Endpunkte gesperrt (Bestellungen bleiben lesbar)
-    if (MARKET_PREFIXES.has(parts[0] ?? "") || (parts[0] === "studio" && (parts[1] === "products" || parts[1] === "shop" || parts[1] === "coupons" || parts[1] === "sales"))) {
+    if (MARKET_PREFIXES.has(parts[0] ?? "") || (parts[0] === "studio" && (parts[1] === "products" || parts[1] === "shop" || parts[1] === "coupons" || parts[1] === "bundles" || parts[1] === "sales"))) {
       await requireFlag("marketplace", await viewerId());
     }
     // 18+ zentral für alle übrigen schreibenden Endpunkte (Konten über „Mit Apple anmelden“ bis zum Onboarding)

@@ -441,7 +441,7 @@ struct ProjectDetailView: View {
                 }
                 ForEach(p.products ?? []) { pr in
                     LinkedThreadRow(
-                        kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.soldOut == true ? " · Ausverkauft" : "")",
+                        kicker: "Produkt · \(Fmt.money(pr.priceMinor, currency: pr.currency))\(pr.sale.map { " · −\($0.percent) %" } ?? "")\(pr.soldOut == true ? " · Ausverkauft" : "")",
                         title: pr.title, seed: pr.id, category: p.category, url: pr.coverUrl, kind: .product
                     ) { router.open(href: pr.href) }
                 }

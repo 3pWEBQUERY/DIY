@@ -23,35 +23,9 @@ import { requireOwnShop } from "./shops";
  * Beendete Aktionen bleiben als Verlauf sichtbar.
  */
 
-export type ActiveSale = { id: string; shopId: string; title: string; percent: number; startsAt: Date; endsAt: Date; productIds: string[]; active: boolean };
-
-const saleSelect = { id: true, shopId: true, title: true, percent: true, startsAt: true, endsAt: true, productIds: true, active: true } as const;
-
-/** Laufende Aktionen je Shop (ein Aufruf für eine ganze Liste) */
-export async function runningSalesByShop(shopIds: string[], now = new Date()) {
-  const ids = [...new Set(shopIds)].filter(Boolean);
-  const map = new Map<string, ActiveSale[]>();
-  if (!ids.length) return map;
-  const rows = await db.shopSale.findMany({ where: { shopId: { in: ids }, active: true, startsAt: { lte: now }, endsAt: { gt: now } }, select: saleSelect }).catch(() => [] as ActiveSale[]);
-  for (const r of rows) map.set(r.shopId, [...(map.get(r.shopId) ?? []), r]);
-  return map;
-}
-
-/** Laufende Aktion für ein Produkt (oder null) */
-export function saleFor(map: Map<string, ActiveSale[]>, shopId: string, productId: string, now = new Date()) {
-  return saleForProduct(map.get(shopId) ?? [], productId, now);
-}
-
-/** Stückpreis in der Shop-Währung mit Aktion */
-export function saleUnit(shopUnit: number, sale: Pick<ActiveSale, "percent"> | null | undefined) {
-  return sale ? salePrice(shopUnit, sale.percent) : shopUnit;
-}
-
-/** Öffentliche Angaben zu einer Aktion (Karten, Produktseite, Shop-Banner, App) */
-export function saleView(s: ActiveSale) {
-  return { id: s.id, title: s.title, percent: s.percent, startsAt: s.startsAt.toISOString(), endsAt: s.endsAt.toISOString(), allProducts: s.productIds.length === 0 };
-}
-export type SaleView = ReturnType<typeof saleView>;
+export { runningSalesByShop, saleFor, saleUnit, salesForProducts, localizeWithSale, salePriceFields, saleView } from "./sale-prices";
+export type { ActiveSale, PriceSale, SaleView } from "./sale-prices";
+import { runningSalesByShop, saleView, type ActiveSale } from "./sale-prices";
 
 /** Banner auf der Shopseite: laufende Aktion mit dem grössten Rabatt */
 export async function shopSaleBanner(shopId: string) {
