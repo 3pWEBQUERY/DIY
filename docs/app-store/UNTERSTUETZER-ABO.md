@@ -32,9 +32,9 @@ Zu den Preisen: Sie decken die Apple-Gebühr, wie bei digitalen Produkten (Aufsc
 Für jedes Produkt:
 
 1. **Verfügbarkeit:** alle Länder, in denen die App erhältlich ist (mindestens Schweiz, Deutschland, Österreich und USA).
-2. **Lokalisierung Deutsch:**
-   - Anzeigename: `Unterstützung · 1 Monat`
-   - Beschreibung: `Unterstütze eine Person auf Werkuno einen Monat lang und öffne ihre exklusiven Anleitungen.`
+2. **Lokalisierungen** (Apple erlaubt höchstens 30 Zeichen für den Anzeigenamen und 45 für die Beschreibung):
+   - Deutsch: Anzeigename `Unterstützung · 1 Monat`, Beschreibung `Ein Monat Zugang zu exklusiven Anleitungen`
+   - Englisch (falls die App Englisch als Sprache führt): Anzeigename `Support · 1 month`, Beschreibung `One month of access to exclusive tutorials`
 3. **Screenshot für die Prüfung:** ein Bildschirmfoto der Karte «Unterstützen» auf einem Profil in der App (Pflichtfeld).
 4. **Hinweis für die Prüfung**, zum Beispiel:
    > Non-renewing subscription. Gives the buyer 30 days of access to tutorials that a creator marked as "supporters only". Buying again extends access by 30 days. To test: open the profile of the demo creator (see review notes), tap "Unterstützen".
