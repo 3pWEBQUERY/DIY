@@ -4,12 +4,12 @@ Mit dem Unterstützer-Abo unterstützen Fans eine Person (Creator) monatlich und
 
 | | Web | iOS-App |
 |---|---|---|
-| Bezahlung | Stripe-Abo, verlängert sich jeden Monat | Apple In-App-Kauf: **Abonnement ohne automatische Verlängerung**, 1 Monat |
+| Bezahlung | Stripe-Abo, verlängert sich jeden Monat | Apple In-App-Kauf (**Verbrauchsartikel**), je Kauf 1 Monat |
 | Stufen | CHF 3, 5 oder 10 pro Monat | Je Stufe ein Apple-Produkt |
 | Geld an den Creator | Stripe zahlt direkt auf das Stripe-Konto des Shops | Werkuno überweist den Anteil per Stripe aus dem eigenen Guthaben |
 | Anteil Werkuno | `supporters.feeBps` (Standard 15 %) | gleich, gerechnet auf die Web-Stufe |
 
-**Warum ohne automatische Verlängerung?** Bei automatisch verlängerten Abos erlaubt Apple pro Abo-Gruppe nur **ein** laufendes Abo. Fans sollen aber mehrere Creator gleichzeitig unterstützen können, und Gruppen lassen sich nicht pro Creator anlegen. In der App verlängert jeder Kauf um einen Monat. Drei Tage vor Ablauf erinnert Werkuno daran.
+**Warum kein automatisch verlängertes Apple-Abo?** Bei automatisch verlängerten Abos erlaubt Apple pro Abo-Gruppe nur **ein** laufendes Abo. Fans sollen aber mehrere Creator gleichzeitig unterstützen können, und Gruppen lassen sich nicht pro Creator anlegen. In der App verlängert jeder Kauf um einen Monat. Drei Tage vor Ablauf erinnert Werkuno daran.
 
 ---
 
@@ -17,9 +17,11 @@ Mit dem Unterstützer-Abo unterstützen Fans eine Person (Creator) monatlich und
 
 ### 1.1 Drei In-App-Käufe anlegen
 
-App Store Connect › **Apps** › Werkuno › **Monetarisierung › Abos** › ganz nach unten zum Abschnitt **„Abonnements ohne automatische Verlängerung“** (englisch „Non-Renewing Subscriptions“) › **Verwalten** › **＋**.
+App Store Connect › **Apps** › Werkuno › **Monetarisierung › In-App-Käufe** › **＋** › Typ **Verbrauchsartikel** (englisch „Consumable“).
 
-Unter „In-App-Käufe“ gibt es diesen Typ nicht, dort stehen nur Verbrauchs- und Nicht-Verbrauchsartikel. Bitte auch **keine** Abo-Gruppe dafür anlegen: Das wären automatisch erneuerbare Abos.
+Jeder Kauf schaltet die Unterstützung für einen Monat frei, ein weiterer Kauf verlängert um einen Monat. Den Zeitraum führt der Werkuno-Server, darum braucht es kein Apple-Abo. Bitte **keine** Abo-Gruppe dafür anlegen: Dort gibt es nur automatisch erneuerbare Abos, und Apple erlaubt pro Gruppe nur ein laufendes Abo, also nur eine unterstützte Person.
+
+(Falls dein App Store Connect den Typ „Abonnement ohne automatische Verlängerung“ anbietet, geht auch der. Die App akzeptiert beide Typen.)
 
 | Produkt-ID (genau so) | Referenzname | Preis (Empfehlung) |
 |---|---|---|
@@ -37,7 +39,7 @@ Für jedes Produkt:
    - Englisch (falls die App Englisch als Sprache führt): Anzeigename `Support · 1 month`, Beschreibung `One month of access to exclusive tutorials`
 3. **Screenshot für die Prüfung:** ein Bildschirmfoto der Karte «Unterstützen» auf einem Profil in der App (Pflichtfeld).
 4. **Hinweis für die Prüfung**, zum Beispiel:
-   > Non-renewing subscription. Gives the buyer 30 days of access to tutorials that a creator marked as "supporters only". Buying again extends access by 30 days. To test: open the profile of the demo creator (see review notes), tap "Unterstützen".
+   > Consumable that grants one month (30 days) of support. Gives the buyer 30 days of access to tutorials that a creator marked as "supporters only". Buying again extends access by 30 days. To test: open the profile of the demo creator (see review notes), tap "Unterstützen".
 
 ### 1.2 Mit der nächsten App-Version zur Prüfung einreichen
 

@@ -241,8 +241,9 @@ final class DigitalStore {
             await ProStore.shared.deliverQuietly(verification)
             return
         }
-        // Unterstützer-Abo (Monat ohne automatische Verlängerung): an den Unterstützer-Speicher weitergeben
-        if transaction.productType == .nonRenewable, SupportStore.productIds.contains(transaction.productID) {
+        // Unterstützer-Monat: an den Unterstützer-Speicher weitergeben. Das Apple-Produkt kann als
+        // Verbrauchsartikel oder als Abo ohne automatische Verlängerung angelegt sein – massgebend ist die ID.
+        if SupportStore.productIds.contains(transaction.productID) {
             await SupportStore.shared.deliverQuietly(verification)
             return
         }

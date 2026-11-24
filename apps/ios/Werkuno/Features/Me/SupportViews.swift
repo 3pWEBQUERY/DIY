@@ -4,7 +4,8 @@ import StoreKit
 // MARK: - Unterstützer-Abo
 //
 // Fans unterstützen eine Person (Creator) monatlich und erhalten Zugang zu deren exklusiven Anleitungen.
-// In der App: Apple „Abo ohne automatische Verlängerung“ (1 Monat) je Stufe. Jeder Kauf verlängert die
+// In der App: ein Apple-Produkt je Stufe für einen Monat, angelegt als Verbrauchsartikel (oder als
+// „Abo ohne automatische Verlängerung“ – beides funktioniert, der Server prüft nur Produkt-ID und Token). Jeder Kauf verlängert die
 // Unterstützung um einen Monat; mehrere Creator gleichzeitig sind möglich. Der Server ordnet den Kauf über
 // das appAccountToken (je Konto und Creator) zu – auch nach einer Neuinstallation.
 
