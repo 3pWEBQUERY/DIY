@@ -189,6 +189,7 @@ private struct DiscoverPageContent: View {
     @ViewBuilder private func content(_ p: DiscoverPage) -> some View {
         VStack(alignment: .leading, spacing: 34) {
             quickAccess
+            if active == nil { TrendingHashtagsStrip() }
             let list = sections(p)
             ForEach(Array(list.enumerated()), id: \.element) { i, s in
                 section(s, number: String(format: "%02d", i + 1), page: p)
@@ -283,6 +284,7 @@ private struct DiscoverPageContent: View {
                 quick("Wettbewerbe", "trophy") { router.open(.competitions()) }
                 quick("Blogs", "text.book.closed") { router.open(.blogHome) }
                 quick("Materialien", "shippingbox") { router.open(.materials) }
+                quick("Zuschnitt", "ruler") { router.open(.cuttingCalculator()) }
             }
             .padding(.horizontal, Space.gutter)
         }

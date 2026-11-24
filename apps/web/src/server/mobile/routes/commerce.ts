@@ -9,7 +9,7 @@ import * as shops from "@/server/commerce/shops";
 import * as cart from "@/server/commerce/cart";
 import * as checkout from "@/server/commerce/checkout";
 import * as orders from "@/server/commerce/orders";
-import { createReview, listProductReviews, listShopReviews } from "@/server/commerce/reviews";
+import { createReview, listProductReviews, listShopReviews, replyToReview } from "@/server/commerce/reviews";
 import { shopRevenue, type RevenueRange } from "@/server/commerce/revenue";
 import { paymentsMode } from "@/server/commerce/stripe";
 import * as payouts from "@/server/commerce/payouts";
@@ -95,6 +95,8 @@ export const commerceRoutes: RouteDef[] = [
     const [reviews, sale] = shopId ? await Promise.all([listShopReviews(shopId, vid, 12), sales.shopSaleBanner(shopId)]) : [[], null];
     return publicCommerce({ ...(s as object), reviews, sale });
   }),
+  // Geteilter Shop-Gutschein (Web: /gutschein/:id) – Code, Bedingungen, Shop
+  GET("/market/coupons/:id", async (c) => need(await promo.publicCoupon(c.p.id!), "Gutschein nicht gefunden.")),
   GET("/market/products/:shopSlug/:productSlug", async (c) => {
     const vid = await viewerId();
     const page = need(await products.getProductPage(c.p.shopSlug!, c.p.productSlug!, vid), "Produkt nicht gefunden.");
@@ -208,6 +210,12 @@ export const commerceRoutes: RouteDef[] = [
   POST("/orders/:id/confirm", async (c) => {
     await orders.confirmReceipt(await me(), c.p.id!);
     return { message: "Erhalt bestätigt. Danke!" };
+  }),
+  // Antwort des Shops auf eine Bewertung (leer = Antwort entfernen), wie im Web
+  PUT("/reviews/:id/reply", async (c) => {
+    const { reply } = await c.body({ reply: z.string().max(2000).optional() });
+    const r = await replyToReview(await me(), c.p.id!, reply ?? "");
+    return { ...r, message: r.reply ? "Antwort gespeichert." : "Antwort entfernt." };
   }),
   POST("/reviews", async (c) => {
     await createReview(await me(), await c.json());
@@ -412,6 +420,17 @@ export const commerceRoutes: RouteDef[] = [
   DELETE("/studio/bundles/:id", async (c) => {
     await promo.deleteBundle(await me(), c.p.id!);
     return { ok: true, message: "Set gelöscht." };
+  }),
+
+  // ── Studio: Geschenkgutscheine (wie /studio/geschenkgutscheine im Web; Eigentum prüft der Dienst) ──
+  GET("/studio/giftcards", async () => giftcards.giftCardStudio(await meAllowSuspended())),
+  PUT("/studio/giftcards/settings", async (c) => {
+    const r = await giftcards.saveGiftCardSettings(await me(), await c.json());
+    return { ...r, message: "Gespeichert." };
+  }),
+  POST("/studio/giftcards/:id/refund", async (c) => {
+    const r = await giftcards.refundGiftCardBySeller(await me(), c.p.id!);
+    return { ...r, message: "Gutschein storniert und erstattet." };
   }),
 
   // ── Studio: Aktionen mit Countdown (Creator Pro; wie /studio/aktionen im Web) ──

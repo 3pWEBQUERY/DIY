@@ -16,6 +16,8 @@ import { currentUser } from "@/server/auth/session";
  */
 export const FX_SETTING_KEY = "fx.eurChf";
 export const GUEST_CURRENCY_COOKIE = "wr_currency";
+/** App (Gäste ohne Konto): gewählte Währung je Anfrage – die App hat keine Cookies */
+export const GUEST_CURRENCY_HEADER = "x-werkuno-currency";
 
 export type FxRate = { rate: number; date: string | null; fetchedAt: string | null };
 export type PriceContext = { currency: Currency; eurChf: number; fxDate: string | null };
@@ -51,9 +53,12 @@ async function viewerOrNull() {
 async function guestCurrency(): Promise<Currency> {
   try {
     const { cookies, headers } = await import("next/headers");
+    const h = await headers();
+    const fromApp = h.get(GUEST_CURRENCY_HEADER)?.trim().toUpperCase();
+    if (fromApp === "CHF" || fromApp === "EUR") return fromApp;
     const c = (await cookies()).get(GUEST_CURRENCY_COOKIE)?.value;
     if (c === "CHF" || c === "EUR") return c;
-    return currencyFromAcceptLanguage((await headers()).get("accept-language"));
+    return currencyFromAcceptLanguage(h.get("accept-language"));
   } catch {
     // Ausserhalb einer Anfrage (Worker, Skripte)
     return "CHF";

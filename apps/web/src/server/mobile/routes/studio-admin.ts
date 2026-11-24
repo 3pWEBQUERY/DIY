@@ -1,6 +1,7 @@
 import "server-only";
 import { fail } from "@/server/errors";
 import * as studio from "@/server/analytics/studio";
+import { parseStatsRange, statsCsv, statsCsvFilename, statsPayload, statsWeeks } from "@/server/analytics/stats-export";
 import { listStudioProjects } from "@/server/projects/service";
 import { listStudioTutorials } from "@/server/tutorials/service";
 import { hasRole } from "@/server/authz";
@@ -87,7 +88,21 @@ export const studioAdminRoutes: RouteDef[] = [
     const u = await me();
     return studio.listOwnContent(u.id, u.profile.handle, { type: (str(c.q, "type") as studio.OwnContentType | undefined) ?? null, state: (str(c.q, "state") as studio.OwnContentState | undefined) ?? null } as never);
   }),
-  GET("/studio/stats", async () => studio.contentStats((await me()).id)),
+  // ?range=jahr: 12 Monate (Creator Pro); ohne Pro immer 12 Wochen
+  GET("/studio/stats", async (c) => {
+    const u = await me();
+    const isPro = await pro.isPro(u.id);
+    const range = isPro ? parseStatsRange(str(c.q, "range")) : "wochen";
+    return statsPayload(await studio.contentStats(u.id, statsWeeks(range)), range, isPro);
+  }),
+  // CSV-Export (Creator Pro) – gleicher Inhalt wie /studio/statistiken/export
+  GET("/studio/stats/export", async (c) => {
+    const u = await me();
+    if (!(await pro.isPro(u.id))) throw fail.forbidden("Der CSV-Export ist Teil von Creator Pro.");
+    const range = parseStatsRange(str(c.q, "range"));
+    const s = await studio.contentStats(u.id, statsWeeks(range));
+    return { filename: statsCsvFilename(u.profile.handle), csv: statsCsv(s, range) };
+  }),
   GET("/studio/projects", async () => listStudioProjects((await me()).id)),
   GET("/studio/tutorials", async () => listStudioTutorials((await me()).id)),
   GET("/studio/media", async (c) => {

@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { fail } from "@/server/errors";
 import * as identity from "@/server/identity/service";
 import * as account from "@/server/account/service";
+import * as mfa from "@/server/auth/mfa";
 import { completeOnboarding, skipOnboarding } from "@/server/identity/onboarding";
 import { signInWithAppleIdToken } from "@/server/identity/apple";
 import { suggestedCommunities, suggestedCreators } from "@/server/discovery/suggestions";
@@ -88,6 +89,13 @@ export const identityRoutes: RouteDef[] = [
     const { email } = await c.body({ email: zStr });
     await identity.requestPasswordReset(String(email ?? ""));
     return { message: "Falls ein Konto existiert, haben wir dir eine E-Mail geschickt." };
+  }),
+  // Link aus der E-Mail (/passwort-zuruecksetzen/:token) in der App: neues Passwort setzen, danach normal anmelden.
+  // Beendet wie im Web alle Sitzungen (auch App-Tokens).
+  POST("/auth/password-reset/confirm", async (c) => {
+    const b = await c.body({ token: zStr, password: zStr });
+    await identity.resetPassword(String(b.token ?? ""), String(b.password ?? ""), { signIn: false });
+    return { message: "Passwort geändert. Melde dich jetzt mit dem neuen Passwort an." };
   }),
   // `nonce` (Roh-Nonce, Token-Claim = SHA-256 hex) ist Pflicht (Replay-Schutz); `authorizationCode` optional
   // (für den Widerruf bei Kontolöschung)
@@ -188,6 +196,35 @@ export const identityRoutes: RouteDef[] = [
   POST("/settings/sessions/revoke-others", async () => {
     const s = await session();
     return account.revokeOtherSessions(s.user, s.sessionId);
+  }),
+
+  // ── Sicherheit: Zwei-Faktor-Anmeldung (wie Einstellungen › Sicherheit im Web) ──
+  GET("/settings/mfa", async () => {
+    const s = await session();
+    return { ...(await mfa.mfaStatus(s.user.id)), required: mfa.mfaRequiredFor(s.user) };
+  }),
+  // Schritt 1: Passwort bzw. (ohne Passwort) frisches `appleIdentityToken` → Geheimnis, otpauth-URI, QR
+  POST("/settings/mfa/setup", async (c) => {
+    const s = await session();
+    const b = await c.body({ password: zStr, appleIdentityToken: z.string().max(10_000).nullish() });
+    return mfa.startMfaSetup(s.user, s.sessionId, { password: b.password ?? null, appleIdentityToken: b.appleIdentityToken ?? null });
+  }),
+  // Schritt 2: erster Code → aktiv; Wiederherstellungscodes einmalig in der Antwort
+  POST("/settings/mfa/confirm", async (c) => {
+    const s = await session();
+    const b = await c.body({ code: zStr });
+    return mfa.confirmMfaSetup(s.user, s.sessionId, b.code ?? "");
+  }),
+  POST("/settings/mfa/recovery-codes", async (c) => {
+    const s = await session();
+    const b = await c.body({ code: zStr });
+    return mfa.regenerateRecoveryCodes(s.user, s.sessionId, b.code ?? "");
+  }),
+  POST("/settings/mfa/disable", async (c) => {
+    const s = await session();
+    const b = await c.body({ code: zStr, password: zStr, appleIdentityToken: z.string().max(10_000).nullish() });
+    await mfa.disableMfa(s.user, s.sessionId, b.code ?? "", { password: b.password ?? null, appleIdentityToken: b.appleIdentityToken ?? null });
+    return { ok: true };
   }),
 
   // ── Benachrichtigungen ──

@@ -151,6 +151,12 @@ final class AppState {
     var hasActiveShop: Bool { me?.shop?.status == "ACTIVE" || me?.shop?.status == "PAUSED" }
     /// Währung, in der die angemeldete Person (bzw. der Gast) Preise sieht und bezahlt
     var currency: String { me?.currency ?? (me?.profile?.country).map { Currency.forCountry($0) } ?? priceCurrency }
+    /// Gast: Währung umstellen (wird gespeichert); `MainTabView` baut sich über `currency` neu auf und lädt die Preise neu
+    func setGuestCurrency(_ c: String) {
+        guard c == "CHF" || c == "EUR", c != priceCurrency else { return }
+        api.guestCurrency = c
+        priceCurrency = c
+    }
     /// Einmalige Abfrage des Landes nötig (bestehende Konten ohne bestätigtes Land)
     var needsCountry: Bool { me?.countryPrompt != nil && me?.status != "SUSPENDED" }
 

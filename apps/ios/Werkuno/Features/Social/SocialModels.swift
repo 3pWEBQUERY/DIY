@@ -451,6 +451,8 @@ struct SocialReviewPage: Decodable, Sendable {
     var view: String
     var items: [SocialReview]
     var distribution: [Bucket]?
+    /// Inhaberin des Shops: darf auf erhaltene Bewertungen antworten
+    var canReply: Bool?
 }
 
 struct SocialReview: Decodable, Hashable, Identifiable, Sendable {

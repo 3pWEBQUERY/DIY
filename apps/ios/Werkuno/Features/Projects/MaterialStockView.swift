@@ -38,6 +38,7 @@ struct MaterialStockView: View {
                 Menu {
                     Button("Alle Materialien", systemImage: "shippingbox") { router.open(.materials) }
                     Button("Einkaufslisten", systemImage: "checklist") { router.open(.shoppingLists) }
+                    Button("Zuschnittrechner", systemImage: "ruler") { router.open(.cuttingCalculator()) }
                 } label: { Image(systemName: "ellipsis") }
                 .accessibilityLabel("Weitere Materialseiten")
             }

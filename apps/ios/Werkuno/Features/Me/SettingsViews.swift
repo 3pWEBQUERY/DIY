@@ -548,6 +548,8 @@ private struct MeSecuritySettings: View {
     private func form(_ d: MeSecurityInfo) -> some View {
         let others = d.sessions.filter { $0.current != true }.count
         return Form {
+            MfaSettingsSection()
+
             Section {
                 ForEach(d.sessions) { s in
                     HStack(spacing: 12) {
@@ -859,6 +861,8 @@ private struct MeFeedSettingsView: View {
                     }
                 }
             } header: { Group { Text("Stummgeschaltet") }.font(.wr(.footnote, .semibold)) } footer: { Group { Text("Stummgeschaltete Profile erfahren davon nichts. Ihre Inhalte erscheinen nicht in deinem Feed.") }.font(.wr(.footnote)) }
+
+            StoryMutesSection()
 
             Section {
                 LabeledContent("Ausgeblendete Inhalte", value: Fmt.number(d.hiddenCount ?? 0))

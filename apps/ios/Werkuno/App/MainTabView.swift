@@ -150,6 +150,7 @@ struct RouteView: View {
             case .orders: OrderListView()
             case .order(let id): OrderDetailView(id: id)
             case .giftCards: MyGiftCardsView()
+            case .coupon(let id): CouponLandingView(id: id)
             case .communities: CommunityListView()
             case .community(let s): CommunityDetailView(slug: s)
             case .communityManage(let s): CommunityManageView(slug: s)
@@ -166,6 +167,7 @@ struct RouteView: View {
             case .shoppingList(let id): ShoppingListView(id: id)
             case .sharedShoppingList(let t): SharedShoppingListView(token: t)
             case .materials: MaterialsView()
+            case .cuttingCalculator(let code): CuttingCalculatorView(code: code)
             case .studio: StudioView()
             case .studioSection(let s): StudioSectionView(section: s)
             case .creatorPro(let feature): StudioProView(highlight: feature)
@@ -207,8 +209,8 @@ extension Route {
     /// Bestellungen bleiben einsehbar.
     var needsMarketplace: Bool {
         switch self {
-        case .product, .shop, .cart, .checkout: true
-        case .studioSection(let s): s == .products || s == .shop || s == .coupons || s == .bundles || s == .sales
+        case .product, .shop, .cart, .checkout, .coupon: true
+        case .studioSection(let s): s == .products || s == .shop || s == .coupons || s == .bundles || s == .giftCards || s == .sales
         default: false
         }
     }
@@ -247,12 +249,16 @@ struct StudioSectionView: View {
         case .orders: StudioOrdersView()
         case .coupons: StudioCouponsView()
         case .bundles: StudioBundlesView()
+        case .giftCards: StudioGiftCardsView()
         case .sales: StudioSalesView()
         case .shop: StudioShopView()
         case .media: StudioMediaView()
         case .stats: StudioStatsView()
         case .revenue: StudioRevenueView()
         case .supporters: StudioSupportView()
+        // Laufen als Sheet (Router.open fängt sie ab); nur als Rückfall eingebettet
+        case .comments: CommentFilterSheet()
+        case .profileDesign: ProfileThemeEditorSheet()
         }
     }
 }
@@ -288,6 +294,9 @@ struct SheetHost: View {
         case .web(let url): SafariSheet(url: url).ignoresSafeArea()
         case .coauthors(let id, let co): SocialCoauthorSheet(postId: id, asCoauthor: co)
         case .storyComposer: StoryComposerSheet()
+        case .receipt(let id): MarketReceiptSheet(orderId: id)
+        case .commentFilter: CommentFilterSheet()
+        case .profileTheme: ProfileThemeEditorSheet()
         }
     }
 }

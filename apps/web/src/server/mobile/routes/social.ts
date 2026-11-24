@@ -323,7 +323,8 @@ export const socialRoutes: RouteDef[] = [
       view === "received" ? listReceivedReviews(shop!.id, vid) : listGivenReviews(prof.userId),
       view === "received" ? shopRatingDistribution(shop!.id) : Promise.resolve(null),
     ]);
-    return { view, items, distribution };
+    // Inhaberin des Shops darf auf erhaltene Bewertungen antworten (PUT /reviews/:id/reply)
+    return { view, items, distribution, canReply: view === "received" && !!vid && vid === prof.userId };
   }),
   GET("/users/:handle/posts", async (c) => {
     const { prof, vid, blocked } = await visibleProfile(c.p.handle!);

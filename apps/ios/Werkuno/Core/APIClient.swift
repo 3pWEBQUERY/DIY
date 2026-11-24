@@ -180,6 +180,14 @@ final class APIClient: @unchecked Sendable {
     private var cachedToken: String?
     private let lock = NSLock()
 
+    /// Gäste ohne Konto: gewählte Währung der Preise („CHF“/„EUR“), geht als `X-Werkuno-Currency` mit jeder
+    /// Anfrage mit (die App hat keine Cookies). Angemeldete Konten mit Land ignoriert der Server.
+    static let guestCurrencyKey = "werkuno.guestCurrency"
+    var guestCurrency: String? {
+        get { UserDefaults.standard.string(forKey: Self.guestCurrencyKey).flatMap { $0 == "CHF" || $0 == "EUR" ? $0 : nil } }
+        set { UserDefaults.standard.set(newValue, forKey: Self.guestCurrencyKey) }
+    }
+
     /// Wird bei 401 aufgerufen (Session abgelaufen/widerrufen).
     var onUnauthorized: (@Sendable () -> Void)?
 
@@ -269,6 +277,7 @@ final class APIClient: @unchecked Sendable {
         } else if let token, req.value(forHTTPHeaderField: "Authorization") == nil {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        if let c = guestCurrency { req.setValue(c, forHTTPHeaderField: "X-Werkuno-Currency") }
         let data: Data
         let response: URLResponse
         do {

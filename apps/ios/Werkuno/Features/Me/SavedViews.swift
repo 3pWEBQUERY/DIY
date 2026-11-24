@@ -61,8 +61,15 @@ struct MeSavedEntryCard: View {
                         SpecLabel("Produkt\(p.shopName.map { " · \($0)" } ?? "")", color: .clay)
                         Text(p.title).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2).multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
-                            Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
+                            if let sale = p.sale, sale.isRunning, let price = p.priceMinor {
+                                SalePriceText(priceMinor: price, regularMinor: sale.regularMinor, currency: p.currency)
+                            } else {
+                                Text(Fmt.money(p.priceMinor, currency: p.currency)).font(.wr(.subheadline, .bold)).monospacedDigit().foregroundStyle(Color.ink)
+                            }
                             if p.soldOut == true { MeStatePill(text: "Ausverkauft", tone: .neutral) }
+                        }
+                        if let alert = SavedPriceAlert.label(p) {
+                            Text(alert).specStyle(.mossInk)
                         }
                     }
                     Spacer(minLength: 0)
@@ -91,6 +98,21 @@ struct MeSavedEntryCard: View {
             }
             .buttonStyle(.pressable)
         }
+    }
+}
+
+/// Preisalarm-Zeile unter gemerkten Produkten („In Aktion −20 % · bis Sonntag“ / „Preis gesenkt …“)
+enum SavedPriceAlert {
+    static func label(_ p: MeProductMini) -> String? {
+        if let s = p.sale, s.isRunning { return "In Aktion −\(s.percent) % · \(until(s.endsAt))" }
+        return p.priceDropped == true ? "Preis gesenkt, seit du es gemerkt hast" : nil
+    }
+
+    /// „bis Sonntag“ (unter 6 Tagen) bzw. „bis 30. Nov.“
+    static func until(_ end: Date) -> String {
+        let days = end.timeIntervalSinceNow / 86_400
+        let f = days < 6 ? Date.FormatStyle().weekday(.wide) : Date.FormatStyle().day().month(.abbreviated)
+        return "bis \(end.formatted(f.locale(Locale(identifier: "de_CH"))))"
     }
 }
 
@@ -249,6 +271,7 @@ struct SavedView: View {
                                message: filter == nil ? "Tippe bei \(MeLabels.savedType(type)) auf das Lesezeichen, um sie hier zu sammeln." : "In dieser Auswahl gibt es keine \(MeLabels.savedType(type)).")
             } else {
                 LazyVStack(spacing: 14) {
+                    if type == "PRODUCT" { priceAlertHint }
                     if unavailable > 0 {
                         NoticeView(tone: .info, message: unavailable == 1 ? "Ein gespeicherter Inhalt ist nicht mehr verfügbar." : "\(unavailable) gespeicherte Inhalte sind nicht mehr verfügbar.")
                     }
@@ -266,6 +289,20 @@ struct SavedView: View {
         } else {
             LoadingView()
         }
+    }
+
+    /// Wie im Web: Hinweis auf den Preisalarm mit Weg zu den Benachrichtigungen
+    private var priceAlertHint: some View {
+        Button { router.open(.settingsSection(.notifications)) } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "bell.badge").foregroundStyle(Color.muted)
+                Text("Wir sagen dir Bescheid, wenn ein gemerktes Produkt in Aktion kommt, günstiger wird oder wieder erhältlich ist. Einstellungen")
+                    .font(.wr(.footnote)).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Öffnet die Benachrichtigungs-Einstellungen")
     }
 
     private func actionBar(_ e: MeSavedEntry) -> some View {

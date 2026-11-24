@@ -8,7 +8,7 @@ import { CALENDAR_KIND_LABEL, contentCalendar, upcomingScheduled, type CalendarI
 import { SectionTitle } from "@/components/ui/misc";
 import { TZ, addDaysToDayKey, zurichDateTimeIso, zurichDayKey } from "@/lib/tz";
 import { cn } from "@/lib/utils";
-import { isoWeekKey, weekStart } from "@/lib/calendar-weeks";
+import { calendarDays, isoWeekKey } from "@/lib/calendar-weeks";
 import { proHref } from "@/lib/pro-features";
 
 export const metadata: Metadata = { title: "Inhaltskalender" };
@@ -24,29 +24,7 @@ const KIND_DOT: Record<CalendarKind, string> = {
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const time = new Intl.DateTimeFormat("de-CH", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 const dayLong = new Intl.DateTimeFormat("de-CH", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
-const monthLong = new Intl.DateTimeFormat("de-CH", { timeZone: "UTC", month: "long", year: "numeric" });
 const when = new Intl.DateTimeFormat("de-CH", { timeZone: TZ, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-
-/** `?monat=2026-11` → erster Tag; sonst aktueller Monat (Zürich) */
-function monthStart(raw: string | undefined) {
-  const m = /^(\d{4})-(\d{2})$/.exec(raw ?? "");
-  const key = m && Number(m[2]) >= 1 && Number(m[2]) <= 12 ? `${m[1]}-${m[2]}-01` : `${zurichDayKey().slice(0, 7)}-01`;
-  return key;
-}
-function shiftMonth(first: string, n: number) {
-  const d = new Date(`${first}T00:00:00Z`);
-  d.setUTCMonth(d.getUTCMonth() + n);
-  return d.toISOString().slice(0, 7);
-}
-
-const dayShort = new Intl.DateTimeFormat("de-CH", { timeZone: "UTC", day: "numeric", month: "long" });
-function weekTitle(from: string, to: string) {
-  const a = new Date(`${from}T12:00:00Z`);
-  const b = new Date(`${to}T12:00:00Z`);
-  const sameMonth = from.slice(0, 7) === to.slice(0, 7);
-  const kw = isoWeekKey(from).slice(6);
-  return `KW ${Number(kw)} · ${sameMonth ? `${a.getUTCDate()}.` : dayShort.format(a)} – ${dayShort.format(b)} ${b.getUTCFullYear()}`;
-}
 
 /**
  * Inhaltskalender (Creator Pro): geplante und veröffentlichte Beiträge, Artikel, Projekte, Anleitungen
@@ -61,23 +39,8 @@ export default async function ContentCalendarPage({ searchParams }: { searchPara
   if (!pro) redirect(proHref("kalender"));
 
   const week = sp.ansicht === "woche";
-  const first = monthStart(sp.monat);
-  const nextFirst = `${shiftMonth(first, 1)}-01`;
-  const days: string[] = [];
-  if (week) {
-    const ws = weekStart(sp.woche);
-    for (let i = 0; i < 7; i++) days.push(addDaysToDayKey(ws, i));
-  } else {
-    // Raster: Montag vor dem Monatsersten bis Sonntag nach dem Monatsende
-    const firstDow = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
-    const gridStart = addDaysToDayKey(first, -firstDow);
-    const lastDay = addDaysToDayKey(nextFirst, -1);
-    const lastDow = (new Date(`${lastDay}T00:00:00Z`).getUTCDay() + 6) % 7;
-    const gridEnd = addDaysToDayKey(lastDay, 6 - lastDow);
-    for (let d = gridStart; d && d <= gridEnd; d = addDaysToDayKey(d, 1)) days.push(d);
-  }
-  const gridStart = days[0]!;
-  const gridEnd = days[days.length - 1]!;
+  const cal = calendarDays({ week, monat: sp.monat, woche: sp.woche });
+  const { days, first, nextFirst, gridStart, gridEnd } = cal;
 
   const from = new Date(zurichDateTimeIso(gridStart) ?? `${gridStart}T00:00:00Z`);
   const to = new Date(zurichDateTimeIso(addDaysToDayKey(gridEnd, 1)) ?? `${gridEnd}T23:59:59Z`);
@@ -93,9 +56,9 @@ export default async function ContentCalendarPage({ searchParams }: { searchPara
   const listDays = days.filter((d) => (week || d.startsWith(month)) && byDay.has(d));
   const thisWeek = isoWeekKey(today);
   const shownWeek = isoWeekKey(gridStart);
-  const title = week ? weekTitle(gridStart, gridEnd) : monthLong.format(new Date(`${first}T12:00:00Z`));
-  const prevHref = week ? `/studio/kalender?ansicht=woche&woche=${isoWeekKey(addDaysToDayKey(gridStart, -7))}` : `/studio/kalender?monat=${shiftMonth(first, -1)}`;
-  const nextHref = week ? `/studio/kalender?ansicht=woche&woche=${isoWeekKey(addDaysToDayKey(gridStart, 7))}` : `/studio/kalender?monat=${shiftMonth(first, 1)}`;
+  const title = cal.title;
+  const prevHref = week ? `/studio/kalender?ansicht=woche&woche=${cal.prev}` : `/studio/kalender?monat=${cal.prev}`;
+  const nextHref = week ? `/studio/kalender?ansicht=woche&woche=${cal.next}` : `/studio/kalender?monat=${cal.next}`;
   const todayHref = week ? `/studio/kalender?ansicht=woche` : "/studio/kalender";
 
   return (

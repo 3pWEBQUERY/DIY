@@ -114,6 +114,10 @@ struct RootView: View {
         .sheet(isPresented: countryPromptBinding) {
             CountryPromptSheet(suggested: app.me?.countryPrompt?.suggested)
         }
+        // Link aus der Passwort-E-Mail – auch abgemeldet, darum hier statt in MainTabView
+        .sheet(item: Binding(get: { router.passwordReset }, set: { router.passwordReset = $0 })) { link in
+            PasswordResetLinkSheet(link: link).toastOverlay()
+        }
         .toastOverlay()
         .onAppear { AppAppearance.apply() } // gespeicherte Darstellung (Hell/Dunkel/System)
         .task { await app.launch() }
