@@ -128,6 +128,9 @@ struct SupportCardView: View {
     var creatorId: String
     var creatorName: String
     var variant: Variant = .profile
+    /// Nur für den Prüf-Screenshot (Debug): feste Daten statt Serverabfrage
+    var preview: SupportOfferResponse? = nil
+    var previewPrice: String? = nil
     /// Nach einem Kauf (z. B. Anleitung neu laden)
     var onChange: () -> Void = {}
 
@@ -189,7 +192,7 @@ struct SupportCardView: View {
                 if let n = offer.exclusiveTutorials, n > 0 {
                     Text(n == 1 ? "1 exklusive Anleitung" : "\(n) exklusive Anleitungen").font(.wr(.footnote)).foregroundStyle(Color.muted)
                 }
-                if app.isSignedIn {
+                if app.isSignedIn || preview != nil {
                     Button { Task { await buy() } } label: {
                         Label(buying ? "Einen Moment …" : "Unterstützen", systemImage: "heart")
                     }
@@ -217,6 +220,11 @@ struct SupportCardView: View {
 
     private func load() async {
         defer { loaded = true }
+        if let preview {
+            data = preview
+            displayPrice = previewPrice
+            return
+        }
         guard let r: SupportOfferResponse = try? await APIClient.shared.get("/creators/\(creatorId)/support") else { return }
         data = r
         if let id = r.apple?.productId { displayPrice = await SupportStore.shared.product(id)?.displayPrice }

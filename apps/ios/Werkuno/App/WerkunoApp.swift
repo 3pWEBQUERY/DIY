@@ -83,13 +83,26 @@ struct WerkunoApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            rootView
                 .environment(app)
                 .environment(router)
                 .tint(.moss)
                 .font(.wr(.body))
                 .onOpenURL { router.handle(url: $0) }
         }
+    }
+
+    @ViewBuilder private var rootView: some View {
+        #if DEBUG
+        // Prüf-Screenshot für App Store Connect (CI startet die App mit diesem Argument)
+        if ProcessInfo.processInfo.arguments.contains("-WerkunoReviewShot") {
+            ReviewShotView()
+        } else {
+            RootView()
+        }
+        #else
+        RootView()
+        #endif
     }
 }
 
