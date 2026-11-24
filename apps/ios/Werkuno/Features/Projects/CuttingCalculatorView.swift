@@ -182,8 +182,15 @@ enum CuttingFormat {
     static func mm(_ v: Double) -> String { num(v, 0) }
 
     /// Ruhige Pastelltöne je Teil wie im Web
-    static let palette: [Color] = [0xE7D3B6, 0xD8E2D3, 0xE9D5D0, 0xD6DDE6, 0xEFE1B8, 0xE3D6E1, 0xD9E6E6, 0xEADCC9].map { hex in
-        Color(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    private static let paletteHex: [UInt32] = [0xE7D3B6, 0xD8E2D3, 0xE9D5D0, 0xD6DDE6, 0xEFE1B8, 0xE3D6E1, 0xD9E6E6, 0xEADCC9]
+    static let palette: [Color] = paletteHex.map(color(hex:))
+
+    /// Farbe aus 0xRRGGBB (Typen ausgeschrieben – sonst braucht der Swift-Compiler zu lange)
+    private static func color(hex: UInt32) -> Color {
+        let r: Double = Double((hex >> 16) & 0xFF) / 255.0
+        let g: Double = Double((hex >> 8) & 0xFF) / 255.0
+        let b: Double = Double(hex & 0xFF) / 255.0
+        return Color(red: r, green: g, blue: b)
     }
 }
 
