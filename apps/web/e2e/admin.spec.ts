@@ -157,7 +157,8 @@ test("Admin: Nutzerliste zeigt, wie registriert wurde (Symbol + Filter)", async 
     await expect(page.getByRole("row", { name: new RegExp(USERS.lena.name) })).toHaveCount(0);
     await page.goto(`/admin/nutzer/${mira}`);
     await expect(page.getByText("Registriert über", { exact: true })).toBeVisible();
-    await page.goto("/admin/nutzer");
+    // Gezielt suchen: Testkonten aus anderen Läufen können Lena von der ersten Seite verdrängen
+    await page.goto(`/admin/nutzer?q=${encodeURIComponent(USERS.lena.handle)}`);
     await expect(page.getByRole("row", { name: new RegExp(USERS.lena.name) }).getByTitle("Registriert über E-Mail")).toBeVisible();
   } finally {
     await sql(`UPDATE "User" SET "signupMethod" = 'EMAIL' WHERE id = $1`, [mira]);
