@@ -37,7 +37,7 @@ test.describe.serial("App: Kostenschätzung, Druckfassung, PDF-Branding", () => 
 
     // Bearbeiten-Daten liefern die Preise in der Währung der Autorin bzw. des Autors zurück
     const edit = (await (await page.request.get(`/api/v1/app/tutorials/${tutorialId}/edit`)).json()).data;
-    expect(edit.materials.map((m: { costMinor?: number }) => m.costMinor ?? null)).toEqual([1250, 790, null]);
+    expect(edit.values.materials.map((m: { costMinor?: number }) => m.costMinor ?? null)).toEqual([1250, 790, null]);
 
     // Anleitungsseite: Preise und Währung (`costCurrency`) für die Summe „ab …“ (eine Zeile ohne Preis)
     const view = (await (await page.request.get(`/api/v1/app/tutorials/by-slug/${slug}`)).json()).data;
@@ -49,7 +49,7 @@ test.describe.serial("App: Kostenschätzung, Druckfassung, PDF-Branding", () => 
     const put = await page.request.put(`/api/v1/app/tutorials/${tutorialId}`, { data: { publish: false, input: input([{ name: "Fichtenbrett", quantity: "2 Stk", note: "" }]) } });
     expect(put.status(), await put.text()).toBe(200);
     const edit2 = (await (await page.request.get(`/api/v1/app/tutorials/${tutorialId}/edit`)).json()).data;
-    expect(edit2.materials[0].costMinor ?? null).toBeNull();
+    expect(edit2.values.materials[0].costMinor ?? null).toBeNull();
     await page.context().close();
   });
 

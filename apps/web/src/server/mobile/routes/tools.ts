@@ -25,7 +25,7 @@ export const toolRoutes: RouteDef[] = [
   GET("/tools/cutting-plan/decode", async (c) => {
     const code = str(c.q, "code")?.slice(0, 20_000);
     const state = code ? decodeState(code) : null;
-    if (!state) throw fail.invalid("Der Link enthält keinen gültigen Zuschnittplan.");
+    if (!state) throw fail.badRequest("Der Link enthält keinen gültigen Zuschnittplan.");
     return { parts: state.parts.slice(0, 200), settings: state.settings };
   }),
 ];

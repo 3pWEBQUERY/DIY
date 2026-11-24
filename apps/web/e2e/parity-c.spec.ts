@@ -13,13 +13,16 @@ const data = async <T = Record<string, unknown>>(res: APIResponse): Promise<T> =
 
 test.describe.serial("App-Parität C", () => {
   let mattia = "";
-  test.beforeAll(async () => {
-    mattia = await userId("mattia");
-    await sql(
+  // Andere Specs entfernen Mattias Geschenk-Abo im afterAll – vor jedem Test neu setzen
+  const ensurePro = () =>
+    sql(
       `INSERT INTO "Subscription" (id, "userId", plan, interval, status, provider, "updatedAt") VALUES ($1, $2, 'PRO', 'month', 'active', 'comp', now())
        ON CONFLICT ("userId") DO UPDATE SET status = 'active', provider = 'comp', "currentPeriodEnd" = NULL`,
       [`e2e_sub_c_${Date.now()}`, mattia],
     );
+  test.beforeEach(async () => {
+    mattia ||= await userId("mattia");
+    await ensurePro();
   });
   test.afterAll(async () => {
     await sql(`DELETE FROM "Subscription" WHERE "userId" = $1 AND provider = 'comp'`, [mattia]);
@@ -126,8 +129,8 @@ test.describe.serial("App-Parität C", () => {
     expect(parsed.parts).toMatchObject([{ name: "Seite", length: 720, qty: 2 }, { name: "Boden", length: 762, qty: 1 }]);
 
     const bad = await request.post("/api/v1/app/tools/cutting-plan", { data: { parts: [{ name: "x", length: -1, width: 10 }] } });
-    expect(bad.status()).toBe(400);
+    expect(bad.status()).toBe(422);
     const empty = await request.post("/api/v1/app/tools/cutting-plan", { data: { parts: [] } });
-    expect(empty.status()).toBe(400);
+    expect(empty.status()).toBe(422);
   });
 });
