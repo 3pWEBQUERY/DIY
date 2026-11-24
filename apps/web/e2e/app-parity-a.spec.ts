@@ -14,7 +14,7 @@ async function appContext(baseURL: string | undefined, token?: string, headers: 
   return pwRequest.newContext({ baseURL, extraHTTPHeaders: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers } });
 }
 
-const data = async (r: Awaited<ReturnType<APIRequestContext["get"]>>) => (await r.json()).data;
+const data = async (r: Awaited<ReturnType<APIRequestContext["get"]>>): Promise<any> => ((await r.json()) as { data: unknown }).data;
 
 test.describe.serial("Zwei-Faktor und Passwort-Link über die App", () => {
   let token = "";
