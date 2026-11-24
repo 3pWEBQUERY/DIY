@@ -57,11 +57,11 @@ jobs:
         with:
           name: review-screenshot
           path: apps/ios/shots/
-      - name: Als Text ausgeben (Base64)
+      - name: Vorschau als Text ausgeben (Base64, klein)
         working-directory: apps/ios
         run: |
-          sips -s format jpeg -s formatOptions 85 shots/unterstuetzung-review.png --out shots/u.jpg >/dev/null
+          sips -Z 900 -s format jpeg -s formatOptions 55 shots/unterstuetzung-review.png --out shots/preview.jpg >/dev/null
           ls -l shots
           echo "B64-BEGIN"
-          base64 -i shots/u.jpg | fold -w 1000
+          base64 -i shots/preview.jpg | fold -w 4000
           echo "B64-END"
