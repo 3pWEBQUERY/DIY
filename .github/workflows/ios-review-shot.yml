@@ -1,0 +1,67 @@
+name: iOS-Prüf-Screenshot
+
+# Nimmt im iPhone-Simulator den Screenshot für die App-Store-Prüfung des Unterstützer-Abos auf
+# (Profil mit Karte „Unterstützen“). Ergebnis: Artefakt „review-screenshot“.
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/ios-review-shot.yml", "apps/ios/Werkuno/Features/Me/ReviewShotView.swift"]
+
+jobs:
+  shot:
+    name: Screenshot aufnehmen
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+      - name: Projekt erzeugen
+        working-directory: apps/ios
+        run: xcodegen generate
+      - name: Simulator wählen
+        id: sim
+        run: |
+          xcrun simctl list devices available
+          udid=""
+          for name in "iPhone 17 Pro Max" "iPhone 16 Pro Max" "iPhone 17 Pro" "iPhone 16 Pro"; do
+            udid=$(xcrun simctl list devices available | grep -E "^\s+$name \(" | head -1 | grep -oE '[0-9A-F-]{36}' || true)
+            if [ -n "$udid" ]; then echo "Gerät: $name ($udid)"; break; fi
+          done
+          [ -n "$udid" ] || { echo "::error::Kein passender Simulator"; exit 1; }
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      - name: Bauen
+        working-directory: apps/ios
+        run: |
+          xcodebuild -project Werkuno.xcodeproj -scheme Werkuno -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || { grep -E "error:" build.log | head -40; tail -40 build.log; exit 1; }
+          echo "BUILD OK"
+      - name: Screenshot
+        working-directory: apps/ios
+        run: |
+          set -x
+          udid=${{ steps.sim.outputs.udid }}
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl ui "$udid" appearance light
+          xcrun simctl status_bar "$udid" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 \
+            --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+          xcrun simctl install "$udid" build/Build/Products/Debug-iphonesimulator/Werkuno.app
+          xcrun simctl launch "$udid" ch.werkuno.app -WerkunoReviewShot -AppleLanguages "(de-CH)" -AppleLocale de_CH
+          sleep 15
+          mkdir -p shots
+          xcrun simctl io "$udid" screenshot --type=png shots/unterstuetzung-review.png
+          sips -g pixelWidth -g pixelHeight shots/unterstuetzung-review.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-screenshot
+          path: apps/ios/shots/
+      - name: Vorschau als Text ausgeben (Base64, klein)
+        working-directory: apps/ios
+        run: |
+          sips -Z 900 -s format jpeg -s formatOptions 55 shots/unterstuetzung-review.png --out shots/preview.jpg >/dev/null
+          ls -l shots
+          echo "B64-BEGIN"
+          base64 -i shots/preview.jpg | fold -w 4000
+          echo "B64-END"

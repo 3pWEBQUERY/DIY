@@ -531,8 +531,8 @@ export const HELP_CATEGORIES: HelpCategory[] = [
       {
         id: "kasse",
         q: "Wie läuft die Bezahlung ab?",
-        a: "An der [Kasse](/kasse) gibst du beim ersten Kauf Name und Lieferadresse an; sie werden für spätere Bestellungen gespeichert. Danach bezahlst du im Checkout von Stripe – mit Karte, Apple Pay oder Google Pay, bei Bestellungen in Franken auch mit TWINT, und je nach Bestellung auf Rechnung oder in Raten über Klarna. Kartendaten erreichen uns nie. Die Artikel sind während der Zahlung {reservationMinutes} Minuten für dich reserviert. Eine offene Zahlung kannst du im Warenkorb fortsetzen.\n\nZahle nie ausserhalb des Checkouts, etwa per Überweisung oder über einen Link aus einer Nachricht.",
-        tags: "bezahlen zahlung stripe karte twint klarna rechnung raten apple pay google pay checkout adresse reservierung",
+        a: "An der [Kasse](/kasse) gibst du beim ersten Kauf Name und Lieferadresse an; sie werden für spätere Bestellungen gespeichert. Danach bezahlst du im Checkout von Stripe – mit Karte, Apple Pay oder Google Pay und je nach Bestellung auf Rechnung oder in Raten über Klarna. Kartendaten erreichen uns nie. Die Artikel sind während der Zahlung {reservationMinutes} Minuten für dich reserviert. Eine offene Zahlung kannst du im Warenkorb fortsetzen.\n\nZahle nie ausserhalb des Checkouts, etwa per Überweisung oder über einen Link aus einer Nachricht.",
+        tags: "bezahlen zahlung stripe karte klarna rechnung raten apple pay google pay checkout adresse reservierung",
       },
       {
         id: "kaeuferschutz",
