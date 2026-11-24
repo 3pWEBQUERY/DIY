@@ -17,9 +17,9 @@ Mit dem Unterstützer-Abo unterstützen Fans eine Person (Creator) monatlich und
 
 ### 1.1 Drei In-App-Käufe anlegen
 
-App Store Connect › **Apps** › Werkuno › **Monetarisierung › In-App-Käufe** › **＋**.
+App Store Connect › **Apps** › Werkuno › **Monetarisierung › Abos** › ganz nach unten zum Abschnitt **„Abonnements ohne automatische Verlängerung“** (englisch „Non-Renewing Subscriptions“) › **Verwalten** › **＋**.
 
-Typ: **Abonnement ohne automatische Verlängerung** (englisch „Non-Renewing Subscription“). Bitte **nicht** „Automatisch erneuerbares Abonnement“ wählen.
+Unter „In-App-Käufe“ gibt es diesen Typ nicht, dort stehen nur Verbrauchs- und Nicht-Verbrauchsartikel. Bitte auch **keine** Abo-Gruppe dafür anlegen: Das wären automatisch erneuerbare Abos.
 
 | Produkt-ID (genau so) | Referenzname | Preis (Empfehlung) |
 |---|---|---|
