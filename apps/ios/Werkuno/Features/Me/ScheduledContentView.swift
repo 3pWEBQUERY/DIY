@@ -14,13 +14,38 @@ struct ScheduledContentResponse: Decodable, Sendable {
 }
 
 /// Studio › Geplant: alles, was zeitgesteuert erscheint (Beiträge, Artikel, Projekte, Anleitungen,
-/// Newsletter). Den Monatskalender gibt es im Web unter Studio › Inhaltskalender.
+/// Newsletter). Mit Creator Pro lässt sich oben auf den Inhaltskalender (Monat/Woche) umschalten.
 struct ScheduledContentView: View {
     @Environment(Router.self) private var router
     @State private var data: ScheduledContentResponse?
     @State private var error: String?
+    @AppStorage("studio.scheduled.calendar") private var showCalendar = false
 
     var body: some View {
+        Group {
+            if data?.pro == true && showCalendar {
+                ContentCalendarView()
+            } else {
+                list
+            }
+        }
+        .navigationTitle(data?.pro == true && showCalendar ? "Inhaltskalender" : "Geplant")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if data?.pro == true {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showCalendar.toggle()
+                    } label: {
+                        Image(systemName: showCalendar ? "list.bullet" : "calendar")
+                    }
+                    .accessibilityLabel(showCalendar ? "Als Liste zeigen" : "Als Kalender zeigen")
+                }
+            }
+        }
+    }
+
+    private var list: some View {
         List {
             if let data {
                 if data.items.isEmpty {
@@ -48,8 +73,6 @@ struct ScheduledContentView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.paper)
-        .navigationTitle("Geplant")
-        .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
     }

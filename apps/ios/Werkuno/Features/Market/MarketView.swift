@@ -123,6 +123,10 @@ struct MarketView: View {
             HStack(spacing: 8) {
                 Rectangle().fill(Color.lineStrong).frame(width: 22, height: 1)
                 SpecLabel("Marktplatz", color: .moss)
+                if app.me == nil {
+                    Spacer(minLength: 8)
+                    GuestCurrencyToggle()
+                }
             }
             Text(activeCategory?.name ?? "Gemacht von Menschen, deren Werkbank du kennst.")
                 .font(.display(30))

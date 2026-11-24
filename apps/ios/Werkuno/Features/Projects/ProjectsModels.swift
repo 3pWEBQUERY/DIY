@@ -198,6 +198,8 @@ struct ProjectsLineValue: Codable, Hashable, Sendable {
     var quantity: String?
     var note: String?
     var materialId: String?
+    /// Richtpreis der ganzen Zeile in Rappen/Cent (nur Anleitungen, optional)
+    var costMinor: Int? = nil
 }
 
 /// GET /projects/by/:handle/:slug/edit
@@ -325,8 +327,17 @@ struct TutorialPage: Decodable, Hashable, Sendable {
     var supportersOnly: Bool?
     var locked: Bool?
     var stepCount: Int?
+    /// Währung der Materialpreise (`costMinor`), bereits in die Währung der Betrachter:in umgerechnet
+    var costCurrency: String?
 
     var isLocked: Bool { locked ?? false }
+    /// Ungefähre Materialkosten wie im Web (`materialsCostEstimate`): nil ohne Preise; `complete` = alle Zeilen mit Preis
+    var materialsCost: (totalMinor: Int, complete: Bool)? {
+        let lines = materials ?? []
+        let priced = lines.compactMap { $0.costMinor }.filter { $0 >= 0 }
+        guard !priced.isEmpty else { return nil }
+        return (priced.reduce(0, +), priced.count == lines.count)
+    }
     var isOwner: Bool { viewer?.isOwner ?? false }
     var totalStepMinutes: Int { steps.reduce(0) { $0 + ($1.minutes ?? 0) } }
 }
@@ -422,6 +433,8 @@ extension Array where Element == ProjectsLineValue {
         .array(map { l in
             var o: [String: JSONValue] = ["name": .string(l.name.trimmed), "quantity": .string((l.quantity ?? "").trimmed), "note": .string((l.note ?? "").trimmed)]
             if let m = l.materialId?.nilIfEmpty { o["materialId"] = .string(m) }
+            // Ungültige Eingaben (-1) gehen bewusst mit, damit der Server den Fehler an der Zeile meldet
+            if let c = l.costMinor { o["costMinor"] = .number(Double(c)) }
             return .object(o)
         })
     }

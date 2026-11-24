@@ -111,6 +111,10 @@ struct MeProductMini: Decodable, Sendable, Identifiable, Hashable {
     var href: String?
     var shopName: String?
     var soldOut: Bool?
+    /// Laufende Aktion (Preis oben ist dann der Aktionspreis)
+    var sale: MarketSale?
+    /// Preisalarm: Preis gesenkt, seit es gemerkt wurde
+    var priceDropped: Bool?
 }
 
 struct MeArticleMini: Decodable, Sendable, Identifiable, Hashable {

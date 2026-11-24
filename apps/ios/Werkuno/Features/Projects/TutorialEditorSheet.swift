@@ -248,11 +248,25 @@ struct TutorialEditorSheet: View {
             }
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader("Material")
-                ProjectsLineEditor(lines: $materials, kind: .material, errorPrefix: "materials", errors: errors)
+                ProjectsLineEditor(lines: $materials, kind: .material, errorPrefix: "materials", errors: errors, costCurrency: app.currency)
+                costHint
             }
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader("Werkzeug")
                 ProjectsLineEditor(lines: $tools, kind: .tool, errorPrefix: "tools", errors: errors)
+            }
+        }
+    }
+
+    /// Hinweis zum Richtpreis samt Summe (wie im Web)
+    private var costHint: some View {
+        let prices = materials.filter { !$0.isEmpty }.compactMap(\.costMinor).filter { $0 >= 0 }
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("Preis: optionaler Richtpreis für die ganze Zeile. Aus allen Preisen zeigt die Anleitung die ungefähren Materialkosten.")
+                .font(.wr(.caption)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+            if !prices.isEmpty {
+                Text("Summe ca. \(Fmt.money(prices.reduce(0, +), currency: app.currency))")
+                    .font(.wr(.caption, .semibold).monospacedDigit()).foregroundStyle(Color.ink)
             }
         }
     }

@@ -201,7 +201,8 @@ export async function requestPasswordReset(email: string) {
   await new Promise((r) => setTimeout(r, randomInt(20, 80)));
 }
 
-export async function resetPassword(raw: string, password: string) {
+/** `signIn: false` (App): nur Passwort setzen – die App meldet sich danach selbst an (Bearer-Token statt Cookie). */
+export async function resetPassword(raw: string, password: string, opts: { signIn?: boolean } = {}) {
   const pw = passwordSchema.parse(password);
   const t = await db.verificationToken.findUnique({ where: { id: sha256(raw) } });
   const invalid = () => fail.invalid("Der Link ist abgelaufen oder ungültig. Fordere bitte einen neuen an.");
@@ -228,6 +229,7 @@ export async function resetPassword(raw: string, password: string) {
     await securityReset(t.userId, { exceptTokenId: t.id, tx });
   });
   await audit({ actorId: t.userId, action: "auth.password_reset", targetType: "USER", targetId: t.userId });
+  if (opts.signIn === false) return { mfaRequired: false };
   const s = await createSession(t.userId);
   return { mfaRequired: s.mfaRequired };
 }

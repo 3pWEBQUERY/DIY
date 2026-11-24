@@ -4,7 +4,7 @@ import Observation
 // MARK: - Navigationsziele
 
 enum StudioSection: String, Hashable, CaseIterable, Identifiable {
-    case content, projects, tutorials, articles, scheduled, newsletter, products, orders, coupons, bundles, sales, shop, media, stats, revenue, supporters
+    case content, projects, tutorials, articles, scheduled, newsletter, products, orders, coupons, bundles, giftCards, sales, shop, media, stats, revenue, supporters, comments, profileDesign
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -18,12 +18,15 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .orders: "Bestellungen"
         case .coupons: "Gutscheine"
         case .bundles: "Sets"
+        case .giftCards: "Geschenkgutscheine"
         case .sales: "Aktionen"
         case .shop: "Shop"
         case .media: "Medienbibliothek"
         case .stats: "Statistiken"
         case .revenue: "Einnahmen"
         case .supporters: "Unterstützer:innen"
+        case .comments: "Kommentar-Filter"
+        case .profileDesign: "Profil-Design"
         }
     }
     var symbol: String {
@@ -38,12 +41,15 @@ enum StudioSection: String, Hashable, CaseIterable, Identifiable {
         case .orders: "shippingbox"
         case .coupons: "ticket"
         case .bundles: "square.stack.3d.up"
+        case .giftCards: "gift"
         case .sales: "timer"
         case .shop: "storefront"
         case .media: "photo.on.rectangle"
         case .stats: "chart.bar.xaxis"
         case .revenue: "banknote"
         case .supporters: "heart"
+        case .comments: "text.badge.xmark"
+        case .profileDesign: "paintpalette"
         }
     }
 }
@@ -94,6 +100,8 @@ enum Route: Hashable {
     case orders
     case order(id: String)
     case giftCards
+    /// Geteilter Shop-Gutschein (`/gutschein/:id`): Code, Bedingungen, Weg zum Shop
+    case coupon(id: String)
     case communities
     case community(slug: String)
     case communityManage(slug: String)
@@ -129,6 +137,10 @@ enum Route: Hashable {
     case material(slug: String)
     /// „Mein Bestand“ `/materialien/bestand`
     case materialStock
+    /// Zuschnittrechner (`/werkzeuge/zuschnitt`, optional mit geteiltem Plan aus `#d=…`)
+    case cuttingCalculator(code: String? = nil)
+    /// Studio › Einstellungen: PDF-Branding (ohne Pro mit Hinweis auf Creator Pro)
+    case pdfBrand
     /// Eigene Entwürfe & geplante Beiträge (Web: Studio → Inhalte → Beiträge/Entwürfe)
     case postDrafts
     /// Wettbewerbe (`/wettbewerbe`, optional auf eine Community gefiltert)
@@ -187,6 +199,8 @@ enum Route: Hashable {
             case ("u", 2): return .profile(handle: s[1])
             case ("u", 3) where s[2] == "blog": return .userBlog(handle: s[1])
             case ("u", 3) where s[2] == "folgt": return .follows(handle: s[1], following: true)
+            // Medienkit (Creator Pro): druckbare Webseite, Vorschau-Token bleibt in der Query
+            case ("u", 3) where s[2] == "medienkit": return .web(path: href)
             case ("u", 3): return .project(handle: s[1], slug: s[2])
             case ("u", 4) where s[2] == "blog": return .article(handle: s[1], slug: s[3])
             case ("u", 4): return .project(handle: s[1], slug: s[2])
@@ -194,6 +208,7 @@ enum Route: Hashable {
             case ("markt", 2): return .shop(slug: s[1])
             case ("markt", _): return .product(shopSlug: s[1], productSlug: s[2])
             case ("bestellungen", _): return .order(id: s[1])
+            case ("gutschein", 2): return .coupon(id: s[1])
             case ("kasse", _): return q["bestellung"].map { .order(id: $0) } ?? .orders
             case ("c", 3) where s[2] == "verwalten": return .communityManage(slug: s[1])
             case ("c", 4) where s[2] == "wettbewerbe": return .competition(id: s[3])
@@ -207,12 +222,15 @@ enum Route: Hashable {
             case ("einkaufslisten", _): return .shoppingList(id: s[1])
             case ("liste", _): return .sharedShoppingList(token: s[1])
             case ("materialien", 2) where s[1] == "bestand": return .materialStock
+            case ("werkzeuge", 2) where s[1] == "zuschnitt": return .cuttingCalculator(code: comps.fragment.flatMap { $0.hasPrefix("d=") ? String($0.dropFirst(2)) : nil })
             case ("materialien", 2): return .material(slug: s[1])
             case ("einspruch", _): return .appeal(caseId: s[1])
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
             case ("studio", 2) where s[1] == "pro": return .creatorPro(feature: q["funktion"].flatMap(ProFeature.init(rawValue:)))
+            // Studio-Einstellungen im Web: Profil & Konto (+ PDF-Branding) → App-Einstellungen
+            case ("studio", 2) where s[1] == "einstellungen": return .pdfBrand
             case ("studio", _):
-                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "kalender": .scheduled, "newsletter": .newsletter, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "aktionen": .sales, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
+                let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "kalender": .scheduled, "newsletter": .newsletter, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "geschenkgutscheine": .giftCards, "aktionen": .sales, "kommentare": .comments, "profil-design": .profileDesign, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
                 return map[s[1]].map { .studioSection($0) } ?? .studio
             case ("einstellungen", _):
                 let map: [String: SettingsSection] = ["profil": .profile, "konto": .account, "sicherheit": .security, "benachrichtigungen": .notifications, "feed": .feed, "privatsphaere": .privacy, "hilfe-support": .support, "unterstuetzungen": .supporting]
@@ -248,8 +266,20 @@ enum SheetRoute: Identifiable, Hashable {
     case coauthors(postId: String, asCoauthor: Bool = false)
     /// Neue Story (Foto/Video oder Text)
     case storyComposer
+    /// Beleg einer Bestellung (`/beleg/:id`)
+    case receipt(orderId: String)
+    /// Creator Pro: Wortfilter für Kommentare (`/studio/kommentare`)
+    case commentFilter
+    /// Creator Pro: Profil-Design (`/studio/profil-design`)
+    case profileTheme
 
     var id: String { String(describing: self) }
+}
+
+/// Link aus der E-Mail „Passwort zurücksetzen“
+struct PasswordResetLink: Identifiable, Hashable {
+    let token: String
+    var id: String { token }
 }
 
 // MARK: - Story-Betrachter (Vollbild über allem)
@@ -284,6 +314,9 @@ final class Router {
     var searchText = ""
     /// Anzahl sichtbarer Detailseiten mit eigener Aktionsleiste (blendet die Werkbank-Leiste aus)
     var immersiveCount = 0
+    /// Link aus der Passwort-E-Mail (`/passwort-zuruecksetzen/:token`) – auch abgemeldet (RootView);
+    /// bleibt bei `reset()` stehen, weil das Sheet nach dem Speichern selbst abmeldet
+    var passwordReset: PasswordResetLink?
 
     /// Alles zurück auf den Start – beim Abmelden bzw. Kontowechsel, damit die nächste Person nicht
     /// in Unterhaltungen, Einstellungen oder offenen Sheets des vorherigen Kontos landet.
@@ -328,6 +361,11 @@ final class Router {
             sheet = .web(url: AppConfig.webURL(p))
             return
         }
+        // Pro-Einstellungen, die in der App als Editor-Sheet laufen
+        if case .studioSection(let s) = route, s == .comments || s == .profileDesign {
+            sheet = s == .comments ? .commentFilter : .profileTheme
+            return
+        }
         switch tab {
         case .workbench: workbench.append(route)
         case .discover: discover.append(route)
@@ -360,6 +398,14 @@ final class Router {
                 openHighlight(parts[1])
                 return
             }
+            if let s = Self.sheet(for: parts, query: c.queryItems ?? []) {
+                present(s)
+                return
+            }
+            if parts.count == 2, parts[0] == "passwort-zuruecksetzen" {
+                passwordReset = PasswordResetLink(token: parts[1])
+                return
+            }
         }
         // Bereiche, die ein Tab sind (Start, Entdecken, Markt): Tab wechseln statt Webansicht
         if let t = Self.tab(for: href) {
@@ -369,6 +415,23 @@ final class Router {
         }
         guard let r = Route.from(href: href) else { return }
         open(r)
+    }
+
+    /// Web-Seiten zum Erstellen bzw. Belege → native Sheets
+    private static func sheet(for parts: [String], query: [URLQueryItem]) -> SheetRoute? {
+        let q: (String) -> String? = { name in
+            guard let v = query.first(where: { $0.name == name })?.value, !v.isEmpty else { return nil }
+            return v
+        }
+        guard parts.count == 2 else { return nil }
+        switch (parts[0], parts[1]) {
+        case ("projekte", "neu"): return .projectEditor()
+        case ("communities", "neu"): return .communityEditor()
+        case ("nachrichten", "neu"):
+            return .newConversation(handle: q("an").map { $0.hasPrefix("@") ? String($0.dropFirst()) : $0 }, orderId: q("bestellung"), productId: q("produkt"))
+        case ("beleg", let id): return .receipt(orderId: id)
+        default: return nil
+        }
     }
 
     private static func tab(for href: String) -> AppTab? {
@@ -400,6 +463,8 @@ final class Router {
         var path = url.path
         if url.scheme == "werkuno" { path = "/" + (url.host ?? "") + url.path }
         if let q = url.query { path += "?" + q }
+        // Fragment behalten: geteilter Zuschnittplan steckt in `#d=…`
+        if let f = url.fragment { path += "#" + f }
         open(href: path)
     }
 }

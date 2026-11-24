@@ -34,6 +34,7 @@ struct SocialProfileReviews: View {
     @State private var view: String = ""
     @State private var page: SocialReviewPage?
     @State private var error: String?
+    @State private var replyTarget: SocialReview?
 
     /// Umschalter nur, wenn es beides gibt (Shop mit erhaltenen und selbst abgegebenen Bewertungen)
     private var showToggle: Bool { hasShop && (counts.given ?? 0) > 0 }
@@ -59,6 +60,16 @@ struct SocialProfileReviews: View {
             if view.isEmpty { view = hasShop ? (counts.defaultView ?? "received") : "given"; return }
             await load()
         }
+        .sheet(item: $replyTarget) { r in
+            ReviewReplySheet(review: r) { reply in updateReply(r.id, reply) }
+        }
+    }
+
+    /// Antwort lokal übernehmen (ohne Neuladen)
+    private func updateReply(_ id: String, _ reply: String?) {
+        guard var p = page, let i = p.items.firstIndex(where: { $0.id == id }) else { return }
+        p.items[i].sellerReply = reply
+        page = p
     }
 
     private func load() async {
@@ -160,11 +171,26 @@ struct SocialProfileReviews: View {
                     productLink(r, subtitle: r.orderItem?.variantName?.nilIfEmpty)
                 }
                 reviewBody(r)
+                if page?.canReply == true { replyButton(r) }
             }
             Spacer(minLength: 0)
         }
         .padding(.vertical, 14)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.line).frame(height: 0.75) }
+    }
+
+    private func replyButton(_ r: SocialReview) -> some View {
+        let has = r.sellerReply?.nilIfEmpty != nil
+        return Button {
+            Haptics.tap()
+            replyTarget = r
+        } label: {
+            Label(has ? "Antwort bearbeiten" : "Antworten", systemImage: "arrowshape.turn.up.left")
+                .font(.wr(.caption, .semibold))
+                .foregroundStyle(Color.moss)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 2)
     }
 
     private func given(_ r: SocialReview) -> some View {
@@ -276,6 +302,67 @@ struct SocialAwardsList: View {
         case 1: .ochre
         case 2: .slate
         default: .mossInk
+        }
+    }
+}
+
+
+/// Antwort des Shops auf eine Bewertung (leer speichern = Antwort entfernen)
+private struct ReviewReplySheet: View {
+    var review: SocialReview
+    var onSaved: (String?) -> Void
+
+    @Environment(AppState.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var saving = false
+
+    private struct ReplyBody: Encodable { var reply: String }
+    private struct ReplyResult: Decodable { var reply: String? }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    if let b = review.body?.nilIfEmpty {
+                        Text(b).font(.wr(.subheadline)).foregroundStyle(Color.ink2)
+                    }
+                } header: {
+                    Text(review.author?.profile?.displayName ?? "Bewertung")
+                }
+                Section {
+                    TextField("Deine Antwort", text: $text, axis: .vertical)
+                        .lineLimit(4...10)
+                } header: {
+                    Text("Antwort des Shops")
+                } footer: {
+                    Text("Höchstens 1000 Zeichen · \(text.count)/1000. Leer speichern entfernt die Antwort.")
+                }
+            }
+            .navigationTitle(review.sellerReply?.nilIfEmpty == nil ? "Antworten" : "Antwort bearbeiten")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Speichern") { Task { await save() } }
+                        .disabled(saving || text.count > 1000)
+                }
+            }
+            .onAppear { text = review.sellerReply ?? "" }
+        }
+    }
+
+    private func save() async {
+        saving = true
+        defer { saving = false }
+        var saved: String?
+        let ok = await app.run(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Antwort entfernt." : "Antwort gespeichert.") {
+            let r: ReplyResult = try await APIClient.shared.put("/reviews/\(review.id)/reply", ReplyBody(reply: text))
+            saved = r.reply
+        }
+        if ok {
+            onSaved(saved)
+            dismiss()
         }
     }
 }

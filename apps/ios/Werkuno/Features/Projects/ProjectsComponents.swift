@@ -268,14 +268,22 @@ struct ProjectsLineDraft: Identifiable, Hashable {
     var quantity = ""
     var note = ""
     var materialId: String?
+    /// Richtpreis der Zeile als Eingabe („12.50“), nur bei Anleitungen
+    var cost = ""
 
-    init(name: String = "", quantity: String = "", note: String = "", materialId: String? = nil) {
-        self.name = name; self.quantity = quantity; self.note = note; self.materialId = materialId
+    init(name: String = "", quantity: String = "", note: String = "", materialId: String? = nil, cost: String = "") {
+        self.name = name; self.quantity = quantity; self.note = note; self.materialId = materialId; self.cost = cost
     }
     init(_ v: ProjectsLineValue) {
-        self.init(name: v.name, quantity: v.quantity ?? "", note: v.note ?? "", materialId: v.materialId)
+        self.init(name: v.name, quantity: v.quantity ?? "", note: v.note ?? "", materialId: v.materialId, cost: Fmt.moneyInput(v.costMinor))
     }
-    var value: ProjectsLineValue { ProjectsLineValue(name: name, quantity: quantity, note: note, materialId: materialId) }
+    /// Preis in Rappen/Cent; nil = leer, -1 = ungültige Eingabe
+    var costMinor: Int? {
+        let t = cost.trimmed
+        guard !t.isEmpty else { return nil }
+        return Fmt.parseMoney(t) ?? -1
+    }
+    var value: ProjectsLineValue { ProjectsLineValue(name: name, quantity: quantity, note: note, materialId: materialId, costMinor: costMinor) }
     var isEmpty: Bool { name.trimmed.isEmpty }
 }
 
@@ -289,12 +297,14 @@ struct ProjectsLineEditor: View {
     var kind: Kind
     var errorPrefix: String
     var errors: ProjectsFieldErrors
+    /// Preisfeld je Zeile (nur Material in Anleitungen); Wert = Währungskürzel, z. B. „CHF“
+    var costCurrency: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(lines.enumerated()), id: \.element.id) { idx, line in
                 if let b = binding(for: line.id) {
-                    ProjectsLineRow(line: b, index: idx, kind: kind, error: errors["\(errorPrefix).\(idx)"]) {
+                    ProjectsLineRow(line: b, index: idx, kind: kind, error: errors["\(errorPrefix).\(idx).costMinor"] ?? errors["\(errorPrefix).\(idx)"], costCurrency: costCurrency) {
                         withAnimation(.snappy) { lines.removeAll { $0.id == line.id } }
                     } move: { d in
                         let j = idx + d
@@ -333,6 +343,7 @@ private struct ProjectsLineRow: View {
     var index: Int
     var kind: ProjectsLineEditor.Kind
     var error: String?
+    var costCurrency: String?
     var remove: () -> Void
     var move: (Int) -> Void
 
@@ -361,6 +372,7 @@ private struct ProjectsLineRow: View {
                     TextField("Notiz (optional)", text: $line.note)
                         .font(.wr(.footnote))
                         .foregroundStyle(Color.ink2)
+                    if let costCurrency, kind == .material { costField(costCurrency) }
                 }
                 Menu {
                     if index > 0 { Button("Nach oben", systemImage: "arrow.up") { move(-1) } }
@@ -410,13 +422,34 @@ private struct ProjectsLineRow: View {
             if line.materialId != nil, old != new, new != pickedName { line.materialId = nil }
         }
         .task(id: nameFocused ? line.name : "") {
-            guard kind == .material, nameFocused, line.name.trimmed.count >= 2, line.materialId == nil else { hits = []; return }
-            try? await Task.sleep(for: .milliseconds(280))
-            guard !Task.isCancelled else { return }
-            let q = line.name.trimmed
-            let found: [ProjectsMaterialHit] = (try? await APIClient.shared.get("/materials", query: ["q": q, "limit": "8"])) ?? []
-            withAnimation(.snappy) { hits = found }
+            await searchMaterials()
         }
+    }
+
+    /// Optionaler Richtpreis der ganzen Zeile (wie im Web: „Preis“ beim Material)
+    private func costField(_ currency: String) -> some View {
+        let invalid = (line.costMinor ?? 0) < 0 || (line.costMinor ?? 0) > 10_000_000
+        return HStack(spacing: 6) {
+            Text("Preis").font(.wr(.footnote)).foregroundStyle(Color.muted)
+            Spacer(minLength: 0)
+            Text(currency).font(.wr(.footnote)).foregroundStyle(Color.muted)
+            TextField("optional", text: $line.cost)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 92)
+                .font(.wr(.subheadline).monospacedDigit())
+                .foregroundStyle(invalid ? Color.danger : Color.ink)
+                .accessibilityLabel("Richtpreis in \(currency)")
+        }
+    }
+
+    private func searchMaterials() async {
+        guard kind == .material, nameFocused, line.name.trimmed.count >= 2, line.materialId == nil else { hits = []; return }
+        try? await Task.sleep(for: .milliseconds(280))
+        guard !Task.isCancelled else { return }
+        let q = line.name.trimmed
+        let found: [ProjectsMaterialHit] = (try? await APIClient.shared.get("/materials", query: ["q": q, "limit": "8"])) ?? []
+        withAnimation(.snappy) { hits = found }
     }
 }
 
@@ -432,6 +465,8 @@ struct ProjectsSpecTable: View {
         /// Verknüpftes Material der Datenbank (für „Habe ich“ und Link zur Materialseite)
         var materialId: String? = nil
         var materialSlug: String? = nil
+        /// Richtpreis der Zeile (bereits formatiert, z. B. „ca. CHF 12.00“)
+        var price: String? = nil
     }
     var title: String
     var rows: [Row]
@@ -479,6 +514,9 @@ struct ProjectsSpecTable: View {
                     VStack(alignment: .trailing, spacing: 6) {
                         if showQuantity, let q = r.quantity?.nilIfEmpty {
                             Text(q).font(.wr(.subheadline).monospacedDigit()).foregroundStyle(Color.ink2)
+                        }
+                        if let p = r.price {
+                            Text(p).font(.wr(.caption).monospacedDigit()).foregroundStyle(Color.muted)
                         }
                         if let stock {
                             if let mid = r.materialId {

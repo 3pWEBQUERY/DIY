@@ -10,9 +10,11 @@ import { storyRoutes } from "./routes/stories";
 import { supporterRoutes } from "./routes/supporters";
 import { hashtagRoutes } from "./routes/hashtags";
 import { newsletterRoutes } from "./routes/newsletter";
+import { toolRoutes } from "./routes/tools";
+import { pdfBrandRoutes } from "./routes/pdf-brand";
 
 /**
  * Routentabelle der Mobile-API. Reihenfolge zählt: spezifische Pfade vor Platzhaltern
  * (z. B. `/shopping-lists/add-source` vor `/shopping-lists/:id`).
  */
-export const mobileRoutes: RouteDef[] = [...identityRoutes, ...storyRoutes, ...socialRoutes, ...contentRoutes, ...commerceRoutes, ...communityRoutes, ...studioAdminRoutes, ...supporterRoutes, ...hashtagRoutes, ...newsletterRoutes];
+export const mobileRoutes: RouteDef[] = [...identityRoutes, ...storyRoutes, ...socialRoutes, ...contentRoutes, ...commerceRoutes, ...communityRoutes, ...studioAdminRoutes, ...supporterRoutes, ...hashtagRoutes, ...newsletterRoutes, ...toolRoutes, ...pdfBrandRoutes];

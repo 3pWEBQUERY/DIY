@@ -17,6 +17,8 @@ struct TutorialDetailView: View {
     @State private var completedAt: Date?
     @State private var versionSeen: Int?
     @State private var reader: TutorialReaderStart?
+    @State private var workshop = false
+    @State private var printing = false
     @State private var confirmDelete = false
     @State private var confirmReset = false
     @State private var showVersions = false
@@ -62,6 +64,17 @@ struct TutorialDetailView: View {
                 .environment(router)
                 .toastOverlay()
             }
+        }
+        .fullScreenCover(isPresented: $workshop) {
+            if let page {
+                TutorialWorkshopView(page: page, done: $done, completedAt: $completedAt, toggle: { await toggle($0, page) }, complete: { await complete(page) })
+                    .environment(app)
+                    .environment(router)
+                    .toastOverlay()
+            }
+        }
+        .sheet(isPresented: $printing) {
+            if let page { TutorialPrintSheet(slug: page.slug, title: page.title) }
         }
         .confirmationDialog("Anleitung löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Endgültig löschen", role: .destructive) { Task { await deleteTutorial() } }
@@ -257,9 +270,27 @@ struct TutorialDetailView: View {
                     .accessibilityLabel("Fortschritt zurücksetzen")
                 }
             }
+            workshopButtons(t)
         }
         .padding(16)
         .cardSurface()
+    }
+
+    /// Wie im Web neben der Anleitung: Werkstatt-Modus (Vollbild mit Timer) und Druckfassung
+    private func workshopButtons(_ t: TutorialPage) -> some View {
+        HStack(spacing: 10) {
+            Button { workshop = true } label: {
+                Label("Werkstatt-Modus", systemImage: "hammer").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
+            }
+            .disabled(t.steps.isEmpty)
+            .accessibilityHint("Schritt für Schritt im Vollbild, mit Timer")
+            Button { printing = true } label: {
+                Label("PDF / Drucken", systemImage: "printer").font(.wr(.subheadline, .semibold)).frame(maxWidth: .infinity)
+            }
+            .accessibilityHint("Druckfassung mit Material zum Abhaken – auch als PDF")
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
     }
 
     // MARK: Material
@@ -272,7 +303,8 @@ struct TutorialDetailView: View {
                 Text("Keine Materialliste hinterlegt.").font(.wr(.subheadline)).foregroundStyle(Color.muted)
             } else {
                 if !materials.isEmpty {
-                    ProjectsSpecTable(title: "Material", rows: materials.enumerated().map { .init(id: "m\($0.offset)", name: $0.element.name, quantity: $0.element.quantity, note: $0.element.note) })
+                    ProjectsSpecTable(title: "Material", rows: materialRows(materials, currency: t.costCurrency))
+                    if let cost = t.materialsCost { costTotal(cost, currency: t.costCurrency) }
                 }
                 if !tools.isEmpty {
                     ProjectsSpecTable(title: "Werkzeug", rows: tools.enumerated().map { .init(id: "t\($0.offset)", name: $0.element.name, quantity: nil, note: $0.element.note) }, showQuantity: false)
@@ -286,6 +318,27 @@ struct TutorialDetailView: View {
                 .padding(.top, 4)
             }
         }
+    }
+
+    private func materialRows(_ lines: [ProjectsLineValue], currency: String?) -> [ProjectsSpecTable.Row] {
+        lines.enumerated().map { i, m in
+            let price = m.costMinor.map { "ca. " + Fmt.money($0, currency: currency) }
+            return ProjectsSpecTable.Row(id: "m\(i)", name: m.name, quantity: m.quantity, note: m.note, price: price)
+        }
+    }
+
+    /// „Material ca. CHF 42.00“ – mit „ab“, wenn nicht jede Zeile einen Preis hat (wie im Web)
+    private func costTotal(_ cost: (totalMinor: Int, complete: Bool), currency: String?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            SpecLabel("Material ca.", color: .ink)
+            Spacer()
+            Text("\(cost.complete ? "" : "ab ")\(Fmt.money(cost.totalMinor, currency: currency))")
+                .font(.wr(.body, .semibold).monospacedDigit()).foregroundStyle(Color.ink)
+        }
+        .padding(.vertical, 10)
+        .hairline()
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(cost.complete ? "" : "Nicht für jedes Material ist ein Preis angegeben.")
     }
 
     // MARK: Schritte (Übersicht)
@@ -454,12 +507,17 @@ struct TutorialDetailView: View {
                     }
                 }
                 if let url = AppConfig.resolve(t.href ?? "/anleitungen/\(t.slug)") { ShareLink(item: url) { Label("Teilen", systemImage: "square.and.arrow.up") } }
+                Button("Als PDF teilen / Drucken", systemImage: "printer") { printing = true }
                 Divider()
                 Button("Anleitung löschen", systemImage: "trash", role: .destructive) { confirmDelete = true }
             } else {
                 Button("Nachbauen", systemImage: "arrow.triangle.branch") { remix(t) }
                 Button("Auf Einkaufsliste", systemImage: "cart.badge.plus") { router.present(.shoppingListPicker(kind: "TUTORIAL", id: t.id, title: t.title)) }
                 Button("In Sammlung speichern …", systemImage: "folder.badge.plus") { router.present(.collectionPicker(type: "TUTORIAL", id: t.id)) }
+                if !t.isLocked {
+                    Button("Werkstatt-Modus", systemImage: "hammer") { workshop = true }.disabled(t.steps.isEmpty)
+                    Button("Als PDF teilen / Drucken", systemImage: "printer") { printing = true }
+                }
                 Divider()
                 SafetyMenuItems(targetType: "TUTORIAL", targetId: t.id, authorId: t.author.id, authorName: t.author.displayName, shareURL: AppConfig.resolve(t.href ?? "/anleitungen/\(t.slug)"))
             }

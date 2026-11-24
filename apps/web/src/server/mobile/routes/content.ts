@@ -196,6 +196,13 @@ export const contentRoutes: RouteDef[] = [
     return tutorials.scheduleTutorial(await me(), c.p.id!, at ? new Date(at) : null);
   }),
   // Geplante Inhalte (Beiträge, Artikel, Projekte, Anleitungen, Newsletter) – Liste „Geplant“ im Studio
+  // Inhaltskalender (Creator Pro): ?view=month&month=2026-11 | ?view=week&week=2026-W48
+  GET("/studio/calendar", async (c) => {
+    const u = await me();
+    const [{ calendarView }, { isPro }] = await Promise.all([import("@/server/pro/calendar-view"), import("@/server/pro/service")]);
+    if (!(await isPro(u.id))) throw fail.forbidden("Der Inhaltskalender ist Teil von Creator Pro.");
+    return calendarView(u.id, { week: str(c.q, "view") === "week", month: str(c.q, "month") ?? null, weekKey: str(c.q, "week") ?? null });
+  }),
   GET("/studio/scheduled", async () => {
     const u = await me();
     const [{ upcomingScheduled }, { isPro }] = await Promise.all([import("@/server/pro/calendar"), import("@/server/pro/service")]);

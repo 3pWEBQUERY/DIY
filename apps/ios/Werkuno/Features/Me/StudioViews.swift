@@ -8,9 +8,11 @@ struct StudioView: View {
     @Environment(Router.self) private var router
     @State private var data: MeStudioOverviewResponse?
     @State private var error: String?
+    @State private var showPdfBrand = false
 
     var body: some View {
         MePhase(value: data, error: error, retry: load) { d in content(d) }
+            .navigationDestination(isPresented: $showPdfBrand) { PdfBrandSettingsView() }
             .background(Color.paper)
             .navigationTitle("Werkuno Studio")
             .navigationBarTitleDisplayMode(.inline)
@@ -96,6 +98,9 @@ struct StudioView: View {
                             MeNavRow(symbol: s.symbol, title: s.title, subtitle: subtitle(s), tint: isShopSection(s) ? .clay : .ink, trailing: lockedFeature(s) == nil ? nil : "Pro") { openSection(s) }
                         }
                         MeNavRow(symbol: "seal", title: "Creator Pro", subtitle: app.me?.profile?.isCreatorPro == true ? "Aktiv · Schaufenster, Medienkit, Abo" : "Status und Vorteile", tint: .moss) { router.open(.creatorPro()) }
+                        MeNavRow(symbol: "printer", title: "PDF-Branding", subtitle: isPro ? "Logo, Name und Link in der Druckfassung" : "Logo, Name und Link in der Druckfassung (Pro)", trailing: isPro ? nil : "Pro") {
+                            if isPro { showPdfBrand = true } else { router.open(.creatorPro(feature: .pdfBranding)) }
+                        }
                     }
                 }
 
@@ -121,6 +126,8 @@ struct StudioView: View {
         case .newsletter: return .newsletter
         case .sales: return .aktionen
         case .scheduled: return .kalender
+        case .comments: return .kommentare
+        case .profileDesign: return .profilDesign
         default: return nil
         }
     }
@@ -129,7 +136,7 @@ struct StudioView: View {
         if let f = lockedFeature(s) { router.open(.creatorPro(feature: f)) } else { router.open(.studioSection(s)) }
     }
 
-    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .bundles, .sales, .shop, .revenue].contains(s) }
+    private func isShopSection(_ s: StudioSection) -> Bool { [.products, .orders, .coupons, .bundles, .giftCards, .sales, .shop, .revenue].contains(s) }
 
     private func subtitle(_ s: StudioSection) -> String? {
         switch s {
@@ -143,12 +150,15 @@ struct StudioView: View {
         case .orders: "Eingegangene Bestellungen"
         case .coupons: app.me?.shop == nil ? "Mit eigenem Shop" : "Rabattcodes für Aktionen"
         case .bundles: app.me?.shop == nil ? "Mit eigenem Shop" : "Produkte bündeln mit Set-Rabatt"
+        case .giftCards: app.me?.shop == nil ? "Mit eigenem Shop" : "Angebot, verkaufte Gutscheine, Guthaben"
         case .sales: app.me?.shop == nil ? "Mit eigenem Shop" : "Rabatt mit Countdown (Pro)"
         case .shop: app.me?.shop?.name ?? "Shop eröffnen"
         case .media: "Bilder, Videos, Alt-Texte"
         case .stats: "Kennzahlen je Inhalt"
         case .revenue: "Umsatz, Gebühren, Auszahlungen"
         case .supporters: "Unterstützer-Abo, exklusive Anleitungen"
+        case .comments: isPro ? "Wortfilter für Kommentare" : "Wortfilter für Kommentare (Pro)"
+        case .profileDesign: isPro ? "Farben und Schrift deines Profils" : "Farben und Schrift deines Profils (Pro)"
         }
     }
 
@@ -789,115 +799,7 @@ private struct MeMediaDetailSheet: View {
     }
 }
 
-// MARK: - Statistiken
-
-struct StudioStatsView: View {
-    @Environment(AppState.self) private var app
-    @State private var data: MeStudioStats?
-    @State private var error: String?
-
-    private struct Bar: Identifiable { var id: String; var title: String; var kind: String; var value: Int }
-
-    var body: some View {
-        MePhase(value: data, error: error, retry: load) { d in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    PageTitle(kicker: "Studio", title: "Statistiken", subtitle: "Kennzahlen je Inhalt seit Veröffentlichung. Aufrufe sind Seitenaufrufe, keine eindeutigen Personen.")
-                    overview(d)
-                    table("Projekte", number: "01", rows: d.projects ?? [], columns: [("eye", "Aufrufe", \.viewCount), ("heart", "Gefällt-mir", \.likeCount), ("bookmark", "gemerkt", \.saveCount), ("bubble.left", "Kommentare", \.commentCount), ("arrow.triangle.branch", "Nachbauten", \.remixCount)])
-                    table("Anleitungen", number: "02", rows: d.tutorials ?? [], columns: [("eye", "Aufrufe", \.viewCount), ("checkmark.seal", "abgeschlossen", \.completionCount), ("bookmark", "gemerkt", \.saveCount), ("heart", "Gefällt-mir", \.likeCount)])
-                    table("Artikel", number: "03", rows: d.articles ?? [], columns: [("eye", "Aufrufe", \.viewCount), ("heart", "Gefällt-mir", \.likeCount)])
-                    table("Beiträge", number: "04", rows: d.posts ?? [], columns: [("heart", "Gefällt-mir", \.likeCount), ("bubble.left", "Kommentare", \.commentCount), ("bookmark", "gemerkt", \.saveCount), ("arrow.2.squarepath", "geteilt", \.repostCount)])
-                    if !(d.products ?? []).isEmpty {
-                        table("Produkte", number: "05", rows: d.products ?? [], columns: [("eye", "Aufrufe", \.viewCount), ("bookmark", "gemerkt", \.saveCount), ("star", "Bewertungen", \.ratingCount), ("shippingbox", "verkauft", \.orderItemCount)])
-                    }
-                }
-                .padding(.horizontal, Space.gutter)
-                .padding(.bottom, 40)
-            }
-        }
-        .background(Color.paper)
-        .navigationTitle("Statistiken")
-        .navigationBarTitleDisplayMode(.inline)
-        .task { if data == nil { await load() } }
-        .refreshable { await load() }
-    }
-
-    private func load() async {
-        do { data = try await APIClient.shared.get("/studio/stats"); error = nil }
-        catch { if data == nil { self.error = MeErr.text(error) } else { app.show(error: error) } }
-    }
-
-    @ViewBuilder private func overview(_ d: MeStudioStats) -> some View {
-        let bars: [Bar] = ((d.projects ?? []).map { Bar(id: $0.id, title: $0.label, kind: "Projekt", value: $0.viewCount ?? 0) }
-            + (d.tutorials ?? []).map { Bar(id: $0.id, title: $0.label, kind: "Anleitung", value: $0.viewCount ?? 0) }
-            + (d.articles ?? []).map { Bar(id: $0.id, title: $0.label, kind: "Artikel", value: $0.viewCount ?? 0) }
-            + (d.products ?? []).map { Bar(id: $0.id, title: $0.label, kind: "Produkt", value: $0.viewCount ?? 0) })
-            .filter { $0.value > 0 }
-            .sorted { $0.value > $1.value }
-        if !bars.isEmpty {
-            let top = Array(bars.prefix(8))
-            VStack(alignment: .leading, spacing: 12) {
-                SpecLabel("Meistgesehen")
-                Chart(top) { b in
-                    BarMark(x: .value("Aufrufe", b.value), y: .value("Inhalt", b.title))
-                        .foregroundStyle(by: .value("Art", b.kind))
-                        .annotation(position: .trailing, alignment: .leading) {
-                            Text(Fmt.number(b.value)).font(.wr(.caption2)).monospacedDigit().foregroundStyle(Color.muted)
-                        }
-                        .clipShape(.rect(cornerRadius: 4))
-                }
-                .chartForegroundStyleScale(["Projekt": Color.moss, "Anleitung": Color.slate, "Artikel": Color.clay, "Produkt": Color.ochre])
-                .chartXAxis(.hidden)
-                .chartYAxis {
-                    AxisMarks { _ in AxisValueLabel(horizontalSpacing: 6).font(.wr(.caption)) }
-                }
-                .chartLegend(position: .bottom, alignment: .leading)
-                .frame(height: CGFloat(top.count) * 34 + 40)
-            }
-            .padding(16)
-            .cardSurface()
-        }
-    }
-
-    @ViewBuilder private func table(_ title: String, number: String, rows: [MeStatRow], columns: [(String, String, KeyPath<MeStatRow, Int?>)]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader(title, number: number, subtitle: rows.isEmpty ? "Noch nichts veröffentlicht" : Fmt.plural(rows.count, "Eintrag", "Einträge"))
-            if !rows.isEmpty {
-                let maxFirst = max(1, rows.map { $0[keyPath: columns[0].2] ?? 0 }.max() ?? 1)
-                VStack(spacing: 0) {
-                    ForEach(rows) { r in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(r.label).font(.wr(.subheadline, .semibold)).foregroundStyle(Color.ink).a11yLineLimit(2)
-                                Spacer(minLength: 8)
-                                if let p = r.publishedAt { Text(Fmt.date(p)).font(.wr(.caption)).foregroundStyle(Color.muted) }
-                            }
-                            GeometryReader { geo in
-                                let v = CGFloat(r[keyPath: columns[0].2] ?? 0) / CGFloat(maxFirst)
-                                Capsule().fill(Color.sunken)
-                                    .overlay(alignment: .leading) { Capsule().fill(Color.moss).frame(width: max(3, geo.size.width * v)) }
-                            }
-                            .frame(height: 4)
-                            .accessibilityHidden(true)
-                            HStack(spacing: 14) {
-                                ForEach(columns, id: \.1) { c in MeCountLabel(symbol: c.0, value: r[keyPath: c.2], label: c.1) }
-                                Spacer(minLength: 0)
-                            }
-                        }
-                        .padding(14)
-                        .hairline()
-                    }
-                }
-                .cardSurface()
-            }
-        }
-    }
-}
-
-private extension MeStatRow {
-    var orderItemCount: Int? { _count?.orderItems }
-}
+// MARK: - Statistiken: StudioStatsView in StudioStatsView.swift
 
 
 /// Aktivitätsraster wie bei GitHub: Spalten = Wochen (Mo–So von oben nach unten), Farbe = Anzahl
