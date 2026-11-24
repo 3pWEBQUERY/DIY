@@ -168,6 +168,7 @@ struct RouteView: View {
             case .sharedShoppingList(let t): SharedShoppingListView(token: t)
             case .materials: MaterialsView()
             case .cuttingCalculator(let code): CuttingCalculatorView(code: code)
+            case .pdfBrand: PdfBrandSettingsView()
             case .studio: StudioView()
             case .studioSection(let s): StudioSectionView(section: s)
             case .creatorPro(let feature): StudioProView(highlight: feature)

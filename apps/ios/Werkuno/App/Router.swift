@@ -139,6 +139,8 @@ enum Route: Hashable {
     case materialStock
     /// Zuschnittrechner (`/werkzeuge/zuschnitt`, optional mit geteiltem Plan aus `#d=…`)
     case cuttingCalculator(code: String? = nil)
+    /// Studio › Einstellungen: PDF-Branding (ohne Pro mit Hinweis auf Creator Pro)
+    case pdfBrand
     /// Eigene Entwürfe & geplante Beiträge (Web: Studio → Inhalte → Beiträge/Entwürfe)
     case postDrafts
     /// Wettbewerbe (`/wettbewerbe`, optional auf eine Community gefiltert)
@@ -226,7 +228,7 @@ enum Route: Hashable {
             case ("studio", 3) where s[1] == "bestellungen": return .sellerOrder(id: s[2])
             case ("studio", 2) where s[1] == "pro": return .creatorPro(feature: q["funktion"].flatMap(ProFeature.init(rawValue:)))
             // Studio-Einstellungen im Web: Profil & Konto (+ PDF-Branding) → App-Einstellungen
-            case ("studio", 2) where s[1] == "einstellungen": return .settings
+            case ("studio", 2) where s[1] == "einstellungen": return .pdfBrand
             case ("studio", _):
                 let map: [String: StudioSection] = ["inhalte": .content, "projekte": .projects, "anleitungen": .tutorials, "blog": .articles, "kalender": .scheduled, "newsletter": .newsletter, "produkte": .products, "bestellungen": .orders, "rabatte": .coupons, "geschenkgutscheine": .giftCards, "aktionen": .sales, "kommentare": .comments, "profil-design": .profileDesign, "shop": .shop, "medien": .media, "statistiken": .stats, "einnahmen": .revenue, "unterstuetzer": .supporters]
                 return map[s[1]].map { .studioSection($0) } ?? .studio
